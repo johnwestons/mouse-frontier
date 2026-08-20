@@ -1,0 +1,12 @@
+# Local audit outputs and intermediate image-generation files
+.stabilization/
+tmp/
+
+# Local runtime save data
+saves/
+save*.json
+
+# OS/editor noise
+Thumbs.db
+.DS_Store
+

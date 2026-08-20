@@ -1,0 +1,58 @@
+# Mouse Frontier — Version 0.7
+
+A playable foundation for a post-apocalyptic critter journey aboard a four-car train.
+
+## Run on Windows
+
+1. Install [LÖVE 11.x for Windows](https://love2d.org/) using the 64-bit installer.
+2. Double-click `RUN_GAME.bat` in this project folder.
+
+You can also drag the entire project folder onto `love.exe`. Do not open `main.lua` by itself because LÖVE needs the artwork and configuration files too.
+
+## Controls
+
+- Click one of the three save slots, then choose a main character.
+- Existing slots offer **Continue**, **New** (overwrite), and **Delete** controls.
+- Move with **WASD** or the **arrow keys**.
+- Click **TRAVEL TO NEXT STOP** to spend one food, water, and coal.
+- Open the backpack with its top-right button or press **I**.
+- Click an item and then another slot to rearrange it.
+- Select an item and click **DROP SELECTED ITEM** to place it permanently in the train.
+- Stand near a dropped collectible and press **E** to pick it up.
+- Walk to the final train-car door and press **E** to leave at a stop.
+- Stand beside the engine fire and press **E** to add a coal chunk or coal bucket from the backpack.
+- Stand near an NPC and press **E** to talk. NPCs idle and wander near their homes.
+- Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
+- Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
+- Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.
+- Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
+- Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
+- Weapon damage and mob difficulty increase as the journey progresses.
+- On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
+- Hold **Shift** while moving to sprint.
+- Battles award experience; gaining levels improves maximum health and adds an attack bonus.
+- Travel chests hold 10 persistent items. Stand nearby and press **E**, then drag items between chest and backpack slots.
+- The cowboy mouse uses dedicated left- and right-walking sprites while moving.
+- New houses receive a persistent randomized selection of four to six furniture pieces.
+- Home and train interiors use new original pixel-art wood, rug, iron, brass, and upholstery textures.
+- Mobs float while idling, flash when struck, and attacks display an animated slash impact.
+- The map reveals terrain sketches, biome names, encounter status, and a winding dotted trail for visited stops.
+- Stop scenes retain the current landscape without scrolling and include generated homes, trees, collectibles, and an NPC.
+- Press **Escape** to close the backpack or return to the save menu.
+- Progress saves after important choices, when traveling, and when the game closes.
+
+## Project layout
+
+- `main.lua` — save slots, character selection, train, journey resources, inventory, persistent drops, controls, and drawing
+- `conf.lua` — window and game settings
+- `RUN_GAME.bat` — double-click Windows launcher
+- `assets/sprites/MainCharacters/` — selectable player characters
+- `assets/sprites/NPCS/` — characters encountered at stops
+- `assets/sprites/Mobs/` — future enemy units
+- `assets/sprites/props/` — inventory and decoration sprites
+- `assets/sprites/items/` — generated collectible sprites
+- `assets/sprites/environment/` — generated houses, trees, and train furniture
+- `assets/sprites/train/` — generated locomotive and train-car artwork
+- `backgroundReferences/` — landscape references; the prototype currently scrolls the desert landscape
+
+LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder.
