@@ -3,14 +3,21 @@ local CharacterAnimation = require("game.character_animation")
 local EventUI = require("game.event_ui")
 local Roster = require("game.roster")
 local Wildlife = require("game.wildlife") -- retained only for dynamic chickens
+local AssetDiagnostics = require("game.asset_diagnostics")
 
 local Assets = {}
 local missingRequired
 local lazyPaths=setmetatable({},{__mode="k"})
 
-local function loadImage(path)
+local function loadImage(path,category)
     local ok, image = pcall(love.graphics.newImage, path)
+    if (not ok or not image) and category then AssetDiagnostics.record(path,category,ok and "no image returned" or image) end
     return ok and image or nil
+end
+
+local function loadFallback(paths,category)
+    for _,path in ipairs(paths) do local image=loadImage(path); if image then return image end end
+    AssetDiagnostics.record(table.concat(paths," OR "),category,"all fallback candidates failed")
 end
 
 local function prepareLazyImages(destination)
@@ -40,22 +47,22 @@ local function releaseLazyImages(destination,keep)
 end
 
 local function requireImage(path)
-    local image = loadImage(path)
+    local image = loadImage(path,"required")
     if not image and missingRequired then missingRequired[#missingRequired + 1] = path end
     return image
 end
 
-local function loadFolderImages(path, destination, predicate)
+local function loadFolderImages(path, destination, predicate, category)
     if not love.filesystem.getInfo(path) then return end
     for _, file in ipairs(love.filesystem.getDirectoryItems(path)) do
         if file:match("%.png$") and (not predicate or predicate(file)) then
-            destination[file:gsub("%.png$", "")] = loadImage(path .. "/" .. file)
+            destination[file:gsub("%.png$", "")] = loadImage(path .. "/" .. file,category)
         end
     end
 end
 
 local function registerItemAtlas(ui, path, names, columns, rows)
-    local image = loadImage(path)
+    local image = loadImage(path,"item atlas")
     if not image then return end
     local imageWidth, imageHeight = image:getDimensions()
     local cellWidth, cellHeight = imageWidth / columns, imageHeight / rows
@@ -70,8 +77,34 @@ local function registerItemAtlas(ui, path, names, columns, rows)
     end
 end
 
+local function validateCatalogArt(ui)
+    local checked = {}
+    local virtual = {scratch=true, ["mob-claw"]=true, ["mob-spit"]=true}
+    local function requireNamed(name, category)
+        if not name or checked[name] or virtual[name] then return end
+        checked[name] = true
+        if not ui.propImages[name] and not ui.atlasItems[name] then
+            AssetDiagnostics.record("catalog:" .. name, category, "no standalone sprite or atlas entry")
+        end
+    end
+    local function requireKeys(values, category)
+        for name in pairs(values or {}) do requireNamed(name, category) end
+    end
+    local function requireList(values, category)
+        for _, name in ipairs(values or {}) do requireNamed(name, category) end
+    end
+
+    requireKeys(Catalog.weaponStats, "catalog weapon")
+    requireKeys(Catalog.itemEffects, "catalog item")
+    requireKeys(Catalog.backpackUpgrades, "catalog backpack")
+    requireKeys(Catalog.storageCapacities, "catalog furniture")
+    requireKeys(Catalog.ammoPickupAmounts, "catalog ammunition")
+    requireList(Catalog.questRewardItems, "catalog quest reward")
+    for _, pool in pairs(Catalog.lootPools or {}) do requireList(pool, "catalog loot") end
+end
+
 local function loadBattleAtlas(file, label)
-    local image = loadImage("assets/sprites/battle-maps/" .. file)
+    local image = loadImage("assets/sprites/battle-maps/" .. file,"battle scenery")
     if not image then return nil end
     local imageWidth, imageHeight = image:getDimensions()
     local cellWidth, cellHeight = imageWidth / 3, imageHeight / 2
@@ -86,7 +119,7 @@ end
 local function loadMenuFrames(ui)
     ui.menuFrames = {}
     for index, file in ipairs({"train-dialog-frame-v1.png", "train-panel-frame-v1.png", "train-tooltip-frame-v1.png", "train-button-frame-v1.png"}) do
-        local image = loadImage("assets/sprites/ui/" .. file)
+        local image = loadImage("assets/sprites/ui/" .. file,"UI")
         if image then
             local frame = {image = image, w = image:getWidth(), h = image:getHeight(), quads = {}}
             local sliceX, sliceY = math.floor(frame.w * .22), math.floor(frame.h * .28)
@@ -135,6 +168,7 @@ local function loadShader()
 end
 
 function Assets.load(targets)
+    AssetDiagnostics.reset()
     missingRequired = {}
     local ui, scenery = targets.ui, targets.scenery
     local characters, characterImages = targets.characters, targets.characterImages
@@ -148,8 +182,8 @@ function Assets.load(targets)
         prepareLazyImages(images)
     end
 
-    ui.radioFace = loadImage("assets/sprites/ui/radio/radio-gui.png")
-    ui.radioButtonsImage = loadImage("assets/sprites/ui/radio/radio-buttons.png")
+    ui.radioFace = loadImage("assets/sprites/ui/radio/radio-gui.png","UI")
+    ui.radioButtonsImage = loadImage("assets/sprites/ui/radio/radio-buttons.png","UI")
     if ui.radioButtonsImage then
         local imageWidth, imageHeight = ui.radioButtonsImage:getDimensions()
         ui.radioButtonQuads = {}
@@ -171,17 +205,17 @@ function Assets.load(targets)
     for index = 1, 12 do
         local prefix = "^stop%-" .. string.format("%02d", index)
         for _, file in ipairs(backgroundFiles) do
-            if file:match(prefix) then targets.backgroundImages[index] = loadImage("assets/backgrounds/" .. file) end
+            if file:match(prefix) then targets.backgroundImages[index] = loadImage("assets/backgrounds/" .. file,"scenery") end
         end
     end
 
-    scenery.fire = loadImage("assets/sprites/characters/fire-spirit.png")
-    scenery.fireFrames = {scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-2.png"), scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-3.png")}
-    scenery.boiler = loadImage("assets/sprites/train-decorations/boiler-firebox.png")
-    scenery.curtain = loadImage("assets/sprites/train-decorations/train-window-curtain.png") or loadImage("assets/sprites/train-decorations/porthole-curtain.png")
-    scenery.smokeLarge1 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-1.png")
-    scenery.smokeLarge2 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-2.png")
-    scenery.smokeSmall = loadImage("assets/sprites/train-decorations/locomotive-smoke-small.png")
+    scenery.fire = loadImage("assets/sprites/characters/fire-spirit.png","train scenery")
+    scenery.fireFrames = {scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-2.png","train scenery"), scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-3.png","train scenery")}
+    scenery.boiler = loadImage("assets/sprites/train-decorations/boiler-firebox.png","train scenery")
+    scenery.curtain = loadFallback({"assets/sprites/train-decorations/train-window-curtain.png","assets/sprites/train-decorations/porthole-curtain.png"},"train scenery")
+    scenery.smokeLarge1 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-1.png","train scenery")
+    scenery.smokeLarge2 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-2.png","train scenery")
+    scenery.smokeSmall = loadImage("assets/sprites/train-decorations/locomotive-smoke-small.png","train scenery")
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/MainCharacters/animations")) do
         if file:match("%-walk%.png$") and not file:match("%-left%.png$") and not file:match("%-right%.png$") then
@@ -191,7 +225,7 @@ function Assets.load(targets)
         end
     end
 
-    scenery.homeTexture = loadImage("assets/textures/home-interior-floor.png")
+    scenery.homeTexture = loadImage("assets/textures/home-interior-floor.png","interior scenery")
     -- Interior images are intentionally not created here.  The filename list is
     -- cheap startup metadata; AssetStreamer keeps only the active home on the GPU.
     scenery.interiors = nil
@@ -211,7 +245,7 @@ function Assets.load(targets)
     for _, file in ipairs(generatedInteriorFiles) do
         scenery.interiorFiles[#scenery.interiorFiles + 1] = file
     end
-    scenery.trainTexture = loadImage("assets/textures/train-interior-panels.png")
+    scenery.trainTexture = loadImage("assets/textures/train-interior-panels.png","train scenery")
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS")) do
         if Roster.isNpcCandidate(file) then npcImages[file] = requireImage("assets/sprites/NPCS/" .. file) end
@@ -243,13 +277,13 @@ function Assets.load(targets)
         end
     end
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
-        loadFolderImages("assets/sprites/NPCS/families", targets.familyImages)
+        loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end
     table.sort(mobFiles)
 
     ui.propImages = {}
-    for _, path in ipairs({"assets/sprites/props", "assets/sprites/items", "assets/sprites/furniture", "assets/sprites/weapons", "assets/sprites/train-decorations", "assets/sprites/ammo"}) do
-        loadFolderImages(path, ui.propImages)
+    for _, path in ipairs({"assets/sprites/props", "assets/sprites/items", "assets/sprites/furniture", "assets/sprites/weapons", "assets/sprites/train-decorations", "assets/sprites/ammo", "assets/sprites/gear"}) do
+        loadFolderImages(path, ui.propImages,nil,"item/furniture/weapon")
     end
     targets.itemIdleImages["flower-pot"] = {ui.propImages["flower-pot"], loadImage("assets/sprites/items/animations/flower-pot-idle-2.png"), loadImage("assets/sprites/items/animations/flower-pot-idle-3.png")}
 
@@ -257,23 +291,24 @@ function Assets.load(targets)
     registerItemAtlas(ui, "assets/sprites/atlases/food-water-v1.png", {"trail-beans-can", "dried-berry-pouch", "cornbread-square", "mushroom-stew", "jerky-bundle", "preserved-peaches", "metal-water-flask", "blue-water-bottle", "rainwater-jar", "patched-canteen", "boxed-fruit-drink", "ceramic-water-crock"}, 4, 3)
     registerItemAtlas(ui, "assets/sprites/atlases/firearms-v1.png", {"compact-scrap-pistol", "long-barrel-22-pistol", "heavy-frontier-pistol", "machine-pistol", "weathered-lever-rifle", "improvised-service-rifle", "compact-carbine", "rugged-submachine-gun"}, 4, 2)
     registerItemAtlas(ui, "assets/sprites/gear/backpack-upgrades-v1.png", {"patched-canvas-pack", "bedroll-hiking-pack", "frontier-leather-pack", "scavenger-frame-pack"}, 2, 2)
+    validateCatalogArt(ui)
     loadMenuFrames(ui)
 
     scenery.trainFrames, scenery.worldTrainFrames = {}, {}
     for index = 1, 3 do
-        local image = loadImage("assets/sprites/train/animations/locomotive-red-run-" .. index .. ".png")
+        local image = loadImage("assets/sprites/train/animations/locomotive-red-run-" .. index .. ".png","train scenery")
         scenery.trainFrames[index], scenery.worldTrainFrames[index] = image, image
     end
-    scenery.redTrain = loadImage("assets/sprites/train/locomotive-red.png")
+    scenery.redTrain = loadImage("assets/sprites/train/locomotive-red.png","train scenery")
     scenery.worldTrain = scenery.redTrain
     scenery.trainCarImages = {}
     for _, entry in ipairs(Catalog.trainCarCatalog) do
-        scenery.trainCarImages[entry.id] = loadImage("assets/sprites/train/cars/" .. entry.id .. ".png")
+        scenery.trainCarImages[entry.id] = loadImage("assets/sprites/train/cars/" .. entry.id .. ".png","train scenery")
     end
-    scenery.trainCarImages["living-car"] = loadImage("assets/sprites/train/cars/living-car.png")
-    scenery.track = loadImage("assets/sprites/tracks/railway-track-v1.png")
+    scenery.trainCarImages["living-car"] = loadImage("assets/sprites/train/cars/living-car.png","train scenery")
+    scenery.track = loadImage("assets/sprites/tracks/railway-track-v1.png","train scenery")
 
-    local projectileImage = loadImage("assets/sprites/projectiles/projectiles-packed-v1.png")
+    local projectileImage = loadImage("assets/sprites/projectiles/projectiles-packed-v1.png","battle scenery")
     if projectileImage then
         local imageWidth, imageHeight = projectileImage:getDimensions()
         local cellWidth = imageWidth / 5
@@ -281,7 +316,7 @@ function Assets.load(targets)
         for index = 1, 5 do scenery.projectiles.quads[index] = love.graphics.newQuad((index - 1) * cellWidth, 0, cellWidth, imageHeight, imageWidth, imageHeight) end
     end
 
-    local groundImage = loadImage("assets/sprites/ground/stop-ground-textures-v1.png")
+    local groundImage = loadImage("assets/sprites/ground/stop-ground-textures-v1.png","scenery")
     if groundImage then
         local imageWidth, imageHeight = groundImage:getDimensions()
         scenery.stopGround = {image = groundImage, w = imageWidth / 2, h = imageHeight / 2, quads = {}}
@@ -300,22 +335,29 @@ function Assets.load(targets)
     -- Settlement sprites now provide the complete stop surface and buildings.
     -- Keep only chicken assets from the wildlife module for future dynamic spawns.
     scenery.stopWildlife, scenery.stopWildlifeFeeding = {}, {}
-    loadFolderImages("assets/sprites/stop-wildlife", scenery.stopWildlife, function(file) return not file:find("atlas") end)
-    Wildlife.load(scenery.stopWildlife, loadImage)
-    scenery.eventArt = EventUI.load(loadImage)
+    loadFolderImages("assets/sprites/stop-wildlife", scenery.stopWildlife, function(file) return not file:find("atlas") end,"wildlife")
+    Wildlife.load(scenery.stopWildlife, function(path) return loadImage(path,"wildlife") end)
+    scenery.eventArt = EventUI.load(function(path) return loadImage(path,"event UI") end)
     if love.filesystem.getInfo("assets/sprites/stop-wildlife/animations") then
         for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/stop-wildlife/animations")) do
             local name = file:match("^(.-)%-feed%.png$")
-            if name then scenery.stopWildlifeFeeding[name] = loadImage("assets/sprites/stop-wildlife/animations/" .. file) end
+            if name then scenery.stopWildlifeFeeding[name] = loadImage("assets/sprites/stop-wildlife/animations/" .. file,"wildlife") end
         end
     end
 
     if #missingRequired > 0 then
         error("Required image assets failed to load:\n" .. table.concat(missingRequired, "\n"))
     end
+    if AssetDiagnostics.count() > 0 then
+        print("[ASSETS] " .. AssetDiagnostics.count() .. " art contract failure(s) detected:\n" .. AssetDiagnostics.summary())
+    end
     missingRequired = nil
     return CharacterAnimation.load("assets/sprites/character-animations", loadImage)
 end
+
+function Assets.assertHealthy() return AssetDiagnostics.assertHealthy() end
+function Assets.assetFailureSummary() return AssetDiagnostics.summary() end
+function Assets.assetFailureCount() return AssetDiagnostics.count() end
 
 function Assets.retainAnimationImages(tables,keep)
     for _,images in ipairs(tables or {}) do releaseLazyImages(images,keep) end

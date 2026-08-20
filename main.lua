@@ -117,7 +117,7 @@ local function newSave(character)
         resources = {food = 10, water = 10, coal = 10},
         health = 20, maxHealth = 20, stats={level=1,xp=0,nextXP=10},
         equipment = {"frontier-short-sword", "trail-slingshot"},
-        ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0},
+        ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0,["30-carbine"]=0,["8mm"]=0,["380-acp"]=0,["32-acp"]=0,["12-gauge"]=0,["762x39"]=0},
         inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
         droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
         encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
@@ -130,7 +130,7 @@ local function newSave(character)
     for i,name in ipairs(itemNames) do House.storeLoot(result,Catalog,name,i) end
     for i,name in ipairs(Catalog.weaponProgression) do House.storeLoot(result,Catalog,name,i+1) end
     for _,entry in ipairs({{"field-bandage-roll",2},{"herbal-tonic",5},{"frontier-medkit",8}}) do House.storeLoot(result,Catalog,entry[1],entry[2]) end
-    for i,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr"}) do House.storeLoot(result,Catalog,name,math.max(1,i*2-1)) end
+    for i,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do House.storeLoot(result,Catalog,name,math.max(1,i*2-1)) end
     House.storeLoot(result,Catalog,"rose-heart-arrow",7); House.storeLoot(result,Catalog,"blade-hearts",15)
     local expanded={"trail-beans-can","dried-berry-pouch","cornbread-square","mushroom-stew","jerky-bundle","preserved-peaches","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink","ceramic-water-crock","compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","machine-pistol","weathered-lever-rifle","compact-carbine","rugged-submachine-gun","improvised-service-rifle"}
     for i,name in ipairs(expanded) do House.storeLoot(result,Catalog,name,2+i*2) end
@@ -194,7 +194,10 @@ local function enterGame(data)
     data.stats=data.stats or {level=1,xp=0,nextXP=10}
     data.inventory = data.inventory or {}
     data.equipment = data.equipment or {}
-    data.ammo=data.ammo or {rocks=8,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0}
+    data.ammo=data.ammo or {}
+    for _,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do
+        data.ammo[name]=math.max(0,tonumber(data.ammo[name]) or 0)
+    end
     if not data.ammoDropsAdded then
         for i,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr"}) do data.droppedItems[#data.droppedItems+1]={name=name,x=330+(i%4)*125,y=545,scene="stop",location=math.max(1,i*2-1)} end
         data.ammoDropsAdded=true
@@ -577,58 +580,6 @@ local function enterStop()
     scene="stop"; saveData.scene=scene; player.x,player.y=270,490; setupNPC(); writeSave()
 end
 
---[[ legacy battle construction moved to game/battle_controller.lua
-local function beginEncounter(encounter)
-    encounter.mobFiles=encounter.mobFiles or (encounter.mobFile and {encounter.mobFile} or {})
-    local image = mobImages[encounter.mobFiles[1]]
-    local tier=encounter.tier or (saveData.location<=4 and "easy" or (saveData.location<=8 and "medium" or "hard"))
-    encounter.tier=tier
-    local tierHP={easy=12,medium=20,hard=32}; local tierArmor={easy=1,medium=3,hard=5}
-    local maxHP = encounter.maxHP or tierHP[tier]
-    encounter.maxHP = maxHP
-    local function armedCritter(file)
-        local s=(file or ""):lower()
-        return s:find("cowboy",1,true) or s:find("marshal",1,true) or s:find("sheriff",1,true) or s:find("guard",1,true) or s:find("raider",1,true) or s:find("bandit",1,true)
-    end
-    local function naturalAttack(file)
-        local s=(file or ""):lower()
-        if s:find("spit",1,true) or s:find("eagle",1,true) or s:find("owl",1,true) or s:find("dragon",1,true) or s:find("zombie",1,true) then return "mob-spit" end
-        return "mob-claw"
-    end
-    local units={{id="player",team="ally",name=Util.titleFromFile(saveData.character),file=saveData.character,q=1,r=2,hp=saveData.health,maxHP=saveData.maxHealth,
-        move=2,armor=2+(saveData.trait and saveData.trait.armor or 0),aim=2+(saveData.trait and saveData.trait.combat or 0),controlled=true}}
-    local allyStarts={{q=1,r=3},{q=0,r=2},{q=0,r=4}}
-    local battleAllies=encounter.temporaryAllies
-    if battleAllies then
-        for i,file in ipairs(battleAllies) do
-            if i<=3 then
-                local start=allyStarts[i]
-                units[#units+1]={id="defender"..i,team="ally",name=Util.titleFromFile(file),file=file,q=start.q,r=start.r,hp=14,maxHP=14,move=2,armor=1,aim=1,
-                    weapon=armedCritter(file) and Catalog.weaponProgression[math.min(#Catalog.weaponProgression,math.max(1,1+math.floor((saveData.location-1)/3)))] or nil}
-            end
-        end
-    else
-        for i,p in ipairs(saveData.passengers or {}) do
-            if i<=2 then local start=allyStarts[i]; units[#units+1]={id="ally"..i,team="ally",name=Util.titleFromFile(p.npc),file=p.npc,q=start.q,r=start.r,hp=12,maxHP=12,move=2,armor=1,aim=1,weapon=p.weapon} end
-        end
-    end
-    local enemyRows={1,2,3,4}
-    for i,mobFile in ipairs(encounter.mobFiles) do
-        local row=enemyRows[((i-1)%#enemyRows)+1]
-        local rangedSpecialist=mobFile:find("eagle") or mobFile:find("owl") or mobFile:find("dragon") or mobFile:find("zombie")
-        local armed=armedCritter(mobFile)
-        units[#units+1]={id="enemy"..i,team="enemy",name=Util.titleFromFile(mobFile),file=mobFile,q=BOARD_COLS,r=row,hp=maxHP,maxHP=maxHP,move=tier=="hard" and 3 or 2,armor=tierArmor[tier],aim=tier=="easy" and 0 or (tier=="medium" and 2 or 4),attackStyle=armed and "ranged" or (rangedSpecialist and "ranged" or "melee"),weapon=armed and "frontier-9mm-service-pistol" or naturalAttack(mobFile)}
-    end
-    local function terrainRoll()
-        local n=love.math.random()
-        if n<.55 then return 1 elseif n<.72 then return 2 elseif n<.88 then return 3 elseif n<.94 then return 5 elseif n<.985 then return 6 else return 4 end
-    end
-    local tiles, tileVariants={},{}; for q=0,BOARD_COLS+1 do tiles[q]={}; tileVariants[q]={}; for r=1,BOARD_ROWS do tiles[q][r]=terrainRoll(); tileVariants[q][r]=love.math.random(1,2) end end
-    tiles[BOARD_COLS+2]={}; tileVariants[BOARD_COLS+2]={}; for r=2,3 do tiles[BOARD_COLS+2][r]=terrainRoll(); tileVariants[BOARD_COLS+2][r]=love.math.random(1,2) end
-    local opening="Move between highlighted terrain pieces, or choose an attack."
-    battle={encounter=encounter,image=image,units=units,tiles=tiles,tileVariants=tileVariants,biome=((saveData.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},message=opening,log={"Battle begins."},logScroll=0,terrainSeed=saveData.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}; battleZoom=1
-    state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
-end
 
 local function attemptLeaveTrain()
     local key=tostring(saveData.location); local encounter=saveData.encounters[key]
@@ -656,13 +607,12 @@ local function attemptLeaveTrain()
         randomEvent=Events.random(saveData); state="event"
     else enterStop() end
 end
-]]
 
 local function battleContext()
     return {battle=battle,saveData=saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=BOARD_COLS,BOARD_ROWS=BOARD_ROWS,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
 end
 local function beginEncounter(encounter)
-    local c=battleContext(); battle=BattleController.begin(c,encounter); state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil
+    local c=battleContext(); battle=BattleController.begin(c,encounter); battleZoom=1; state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
 end
 
 local function resolveEventChoice(index)
@@ -675,140 +625,17 @@ local function resolveEventChoice(index)
     dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
 end
 
-local function setBattleMessage(text)
-    battle.message=text; battle.log=battle.log or {}; battle.log[#battle.log+1]=text; battle.logScroll=0
-end
-local function setBattlePrompt(text)
-    battle.message=text
-end
-local function battleVictory()
-    local enemyAlive,allyAlive=false,false
-    for _,u in ipairs(battle.units) do if u.hp>0 then if u.team=="enemy" then enemyAlive=true else allyAlive=true end end end
-    if not enemyAlive then
-        if saveData.health<=0 then
-            saveData.health=1
-            for _,unit in ipairs(battle.units) do if unit.id=="player" then unit.hp=1; break end end
-        end
-        battle.encounter.resolved=true; local reward=love.math.random(3,6); local trait=saveData.trait or Catalog.characterTraitProfiles[1]
-        local scrap=math.max(1,math.floor(love.math.random(4,8)*(trait.reward or 1))); local xp=({easy=6,medium=12,hard=20})[battle.encounter.tier or "easy"]
-        local defenseBonus=""
-        if battle.encounter.defenseBattle then
-            reward=reward+4; scrap=scrap+8; xp=xp+8
-            saveData.resources.food=math.min(30,saveData.resources.food+2); saveData.resources.water=math.min(30,saveData.resources.water+2)
-            defenseBonus=" The survivors share +2 food and +2 water."
-        end
-        local eventLoot=Events.grantBattleLoot(saveData,Catalog,battle.encounter)
-        local levels=BattleRules.gainExperience(saveData,xp); saveData.scrap=saveData.scrap+scrap; saveData.resources.coal=math.min(30,saveData.resources.coal+reward)
-        setBattleMessage("Victory! +"..xp.." XP, +"..reward.." coal, +"..scrap.." scrap."..defenseBonus..eventLoot..(levels>0 and " LEVEL UP!" or "")); battle.finished="win"; writeSave(); return true
-    elseif not allyAlive then saveData.health=math.max(1,math.floor(saveData.maxHealth/2)); setBattleMessage("Your party was overwhelmed and returned to the train."); battle.finished="loss"; writeSave(); return true end
-end
-local function advanceBattleTurn()
-    if battleVictory() then return end
-    BattleRules.endTurn(BattleRules.activeUnit(battle))
-    local start=battle.active
-    repeat battle.active=battle.active%#battle.units+1 until battle.units[battle.active].hp>0 or battle.active==start
-    if battle.active==1 then battle.round=battle.round+1 end
-    -- Guard protects through the intervening enemy turns, then expires when
-    -- the guarded unit's next turn begins.
-    battle.units[battle.active].guarding=false
-    battle.phase="select"; battle.selected=battle.active; battle.reachable={}
-    battle.moveUsed=false
-    battle.enemyDelay=battle.units[battle.active].team=="enemy" and .58 or 0
-end
-local function resolveBattleAttack(attacker,target,weaponName)
-    local stats=Catalog.weaponStats[weaponName] or Catalog.weaponStats.scratch; local combat=Catalog.weaponCombat[weaponName] or Catalog.weaponCombat.scratch
-    local distance=BattleRules.distance(attacker,target); local range=BattleRules.weaponRange(Catalog,weaponName)
-    if distance>range then setBattlePrompt(stats.name.." is out of range ("..range.." terrain spaces)."); return false end
-    if combat.ammo and attacker.team=="ally" then local count=saveData.ammo[combat.ammo] or 0; if count<=0 then setBattleMessage(attacker.name.." has no "..Util.titleFromFile(combat.ammo).." ammunition."); return false end; saveData.ammo[combat.ammo]=count-1 end
-    attacker.action=combat.kind=="ranged" and "ranged" or "melee"; attacker.actionItem=weaponName; attacker.actionTimer=attacker.team=="enemy" and .68 or .45
-    ui.playSfx(ui.weaponSfx(weaponName,combat))
-    if combat.kind=="ranged" then battle.projectile={fromQ=attacker.q,fromR=attacker.r,toQ=target.q,toR=target.r,ammo=combat.ammo or "rocks",weapon=weaponName,kind=combat.projectile,t=0,duration=attacker.team=="enemy" and .62 or .42} end
-    local _,cover=BattleRules.terrainAt(battle,target.q,target.r); local roll=love.math.random(1,20); local attackBonus=(attacker.aim or 0)+(attacker.id=="player" and math.floor((saveData.stats.level-1)/2) or 0)
-    local defense=8+(target.armor or 0)+cover+(distance>1 and distance-1 or 0)
-    weaponName=weaponName or "scratch"
-    local actionName=Catalog.weaponStats[weaponName] and Catalog.weaponStats[weaponName].name or Util.titleFromFile(weaponName)
-    if roll==1 or (roll~=20 and roll+attackBonus<defense) then setBattleMessage(attacker.name.." used "..actionName.." against "..target.name.." — MISS."); battle.attackTimer=attacker.team=="enemy" and .90 or .45; advanceBattleTurn(); return true end
-    local durability=attacker.team=="ally" and weaponName~="scratch" and (saveData.weaponDurability[weaponName] or 100) or 100
-    local condition=durability<25 and .70 or (durability<50 and .82 or (durability<75 and .92 or 1))
-    local proficiencyBonus=0
-    if attacker.id=="player" then
-        local family=Catalog.weaponFamily(weaponName); local uses=(saveData.weaponProficiency[family] or 0)+1; saveData.weaponProficiency[family]=uses
-        proficiencyBonus=math.min(5,math.floor(uses/10))
-    end
-    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+proficiencyBonus+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition)-(target.armor or 0))
-    if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
-    target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.hitFromQ=attacker.q; target.hitFromR=attacker.r; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then saveData.health=target.hp end
-    ui.playSfx(target.team=="enemy" and "hurtMob" or "hurtMale")
-    if attacker.team=="ally" and weaponName~="scratch" then saveData.weaponDurability[weaponName]=math.max(0,durability-love.math.random(1,2)) end
-    setBattleMessage(attacker.name.." used "..actionName.." on "..target.name.." — HIT for "..damage.." damage."); battle.attackTimer=attacker.team=="enemy" and .95 or .45; battle.hitFlash=.18; battle.lastTarget=target.id
-    advanceBattleTurn(); return true
-end
-local function enemyBattleTurn()
-    local enemy=BattleRules.activeUnit(battle); if not enemy or enemy.team~="enemy" or battle.finished then return end
-    if (enemy.sleepRounds or 0)>0 or (enemy.paralyzedRounds or 0)>0 then
-        local status=(enemy.sleepRounds or 0)>0 and "asleep" or "paralyzed"
-        enemy.sleepRounds=math.max(0,(enemy.sleepRounds or 0)-1); enemy.paralyzedRounds=math.max(0,(enemy.paralyzedRounds or 0)-1)
-        setBattleMessage(enemy.name.." is "..status.." and loses its turn."); advanceBattleTurn(); return
-    end
-    local target
-    for _,u in ipairs(battle.units) do if u.team=="ally" and u.hp>0 and (not target or BattleRules.distance(enemy,u)<BattleRules.distance(enemy,target)) then target=u end end
-    if not target then return end
-    local enemyWeapon=enemy.weapon or (enemy.attackStyle=="ranged" and "mob-spit" or "mob-claw")
-    local preferredRange=enemy.attackStyle=="ranged" and BattleRules.weaponRange(Catalog,enemyWeapon) or 1
-    if BattleRules.distance(enemy,target)>preferredRange then
-        local bestQ,bestR,bestD=enemy.q,enemy.r,BattleRules.distance(enemy,target)
-        for _,d in ipairs(BattleRules.directions) do local q,r=enemy.q+d[1],enemy.r+d[2]; local nd=BattleRules.distance({q=q,r=r},target); if BattleRules.isBoardSpace(battle,q,r) and not BattleRules.unitAt(battle,q,r) and nd<bestD then bestQ,bestR,bestD=q,r,nd end end
-        if bestQ~=enemy.q or bestR~=enemy.r then enemy.moveAnim={fromQ=enemy.q,fromR=enemy.r,toQ=bestQ,toR=bestR,t=0,duration=.68} end
-        enemy.q,enemy.r=bestQ,bestR; setBattlePrompt(enemy.name.." advances across the battlefield.")
-    else resolveBattleAttack(enemy,target,enemyWeapon); return end
-    battle.attackTimer=.82
-    advanceBattleTurn()
-end
-local function battleAttack(weaponName)
-    local unit=BattleRules.activeUnit(battle); if not unit or unit.team~="ally" or battle.finished then return end
-    battle.chosenWeapon=weaponName; battle.phase="target"; setBattlePrompt("Choose an enemy within "..BattleRules.weaponRange(Catalog,weaponName).." terrain space(s).")
-end
-local function battleMoveTo(q,r)
-    local unit=BattleRules.activeUnit(battle); if not unit or unit.team~="ally" then return end
-    if battle.moveUsed or battle.phase=="action" or battle.phase=="target" then setBattlePrompt("Movement has already been used this turn."); return end
-    if not BattleRules.isBoardSpace(battle,q,r) or BattleRules.unitAt(battle,q,r) or BattleRules.distance(unit,{q=q,r=r})>unit.move then setBattlePrompt("That terrain piece is outside this unit's movement range."); return end
-    unit.moveAnim={fromQ=unit.q,fromR=unit.r,toQ=q,toR=r,t=0,duration=.48}
-    unit.q,unit.r=q,r; battle.moveUsed=true; setBattlePrompt(unit.name.." moved. Choose an attack or end the turn."); battle.phase="action"
-end
-local function battleHeal()
-    local unit=BattleRules.activeUnit(battle); if not unit or unit.team~="ally" then return end
-    for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; local effect=name and Catalog.itemEffects[name]; if effect and effect.health then unit.action="use"; unit.actionItem=name; unit.actionTimer=.45; saveData.inventory[i]=nil; local before=unit.hp; unit.hp=math.min(unit.maxHP,unit.hp+effect.health); if unit.id=="player" then saveData.health=unit.hp end; setBattleMessage(unit.name.." recovered "..(unit.hp-before).." HP."); advanceBattleTurn(); return end end
-    setBattlePrompt("No healing item is available.")
-end
-local function battleGuard() local unit=BattleRules.activeUnit(battle); if unit and unit.team=="ally" then unit.guarding=true; setBattleMessage(unit.name.." braces behind cover."); advanceBattleTurn() end end
 
-local function useBattleAbility(kind)
-    local unit=BattleRules.activeUnit(battle); if not unit or unit.team~="ally" or battle.abilitiesUsed[unit.id] then return end
-    battle.abilitiesUsed[unit.id]=true
-    if kind=="heal" then
-        for _,ally in ipairs(battle.units) do if ally.team=="ally" and ally.hp>0 and BattleRules.distance(unit,ally)<=2 then ally.hp=math.min(ally.maxHP,ally.hp+4); if ally.id=="player" then saveData.health=ally.hp end end end
-        setBattleMessage(unit.name.." restored nearby allies.")
-    elseif kind=="rally" then
-        for _,ally in ipairs(battle.units) do if ally.team=="ally" and ally.hp>0 and BattleRules.distance(unit,ally)<=2 then BattleRules.applyTemporaryStat(ally,"aim",2,2) end end
-        setBattleMessage(unit.name.." rallied nearby allies.")
-    elseif kind=="protect" then
-        for _,ally in ipairs(battle.units) do if ally.team=="ally" and ally.hp>0 and BattleRules.distance(unit,ally)<=2 then BattleRules.applyTemporaryStat(ally,"armor",2,2) end end
-        setBattleMessage(unit.name.." fortified nearby allies.")
-    elseif kind=="snare" then
-        local closest
-        for _,enemy in ipairs(battle.units) do if enemy.team=="enemy" and enemy.hp>0 and (not closest or BattleRules.distance(unit,enemy)<BattleRules.distance(unit,closest)) then closest=enemy end end
-        if closest then local amount=math.max(1,closest.move-1)-closest.move; if amount<0 then BattleRules.applyTemporaryStat(closest,"move",amount,2) end; setBattleMessage(closest.name.." was ensnared and slowed.") end
-    elseif kind=="sleep" or kind=="paralyze" then
-        local closest
-        for _,enemy in ipairs(battle.units) do if enemy.team=="enemy" and enemy.hp>0 and (not closest or BattleRules.distance(unit,enemy)<BattleRules.distance(unit,closest)) then closest=enemy end end
-        if closest then if kind=="sleep" then closest.sleepRounds=2 else closest.paralyzedRounds=1 end; setBattleMessage(closest.name..(kind=="sleep" and " fell asleep." or " was paralyzed.")) end
-    elseif kind=="area" then
-        local hits=0
-        for _,enemy in ipairs(battle.units) do if enemy.team=="enemy" and enemy.hp>0 and BattleRules.distance(unit,enemy)<=2 then enemy.hp=math.max(0,enemy.hp-4); enemy.hitTimer=.58; enemy.damageNumber=4; enemy.damageNumberTimer=.9; hits=hits+1 end end
-        setBattleMessage(unit.name.." struck "..hits.." nearby enem"..(hits==1 and "y." or "ies."))
-    end
-    advanceBattleTurn()
-end
+local function setBattleMessage(text) BattleController.message(battleContext(),text) end
+local function setBattlePrompt(text) BattleController.prompt(battleContext(),text) end
+local function advanceBattleTurn() BattleController.advance(battleContext()) end
+local function resolveBattleAttack(attacker,target,weaponName) return BattleController.resolve(battleContext(),attacker,target,weaponName) end
+local function enemyBattleTurn() BattleController.enemyTurn(battleContext()) end
+local function battleAttack(weaponName) BattleController.attack(battleContext(),weaponName) end
+local function battleMoveTo(q,r) BattleController.move(battleContext(),q,r) end
+local function battleHeal() BattleController.heal(battleContext()) end
+local function battleGuard() BattleController.guard(battleContext()) end
+local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 
 function ui.playSfx(kind)
     if ui.audio and saveData then return ui.audio:playSfx(kind,saveData.audio,battle) end
@@ -893,24 +720,7 @@ function love.update(dt)
     end
     trainAnimationClock=trainAnimationClock+dt*trainRate
     actionTimer=math.max(0,actionTimer-dt); if actionTimer<=0 then actionHeldItem=nil; actionKind=nil end
-    if state=="battle" and battle then
-        if battle.intro then
-            battle.intro=battle.intro+dt
-            if battle.intro>=battle.introDuration then battle.intro=nil end
-        end
-        battle.attackTimer=math.max(0,(battle.attackTimer or 0)-dt)
-        battle.enemyDelay=math.max(0,(battle.enemyDelay or 0)-dt)
-        battle.hitFlash=math.max(0,(battle.hitFlash or 0)-dt)
-        local battleAnimationBusy=false
-        for _,unit in ipairs(battle.units or {}) do
-            unit.actionTimer=math.max(0,(unit.actionTimer or 0)-dt); unit.hitTimer=math.max(0,(unit.hitTimer or 0)-dt); unit.damageNumberTimer=math.max(0,(unit.damageNumberTimer or 0)-dt); if unit.actionTimer<=0 then unit.action=nil end
-            if unit.moveAnim then unit.moveAnim.t=unit.moveAnim.t+dt; if unit.moveAnim.t>=unit.moveAnim.duration then unit.moveAnim=nil end end
-            if unit.actionTimer>0 or unit.hitTimer>0 or unit.moveAnim then battleAnimationBusy=true end
-        end
-        if battle.projectile then battle.projectile.t=battle.projectile.t+dt; if battle.projectile.t>=battle.projectile.duration then battle.projectile=nil end end
-        if battle.projectile then battleAnimationBusy=true end
-        if not battle.intro and not battle.finished and not battleAnimationBusy and battle.attackTimer<=0 and battle.enemyDelay<=0 then local unit=BattleRules.activeUnit(battle); if unit and unit.team=="enemy" then enemyBattleTurn() end end
-    end
+    if state=="battle" and battle then BattleController.update(battleContext(),dt) end
     if state ~= "game" then return end
     updateStopSludges(dt)
     ui.updateChickens(dt)
@@ -1247,22 +1057,22 @@ end
 
 local function drawInventory()
     local capacity=saveData.inventoryCapacity or 6
-    drawMenuFrame(545,35,390,100,3,.94)
+    drawMenuFrame(545,35,390,145,3,.94)
     love.graphics.setColor(colors.cream); love.graphics.print("AMMUNITION STORAGE",565,44,0,.82,.82)
-    local ammoDisplay={{"9mm","9MM"},{"45-cal",".45"},{"556","5.56"},{"22lr",".22LR"},{"rocks","ROCK"},{"arrows","ARROW"},{"ball-bearings","BALL"}}
+    local ammoDisplay={{"9mm","9MM"},{"45-cal",".45"},{"556","5.56"},{"22lr",".22LR"},{"30-carbine",".30"},{"8mm","8MM"},{"380-acp",".380"},{"32-acp",".32"},{"12-gauge","12GA"},{"762x39","7.62"},{"rocks","ROCK"},{"arrows","ARROW"},{"ball-bearings","BALL"}}
     for i,entry in ipairs(ammoDisplay) do
-        local col=(i-1)%4; local row=math.floor((i-1)/4); local x,y=565+col*92,58+row*34
+        local col=(i-1)%5; local row=math.floor((i-1)/5); local x,y=558+col*75,58+row*29
         local image=ui.propImages[entry[1]]
         if image then
-            local scale=math.min(44/image:getWidth(),32/image:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(image,x,y+16,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
+            local scale=math.min(27/image:getWidth(),24/image:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(image,x+10,y+14,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
         end
-        love.graphics.setColor(colors.cream); love.graphics.print(entry[2].." "..(saveData.ammo[entry[1]] or 0),x+28,y+4,0,.52,.52)
+        love.graphics.setColor(colors.cream); love.graphics.print(entry[2].." "..(saveData.ammo[entry[1]] or 0),x+25,y+5,0,.46,.46)
     end
-    drawMenuFrame(545,140,390,555,2,1)
-    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,177,330,28)
-    love.graphics.setColor(colors.cream); love.graphics.print("BACKPACK  -  "..capacity.." SLOTS",575,181,0,1.05,1.05)
+    drawMenuFrame(545,185,390,510,2,1)
+    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,217,330,28)
+    love.graphics.setColor(colors.cream); love.graphics.print("BACKPACK  -  "..capacity.." SLOTS",575,221,0,1.05,1.05)
     for i=1,capacity do local r=Inventory.inventorySlotRect(i); love.graphics.setColor(0.28,0.22,0.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7); if saveData.inventory[i] then drawItem(saveData.inventory[i],r) end end
-    love.graphics.setColor(colors.cream); love.graphics.print("EQUIPPED WEAPONS",620,465)
+    love.graphics.setColor(colors.cream); love.graphics.print("EQUIPPED WEAPONS",620,520)
     ui.equipmentSlots={}
     for i=1,2 do local r=Inventory.equipmentSlotRect(i); ui.equipmentSlots[i]=r; love.graphics.setColor(0.32,0.20,0.12); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7); love.graphics.setColor(colors.brass); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,7,7); if saveData.equipment[i] then drawItem(saveData.equipment[i],r) end end
     local selectedName=draggedSlot and containerValue(draggedSlot)
@@ -2397,7 +2207,14 @@ if ui.smokeRequested then
         if not ok then io.stderr:write("DRAW_ERROR ["..fixture.."]: "..tostring(message).."\n"); io.stderr:flush(); os.exit(1) end
         print("SMOKE_SCENE_OK: "..fixture)
         ui.smokeSceneIndex=ui.smokeSceneIndex+1
-        if ui.smokeSceneIndex>#ui.smokeScenes then print("SMOKE_OK: real project rendered all scene fixtures"); io.flush(); os.exit(0) end
+        if ui.smokeSceneIndex>#ui.smokeScenes then
+            if Assets.assetFailureCount()>0 then
+                io.stderr:write("ASSET_CONTRACT_ERROR:\n"..Assets.assetFailureSummary().."\n")
+                io.stderr:flush()
+                os.exit(1)
+            end
+            print("SMOKE_OK: real project rendered all scene fixtures"); io.flush(); os.exit(0)
+        end
     end
 end
 

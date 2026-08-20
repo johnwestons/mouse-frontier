@@ -272,7 +272,7 @@ local function scaledWeapon(catalog,location,quality)
 end
 
 local function giveAmmo(data,catalog,weapon)
-    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or ({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr"})[love.math.random(7)]
+    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or ({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"})[love.math.random(13)]
     local amount=(catalog.ammoPickupAmounts[ammo] or 6)+math.floor((data.location or 1)/10)
     data.ammo[ammo]=(data.ammo[ammo] or 0)+amount; return ammo,amount
 end
@@ -293,7 +293,7 @@ function Events.resolve(data,catalog,event,choiceIndex)
     if choice.ammo then local ammo,amount=giveAmmo(data,catalog,weapon); notes[#notes+1]="received "..amount.." "..ammo end
     if choice.ammoCost then
         local remaining=3
-        for _,name in ipairs({"rocks","arrows","ball-bearings","22lr","9mm","45-cal","556"}) do
+        for _,name in ipairs({"rocks","arrows","ball-bearings","22lr","9mm","45-cal","556","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do
             local count=data.ammo[name] or 0; local spent=math.min(count,remaining)
             data.ammo[name]=count-spent; remaining=remaining-spent
             if remaining<=0 then break end

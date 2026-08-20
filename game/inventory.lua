@@ -2,11 +2,11 @@ local Inventory = {}
 
 function Inventory.inventorySlotRect(index)
     local column,row=(index-1)%4,math.floor((index-1)/4)
-    return {x=584+column*76,y=205+row*66,w=62,h=58}
+    return {x=584+column*76,y=245+row*66,w=62,h=58}
 end
 
 function Inventory.equipmentSlotRect(index)
-    return {x=620+(index-1)*130,y=490,w=96,h=70}
+    return {x=620+(index-1)*130,y=545,w=96,h=70}
 end
 
 function Inventory.chestSlotRect(index)
