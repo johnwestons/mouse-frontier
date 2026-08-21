@@ -86,7 +86,12 @@ function Wildlife.draw(list, images, clock)
         local image=chickenImage(images,bird.kind)
         if image then
             local frameWidth=image:getWidth()/5
-            local frame=bird.moving and (math.floor((clock*5+(bird.phase or 0))*5)%5) or 0
+            -- The sheet has five walk frames. The old expression multiplied
+            -- the clock twice, advancing at roughly 25 frames per second and
+            -- making the flock look like it was vibrating. Keep the cycle
+            -- gentle and let idle chickens hold their first frame.
+            local frameRate=bird.kind=="chick" and 4.2 or 4.8
+            local frame=bird.moving and (math.floor(clock*frameRate+(bird.phase or 0))%5) or 0
             local quads=quadCache[image]
             if not quads then quads={}; for index=0,4 do quads[index]=love.graphics.newQuad(index*frameWidth,0,frameWidth,image:getHeight(),image:getWidth(),image:getHeight()) end; quadCache[image]=quads end
             local quad=quads[frame]

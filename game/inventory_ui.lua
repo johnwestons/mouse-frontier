@@ -54,13 +54,14 @@ function InventoryUI.draw(ctx)
         love.graphics.setColor(ctx.colors.cream); love.graphics.print(entry[2].." "..(data.ammo[entry[1]] or 0),x+25,y+5,0,.46,.46)
     end
     ctx.drawMenuFrame(545,185,390,510,2,1)
-    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,217,330,28)
-    love.graphics.setColor(ctx.colors.cream); love.graphics.print("BACKPACK  -  "..capacity.." SLOTS",575,221,0,1.05,1.05)
+    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,202,340,27,6,6)
+    love.graphics.setColor(ctx.colors.cream); love.graphics.print("BACKPACK  -  "..capacity.." SLOTS",575,206,0,1.0,1.0)
     for i=1,capacity do
         local r=Inventory.inventorySlotRect(i); love.graphics.setColor(0.28,0.22,0.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
         if data.inventory[i] then InventoryUI.drawItem(ctx,data.inventory[i],r) end
     end
-    love.graphics.setColor(ctx.colors.cream); love.graphics.print("EQUIPPED WEAPONS",620,520)
+    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,462,340,26,6,6)
+    love.graphics.setColor(ctx.colors.cream); love.graphics.print("EQUIPPED WEAPONS",580,466,0,.82,.82)
     ui.equipmentSlots={}
     for i=1,2 do
         local r=Inventory.equipmentSlotRect(i); ui.equipmentSlots[i]=r
@@ -73,30 +74,33 @@ function InventoryUI.draw(ctx)
     local inspectName=(hovered and ctx.value(hovered)) or selectedName
     if ctx.isWeapon(inspectName) then
         local stats,combat=Catalog.weaponStats[inspectName],Catalog.weaponCombat[inspectName] or {}; local durability=data.weaponDurability[inspectName] or 100
-        ctx.drawMenuFrame(565,110,350,80,3,.92); love.graphics.setColor(ctx.colors.cream)
-        love.graphics.print(stats.name.."  TIER "..stats.tier,585,123,0,.86,.86)
-        love.graphics.print("DAMAGE "..stats.min.."-"..stats.max.."  "..string.upper(combat.kind or "melee").."  RANGE "..(combat.range or 1),585,148,0,.68,.68)
-        love.graphics.print("DURABILITY "..durability.."%"..(combat.ammo and ("  "..ctx.title(combat.ammo).." "..(data.ammo[combat.ammo] or 0)) or ""),585,169,0,.68,.68)
+        ctx.drawMenuFrame(565,558,350,64,3,.92); love.graphics.setColor(ctx.colors.cream)
+        love.graphics.print(stats.name.."  TIER "..stats.tier,582,568,0,.78,.78)
+        love.graphics.print("DMG "..stats.min.."-"..stats.max.."  "..string.upper(combat.kind or "melee").."  RANGE "..(combat.range or 1).."  DUR "..durability.."%",582,590,0,.60,.60)
+        if combat.ammo then love.graphics.print(ctx.title(combat.ammo).." "..(data.ammo[combat.ammo] or 0),582,607,0,.55,.55) end
     elseif inspectName and Catalog.itemEffects[inspectName] and Catalog.itemEffects[inspectName].potion then
         local effect=Catalog.itemEffects[inspectName]
-        ctx.drawMenuFrame(565,110,350,80,3,.92); love.graphics.setColor(ctx.colors.cream)
-        love.graphics.print(ctx.title(inspectName),585,123,0,.86,.86)
-        love.graphics.print(effect.description,585,148,0,.62,.62)
-        love.graphics.print("DOUBLE CLICK TO DRINK BEFORE NEXT BATTLE",585,169,0,.55,.55)
+        ctx.drawMenuFrame(565,558,350,64,3,.92); love.graphics.setColor(ctx.colors.cream)
+        love.graphics.print(ctx.title(inspectName),582,568,0,.78,.78)
+        love.graphics.printf(effect.description,582,589,316,"left",0,.55,.55)
+        love.graphics.print("DOUBLE CLICK TO DRINK",582,608,0,.52,.52)
     elseif inspectName and Catalog.itemEffects[inspectName] and (Catalog.itemEffects[inspectName].food or Catalog.itemEffects[inspectName].water) then
         local effect=Catalog.itemEffects[inspectName]; local restored={}
         if effect.food then restored[#restored+1]="FOOD +"..effect.food end
         if effect.water then restored[#restored+1]="WATER +"..effect.water end
-        ctx.drawMenuFrame(565,110,350,80,3,.92); love.graphics.setColor(ctx.colors.cream)
-        love.graphics.print(ctx.title(inspectName),585,123,0,.86,.86)
-        love.graphics.print("RESTORES  "..table.concat(restored,"   "),585,148,0,.72,.72)
-        love.graphics.print("DOUBLE CLICK TO "..(effect.label or "USE"),585,169,0,.64,.64)
+        ctx.drawMenuFrame(565,558,350,64,3,.92); love.graphics.setColor(ctx.colors.cream)
+        love.graphics.print(ctx.title(inspectName),582,568,0,.78,.78)
+        love.graphics.print("RESTORES  "..table.concat(restored,"   "),582,590,0,.62,.62)
+        love.graphics.print("DOUBLE CLICK TO "..(effect.label or "USE"),582,608,0,.52,.52)
     end
     local special=selectedName=="rose-heart-arrow" or selectedName=="blade-hearts"
     local effect=selectedName and Catalog.itemEffects[selectedName]
     local pack=selectedName and Catalog.backpackUpgrades[selectedName]
     local gift=ctx.isWeapon(selectedName) and (ctx.nearNPC or ctx.nearPassenger)
-    ui.consume=ctx.button(gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT FOOD / DRINK / MEDICINE"))),565,580,350,42,effect~=nil or special or pack~=nil or gift)
+    local battleUsable=ctx.battleMode and (ctx.isWeapon(selectedName) or (effect and (effect.health or effect.potion)))
+    local actionLabel=ctx.battleMode and (ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1" or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON"))
+        or (gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT AN ITEM TO USE"))))
+    ui.consume=ctx.button(actionLabel,565,628,230,38,ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift))
     if ctx.giftOpen then
         ctx.drawMenuFrame(220,170,520,180,3,.97); love.graphics.setColor(ctx.colors.cream)
         love.graphics.printf("GIVE TO "..ctx.title(ctx.giftNPC or "NPC"),240,190,480,"center",0,1.15,1.15)
@@ -105,7 +109,11 @@ function InventoryUI.draw(ctx)
         if ctx.giftSlot then InventoryUI.drawItem(ctx,data.inventory[ctx.giftSlot],offer) end
         ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,260,100,36,ctx.giftSlot~=nil); ui.giftCancel=ctx.button("CANCEL",325,260,100,36,true)
     else ui.giftSlot=nil; ui.giftConfirm=nil; ui.giftCancel=nil end
-    ui.drop=ctx.button("DROP SELECTED ITEM",620,635,240,38,ctx.draggedSlot~=nil)
+    if ctx.battleMode then
+        ui.drop=nil
+        love.graphics.setColor(ctx.colors.cream)
+        love.graphics.printf("Items cannot be dropped during battle.",805,638,110,"center",0,.50,.50)
+    else ui.drop=ctx.button("DROP",805,628,110,38,ctx.draggedSlot~=nil) end
 end
 
 function InventoryUI.drawChest(ctx)
@@ -160,6 +168,8 @@ function InventoryUI.handleRelease(ctx,x,y,button)
     local same=target and target.kind==ctx.draggedSlot.kind and target.index==ctx.draggedSlot.index
     if target and not same then
         if ctx.move(ctx.draggedSlot,target) then ctx.set("draggedSlot",nil) end
+        ctx.set("inventoryDragActive",false)
+    elseif ctx.battleMode then
         ctx.set("inventoryDragActive",false)
     elseif not target and not ctx.pointIn(x,y,{x=40,y=125,w=860,h=445}) then
         ctx.drop(ctx.draggedSlot); ctx.set("inventoryDragActive",false)

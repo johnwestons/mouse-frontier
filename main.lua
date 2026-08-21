@@ -23,6 +23,7 @@ local House = require("game.house")
 local Stops = require("game.stops")
 local Roster = require("game.roster")
 local Wildlife = require("game.wildlife")
+local Mice = require("game.mice")
 local Settlements = require("game.settlements")
 local Events = require("game.events")
 local EventUI = require("game.event_ui")
@@ -35,6 +36,7 @@ local InteriorDoors = require("game.interior_doors")
 local Interactions = require("game.interactions")
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
+local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
 local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router")}
 local state = "slots"
@@ -42,6 +44,7 @@ local selectedSlot, saveData, player
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
 local scenery, backgroundImages, ui = {}, {}, {}
 local sceneryOffset, animationClock, trainAnimationClock = 0, 0, 0
+local cloudLayer
 local battleZoom = 1
 local walkingSoundTimer = 0
 local inventoryOpen, draggedSlot = false, nil
@@ -670,6 +673,19 @@ local function battleHeal() BattleController.heal(battleContext()) end
 local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
+local function consumeBattleSelected()
+    if not draggedSlot then return false end
+    local name=containerValue(draggedSlot); if not name then return false end
+    local effect=Catalog.itemEffects[name]
+    if isWeapon(name) then
+        local moved=moveBetweenSlots(draggedSlot,{kind="equipment",index=1})
+        if moved then draggedSlot=nil; inventoryDragActive=false; writeSave() end
+        return moved
+    end
+    local used=(effect and effect.health and BattleController.useHealingItem(battleContext(),name)) or (effect and effect.potion and useBattlePotion(name))
+    if used then draggedSlot=nil; inventoryDragActive=false; inventoryOpen=false end
+    return used or false
+end
 
 function ui.playSfx(kind)
     if ui.audio and saveData then return ui.audio:playSfx(kind,saveData.audio,battle) end
@@ -705,10 +721,23 @@ function ui.updateChickens(dt)
     Wildlife.update(stopLayout.wildlife,dt,saveData.location,Settlements)
 end
 
+function ui.updateMice(dt)
+    if scene~="stop" or not saveData then return end
+    local stopLayout=ensureStopLayout()
+    Mice.spawn(stopLayout,saveData.location,Settlements)
+    Mice.update(stopLayout.mice,dt,saveData.location,Settlements)
+end
+
 function ui.drawChickens(layout)
     if not layout or scene~="stop" then return end
     Wildlife.spawn(layout,saveData.location,Settlements)
     Wildlife.draw(layout.wildlife,scenery.stopWildlife,animationClock)
+end
+
+function ui.drawMice(layout)
+    if not layout or scene~="stop" then return end
+    Mice.spawn(layout,saveData.location,Settlements)
+    Mice.draw(layout.mice,scenery.stopWildlife,animationClock)
 end
 
 function love.load()
@@ -724,6 +753,7 @@ function love.load()
         mobDeathImages=mobDeathImages, mobWalkImages=mobWalkImages, mobRangedImages=mobRangedImages,
         familyImages=familyImages, itemIdleImages=itemIdleImages,
     })
+    cloudLayer = Clouds.new(scenery.cloudImages)
     scenery.settlements=Settlements.load(function(path)
         local ok,image=pcall(love.graphics.newImage,path)
         return ok and image or nil
@@ -753,6 +783,7 @@ end
 function love.update(dt)
     Save.update(dt)
     animationClock = animationClock + dt
+    Clouds.update(cloudLayer, dt)
     if ui.assetStreamer then ui.assetStreamer:update(state,scene,saveData,battle,npcActor) end
     -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
     -- the retired random decoration wildlife remains disconnected.
@@ -771,6 +802,7 @@ function love.update(dt)
     if state ~= "game" then return end
     updateStopSludges(dt)
     ui.updateChickens(dt)
+    ui.updateMice(dt)
     if travelTransition then
         travelTransition.t=travelTransition.t+dt
         local t=travelTransition.t; local speedFactor; local timing=EngineUpgrades.timings(saveData.engineLevel)
@@ -1083,7 +1115,8 @@ function ui.inventoryContext()
         giftOpen=giftOpen,giftNPC=giftNPC,giftSlot=giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=nearNPC,nearPassenger=nearPassenger,
         ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=isWeapon,
         drawMenuFrame=drawMenuFrame,button=button,pointer=function() return screenToGame(love.mouse.getPosition()) end,value=containerValue,set=ui.setInventoryState,
-        move=moveBetweenSlots,quickTransfer=quickTransfer,collectAmmo=collectAmmo,drop=dropFromContainer,consume=consumeSelected}
+        battleMode=state=="battle",move=moveBetweenSlots,quickTransfer=quickTransfer,collectAmmo=collectAmmo,drop=state=="battle" and function() return false end or dropFromContainer,
+        consume=state=="battle" and consumeBattleSelected or consumeSelected}
 end
 
 function ui.drawInventory() Systems.inventory.draw(ui.inventoryContext()) end
@@ -1240,8 +1273,8 @@ local function drawGround()
 end
 
 local function drawStop()
-    drawLandscape()
     if scenery.settlements and Settlements.draw(scenery.settlements,saveData.location,W,H) then
+        Clouds.draw(cloudLayer, "stop", W, H, sceneryOffset, saveData.location)
         local trainX,trainY=Settlements.trainPoint(saveData.location)
         if scenery.redTrain then
             local image=scenery.redTrain; local scale=52/math.max(image:getWidth(),image:getHeight())
@@ -1259,10 +1292,11 @@ local function drawStop()
             hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
             death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
         }})
-        ui.drawChickens(ensureStopLayout())
+        ui.drawChickens(ensureStopLayout()); ui.drawMice(ensureStopLayout())
         drawNPC(); drawPlayer(); return
     end
     drawGround()
+    Clouds.draw(cloudLayer, "stop", W, H, sceneryOffset, saveData.location)
     local env=scenery.environment or {}
     local homes={"house-overgrown","house-purple","house-shed","home-water-tower","home-roadside-diner","home-burrow-mound","home-general-store","home-signal-cabin"}
     local trees={"tree-broadleaf","tree-flowering","tree-dead-cloth","tree-cottonwood","tree-mushroom","tree-burned-regrowth","tree-apple-swing"}
@@ -1294,7 +1328,7 @@ local function drawStop()
         hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
         death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
     }})
-    ui.drawChickens(layout)
+    ui.drawChickens(layout); ui.drawMice(layout)
     drawNPC(); drawPlayer()
 end
 
@@ -1573,17 +1607,19 @@ local function drawTacticalBattle()
                 love.graphics.setColor(colors.cream); love.graphics.printf(details,bx-8,546,191,"center",0,.52,.52)
             end
         end
-        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",610,580,110,38,not battle.moveUsed)
-        ui.battleHeal=button("HEAL [H]",730,580,110,38,true); ui.battleGuard=button("GUARD [G]",610,625,110,34,true); ui.battleEnd=button("END TURN",730,625,110,34,true); ui.battleRetreat=button("RETREAT",835,625,100,34,true)
-        ui.battleAbility=button("ABILITY",495,625,105,34,not battle.abilitiesUsed[active.id])
+        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",585,580,84,38,not battle.moveUsed)
+        ui.battleHeal=button("HEAL [H]",677,580,84,38,true); ui.battleGuard=button("GUARD [G]",769,580,84,38,true); ui.battleAbility=button("ABILITY",861,580,84,38,not battle.abilitiesUsed[active.id])
+        love.graphics.setColor(colors.brass); love.graphics.print("QUICK POTIONS",500,631,0,.58,.58)
         local potionIndex=0
         for i=1,(saveData.inventoryCapacity or 6) do
             local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
             if effect and effect.potion and potionIndex<5 then
-                potionIndex=potionIndex+1; local px=495+(potionIndex-1)*88
-                ui.battlePotionButtons[potionIndex]={button("USE "..string.upper(effect.shortName or effect.potion),px,665,82,28,true),name=item}
+                potionIndex=potionIndex+1; local px=495+(potionIndex-1)*72
+                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,649,66,30,true),name=item}
             end
         end
+        ui.battleInventory=button("BACKPACK [I]",20,641,150,38,true)
+        ui.battleEnd=button("END TURN",765,641,94,38,true); ui.battleRetreat=button("RETREAT",867,641,78,38,true)
         local activeName=(active.name or ""):lower()
         local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
         local mx,my=screenToGame(love.mouse.getPosition())
@@ -1601,6 +1637,13 @@ local function drawTacticalBattle()
         love.graphics.setColor(colors.cream,alpha); love.graphics.printf("ENCOUNTER",0,300,W,"center",0,2.3,2.3)
         love.graphics.printf("A threat blocks the trail",0,350,W,"center",0,1.05,1.05)
     end
+    if inventoryOpen then
+        love.graphics.setColor(0,0,0,.58); love.graphics.rectangle("fill",0,0,W,H)
+        ui.drawInventory()
+        ui.battleInventoryClose=button("CLOSE [I]",425,35,105,38,true)
+        love.graphics.setColor(colors.cream)
+        love.graphics.printf("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,88,480,"center",0,.78,.78)
+    else ui.battleInventoryClose=nil end
     love.graphics.setLineWidth(1)
 end
 
@@ -1654,7 +1697,7 @@ end
 local function drawGame()
     ui.returnDoor=nil
     if scene=="train" then
-        drawLandscape(); drawTracks(); local tx=0
+        drawLandscape(); Clouds.draw(cloudLayer, "train", W, H, sceneryOffset); drawTracks(); local tx=0
         if travelTransition then
             local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel)
             if t<timing.depart then local p=t/timing.depart; tx=-W*(p*p*p)
@@ -1675,13 +1718,13 @@ local function drawGame()
     -- Keep the departure control with the other scene controls, directly
     -- beneath Options, so it remains discoverable without covering the train.
     ui.leaveTrain=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and button("LEAVE TRAIN",790,194,135,32,true) or nil
-    ui.backpack=button(inventoryOpen and "CLOSE" or "BACKPACK",790,20,135,36,true)
-    ui.map=button(mapOpen and "CLOSE MAP" or "MAP",735,20,50,36,true)
+    ui.backpack=button(inventoryOpen and "CLOSE" or "BACKPACK",830,20,95,36,true)
+    ui.map=button(mapOpen and "CLOSE MAP" or "MAP",735,20,87,36,true)
     ui.editMode=scene=="train" and button(editMode and "EDITING" or "MOVE / SCALE",745,70,180,36,true) or nil
     ui.trainUpgrade=scene=="train" and button("UPGRADE  "..saveData.scrap.." SCRAP",510,70,220,36,true) or nil
     ui.maintenance=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and not travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(saveData)).."%",510,112,220,32,true) or nil
-    ui.pose=button(poseMenu and "CLOSE POSES" or "POSE",790,112,135,32,true)
-    ui.options=button(ui.optionsOpen and "CLOSE OPTIONS" or "OPTIONS",790,154,135,32,true)
+    ui.pose=button(poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
+    ui.options=button(ui.optionsOpen and "CLOSE" or "OPTIONS",840,112,85,32,true)
     ui.stopAttack=scene=="stop" and button("SWORD  ATTACK",790,650,135,38,true) or nil
     local pendingMail=0; for _,mail in ipairs(saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
     if pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end
@@ -1845,6 +1888,11 @@ end
 function ui.handleBattleMousePressed(x,y,rightClick)
     if not battle then state="game"; return end
     if battle and battle.intro then return end
+    if inventoryOpen then
+        if Util.pointIn(x,y,ui.battleInventoryClose) then inventoryOpen=false; draggedSlot=nil; inventoryDragActive=false
+        else ui.handleInventoryClick(x,y) end
+        return
+    end
     if Util.pointIn(x,y,ui.battleLogUp) then ui.playSfx("menu"); battle.logScroll=math.min(math.max(0,#(battle.log or {})-1),(battle.logScroll or 0)+1); return end
     if Util.pointIn(x,y,ui.battleLogDown) then ui.playSfx("menu"); battle.logScroll=math.max(0,(battle.logScroll or 0)-1); return end
     if battle.finished and Util.pointIn(x,y,ui.battleContinue) then
@@ -1853,6 +1901,7 @@ function ui.handleBattleMousePressed(x,y,rightClick)
         return
     end
     if battle.finished then return end
+    if Util.pointIn(x,y,ui.battleInventory) then inventoryOpen=true; draggedSlot=nil; inventoryDragActive=false; ui.playSfx("menu"); return end
     if rightClick then
         local q,r=screenToBoardSpace(x,y); local clicked=q and BattleRules.unitAt(battle,q,r)
         if clicked then battle.selected=clicked.id; ui.playSfx("menu") end
@@ -2053,7 +2102,7 @@ function love.mousereleased(x,y,button)
     x,y=screenToGame(x,y)
     if button==1 and ui.editSliderDrag then ui.updateEditColorSlider(x); ui.editSliderDrag=nil; writeSave(); return end
     if button==1 and editDragging then editDragging=false; writeSave() end
-    if state=="game" then Systems.inventory.handleRelease(ui.inventoryContext(),x,y,button) end
+    if state=="game" or (state=="battle" and inventoryOpen) then Systems.inventory.handleRelease(ui.inventoryContext(),x,y,button) end
 end
 
 function love.wheelmoved(_,y)
@@ -2088,7 +2137,10 @@ local function keypressedGlobal(key)
     if state=="characters" and (key=="up" or key=="w" or key=="pageup") then characterScroll=math.max(0,characterScroll-1); return end
     if travelConfirm then if key=="escape" then travelConfirm=false elseif key=="return" or key=="e" then local cost=travelCost(); if saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal then saveData.resources.food=saveData.resources.food-cost.food; saveData.resources.water=saveData.resources.water-cost.water; saveData.resources.coal=saveData.resources.coal-cost.coal; travelConfirm=false; travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end; return end
     if state=="battle" then
-        if battle.finished and (key=="return" or key=="space" or key=="e") then
+        if inventoryOpen then
+            if key=="i" or key=="escape" then inventoryOpen=false; draggedSlot=nil; inventoryDragActive=false end
+        elseif not battle.finished and key=="i" and BattleRules.activeUnit(battle) and BattleRules.activeUnit(battle).team=="ally" then inventoryOpen=true; draggedSlot=nil; inventoryDragActive=false; ui.playSfx("menu")
+        elseif battle.finished and (key=="return" or key=="space" or key=="e") then
             local outcome=battle.finished; battle=nil; state="game"; if outcome=="win" then enterStop() else scene="train"; saveData.scene=scene; writeSave() end
         elseif not battle.finished and tonumber(key) and battle.options and battle.options[tonumber(key)] then battleAttack(battle.options[tonumber(key)])
         elseif not battle.finished and key=="h" then battleHeal()

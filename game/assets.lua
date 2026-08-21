@@ -3,6 +3,7 @@ local CharacterAnimation = require("game.character_animation")
 local EventUI = require("game.event_ui")
 local Roster = require("game.roster")
 local Wildlife = require("game.wildlife") -- retained only for dynamic chickens
+local Mice = require("game.mice")
 local AssetDiagnostics = require("game.asset_diagnostics")
 local LootProgression = require("game.loot_progression")
 
@@ -222,6 +223,10 @@ function Assets.load(targets)
     scenery.smokeLarge1 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-1.png","train scenery")
     scenery.smokeLarge2 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-2.png","train scenery")
     scenery.smokeSmall = loadImage("assets/sprites/train-decorations/locomotive-smoke-small.png","train scenery")
+    scenery.cloudImages = {}
+    for _, file in ipairs({"cloud-1.png", "cloud-2.png", "cloud-3.png", "cloud-4.png", "cloud-5.png", "cloud-6.png", "cloud-7.png", "cloud-8.png", "cloud-9.png"}) do
+        scenery.cloudImages[#scenery.cloudImages + 1] = loadImage("assets/sprites/effects/clouds/" .. file,"sky effects")
+    end
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/MainCharacters/animations")) do
         if file:match("%-walk%.png$") and not file:match("%-left%.png$") and not file:match("%-right%.png$") then
@@ -343,6 +348,7 @@ function Assets.load(targets)
     scenery.stopWildlife, scenery.stopWildlifeFeeding = {}, {}
     loadFolderImages("assets/sprites/stop-wildlife", scenery.stopWildlife, function(file) return not file:find("atlas") end,"wildlife")
     Wildlife.load(scenery.stopWildlife, function(path) return loadImage(path,"wildlife") end)
+    Mice.load(scenery.stopWildlife, function(path) return loadImage(path,"wildlife") end)
     scenery.eventArt = EventUI.load(function(path) return loadImage(path,"event UI") end)
     if love.filesystem.getInfo("assets/sprites/stop-wildlife/animations") then
         for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/stop-wildlife/animations")) do

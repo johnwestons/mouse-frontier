@@ -260,8 +260,10 @@ end
 
 Catalog.mobTiers = {
     easy={"flower-bird.png","ghost-small.png","pumpkin-bat.png","dust-beetle.png","cactus-rat.png","red-hood-mouse.png","shield-mouse.png","cowboy-mouse-no-skull.png"},
-    medium={"attacking-eagle.png","pumpkin-cat.png","pumpkin-vampire.png","wasteland-scorpion.png","raccoon-cape.png","raccoon-heart.png"},
-    hard={"ghost-tall.png","purple-dragon.png","mutant-horned-owl.png","tunnel-badger-raider.png","wasteland-human-zombie.png","vampire-mouse.png"}
+    medium={"attacking-eagle.png","pumpkin-cat.png","pumpkin-vampire.png","wasteland-scorpion.png","raccoon-cape.png","raccoon-heart.png","mouse-bandit.png"},
+    -- The zombie is intentionally hard-tier. Its duplicate entry raises its
+    -- selection weight so players reliably encounter it during the late game.
+    hard={"ghost-tall.png","purple-dragon.png","mutant-horned-owl.png","tunnel-badger-raider.png","wasteland-human-zombie.png","wasteland-human-zombie.png","vampire-mouse.png","mouse-bandit.png"}
 }
 
 function Catalog.encounterMobCount(tier, location)

@@ -21,6 +21,7 @@ end
 
 local function armed(file)
     local s=(file or ""):lower()
+    if s:find("mouse-bandit",1,true) then return false end
     return s:find("cowboy",1,true) or s:find("marshal",1,true) or s:find("sheriff",1,true) or s:find("guard",1,true) or s:find("raider",1,true) or s:find("bandit",1,true)
 end
 local function natural(file)
@@ -112,6 +113,21 @@ function Battle.usePotion(c,name)
     if effect.extraMoves then b.moveUsed=false; b.phase="select" end
     if effect.battleAction then msg(c,player.name.." drank "..c.Util.titleFromFile(name).."."); c.writeSave(); return true end
     msg(c,player.name.." drank "..c.Util.titleFromFile(name).."."); Battle.advance(c); c.writeSave(); return true
+end
+
+function Battle.useHealingItem(c,name)
+    local b=c.battle; local u=c.BattleRules.activeUnit(b)
+    if not u or u.team~="ally" or b.finished then return false end
+    local effect=c.Catalog.itemEffects[name]
+    if not effect or not effect.health then return false end
+    local slot
+    for i=1,(c.saveData.inventoryCapacity or 6) do if c.saveData.inventory[i]==name then slot=i; break end end
+    if not slot then return false end
+    c.saveData.inventory[slot]=nil; u.action="use"; u.actionItem=name; u.actionTimer=.45
+    local before=u.hp; u.hp=math.min(u.maxHP,u.hp+effect.health)
+    if u.id=="player" then c.saveData.health=u.hp end
+    msg(c,u.name.." used "..c.Util.titleFromFile(name).." and recovered "..(u.hp-before).." HP.")
+    Battle.advance(c); c.writeSave(); return true
 end
 
 function Battle.attack(c,weapon)
