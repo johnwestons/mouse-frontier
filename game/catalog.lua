@@ -103,7 +103,10 @@ Catalog.itemEffects = {
     ["green-regeneration-vial"]={potion="regeneration",regenAmount=2,regenRounds=3,battleAction=true,shortName="REGEN +2",label="DRINK",description="This battle: heal yourself and allies for 2 HP over 3 turns."},
     ["blue-water-bottle"]={water=3,label="DRINK"}, ["rainwater-jar"]={water=5,label="DRINK"},
     ["patched-canteen"]={water=5,label="DRINK"}, ["boxed-fruit-drink"]={water=3,food=1,label="DRINK"},
-    ["ceramic-water-crock"]={water=7,label="DRINK"}
+    ["ceramic-water-crock"]={water=7,label="DRINK"},
+    ["small-oil-canister"]={oil=1,label="STORE",description="Adds 1 oil to the train supply."},
+    ["medium-oil-canister"]={oil=5,label="STORE",description="Adds 5 oil to the train supply."},
+    ["large-oil-canister"]={oil=10,label="STORE",description="Adds 10 oil to the train supply."}
 }
 
 Catalog.weaponStats = {
@@ -292,9 +295,9 @@ Catalog.ammoPickupAmounts={rocks=8,arrows=6,["ball-bearings"]=8,["9mm"]=12,["45-
 Catalog.lootPools = {
     food={"food-ration","bread-loaf","red-apple","carrot","hand-pie","jam-jar","berry-jar","trail-beans-can","dried-berry-pouch","cornbread-square","jerky-bundle","smoked-trout","honey-biscuits","roasted-squash","acorn-cluster","oat-porridge"},
     water={"water-bottle","water-canteen","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink"},
-    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","coal-chunk","rocks","arrows","ball-bearings","wrapped-sweet","honey-biscuits","acorn-cluster","dried-berry-pouch"},
-    uncommon={"hand-pie","jam-jar","berry-jar","melon-slice","campfire-skewers","trail-mix-pouch","trail-cheese","bean-tin","trail-beans-can","cornbread-square","jerky-bundle","smoked-trout","roasted-squash","oat-porridge","water-canteen","ceramic-water-flask","metal-water-flask","blue-water-bottle","berry-soda","boxed-fruit-drink","field-bandage-roll","healing-salve","hot-water-bottle","9mm","22lr","45-cal","380-acp","32-acp","patched-canvas-pack"},
-    rare={"mushroom-stew","preserved-peaches","large-water-jug","rainwater-jar","patched-canteen","ceramic-water-crock","herbal-tonic","wooden-splint-kit","antidote-vial","frontier-medkit","red-potion-vial","green-potion-vial","yellow-potion-vial","purple-potion-vial","blue-potion-vial","red-double-attack-vial","yellow-double-move-vial","blue-guard-vial","purple-accuracy-vial","green-regeneration-vial","30-carbine","12-gauge","556","762x39","8mm","weathered-leather-pack","red-leather-pack","compact-sling-pack","black-sling-pack","bedroll-hiking-pack","frontier-leather-pack"},
+    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","coal-chunk","small-oil-canister","rocks","arrows","ball-bearings","wrapped-sweet","honey-biscuits","acorn-cluster","dried-berry-pouch"},
+    uncommon={"hand-pie","jam-jar","berry-jar","melon-slice","campfire-skewers","trail-mix-pouch","trail-cheese","bean-tin","trail-beans-can","cornbread-square","jerky-bundle","smoked-trout","roasted-squash","oat-porridge","water-canteen","ceramic-water-flask","metal-water-flask","blue-water-bottle","berry-soda","boxed-fruit-drink","medium-oil-canister","field-bandage-roll","healing-salve","hot-water-bottle","9mm","22lr","45-cal","380-acp","32-acp","patched-canvas-pack"},
+    rare={"mushroom-stew","preserved-peaches","large-water-jug","rainwater-jar","patched-canteen","ceramic-water-crock","large-oil-canister","herbal-tonic","wooden-splint-kit","antidote-vial","frontier-medkit","red-potion-vial","green-potion-vial","yellow-potion-vial","purple-potion-vial","blue-potion-vial","red-double-attack-vial","yellow-double-move-vial","blue-guard-vial","purple-accuracy-vial","green-regeneration-vial","30-carbine","12-gauge","556","762x39","8mm","weathered-leather-pack","red-leather-pack","compact-sling-pack","black-sling-pack","bedroll-hiking-pack","frontier-leather-pack"},
     legendary={"rose-heart-arrow","blade-hearts","emergency-syringe-case","scavenger-frame-pack"}
 }
 

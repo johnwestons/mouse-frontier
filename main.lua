@@ -131,7 +131,7 @@ local function newSave(character)
     local result={
         version = CURRENT_SAVE_VERSION, character = character, location = 1, scene = "train", stopped = true,
         npcRoster = npcRoster, currentNPC = npcRoster[1],
-        resources = {food = 10, water = 10, coal = 10},
+        resources = {food = 10, water = 10, coal = 10, oil = 10},
         health = 20, maxHealth = 20, stats={level=1,xp=0,nextXP=10},
         equipment = {"frontier-short-sword", "trail-slingshot"},
         ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0,["30-carbine"]=0,["8mm"]=0,["380-acp"]=0,["32-acp"]=0,["12-gauge"]=0,["762x39"]=0},
@@ -157,6 +157,9 @@ local function enterGame(data)
     data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
     data.resources=type(data.resources)=="table" and data.resources or {}
     for _,name in ipairs({"food","water","coal"}) do data.resources[name]=math.max(0,tonumber(data.resources[name]) or 0) end
+    -- Existing saves predate train oil; give them the same starter reserve as
+    -- a new game instead of loading them into an unwinnable empty state.
+    data.resources.oil=math.max(0,tonumber(data.resources.oil) or 10)
     data.scene = data.scene or "train"
     data.stopped = data.stopped == nil and true or data.stopped
     data.droppedItems = data.droppedItems or {}
@@ -397,15 +400,17 @@ local function consumeSelected()
     local capacity=20; for _,id in ipairs(saveData.trainCars or {}) do if id=="storage" then capacity=30; break end end
     local foodFull=effect.food and saveData.resources.food>=capacity
     local waterFull=effect.water and saveData.resources.water>=capacity
-    if (effect.food or effect.water) and (not effect.food or foodFull) and (not effect.water or waterFull) then
-        local fullName=foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full.")
+    local oilFull=effect.oil and saveData.resources.oil>=capacity
+    if (effect.food or effect.water or effect.oil) and (not effect.food or foodFull) and (not effect.water or waterFull) and (not effect.oil or oilFull) then
+        local fullName=oilFull and "Oil storage is full." or (foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full."))
         dialogue={speaker="Storage Full",text=fullName,timer=2.2}
         return false
     end
     if effect.food then saveData.resources.food=math.min(capacity,saveData.resources.food+effect.food) end
     if effect.water then saveData.resources.water=math.min(capacity,saveData.resources.water+effect.water) end
+    if effect.oil then saveData.resources.oil=math.min(capacity,saveData.resources.oil+effect.oil) end
     if effect.health then saveData.health=math.min(saveData.maxHealth,saveData.health+effect.health) end
-    dialogue={speaker=Util.titleFromFile(name),text="That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored."),timer=1.4}
+    dialogue={speaker=Util.titleFromFile(name),text=effect.oil and ("Stored +"..effect.oil.." train oil.") or ("That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored.")),timer=1.4}
     setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
 end
 
@@ -1090,10 +1095,12 @@ local function drawTrainCar(index)
     end
 end
 
-function ui.drawResource(name, value, x, color)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,150,34,7,7)
-    love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(80,value*4)),16,4,4)
-    love.graphics.setColor(colors.cream); love.graphics.print(name.." "..value,x+8,27,0,1.12,1.12)
+function ui.drawResource(name, value, x, color, width)
+    width=width or 150
+    local barWidth=math.max(20,width-66)
+    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,width,34,7,7)
+    love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(barWidth,value*barWidth/20)),16,4,4)
+    love.graphics.setColor(colors.cream); love.graphics.print(name.." "..value,x+6,28,0,.92,.92)
 end
 
 function ui.drawHealthBar(label,value,maxValue,x,y,w)
@@ -1712,7 +1719,8 @@ local function drawGame()
         else drawTrainView(saveData.activeCar or 1,0,saveData.activeCar or 1,player.x,player.y) end
         love.graphics.pop()
     elseif scene=="house" then drawHouse() else drawStop() end
-    ui.drawResource("FOOD",saveData.resources.food,20,colors.green); ui.drawResource("WATER",saveData.resources.water,180,colors.blue); ui.drawResource("COAL",saveData.resources.coal,340,colors.red)
+    ui.drawResource("FOOD",saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",saveData.resources.water,140,colors.blue,110)
+    ui.drawResource("COAL",saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",saveData.resources.oil,380,colors.brass,110)
     ui.drawJourneyHUD()
     ui.travel=scene=="train" and button(saveData.location>=50 and "JOURNEY COMPLETE" or "TRAVEL TO NEXT STOP",510,20,220,36,saveData.location<50 and saveData.resources.food>0 and saveData.resources.water>0 and saveData.resources.coal>0) or nil
     -- Keep the departure control with the other scene controls, directly
@@ -2215,7 +2223,7 @@ if ui.smokeRequested then
     local function smokeSnapshot()
         return {state=state,scene=scene,location=saveData and saveData.location,
             food=saveData and saveData.resources.food,water=saveData and saveData.resources.water,
-            coal=saveData and saveData.resources.coal,health=saveData and saveData.health,
+            coal=saveData and saveData.resources.coal,oil=saveData and saveData.resources.oil,health=saveData and saveData.health,
             inventoryOpen=inventoryOpen,mapOpen=mapOpen,traveling=travelTransition~=nil,
             maintenanceOpen=maintenanceSession.open,maintenanceCondition=saveData and Maintenance.condition(saveData),
             maintenanceTargets=Maintenance.targetCount(),maintenanceProgress=Maintenance.progressCount(maintenanceSession),
@@ -2269,23 +2277,40 @@ if ui.smokeRequested then
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCaptureRequested=true end
                 ui.smokeDraw(); return true
             end,expect={maintenanceOpen=true,maintenanceCondition=72,maintenanceTargets=3,maintenanceProgress=0,maintenanceCursor=true}},
+            {name="maintenance_cancel_preserves_oil",action=function()
+                saveData.resources.oil=1
+                local before=saveData.resources.oil
+                local x,y=Maintenance.targetPosition(1); love.mousepressed(x,y,1); love.mousepressed(x,y,1)
+                local afterDrop=saveData.resources.oil
+                local limitedProgress=Maintenance.progressCount(maintenanceSession)
+                love.keypressed("escape")
+                local afterCancel=saveData.resources.oil
+                saveData.resources.oil=10
+                Maintenance.open(maintenanceSession,saveData)
+                return {before=before,afterDrop=afterDrop,afterCancel=afterCancel,limitedProgress=limitedProgress,
+                    reopenedProgress=Maintenance.progressCount(maintenanceSession)}
+            end,check=function(_,_,snapshot,result)
+                return result.before==1 and result.afterDrop==1 and result.afterCancel==1 and result.limitedProgress==1 and result.reopenedProgress==0 and
+                    snapshot.maintenanceOpen==true and snapshot.oil==10
+            end},
             {name="service_running_gear",action=function()
                 love.mousepressed(50,300,1)
                 local outsideProgress=Maintenance.progressCount(maintenanceSession)
                 local x1,y1=Maintenance.targetPosition(1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1)
                 local x2,y2=Maintenance.targetPosition(2); love.mousepressed(x2,y2,1)
                 local x3,y3=Maintenance.targetPosition(3); love.mousepressed(x3,y3,1); love.mousepressed(x3,y3,1)
-                local beforeDone={condition=Maintenance.condition(saveData),progress=Maintenance.progressCount(maintenanceSession)}
+                local beforeDone={condition=Maintenance.condition(saveData),progress=Maintenance.progressCount(maintenanceSession),oil=saveData.resources.oil}
                 love.mousepressed(712,544,1)
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCompleteCaptureRequested=true end
                 ui.smokeDraw()
-                return {services=saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,
+                return {services=saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,oilAfter=saveData.resources.oil,
                     lights=Maintenance.progressLights(maintenanceSession),cursor=maintenanceSession.cursorActive,
                     animationSpec=Maintenance.animationSpec(),animationState=Maintenance.animationState(maintenanceSession)}
             end,check=function(_,_,snapshot,result)
                 local lit=0; for _,value in ipairs(result.lights or {}) do if value then lit=lit+1 end end
                 local spec,state=result.animationSpec or {},result.animationState or {}
                 return result.services==1 and result.outsideProgress==0 and result.beforeDone.condition==72 and result.beforeDone.progress==5 and
+                    result.beforeDone.oil==10 and result.oilAfter==5 and snapshot.oil==5 and
                     lit==5 and result.cursor==false and snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true and
                     spec.wheelFrames==5 and spec.doneFrames==5 and spec.conditionFrames==5 and state.smokePuffs==3
             end},
@@ -2306,6 +2331,20 @@ if ui.smokeRequested then
                 Maintenance.close(maintenanceSession); return persisted
             end,check=function(_,_,snapshot,result)
                 return result.progress==5 and result.cursor==false and result.completed and result.services==result.before and snapshot.maintenanceOpen==false
+            end},
+            {name="store_oil_canisters",action=function()
+                saveData.resources.oil=0
+                local levels={}
+                for _,name in ipairs({"small-oil-canister","medium-oil-canister","large-oil-canister"}) do
+                    saveData.inventory[1]=name; draggedSlot={kind="inventory",index=1}
+                    if not consumeSelected() then return false end
+                    levels[#levels+1]=saveData.resources.oil
+                end
+                dialogue=nil; actionHeldItem=nil; actionTimer=0
+                return {levels=levels,slot=saveData.inventory[1],dragged=draggedSlot}
+            end,check=function(_,_,snapshot,result)
+                return result and result.levels[1]==1 and result.levels[2]==6 and result.levels[3]==16 and
+                    result.slot==nil and result.dragged==nil and snapshot.oil==16
             end},
             {name="confirm_travel",action=function() state="game"; scene="train"; saveData.scene=scene; travelConfirm=true; love.keypressed("return"); return true end,
                 expect={food=9,water=9,coal=9,traveling=true}},

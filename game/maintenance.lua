@@ -16,6 +16,7 @@ local LAMPS = {
 local DONE_RECT = {x = 659, y = 512, w = 106, h = 64}
 local CLOSE_RECT = {x = 881, y = 104, w = 42, h = 34}
 local TOTAL_DOSES = #LAMPS
+local OIL_PER_DROP = 1
 local CONDITION_SOURCE, DONE_SOURCE = PanelAnimation.sourceRects()
 
 local function clamp(value, low, high)
@@ -42,6 +43,12 @@ end
 
 function Maintenance.condition(data)
     return Maintenance.ensure(data).condition
+end
+
+function Maintenance.oilSupply(data)
+    data.resources = type(data.resources) == "table" and data.resources or {}
+    data.resources.oil = math.max(0, math.floor(tonumber(data.resources.oil) or 0))
+    return data.resources.oil
 end
 
 function Maintenance.coalPenalty(data)
@@ -122,6 +129,10 @@ end
 
 function Maintenance.progressCount(session)
     return progressCount(session)
+end
+
+function Maintenance.reservedOil(session)
+    return session.completed and 0 or progressCount(session) * OIL_PER_DROP
 end
 
 function Maintenance.progressLights(session)
@@ -212,12 +223,16 @@ local function allOiled(session)
     return progressCount(session) >= TOTAL_DOSES
 end
 
-function Maintenance.servicePoint(session, index)
+function Maintenance.servicePoint(session, index, data)
     local target = TARGETS[index]
     if not session.open or session.completed or not target then return false end
     local current = session.targetDoses[index] or 0
     if current >= target.doses then
         session.message = "THAT HUB IS FULLY OILED — MOVE TO ANOTHER"
+        return false
+    end
+    if not data or Maintenance.oilSupply(data) < (progressCount(session) + 1) * OIL_PER_DROP then
+        session.message = "NOT ENOUGH TRAIN OIL — FIND AN OIL CANISTER"
         return false
     end
     session.targetDoses[index] = current + 1
@@ -247,10 +262,16 @@ function Maintenance.complete(session, data)
         return false
     end
     local state = Maintenance.ensure(data)
+    local oilCost = Maintenance.reservedOil(session)
+    if Maintenance.oilSupply(data) < oilCost then
+        session.message = "NOT ENOUGH TRAIN OIL TO COMPLETE SERVICE"
+        return false
+    end
     local before = state.condition
     state.condition = clamp(state.condition + 40, 0, 100)
     state.lastServicedStop = math.max(1, math.floor(tonumber(data.location) or 1))
     state.totalServices = state.totalServices + 1
+    data.resources.oil = data.resources.oil - oilCost
     session.completed = true
     session.cursorActive = false
     session.testMotion = WheelAnimation.duration()
@@ -263,7 +284,7 @@ function Maintenance.complete(session, data)
         session.serviceBursts[#session.serviceBursts + 1] = {x = target.x + 12, y = target.y - 18, life = 1.0, total = 1.0, delay = (i - 1) * .10}
     end
     setSystemCursorVisible(true)
-    session.message = "SERVICE COMPLETE  •  CONDITION +" .. math.floor(state.condition - before) .. "%"
+    session.message = "DONE  •  " .. oilCost .. " OIL USED  •  CONDITION +" .. math.floor(state.condition - before) .. "%"
     return true
 end
 
@@ -459,6 +480,10 @@ function Maintenance.draw(session, data)
     drawConditionPanel(session, data)
     drawDoneSprite(session)
 
+    love.graphics.setColor(.035, .027, .023, .92); love.graphics.rectangle("fill", 690, 578, 205, 27, 5, 5)
+    love.graphics.setColor(.96, .82, .48, 1)
+    love.graphics.printf("OIL " .. Maintenance.oilSupply(data) .. "  •  RESERVED " .. Maintenance.reservedOil(session), 690, 585, 205, "center", 0, .58, .58)
+
     if allOiled(session) and not session.completed then
         love.graphics.setColor(1, .70, .12, .22); love.graphics.rectangle("fill", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8)
         love.graphics.setColor(1, .84, .32, 1); love.graphics.setLineWidth(2); love.graphics.rectangle("line", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8); love.graphics.setLineWidth(1)
@@ -480,7 +505,7 @@ function Maintenance.mousepressed(session, x, y, data)
     if session.cursorActive then
         for i, target in ipairs(TARGETS) do
             if (x - target.x) ^ 2 + (y - target.y) ^ 2 <= target.radius ^ 2 then
-                return Maintenance.servicePoint(session, i) and "serviced" or "blocked"
+                return Maintenance.servicePoint(session, i, data) and "serviced" or "blocked"
             end
         end
     end
@@ -492,7 +517,7 @@ function Maintenance.keypressed(session, key, data)
     if not session.open then return nil end
     if key == "escape" or key == "q" then Maintenance.close(session); return "closed" end
     local index = tonumber(key)
-    if index and index >= 1 and index <= #TARGETS then return Maintenance.servicePoint(session, index) and "serviced" or "blocked" end
+    if index and index >= 1 and index <= #TARGETS then return Maintenance.servicePoint(session, index, data) and "serviced" or "blocked" end
     if key == "return" or key == "kpenter" or key == "space" then return Maintenance.complete(session, data) and "completed" or "blocked" end
     return "consumed"
 end
