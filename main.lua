@@ -14,7 +14,6 @@ local Viewport = require("game.viewport")
 local Catalog = require("game.catalog")
 local Inventory = require("game.inventory")
 local CharacterAnimation = require("game.character_animation")
-local WeaponAttachment = require("game.weapon_attachment")
 local Family = require("game.family")
 local EngineUpgrades = require("game.engine_upgrades")
 local Passengers = require("game.passengers")
@@ -38,7 +37,7 @@ local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic")}
+local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui")}
 local state = "intro"
 local selectedSlot, saveData, player
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
@@ -76,7 +75,6 @@ local giftOpen, giftNPC, giftSlot = false, nil, nil
 exitPrompt = nil
 local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
-local BOARD_COLS, BOARD_ROWS = 7, 4
 local maintenanceSession = Maintenance.new()
 
 
@@ -652,7 +650,7 @@ local function attemptLeaveTrain()
 end
 
 local function battleContext()
-    return {battle=battle,saveData=saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=BOARD_COLS,BOARD_ROWS=BOARD_ROWS,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
+    return {battle=battle,saveData=saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=7,BOARD_ROWS=4,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
 end
 beginEncounter=function(encounter)
     local c=battleContext(); battle=BattleController.begin(c,encounter); battleZoom=1; state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
@@ -1544,174 +1542,26 @@ function ui.updateEditColorSlider(x)
     if ui.editSliderDrag=="hue" then item.hue=value else item.saturation=value*2 end
 end
 
-local function boardToScreen(q,r)
-    local x=460+(q-r)*61; local y=88+(q+r)*34
-    return 460+(x-460)*battleZoom,88+(y-88)*battleZoom
+function ui.battleUIContext()
+    return {
+        W=W,H=H,battle=battle,battleZoom=battleZoom,scenery=scenery,colors=colors,
+        characterImages=characterImages,npcImages=npcImages,mobImages=mobImages,
+        characterWalkImages=characterWalkImages,npcWalkImages=npcWalkImages,
+        mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,
+        mobDeathImages=mobDeathImages,mobWalkImages=mobWalkImages,mobRangedImages=mobRangedImages,
+        animationClock=animationClock,characterAnimations=characterAnimations,
+        saveData=saveData,inventoryOpen=inventoryOpen,ui=ui,
+        drawLandscape=drawLandscape,drawGround=drawGround,
+        drawAnimatedCharacter=drawAnimatedCharacter,button=button,screenToGame=screenToGame,
+        setInventoryOpen=function(value) inventoryOpen=value end,
+        resetInventoryDrag=function() draggedSlot=nil; inventoryDragActive=false end,
+        battleAttack=battleAttack,setBattlePrompt=setBattlePrompt,battleHeal=battleHeal,battleGuard=battleGuard,
+        useBattleAbility=useBattleAbility,useBattlePotion=useBattlePotion,advanceBattleTurn=advanceBattleTurn,
+        resolveBattleAttack=resolveBattleAttack,battleMoveTo=battleMoveTo
+    }
 end
 
-local function screenToBoardSpace(x,y)
-    x=460+(x-460)/battleZoom; y=88+(y-88)/battleZoom
-    for q=0,BOARD_COLS+2 do for r=1,BOARD_ROWS do if BattleRules.isBoardSpace(battle,q,r) then local bx,by=460+(q-r)*61,88+(q+r)*34; if math.abs(x-bx)/58+math.abs(y-by)/30<=1 then return q,r end end end end
-end
-
-local function drawTacticalBattle()
-    drawLandscape(); drawGround()
-    love.graphics.setColor(0.06,0.045,0.035,.88); love.graphics.rectangle("fill",25,55,910,625,12,12)
-    love.graphics.setColor(colors.cream); love.graphics.printf("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,70,910,"center",0,1.25,1.25)
-    local active=BattleRules.selectedUnit(battle)
-    local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
-    if terrainAtlas then
-        for depth=1,BOARD_COLS+BOARD_ROWS+3 do for q=0,BOARD_COLS+2 do local r=depth-q; if BattleRules.isBoardSpace(battle,q,r) then
-            local x,y=boardToScreen(q,r); local tile=battle.tiles[q][r]
-            local variation=scenery.battleVariations and scenery.battleVariations[battle.biome or 1]
-            local tileAtlas=(battle.tileVariants and battle.tileVariants[q] and battle.tileVariants[q][r]==2 and variation) or terrainAtlas
-            local quad=tileAtlas.quads[tile]
-            if quad then love.graphics.setColor(1,1,1); love.graphics.draw(tileAtlas.image,quad,x,y,0,.30,.30,tileAtlas.cw/2,tileAtlas.ch*.42) end
-            local occupant=BattleRules.unitAt(battle,q,r); local reachable=active and active.team=="ally" and BattleRules.distance(active,{q=q,r=r})<=active.move and not occupant
-            local targetable=active and battle.phase=="target" and occupant and occupant.team~=active.team and BattleRules.distance(active,occupant)<=BattleRules.weaponRange(Catalog,battle.chosenWeapon or "scratch")
-            if targetable then love.graphics.setColor(1,.12,.08,.60); love.graphics.setLineWidth(3); love.graphics.circle("line",x,y,10)
-            elseif reachable and (battle.phase=="select" or battle.phase=="move") then love.graphics.setColor(1,.80,.18,.40); love.graphics.setLineWidth(2); love.graphics.circle("line",x,y,8) end
-        end end end
-    end
-    -- Draw tactical units from the back of the isometric board to the front.
-    -- Dead units are deliberately first at the same depth, so a death sprite
-    -- cannot cover a living character that has moved onto its space.
-    local drawUnits={}
-    for index,u in ipairs(battle.units) do drawUnits[#drawUnits+1]={unit=u,index=index} end
-    table.sort(drawUnits,function(a,b)
-        local au,bu=a.unit,b.unit
-        local aDepth=(au.q or 0)+(au.r or 0); local bDepth=(bu.q or 0)+(bu.r or 0)
-        if aDepth~=bDepth then return aDepth<bDepth end
-        local aDead=au.hp<=0 and 0 or 1; local bDead=bu.hp<=0 and 0 or 1
-        if aDead~=bDead then return aDead<bDead end
-        return a.index<b.index
-    end)
-    for _,entry in ipairs(drawUnits) do
-        local i,u=entry.index,entry.unit
-        local x,y=boardToScreen(u.q,u.r); local moving=u.moveAnim~=nil
-        if moving then local m=u.moveAnim; local p=math.min(1,m.t/m.duration); p=p*p*(3-2*p); local sx,sy=boardToScreen(m.fromQ,m.fromR); local tx,ty=boardToScreen(m.toQ,m.toR); x,y=sx+(tx-sx)*p,sy+(ty-sy)*p end
-        if (u.hitTimer or 0)>0 and u.hitFromQ then
-            local fromX,fromY=boardToScreen(u.hitFromQ,u.hitFromR); local dx,dy=x-fromX,y-fromY; local length=math.max(1,math.sqrt(dx*dx+dy*dy)); local recoil=math.sin(math.min(1,(.58-u.hitTimer)/.58)*math.pi)*14
-            x=x+(dx/length)*recoil; y=y+(dy/length)*recoil-recoil*.22
-        end
-        local img=u.team=="enemy" and mobImages[u.file] or (characterImages[u.file] or npcImages[u.file])
-        if u.hp<=0 then img=u.team=="enemy" and (mobDeathImages[u.file] or mobHitImages[u.file] or img) or img end
-        if u.team=="enemy" and not moving then
-            if u.hp<=0 then img=mobDeathImages[u.file] or mobHitImages[u.file] or img
-            elseif (u.hitTimer or 0)>0 then img=mobHitImages[u.file] or img
-            elseif (u.actionTimer or 0)>0 then img=(u.action=="ranged" and mobRangedImages[u.file]) or mobAttackImages[u.file] or img
-            elseif math.floor((animationClock+i*.17)/1.25)%2==1 then img=mobIdleImages[u.file] or img end
-        end
-        local bob=moving and math.sin(animationClock*10+i)*3 or 0
-        if moving then
-            if u.team=="enemy" then img=mobWalkImages[u.file] or img
-            else img=characterWalkImages[u.file] or npcWalkImages[u.file] or img end
-        end
-        local action=(u.hitTimer or 0)>0 and "hit" or ((u.actionTimer or 0)>0 and (u.action or "idle") or "idle")
-        local facing=BattleRules.facing(battle,u)
-        local actionPhase=(u.actionTimer or 0)>0 and math.max(0,.45-u.actionTimer) or animationClock+i*.13
-        local attachedWeapon=false
-        local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase)
-        if not animated and img then local s=math.min(76/img:getWidth(),96/img:getHeight()); if battle.lastTarget==u.id and battle.hitFlash>0 then love.graphics.setColor(1,.3,.25) else love.graphics.setColor(1,1,1) end; love.graphics.draw(img,x,y+10+bob,0,s*facing,s,img:getWidth()/2,img:getHeight()) end
-        if animated and u.team=="ally" and action=="ranged" and (u.actionTimer or 0)>0 and WeaponAttachment.isFirearm(Catalog,u.actionItem) then
-            attachedWeapon=WeaponAttachment.draw(characterAnimations,u.file,u.actionItem,ui.propImages[u.actionItem],x,y+20,76,96,facing,actionPhase)
-        end
-        if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" and not attachedWeapon then ui.drawItem(u.actionItem,{x=x+10,y=y-38,w=38,h=38}) end
-        if (u.damageNumberTimer or 0)>0 and u.damageNumber then
-            local rise=(.9-u.damageNumberTimer)*24
-            love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
-        end
-        if u.hp>0 then love.graphics.setColor(.1,.06,.04,.9); love.graphics.rectangle("fill",x-31,y+14,62,8); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),8) end
-    end
-    if battle.projectile and scenery.projectiles then
-        local p=battle.projectile; local sx,sy=boardToScreen(p.fromQ,p.fromR); local tx,ty=boardToScreen(p.toQ,p.toR); local progress=math.min(1,p.t/p.duration); local px,py=sx+(tx-sx)*progress,sy+(ty-sy)*progress-35
-        if p.kind=="boomerang" and ui.propImages["scrap-boomerang"] then
-            local image=ui.propImages["scrap-boomerang"]; local scale=math.min(38/image:getWidth(),38/image:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(image,px,py,progress*math.pi*6,scale,scale,image:getWidth()/2,image:getHeight()/2)
-        else
-            local index=p.ammo=="rocks" and 1 or (p.ammo=="ball-bearings" and 2 or (p.ammo=="arrows" and 3 or ((p.ammo=="45-cal" or p.ammo=="556") and 5 or 4)))
-            local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
-        end
-    end
-    love.graphics.setColor(.08,.055,.04,.92); love.graphics.rectangle("fill",185,488,590,82,8,8)
-    love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",205,497,0,.72,.72)
-    local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
-    local newest=#log-offset; local first=math.max(1,newest-2); local row=0
-    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*16,520,"left",0,.67,.67); row=row+1 end
-    ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0)
-    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
-    if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
-    if active then
-        -- Character card occupies the lower-left corner between the battle
-        -- feed and the attack controls, leaving the tactical map unobstructed.
-        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",8,488,168,82,8,8)
-        love.graphics.setColor(colors.brass); love.graphics.printf("ACTIVE",14,495,52,"left",0,.62,.62)
-        local portrait=active.team=="enemy" and mobImages[active.file] or (characterImages[active.file] or npcImages[active.file])
-        if portrait then local portraitScale=math.min(42/portrait:getWidth(),48/portrait:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(portrait,42,552,0,portraitScale,portraitScale,portrait:getWidth()/2,portrait:getHeight()) end
-        love.graphics.setColor(colors.cream); love.graphics.printf(active.name,68,503,100,"left",0,.54,.54)
-        love.graphics.print("HP "..active.hp.."/"..active.maxHP,68,523,0,.56,.56)
-        love.graphics.print("MOVE "..active.move.."  ARM "..active.armor,68,541,0,.52,.52)
-    end
-    if battle.finished then ui.battleContinue=button(battle.finished=="win" and "CONTINUE TO STOP" or "RETURN TO TRAIN",330,605,300,45,true)
-    elseif active and active.team=="ally" then
-        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,575,944,105,9,9)
-        love.graphics.setColor(colors.brass); love.graphics.print("ATTACK",20,578,0,.54,.54); love.graphics.print("ACTIONS",548,578,0,.54,.54)
-        local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
-        for i,w in ipairs(options) do
-            local bx=20+(i-1)*174
-            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,592,166,34,true,.66)
-            local mx,my=screenToGame(love.mouse.getPosition())
-            if Util.pointIn(mx,my,ui.battleWeapons[i]) then
-                local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
-                local combat=Catalog.weaponCombat[w] or Catalog.weaponCombat.scratch
-                local durability=(w=="scratch") and 100 or (saveData.weaponDurability[w] or 100)
-                local details=string.format("%s  DMG %d-%d  %s  RANGE %d",stats.name,stats.min,stats.max,string.upper(combat.kind or "melee"),combat.range or 0)
-                if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
-                details=details.."  DUR "..durability.."%"
-                love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
-                love.graphics.setColor(colors.cream); love.graphics.printf(details,200,546,560,"center",0,.58,.58)
-            end
-        end
-        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",548,592,94,34,not battle.moveUsed,.66)
-        ui.battleHeal=button("HEAL [H]",648,592,94,34,true,.66)
-        ui.battleGuard=button("GUARD [G]",748,592,94,34,true,.66)
-        ui.battleAbility=button("ABILITY",848,592,94,34,not battle.abilitiesUsed[active.id],.66)
-        ui.battleInventory=button("PACK [I]",20,638,105,34,true,.68)
-        love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48)
-        local potionIndex=0
-        for i=1,(saveData.inventoryCapacity or 6) do
-            local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
-            if effect and effect.potion and potionIndex<5 then
-                potionIndex=potionIndex+1; local px=135+(potionIndex-1)*80
-                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,638,74,34,true,.52),name=item}
-            end
-        end
-        ui.battleEnd=button("END TURN",665,638,140,34,true,.72)
-        ui.battleRetreat=button("RETREAT",815,638,127,34,true,.72)
-        local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
-        local mx,my=screenToGame(love.mouse.getPosition())
-        if Util.pointIn(mx,my,ui.battleAbility) then
-            love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
-        end
-        love.graphics.setColor(colors.cream); love.graphics.print(active.name.."  HP "..active.hp.."/"..active.maxHP.."  MOVE "..active.move.."  ARMOR "..active.armor,65,115)
-    end
-    if battle.intro then
-        local p=math.min(1,battle.intro/battle.introDuration)
-        local fadeIn=math.min(1,p/.35); local fadeOut=math.min(1,math.max(0,(1-p)/.45))
-        local alpha=math.max(0,math.min(1,math.max(fadeIn,fadeOut)))
-        love.graphics.setColor(0.025,0.018,0.012,alpha*.78); love.graphics.rectangle("fill",0,0,W,H)
-        love.graphics.setColor(colors.cream,alpha); love.graphics.printf("ENCOUNTER",0,300,W,"center",0,2.3,2.3)
-        love.graphics.printf("A threat blocks the trail",0,350,W,"center",0,1.05,1.05)
-    end
-    if inventoryOpen then
-        love.graphics.setColor(0,0,0,.58); love.graphics.rectangle("fill",0,0,W,H)
-        ui.drawInventory()
-        ui.battleInventoryClose=button("CLOSE [I]",425,35,105,38,true)
-        love.graphics.setColor(colors.cream)
-        love.graphics.printf("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,88,480,"center",0,.78,.78)
-    else ui.battleInventoryClose=nil end
-    love.graphics.setLineWidth(1)
-end
+function ui.drawTacticalBattle() Systems.battleUI.draw(ui.battleUIContext()) end
 
 local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
     local carCount=#(saveData.trainCars or {})
@@ -1901,7 +1751,7 @@ function love.draw()
         local focusX,focusY=(player and player.x or W/2),(player and player.y or H/2)
         Camera:apply(focusX,focusY)
     end
-    if state=="slots" then ui.drawSlots() elseif state=="characters" then ui.drawCharacterSelect() elseif state=="battle" then drawTacticalBattle() elseif state=="event" then ui.drawRandomEvent() elseif state=="ending" then drawEnding() elseif travelConfirm then ui.drawTravelConfirm() else drawGame() end
+    if state=="slots" then ui.drawSlots() elseif state=="characters" then ui.drawCharacterSelect() elseif state=="battle" then ui.drawTacticalBattle() elseif state=="event" then ui.drawRandomEvent() elseif state=="ending" then drawEnding() elseif travelConfirm then ui.drawTravelConfirm() else drawGame() end
     if exitPrompt then drawExitPrompt() end
     love.graphics.pop()
     if travelTransition then
@@ -1966,58 +1816,11 @@ function ui.handleTradeClick(x,y)
 end
 
 function ui.handleBattleMousePressed(x,y,rightClick)
-    if not battle then state="game"; return end
-    if battle and battle.intro then return end
-    if inventoryOpen then
-        if Util.pointIn(x,y,ui.battleInventoryClose) then inventoryOpen=false; draggedSlot=nil; inventoryDragActive=false
-        else ui.handleInventoryClick(x,y) end
-        return
-    end
-    if Util.pointIn(x,y,ui.battleLogUp) then ui.playSfx("menu"); battle.logScroll=math.min(math.max(0,#(battle.log or {})-1),(battle.logScroll or 0)+1); return end
-    if Util.pointIn(x,y,ui.battleLogDown) then ui.playSfx("menu"); battle.logScroll=math.max(0,(battle.logScroll or 0)-1); return end
-    if battle.finished and Util.pointIn(x,y,ui.battleContinue) then
-        ui.playSfx("menu"); local outcome=battle.finished; battle=nil; state="game"
-        if outcome=="win" then enterStop() else scene="train"; saveData.scene=scene; npcActor=nil; writeSave() end
-        return
-    end
-    if battle.finished then return end
-    if Util.pointIn(x,y,ui.battleInventory) then inventoryOpen=true; draggedSlot=nil; inventoryDragActive=false; ui.playSfx("menu"); return end
-    if rightClick then
-        local q,r=screenToBoardSpace(x,y); local clicked=q and BattleRules.unitAt(battle,q,r)
-        if clicked then battle.selected=clicked.id; ui.playSfx("menu") end
-        return
-    end
-    for i,r in ipairs(ui.battleWeapons or {}) do if Util.pointIn(x,y,r) then ui.playSfx("menu"); battleAttack(battle.options[i]); return end end
-    if Util.pointIn(x,y,ui.battleMove) and not battle.moveUsed then ui.playSfx("menu"); battle.phase="move"; setBattlePrompt("Choose a highlighted terrain piece to move."); return end
-    if Util.pointIn(x,y,ui.battleHeal) then ui.playSfx("menu"); battleHeal(); return end
-    if Util.pointIn(x,y,ui.battleGuard) then ui.playSfx("menu"); battleGuard(); return end
-    if Util.pointIn(x,y,ui.battleAbility) then
-        ui.playSfx("menu")
-        local unit=BattleRules.activeUnit(battle); local abilityProfile=Catalog.characterAbility(unit and unit.file or ""); local kind=abilityProfile.kind
-        useBattleAbility(kind); return
-    end
-    for _,entry in ipairs(ui.battlePotionButtons or {}) do
-        if Util.pointIn(x,y,entry[1]) then ui.playSfx("menu"); useBattlePotion(entry[2]); return end
-    end
-    if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); advanceBattleTurn(); return end
-    if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); saveData.battlePotionLootChance=nil; battle=nil; state="game"; scene="train"; saveData.scene=scene; npcActor=nil; writeSave(); return end
-    local q,r=screenToBoardSpace(x,y); local active=BattleRules.activeUnit(battle)
-    if q then
-        local clicked=BattleRules.unitAt(battle,q,r)
-        -- During targeting, enemy tiles are attack targets. Character-card
-        -- selection only applies to allied units during the normal select phase.
-        if clicked and battle.phase=="target" and clicked.team=="enemy" then
-            resolveBattleAttack(active,clicked,battle.chosenWeapon or "scratch")
-            return
-        elseif clicked then
-            if clicked.team=="ally" and battle.phase~="target" then battle.selected=clicked.id end
-            return
-        end
-    end
-    if q and active and active.team=="ally" then
-        local target=BattleRules.unitAt(battle,q,r)
-        if battle.phase=="target" and target and target.team=="enemy" then resolveBattleAttack(active,target,battle.chosenWeapon or "scratch")
-        elseif not target then battleMoveTo(q,r) end
+    local result=Systems.battleUI.handleMouse(ui.battleUIContext(),x,y,rightClick)
+    if result=="missing" then state="game"
+    elseif result=="continue_win" then battle=nil; state="game"; enterStop()
+    elseif result=="continue_loss" or result=="retreat" then
+        battle=nil; state="game"; scene="train"; saveData.scene=scene; npcActor=nil; writeSave()
     end
 end
 
@@ -2442,6 +2245,20 @@ if ui.smokeRequested then
             fixtureStep("house"),
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("q"); return "q" end,expect={state="game",scene="stop"}},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
+            {name="battle_ui_mouse_routes",action=function()
+                ui.smokeDraw()
+                local pack=ui.battleInventory
+                if not pack then return false end
+                ui.handleBattleMousePressed(pack.x+pack.w/2,pack.y+pack.h/2,false)
+                local opened=inventoryOpen
+                ui.smokeDraw()
+                local close=ui.battleInventoryClose
+                if not close then return false end
+                ui.handleBattleMousePressed(close.x+close.w/2,close.y+close.h/2,false)
+                return {opened=opened,closed=not inventoryOpen}
+            end,check=function(_,_,snapshot,result)
+                return result and result.opened and result.closed and snapshot.state=="battle" and snapshot.battleActive
+            end},
             {name="render_firearm_attachments",action=function()
                 local unit=battle and battle.units and battle.units[1]
                 if not unit then return false end
