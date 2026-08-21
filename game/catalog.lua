@@ -4,8 +4,45 @@ Catalog.characterTraitProfiles = {
     {name="Scrapper",combat=1,armor=0,coal=1.00,reward=1.25,description="Finds 25% more scrap and quest rewards."},
     {name="Engineer",combat=0,armor=1,coal=0.80,reward=1.00,description="Uses 20% less coal and has extra armor."},
     {name="Trailblazer",combat=1,armor=0,coal=0.90,reward=1.00,description="Better aim and efficient travel."},
-    {name="Diplomat",combat=0,armor=0,coal=1.00,reward=1.35,description="Earns better rewards from critters."}
+    {name="Diplomat",combat=0,armor=0,coal=1.00,reward=1.35,description="Earns better rewards from critters."},
+    {name="Forager",combat=0,armor=0,coal=1.00,food=0.80,reward=1.00,description="Uses 20% less food on every journey."},
+    {name="Hydrologist",combat=0,armor=0,coal=1.00,water=0.80,reward=1.00,description="Uses 20% less water on every journey."},
+    {name="Ranger",combat=1,armor=0,coal=1.00,move=1,reward=1.00,description="Moves one extra space in battle and aims better."},
+    {name="Field Medic",combat=0,armor=0,coal=1.00,maxHealth=4,reward=1.00,description="Has 4 extra maximum health in every battle."},
+    {name="Salvager",combat=0,armor=0,coal=1.00,scrapBonus=2,reward=1.00,description="Finds 2 extra scrap after every victory."}
 }
+
+function Catalog.characterAbility(file)
+    local s=(file or ""):lower()
+    if s:find("medic",1,true) or s:find("botanist",1,true) then return {kind="heal",name="HEAL ALLY",description="Restore 4 HP to nearby allies."} end
+    if s:find("shield",1,true) then return {kind="protect",name="PROTECT",description="Give nearby allies +2 armor this round."} end
+    if s:find("scout",1,true) or s:find("courier",1,true) then return {kind="snare",name="SNARE",description="Slow the nearest enemy for one turn."} end
+    if s:find("witch",1,true) then return {kind="sleep",name="SLEEP",description="Put the nearest enemy to sleep for two turns."} end
+    if s:find("trapper",1,true) or s:find("ranger",1,true) then return {kind="volley",name="VOLLEY",description="Strike the nearest enemy for 5 damage."} end
+    if s:find("cook",1,true) then return {kind="nourish",name="NOURISH",description="Heal nearby allies and give them +1 move."} end
+    if s:find("engineer",1,true) then return {kind="repair",name="REPAIR",description="Restore nearby allies with +2 armor and 2 HP."} end
+    if s:find("conductor",1,true) or s:find("signal",1,true) or s:find("radio",1,true) then return {kind="haste",name="HASTE",description="Give nearby allies +1 aim and +2 move."} end
+    if s:find("merchant",1,true) or s:find("scavenger",1,true) then return {kind="disarm",name="DISARM",description="Reduce the nearest enemy's aim by 2."} end
+    if s:find("frog",1,true) then return {kind="paralyze",name="PARALYZE",description="Stop the nearest enemy's next turn."} end
+    if s:find("prospector",1,true) or s:find("mechanic",1,true) then return {kind="area",name="AREA ATTACK",description="Damage nearby enemies."} end
+    return {kind="rally",name="RALLY",description="Give nearby allies +2 aim and movement."}
+end
+
+function Catalog.characterTrait(file)
+    local s=(file or ""):lower()
+    local profiles=Catalog.characterTraitProfiles
+    local byName={}
+    for _,profile in ipairs(profiles) do byName[profile.name]=profile end
+    if s:find("medic",1,true) or s:find("herbalist",1,true) then return byName["Field Medic"] end
+    if s:find("engineer",1,true) or s:find("mechanic",1,true) or s:find("tinker",1,true) then return byName["Engineer"] end
+    if s:find("cook",1,true) or s:find("gardener",1,true) or s:find("botanist",1,true) or s:find("homesteader",1,true) then return byName["Forager"] end
+    if s:find("river",1,true) or s:find("otter",1,true) then return byName["Hydrologist"] end
+    if s:find("scout",1,true) or s:find("trapper",1,true) or s:find("ranger",1,true) or s:find("trail",1,true) then return byName["Ranger"] end
+    if s:find("scavenger",1,true) or s:find("prospector",1,true) then return byName["Salvager"] end
+    if s:find("courier",1,true) or s:find("conductor",1,true) or s:find("signal",1,true) then return byName["Trailblazer"] end
+    if s:find("merchant",1,true) or s:find("mail",1,true) or s:find("radio",1,true) then return byName["Diplomat"] end
+    return byName["Scrapper"]
+end
 
 Catalog.trainCarCatalog = {
     {id="coal-hauler",name="Coal Hauler",cost=20,description="Coal capacity +10"},

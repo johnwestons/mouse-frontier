@@ -21,7 +21,7 @@ function Battle.begin(c,encounter)
     encounter.mobFiles=encounter.mobFiles or (encounter.mobFile and {encounter.mobFile} or {})
     local tier=encounter.tier or (c.saveData.location<=4 and "easy" or (c.saveData.location<=8 and "medium" or "hard")); encounter.tier=tier
     local maxHP=encounter.maxHP or ({easy=12,medium=20,hard=32})[tier]; encounter.maxHP=maxHP
-    local d=c.saveData; local C=c.Catalog; local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=2,hp=d.health,maxHP=d.maxHealth,move=2,armor=2+(d.trait and d.trait.armor or 0),aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
+    local d=c.saveData; local C=c.Catalog; local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=2,hp=d.health,maxHP=d.maxHealth,move=2+(d.trait and d.trait.move or 0),armor=2+(d.trait and d.trait.armor or 0),aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
     local starts={{q=1,r=3},{q=0,r=2},{q=0,r=4}}
     if encounter.temporaryAllies then
         for i,file in ipairs(encounter.temporaryAllies) do
@@ -63,7 +63,7 @@ function Battle.advance(c)
     local b=c.battle; local enemy,ally=false,false; for _,u in ipairs(b.units) do if u.hp>0 then if u.team=="enemy" then enemy=true else ally=true end end end
     if not enemy then
         b.encounter.resolved=true; local d=c.saveData; local C=c.Catalog; if d.health<=0 then d.health=1; for _,unit in ipairs(b.units) do if unit.id=="player" then unit.hp=1 end end end
-        local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(3,6); local scrap=math.max(1,math.floor(love.math.random(4,8)*(trait.reward or 1))); local xp=({easy=6,medium=12,hard=20})[b.encounter.tier or "easy"]; local defenseBonus=""
+        local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(3,6); local scrap=math.max(1,math.floor(love.math.random(4,8)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=({easy=6,medium=12,hard=20})[b.encounter.tier or "easy"]; local defenseBonus=""
         if b.encounter.defenseBattle then reward=reward+4; scrap=scrap+8; xp=xp+8; d.resources.food=math.min(30,d.resources.food+2); d.resources.water=math.min(30,d.resources.water+2); defenseBonus=" The survivors share +2 food and +2 water." end
         local loot=c.Events.grantBattleLoot(d,C,b.encounter); local levels=c.BattleRules.gainExperience(d,xp); d.scrap=d.scrap+scrap; d.resources.coal=math.min(30,d.resources.coal+reward); msg(c,"Victory! +"..xp.." XP, +"..reward.." coal, +"..scrap.." scrap."..defenseBonus..loot..(levels>0 and " LEVEL UP!" or "")); b.finished="win"; c.writeSave(); return true
     end
@@ -91,10 +91,15 @@ end
 function Battle.ability(c,kind)
     local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" or b.abilitiesUsed[u.id] then return end; b.abilitiesUsed[u.id]=true
     if kind=="heal" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then a.hp=math.min(a.maxHP,a.hp+4); if a.id=="player" then c.saveData.health=a.hp end end end; msg(c,u.name.." restored nearby allies.")
-    elseif kind=="rally" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then c.BattleRules.applyTemporaryStat(a,"aim",2,2) end end; msg(c,u.name.." rallied nearby allies.")
+    elseif kind=="rally" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then c.BattleRules.applyTemporaryStat(a,"aim",2,2); c.BattleRules.applyTemporaryStat(a,"move",2,2) end end; msg(c,u.name.." rallied nearby allies.")
     elseif kind=="protect" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then c.BattleRules.applyTemporaryStat(a,"armor",2,2) end end; msg(c,u.name.." fortified nearby allies.")
     elseif kind=="snare" or kind=="sleep" or kind=="paralyze" then local closest; for _,e in ipairs(b.units) do if e.team=="enemy" and e.hp>0 and (not closest or c.BattleRules.distance(u,e)<c.BattleRules.distance(u,closest)) then closest=e end end; if closest then if kind=="snare" then c.BattleRules.applyTemporaryStat(closest,"move",-1,2); msg(c,closest.name.." was ensnared and slowed.") elseif kind=="sleep" then closest.sleepRounds=2; msg(c,closest.name.." fell asleep.") else closest.paralyzedRounds=1; msg(c,closest.name.." was paralyzed.") end end
-    elseif kind=="area" then local hits=0; for _,e in ipairs(b.units) do if e.team=="enemy" and e.hp>0 and c.BattleRules.distance(u,e)<=2 then e.hp=math.max(0,e.hp-4); e.hitTimer=.58; e.damageNumber=4; e.damageNumberTimer=.9; hits=hits+1 end end; msg(c,u.name.." struck "..hits.." nearby enem"..(hits==1 and "y." or "ies.")) end
+    elseif kind=="area" then local hits=0; for _,e in ipairs(b.units) do if e.team=="enemy" and e.hp>0 and c.BattleRules.distance(u,e)<=2 then e.hp=math.max(0,e.hp-4); e.hitTimer=.58; e.damageNumber=4; e.damageNumberTimer=.9; hits=hits+1 end end; msg(c,u.name.." struck "..hits.." nearby enem"..(hits==1 and "y." or "ies."))
+    elseif kind=="nourish" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then a.hp=math.min(a.maxHP,a.hp+2); c.BattleRules.applyTemporaryStat(a,"move",1,2); if a.id=="player" then c.saveData.health=a.hp end end end; msg(c,u.name.." shared a nourishing meal.")
+    elseif kind=="repair" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then a.hp=math.min(a.maxHP,a.hp+2); c.BattleRules.applyTemporaryStat(a,"armor",2,2); if a.id=="player" then c.saveData.health=a.hp end end end; msg(c,u.name.." repaired nearby allies.")
+    elseif kind=="haste" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=2 then c.BattleRules.applyTemporaryStat(a,"aim",1,2); c.BattleRules.applyTemporaryStat(a,"move",2,2) end end; msg(c,u.name.." got the party moving.")
+    elseif kind=="disarm" then local closest; for _,e in ipairs(b.units) do if e.team=="enemy" and e.hp>0 and (not closest or c.BattleRules.distance(u,e)<c.BattleRules.distance(u,closest)) then closest=e end end; if closest then c.BattleRules.applyTemporaryStat(closest,"aim",-2,2); msg(c,closest.name.." was disarmed and weakened.") end
+    elseif kind=="volley" then local closest; for _,e in ipairs(b.units) do if e.team=="enemy" and e.hp>0 and (not closest or c.BattleRules.distance(u,e)<c.BattleRules.distance(u,closest)) then closest=e end end; if closest then closest.hp=math.max(0,closest.hp-5); closest.hitTimer=.58; closest.damageNumber=5; closest.damageNumberTimer=.9; msg(c,u.name.." hit "..closest.name.." with a volley for 5 damage.") end end
     Battle.advance(c)
 end
 function Battle.resolve(c,attacker,target,weaponName)

@@ -8,6 +8,7 @@ local AssetDiagnostics = require("game.asset_diagnostics")
 local Assets = {}
 local missingRequired
 local lazyPaths=setmetatable({},{__mode="k"})
+local lazyCategories=setmetatable({},{__mode="k"})
 
 local function loadImage(path,category)
     local ok, image = pcall(love.graphics.newImage, path)
@@ -21,19 +22,19 @@ local function loadFallback(paths,category)
 end
 
 local function prepareLazyImages(destination)
-    local paths={}; lazyPaths[destination]=paths
+    local paths,categories={},{}; lazyPaths[destination]=paths; lazyCategories[destination]=categories
     setmetatable(destination,{__index=function(self,key)
         local path=paths[key]
         if not path then return nil end
-        local image=loadImage(path)
+        local image=loadImage(path,categories[key])
         if image then rawset(self,key,image) end
         return image
     end})
 end
 
-local function registerLazyImage(destination,key,path)
+local function registerLazyImage(destination,key,path,category)
     local paths=lazyPaths[destination]
-    if paths then paths[key]=path else destination[key]=loadImage(path) end
+    if paths then paths[key]=path; lazyCategories[destination][key]=category else destination[key]=loadImage(path,category) end
 end
 
 local function releaseLazyImages(destination,keep)
@@ -83,7 +84,8 @@ local function validateCatalogArt(ui)
     local function requireNamed(name, category)
         if not name or checked[name] or virtual[name] then return end
         checked[name] = true
-        if not ui.propImages[name] and not ui.atlasItems[name] then
+        local registered=(rawget(ui.propImages,name)~=nil) or (lazyPaths[ui.propImages] and lazyPaths[ui.propImages][name]~=nil)
+        if not registered and not ui.atlasItems[name] then
             AssetDiagnostics.record("catalog:" .. name, category, "no standalone sprite or atlas entry")
         end
     end
@@ -181,6 +183,7 @@ function Assets.load(targets)
     for _,images in ipairs({characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages}) do
         prepareLazyImages(images)
     end
+    prepareLazyImages(npcImages); prepareLazyImages(mobImages)
 
     ui.radioFace = loadImage("assets/sprites/ui/radio/radio-gui.png","UI")
     ui.radioButtonsImage = loadImage("assets/sprites/ui/radio/radio-buttons.png","UI")
@@ -248,7 +251,7 @@ function Assets.load(targets)
     scenery.trainTexture = loadImage("assets/textures/train-interior-panels.png","train scenery")
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS")) do
-        if Roster.isNpcCandidate(file) then npcImages[file] = requireImage("assets/sprites/NPCS/" .. file) end
+        if Roster.isNpcCandidate(file) then registerLazyImage(npcImages,file,"assets/sprites/NPCS/" .. file,"NPC") end
     end
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS/animations")) do
         if file:match("%-walk%.png$") then
@@ -262,7 +265,7 @@ function Assets.load(targets)
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/Mobs")) do
         if file:match("%.png$") then
             mobFiles[#mobFiles + 1] = file
-            mobImages[file] = requireImage("assets/sprites/Mobs/" .. file)
+            registerLazyImage(mobImages,file,"assets/sprites/Mobs/" .. file,"mob")
         end
     end
     if love.filesystem.getInfo("assets/sprites/Mobs/animations") then
@@ -281,9 +284,9 @@ function Assets.load(targets)
     end
     table.sort(mobFiles)
 
-    ui.propImages = {}
+    ui.propImages = {}; prepareLazyImages(ui.propImages)
     for _, path in ipairs({"assets/sprites/props", "assets/sprites/items", "assets/sprites/furniture", "assets/sprites/weapons", "assets/sprites/train-decorations", "assets/sprites/ammo", "assets/sprites/gear"}) do
-        loadFolderImages(path, ui.propImages,nil,"item/furniture/weapon")
+        if love.filesystem.getInfo(path) then for _,file in ipairs(love.filesystem.getDirectoryItems(path)) do if file:match("%.png$") then registerLazyImage(ui.propImages,file:gsub("%.png$", ""),path.."/"..file,"item/furniture/weapon") end end end
     end
     targets.itemIdleImages["flower-pot"] = {ui.propImages["flower-pot"], loadImage("assets/sprites/items/animations/flower-pot-idle-2.png"), loadImage("assets/sprites/items/animations/flower-pot-idle-3.png")}
 

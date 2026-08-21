@@ -1,6 +1,7 @@
 -- Stop-only sludge crawler encounters.  Kept separate from the main scene loop so
 -- new stop creatures can be added without increasing main.lua's local/upvalue count.
 local M = {}
+local quadCache=setmetatable({},{__mode="k"})
 
 local function dist(ax, ay, bx, by)
     local dx, dy = bx-ax, by-ay
@@ -113,7 +114,10 @@ end
 local function drawSheet(img,frames,frame,x,y,sx,sy,ox,oy)
     if not img then return end
     frames=math.max(1,frames or 1); local fw=img:getWidth()/frames
-    local q=love.graphics.newQuad(math.floor((frame%frames)*fw),0,math.floor(fw),img:getHeight(),img:getWidth(),img:getHeight())
+    local byCount=quadCache[img]; if not byCount then byCount={}; quadCache[img]=byCount end
+    local quads=byCount[frames]
+    if not quads then quads={}; for index=0,frames-1 do quads[index]=love.graphics.newQuad(math.floor(index*fw),0,math.floor(fw),img:getHeight(),img:getWidth(),img:getHeight()) end; byCount[frames]=quads end
+    local q=quads[frame%frames]
     love.graphics.draw(img,q,x,y,0,sx or 1,sy or sx or 1,ox or fw/2,oy or img:getHeight())
 end
 

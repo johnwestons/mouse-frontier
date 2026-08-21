@@ -1,4 +1,5 @@
 local EventUI = {}
+local quadCache=setmetatable({},{__mode="k"})
 
 function EventUI.load(loadImage)
     local result={}
@@ -15,7 +16,9 @@ end
 function EventUI.drawArt(event,images,x,y,w,h)
     local image=images and images[event.artSheet]; if not image then return end
     local frameW=image:getWidth()/5; local index=math.max(1,math.min(5,event.artIndex or 1))
-    local quad=love.graphics.newQuad((index-1)*frameW,0,frameW,image:getHeight(),image:getDimensions())
+    local quads=quadCache[image]
+    if not quads then quads={}; for frame=1,5 do quads[frame]=love.graphics.newQuad((frame-1)*frameW,0,frameW,image:getHeight(),image:getDimensions()) end; quadCache[image]=quads end
+    local quad=quads[index]
     -- Keep the complete illustration visible.  The previous cover-style scale
     -- filled the panel by cropping the sides/top, which made the event art
     -- look dramatically zoomed in.  Contain it inside the frame instead and

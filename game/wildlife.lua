@@ -1,4 +1,5 @@
 local Wildlife = {}
+local quadCache=setmetatable({},{__mode="k"})
 
 local species = {
     rooster = "chicken-rooster-walk.png",
@@ -86,7 +87,9 @@ function Wildlife.draw(list, images, clock)
         if image then
             local frameWidth=image:getWidth()/5
             local frame=bird.moving and (math.floor((clock*5+(bird.phase or 0))*5)%5) or 0
-            local quad=love.graphics.newQuad(frame*frameWidth,0,frameWidth,image:getHeight(),image:getWidth(),image:getHeight())
+            local quads=quadCache[image]
+            if not quads then quads={}; for index=0,4 do quads[index]=love.graphics.newQuad(index*frameWidth,0,frameWidth,image:getHeight(),image:getWidth(),image:getHeight()) end; quadCache[image]=quads end
+            local quad=quads[frame]
             local scale=bird.kind=="chick" and .034 or .064
             local sx=scale*(bird.facing or 1)
             love.graphics.setColor(1,1,1); love.graphics.draw(image,quad,bird.x,bird.y,0,sx,scale,frameWidth/2,image:getHeight())

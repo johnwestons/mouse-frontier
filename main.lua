@@ -101,7 +101,8 @@ local colors = {
 local function writeSave()
     if not selectedSlot or not saveData then return end
     saveData.playerX, saveData.playerY = player and player.x or saveData.playerX, player and player.y or saveData.playerY
-    Save.write(selectedSlot,saveData)
+    ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1
+    Save.schedule(selectedSlot,saveData)
 end
 
 local function isFurnitureItem(name)
@@ -149,6 +150,7 @@ end
 
 local function enterGame(data)
     if type(data)~="table" then return false end
+    ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
     data.version = CURRENT_SAVE_VERSION
     data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
     data.resources=type(data.resources)=="table" and data.resources or {}
@@ -189,7 +191,15 @@ local function enterGame(data)
     data.trainCars=data.trainCars or {"living-car"}
     data.activeCar=math.max(1,math.min(#data.trainCars,data.activeCar or 1))
     data.engineLevel=math.max(0,math.min(#EngineUpgrades.tiers-1,data.engineLevel or 0))
-    data.trait=data.trait or Catalog.characterTraitProfiles[((#(data.character or "")+1)%#Catalog.characterTraitProfiles)+1]
+    local assignedTrait=Catalog.characterTrait(data.character)
+    if not data.traitBaselineApplied then
+        data.maxHealth=(data.maxHealth or 20)+(assignedTrait.maxHealth or 0)
+        data.traitBaselineApplied=true
+    elseif not data.trait or data.trait.name~=assignedTrait.name then
+        data.maxHealth=(data.maxHealth or 20)-(data.trait and data.trait.maxHealth or 0)+(assignedTrait.maxHealth or 0)
+    end
+    data.trait=assignedTrait
+    data.health=math.min(data.maxHealth,data.health or data.maxHealth)
     for i,item in ipairs(data.droppedItems) do item.layer=item.layer or i end
     if not data.specialItemsAdded then
         data.droppedItems[#data.droppedItems+1]={name="rose-heart-arrow",x=690,y=535,scene="stop",location=7}
@@ -387,6 +397,13 @@ local function consumeSelected()
     end
     if not effect then return false end
     local capacity=20; for _,id in ipairs(saveData.trainCars or {}) do if id=="storage" then capacity=30; break end end
+    local foodFull=effect.food and saveData.resources.food>=capacity
+    local waterFull=effect.water and saveData.resources.water>=capacity
+    if (effect.food or effect.water) and (not effect.food or foodFull) and (not effect.water or waterFull) then
+        local fullName=foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full.")
+        dialogue={speaker="Storage Full",text=fullName,timer=2.2}
+        return false
+    end
     if effect.food then saveData.resources.food=math.min(capacity,saveData.resources.food+effect.food) end
     if effect.water then saveData.resources.water=math.min(capacity,saveData.resources.water+effect.water) end
     if effect.health then saveData.health=math.min(saveData.maxHealth,saveData.health+effect.health) end
@@ -410,7 +427,10 @@ local function pickUpNearby()
     end
     if Catalog.storageCapacities[item.name] and item.storage and next(item.storage) then dialogue={speaker=Util.titleFromFile(item.name),text="Empty this container before picking it up.",timer=4}; return end
     local slot=Inventory.firstEmptySlot(saveData)
-    if not slot then return end
+    if not slot then
+        dialogue={speaker="Backpack Full",text="There is no room in your backpack.",timer=2.2}
+        return
+    end
     saveData.inventory[slot]=item.name
     table.remove(saveData.droppedItems,nearbyItem); nearbyItem=nil; writeSave()
 end
@@ -429,11 +449,17 @@ local function findInventoryItem(names)
 end
 
 local function addCoalToFire()
+    local coalCapacity=20
+    for _,id in ipairs(saveData.trainCars or {}) do if id=="coal-hauler" then coalCapacity=30; break end end
+    if saveData.resources.coal>=coalCapacity then
+        dialogue={speaker="Storage Full",text="Coal storage is full.",timer=2.2}
+        return
+    end
     local slot, name = findInventoryItem({"coal-bucket", "coal-chunk"})
     if not slot then dialogue = {speaker="Fire", text="Bring me coal from your backpack!", timer=2}; return end
     local amount = name == "coal-bucket" and 3 or 1
     saveData.inventory[slot] = nil
-    saveData.resources.coal = math.min(20, saveData.resources.coal + amount)
+    saveData.resources.coal = math.min(coalCapacity, saveData.resources.coal + amount)
     dialogue = {speaker="Fire", text="That's the good stuff!  +"..amount.." fuel", timer=2}
     writeSave()
 end
@@ -456,7 +482,7 @@ local function travelCost()
     local terrainCoal=terrain=="mountains" and 2 or (terrain=="ruins" and 1 or 0); local trait=saveData.trait or Catalog.characterTraitProfiles[1]
     local sleeper=false; for _,id in ipairs(saveData.trainCars or {}) do if id=="sleeper" then sleeper=true end end
     local passengerCost=sleeper and math.ceil(passengers/2) or passengers
-    local food,water,coal=EngineUpgrades.applyCosts(saveData.engineLevel,1+math.floor(leg/4)+passengerCost,1+math.floor(leg/3)+passengerCost,(1+math.floor(leg/5)+terrainCoal)*(trait.coal or 1))
+    local food,water,coal=EngineUpgrades.applyCosts(saveData.engineLevel,(1+math.floor(leg/4)+passengerCost)*(trait.food or 1),(1+math.floor(leg/3)+passengerCost)*(trait.water or 1),(1+math.floor(leg/5)+terrainCoal)*(trait.coal or 1))
     return {food=food,water=water,coal=coal,passengers=passengers,terrain=terrain}
 end
 
@@ -465,7 +491,7 @@ local function processPassengerArrivals()
         local passenger=saveData.passengers[i]
         if saveData.location>=passenger.destination then
             table.remove(saveData.passengers,i)
-            local coal=love.math.random(1,3); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
+            local coal=math.max(1,math.floor(love.math.random(1,3)*(saveData.trait.reward or 1))); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
             local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(saveData); if slot then saveData.inventory[slot]=item end
             saveData.arrivalNotice=(Util.titleFromFile(passenger.npc).." reached their stop and left you "..coal.." coal"..(slot and " and "..Util.titleFromFile(item) or "")..".")
         end
@@ -486,7 +512,7 @@ local function passengerContributions()
 end
 
 local function giveQuestReward(message)
-    local coal=love.math.random(1,3); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
+    local coal=math.max(1,math.floor(love.math.random(1,3)*(saveData.trait.reward or 1))); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
     local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(saveData)
     if slot then saveData.inventory[slot]=item else House.storeLoot(saveData,Catalog,item,saveData.location) end
     dialogue={speaker="Traveler",text=(message or "Thank you!").."  You received "..coal.." coal and "..Util.titleFromFile(item)..".",timer=4}
@@ -708,7 +734,7 @@ function love.load()
         settlements=scenery.settlements,
         interiorFiles=scenery.interiorFiles,
         characterAnimations=characterAnimations,
-        legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages},
+        legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages,npcImages,mobImages},
     })
 end
 
@@ -727,6 +753,7 @@ function ui.updateInteraction()
 end
 
 function love.update(dt)
+    Save.update(dt)
     animationClock = animationClock + dt
     if ui.assetStreamer then ui.assetStreamer:update(state,scene,saveData,battle,npcActor) end
     -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
@@ -949,23 +976,9 @@ function ui.drawCharacterSelect()
     end
     if hoveredFile then
         local lower=hoveredFile:lower()
-        local trait=Catalog.characterTraitProfiles[((#hoveredFile+1)%#Catalog.characterTraitProfiles)+1]
-        local ability,abilityDescription
-        if lower:find("medic") or lower:find("botanist") then
-            ability,abilityDescription="HEAL ALLY","Restore 4 HP to nearby allies."
-        elseif lower:find("shield") then
-            ability,abilityDescription="PROTECT","Give a nearby ally +2 armor this round."
-        elseif lower:find("scout") or lower:find("courier") then
-            ability,abilityDescription="SNARE","Slow the nearest enemy for one turn."
-        elseif lower:find("witch") then
-            ability,abilityDescription="SLEEP","Attempt to put the nearest enemy to sleep."
-        elseif lower:find("frog") then
-            ability,abilityDescription="PARALYZE","Attempt to stop the nearest enemy's next turn."
-        elseif lower:find("prospector") or lower:find("mechanic") then
-            ability,abilityDescription="AREA ATTACK","Damage nearby enemies."
-        else
-            ability,abilityDescription="RALLY","Give nearby allies +2 aim and movement."
-        end
+        local trait=Catalog.characterTrait(hoveredFile)
+        local abilityProfile=Catalog.characterAbility(hoveredFile)
+        local ability,abilityDescription=abilityProfile.name,abilityProfile.description
         local tooltipW,tooltipH=265,142
         local tx,ty=mouseX+18,mouseY+18
         if tx+tooltipW>W then tx=mouseX-tooltipW-18 end
@@ -1127,9 +1140,20 @@ local function drawPlayer()
 end
 
 local function drawDroppedItems(carIndex)
-    local ordered={}; for i,item in ipairs(saveData.droppedItems) do if itemIsHere(item) then ordered[#ordered+1]={index=i,item=item} end end
-    if carIndex then ordered={}; for i,item in ipairs(saveData.droppedItems) do if item.scene=="train" and (item.carIndex or 1)==carIndex then ordered[#ordered+1]={index=i,item=item} end end end
-    table.sort(ordered,function(a,b) return (a.item.layer or a.index)<(b.item.layer or b.index) end)
+    local cacheKey=carIndex and ("train:"..tostring(carIndex)) or (scene..":"..tostring(saveData.location)..":"..tostring(saveData.activeHouseDoor or 0))
+    local revision=ui.itemOrderRevision or 0
+    ui.itemOrderCache=ui.itemOrderCache or {}
+    local cached=ui.itemOrderCache[cacheKey]
+    local ordered
+    if cached and cached.revision==revision then ordered=cached.items else
+        ordered={}
+        for i,item in ipairs(saveData.droppedItems) do
+            local visible=carIndex and item.scene=="train" and (item.carIndex or 1)==carIndex or (not carIndex and itemIsHere(item))
+            if visible then ordered[#ordered+1]={index=i,item=item} end
+        end
+        table.sort(ordered,function(a,b) return (a.item.layer or a.index)<(b.item.layer or b.index) end)
+        ui.itemOrderCache[cacheKey]={revision=revision,items=ordered}
+    end
     for _,entry in ipairs(ordered) do local i,item=entry.index,entry.item
         local img=ui.propImages[item.name]; local scale=item.scale or 1; local rotation=item.rotation or 0
         if img then
@@ -1151,7 +1175,7 @@ local function drawDroppedItems(carIndex)
             local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight())
             love.graphics.setColor(1,1,1); love.graphics.draw(mail,item.x,item.y-48+math.sin(animationClock*3)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2)
         end
-        if editMode and (not carIndex or carIndex==(saveData.activeCar or 1)) then local hx,hy=item.x+31,item.y+31; love.graphics.setColor(1,.78,.1); love.graphics.rectangle("fill",hx-7,hy-7,14,14); love.graphics.setColor(colors.ink); love.graphics.rectangle("line",hx-7,hy-7,14,14); if editedItem==i then love.graphics.setColor(colors.brass); love.graphics.setLineWidth(3); love.graphics.circle("line",item.x,item.y,38) end end
+        if editMode and (not carIndex or carIndex==(saveData.activeCar or 1)) then local hx,hy=item.x+31,item.y+31; love.graphics.setColor(1,.78,.1); love.graphics.rectangle("fill",hx-7,hy-7,14,14); love.graphics.setColor(colors.ink); love.graphics.rectangle("line",hx-7,hy-7,14,14); if editedItem==i then love.graphics.setColor(colors.brass); love.graphics.setLineWidth(3); love.graphics.circle("line",item.x,item.y,38); love.graphics.setLineWidth(1) end end
     end
 end
 
@@ -1331,6 +1355,7 @@ function ui.drawMap()
     love.graphics.printf("Only visited country is revealed.  Press M to close.",120,586,720,"center",0,0.8,0.8)
     ui.mapUp=button("^",805,115,42,36,mapScroll>0); ui.mapDown=button("v",805,155,42,36,mapScroll<maxScroll)
     love.graphics.setColor(colors.ink); love.graphics.print("PAGE "..(mapScroll+1).."/"..(maxScroll+1),720,130,0,0.75,0.75)
+    love.graphics.setLineWidth(1)
 end
 
 function ui.drawDialogue()
@@ -1547,17 +1572,11 @@ local function drawTacticalBattle()
         ui.battleHeal=button("HEAL [H]",730,580,110,38,true); ui.battleGuard=button("GUARD [G]",610,625,110,34,true); ui.battleEnd=button("END TURN",730,625,110,34,true); ui.battleRetreat=button("RETREAT",835,625,100,34,true)
         ui.battleAbility=button("ABILITY",495,625,105,34,not battle.abilitiesUsed[active.id])
         local activeName=(active.name or ""):lower()
-        local abilityName=(activeName:find("medic") or activeName:find("botanist")) and "HEAL ALLY" or (activeName:find("shield") and "PROTECT" or ((activeName:find("scout") or activeName:find("courier")) and "SNARE" or (activeName:find("witch") and "SLEEP" or (activeName:find("frog") and "PARALYZE" or (activeName:find("prospector") or activeName:find("mechanic")) and "AREA ATTACK" or "RALLY"))))
+        local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
         local mx,my=screenToGame(love.mouse.getPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.88); love.graphics.rectangle("fill",490,558,150,48,5,5)
-            local abilityHelp={
-                ["HEAL ALLY"]="Restore health to nearby allies.", ["PROTECT"]="Raise an ally's armor for this round.",
-                ["SNARE"]="Reduce an enemy's movement for one turn.", ["SLEEP"]="Attempt to put an enemy to sleep.",
-                ["PARALYZE"]="Attempt to stop an enemy's next turn.", ["AREA ATTACK"]="Damage enemies in the target area.",
-                ["RALLY"]="Buff an ally's attack and movement."
-            }
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."\n"..(abilityHelp[abilityName] or "Use this character's special ability."),495,578,140,"center",0,.58,.58)
+            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."\n"..abilityProfile.description,495,578,140,"center",0,.58,.58)
         end
         love.graphics.setColor(colors.cream); love.graphics.print(active.name.."  HP "..active.hp.."/"..active.maxHP.."  MOVE "..active.move.."  ARMOR "..active.armor,65,115)
     end
@@ -1569,6 +1588,7 @@ local function drawTacticalBattle()
         love.graphics.setColor(colors.cream,alpha); love.graphics.printf("ENCOUNTER",0,300,W,"center",0,2.3,2.3)
         love.graphics.printf("A threat blocks the trail",0,350,W,"center",0,1.05,1.05)
     end
+    love.graphics.setLineWidth(1)
 end
 
 local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
@@ -1826,7 +1846,7 @@ function ui.handleBattleMousePressed(x,y,rightClick)
     if Util.pointIn(x,y,ui.battleGuard) then ui.playSfx("menu"); battleGuard(); return end
     if Util.pointIn(x,y,ui.battleAbility) then
         ui.playSfx("menu")
-        local unit=BattleRules.activeUnit(battle); local name=(unit and unit.name or ""):lower(); local kind=(name:find("medic") or name:find("botanist")) and "heal" or (name:find("shield") and "protect" or ((name:find("scout") or name:find("courier")) and "snare" or (name:find("witch") and "sleep" or (name:find("frog") and "paralyze" or (name:find("prospector") or name:find("mechanic")) and "area" or "rally"))))
+        local unit=BattleRules.activeUnit(battle); local abilityProfile=Catalog.characterAbility(unit and unit.file or ""); local kind=abilityProfile.kind
         useBattleAbility(kind); return
     end
     if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); advanceBattleTurn(); return end
@@ -2109,7 +2129,8 @@ if ui.smokeRequested then
             coal=saveData and saveData.resources.coal,health=saveData and saveData.health,
             inventoryOpen=inventoryOpen,mapOpen=mapOpen,traveling=travelTransition~=nil,
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
-            assetFailures=Assets.assetFailureCount()}
+            assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
+            fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
     end
     local function setFixture(name)
         inventoryOpen,mapOpen,tradeOpen,trainUpgradeOpen,poseMenu=false,false,false,false,false
@@ -2161,6 +2182,11 @@ if ui.smokeRequested then
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
             {name="retreat_battle_key",action=function() love.keypressed("r"); return "r" end,expect={state="game",scene="train",battleActive=false}},
             fixtureStep("ending"),
+            {name="save_round_trip",action=function()
+                local payload={version=CURRENT_SAVE_VERSION,location=17,nested={value="smoke-save"}}
+                local wrote=Save.write(99,payload); local loaded=Save.read(99); Save.remove(99)
+                return {wrote=wrote,location=loaded and loaded.location,nested=loaded and loaded.nested and loaded.nested.value}
+            end,check=function(_,_,_,result) return result.wrote and result.location==17 and result.nested=="smoke-save" end},
             {name="asset_contract",action=function() return Assets.assetFailureSummary() end,expect={assetFailures=0}}
         }
         for _,step in ipairs(steps) do
@@ -2256,15 +2282,14 @@ if ui.smokeRequested then
             local summary=ui.smokeController:getSummary()
             if status.failed then for _,message in ipairs(summary.errors) do ui.smokeReport:error(message) end end
             ui.smokeReport:value("controller.summary",summary); ui.smokeReport:finish(status.failed and "failed" or "passed")
-            if love.audio then love.audio.stop() end
-            if status.failed then io.stderr:write("SMOKE_ERROR: "..table.concat(summary.errors," | ").."\n"); io.stderr:flush(); os.exit(1) end
-            print("SMOKE_OK: autonomous playthrough completed "..status.passed.." checkpoints"); io.flush(); os.exit(0)
+            if status.failed then io.stderr:write("SMOKE_ERROR: "..table.concat(summary.errors," | ").."\n"); io.stderr:flush(); love.event.quit(1); return end
+            print("SMOKE_OK: autonomous playthrough completed "..status.passed.." checkpoints"); io.flush(); love.event.quit(0); return
         end
     end
     function love.draw()
         local ok,message=xpcall(ui.smokeDraw,debug.traceback)
-        if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; if love.audio then love.audio.stop() end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); os.exit(1) end
+        if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); love.event.quit(1); return end
     end
 end
 
-function love.quit() writeSave() end
+function love.quit() writeSave(); Save.flush(); if ui.audio and ui.audio.shutdown then ui.audio:shutdown() end end

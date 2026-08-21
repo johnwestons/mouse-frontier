@@ -10,23 +10,6 @@ CharacterAnimation.anchorOffsets = {
 CharacterAnimation.actions={idle=2,sit=2,lay=2,walk=3,melee=3,ranged=3,use=3,hit=3,death=3,unconscious=2}
 CharacterAnimation.requiredActions={"idle","sit","lay","melee","ranged","use","hit"}
 
-local function visibleExtent(path,frameCount)
-    local ok,data=pcall(love.image.newImageData,path)
-    if not ok or not data then return nil end
-    local width,height=data:getDimensions(); local frameWidth=math.floor(width/frameCount); local largest=1
-    for frame=0,frameCount-1 do
-        local minX,minY,maxX,maxY=frameWidth,height,-1,-1
-        for y=0,height-1 do
-            for x=0,frameWidth-1 do
-                local _,_,_,alpha=data:getPixel(frame*frameWidth+x,y)
-                if alpha>.04 then minX=math.min(minX,x); minY=math.min(minY,y); maxX=math.max(maxX,x); maxY=math.max(maxY,y) end
-            end
-        end
-        if maxX>=minX then largest=math.max(largest,maxX-minX+1,maxY-minY+1) end
-    end
-    return largest
-end
-
 local function loadSet(manager,file)
     local directory=manager.known[file]
     if not directory then return nil end
@@ -39,7 +22,10 @@ local function loadSet(manager,file)
         if image then
             local width,height=image:getDimensions(); local frameWidth=width/count; local quads={}
             for frame=1,count do quads[frame]=love.graphics.newQuad((frame-1)*frameWidth,0,frameWidth,height,width,height) end
-            set[action]={image=image,quads=quads,w=frameWidth,h=height,count=count,visibleExtent=visibleExtent(path,count)}
+            -- Runtime transparency scans used to decode every sheet a second
+            -- time and inspect every pixel. Frame bounds are stable metadata
+            -- and keep streamed character loads cheap and deterministic.
+            set[action]={image=image,quads=quads,w=frameWidth,h=height,count=count,visibleExtent=math.max(frameWidth,height)}
         end
     end
     set.baseExtent=set.idle and set.idle.visibleExtent or nil

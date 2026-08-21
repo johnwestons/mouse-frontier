@@ -160,11 +160,11 @@ function SmokeController:update(dt)
     elseif message then self:_log("check_wait", message)
     end
     local limit = step.timeout or self.timeout
-    if self.running and self.elapsed > limit then
-        self:_fail("timeout in " .. tostring(step.name) .. " after " .. tostring(self.elapsed) .. "s")
-    elseif self.running and self.current == nil then
+    if self.running and self.current == nil then
         self.index = self.index + 1
         if self.index <= #self.steps then self:_begin(self.steps[self.index]) end
+    elseif self.running and self.elapsed > limit then
+        self:_fail("timeout in " .. tostring(step.name) .. " after " .. tostring(self.elapsed) .. "s")
     end
     return self:getStatus()
 end

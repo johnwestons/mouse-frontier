@@ -28,7 +28,7 @@ local function loadSource(self, path, kind)
 end
 
 function Audio.new()
-    local self = setmetatable({musicFiles = {}, sfx = {}, music = nil, rain = nil, arrivalSource = nil, category = nil, lastError = nil, nowPlaying = nil, history = {}, historyPosition = {}}, Audio)
+    local self = setmetatable({musicFiles = {}, sfx = {}, music = nil, rain = nil, arrivalSource = nil, category = nil, lastError = nil, nowPlaying = nil, history = {}, historyPosition = {}, sfxCache = {}, activeSfx = {}}, Audio)
     for _, category in ipairs({"battle", "bossFight", "chill", "vibes", "endingHappy", "insideHomes", "stops", "train"}) do
         self.musicFiles[category] = filesIn("sounds/music/" .. category)
         print("[AUDIO] Registered "..#self.musicFiles[category].." track(s) for "..category)
@@ -123,7 +123,13 @@ function Audio:playSfx(kind, settings, battle)
     if not pool or #pool == 0 then report(self, "No sound files registered for " .. tostring(kind)); return nil end
     local path = battle and battle.soundChoices and battle.soundChoices[kind] or pool[love.math.random(#pool)]
     if battle then battle.soundChoices = battle.soundChoices or {}; battle.soundChoices[kind] = path end
-    local source = loadSource(self, path, "static")
+    local prototype=self.sfxCache[path]
+    if not prototype then prototype=loadSource(self,path,"static"); if prototype then self.sfxCache[path]=prototype end end
+    local source
+    if prototype then
+        local ok,clone=pcall(prototype.clone,prototype)
+        source=ok and clone or loadSource(self,path,"static")
+    end
     if source then
         source:setVolume(settings.sfxVolume)
         if kind=="trainArrive" then
@@ -133,12 +139,16 @@ function Audio:playSfx(kind, settings, battle)
             source:setLooping(false)
             self.arrivalSource=source
         end
-        source:play(); return source
+        source:play(); self.activeSfx[#self.activeSfx+1]=source; return source
     end
     return nil
 end
 
 function Audio:update(settings, category)
+    for index=#self.activeSfx,1,-1 do
+        local source=self.activeSfx[index]
+        if not source:isPlaying() then if source.release then pcall(source.release,source) end; table.remove(self.activeSfx,index) end
+    end
     if self.arrivalSource and self.arrivalSource:isPlaying() and self.arrivalSource:tell() >= 21 then
         self.arrivalSource:stop(); self.arrivalSource=nil
     elseif self.arrivalSource and not self.arrivalSource:isPlaying() then
@@ -164,6 +174,14 @@ end
 function Audio:resetMusic()
     if self.music then self.music:stop() end
     self.music, self.category, self.nowPlaying = nil, nil, nil
+end
+
+function Audio:shutdown()
+    if self.music then self.music:stop(); if self.music.release then pcall(self.music.release,self.music) end end
+    if self.rain then self.rain:stop(); if self.rain.release then pcall(self.rain.release,self.rain) end end
+    for _,source in ipairs(self.activeSfx or {}) do source:stop(); if source.release then pcall(source.release,source) end end
+    for _,source in pairs(self.sfxCache or {}) do source:stop(); if source.release then pcall(source.release,source) end end
+    self.music,self.rain,self.arrivalSource=nil,nil,nil; self.activeSfx={}; self.sfxCache={}
 end
 
 return Audio

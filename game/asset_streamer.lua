@@ -78,7 +78,6 @@ function AssetStreamer:update(state,scene,data,battle,npcActor)
         CharacterAnimation.retain(self.characterAnimations,keep)
         Assets.retainAnimationImages(self.legacyAnimationTables,keep)
         self.lastSignature=signature
-        collectgarbage("collect")
     end
 end
 
