@@ -36,9 +36,10 @@ local Interactions = require("game.interactions")
 local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui")}
-local state = "intro"
-local selectedSlot, saveData, player
+local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session")}
+local session = Systems.session.new()
+local state = session.screen
+local selectedSlot, saveData, player = session.selectedSlot, session.saveData, session.player
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
 local scenery, backgroundImages, ui = {}, {}, {}
 local sceneryOffset, landscapeOffset, animationClock, trainAnimationClock = 0, 0, 0, 0
@@ -46,7 +47,7 @@ local cloudLayer
 local battleZoom = 1
 local walkingSoundTimer = 0
 local inventoryOpen, draggedSlot = false, nil
-local scene, nearbyItem = "train", nil
+local scene, nearbyItem = session.scene, nil
 local nearHouse, nearNPC, nearPassenger, nearFire, nearReturnTrain, nearCarPrev, nearCarNext, mapOpen, dialogue = false, false, nil, false, false, false, false, false, nil
 local nearMailbox = nil
 local npcActor = nil
@@ -105,9 +106,9 @@ local colors = {
 
 local function writeSave()
     if not selectedSlot or not saveData then return end
-    saveData.playerX, saveData.playerY = player and player.x or saveData.playerX, player and player.y or saveData.playerY
+    session:sync(state,selectedSlot,saveData,player,scene)
     ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1
-    Save.schedule(selectedSlot,saveData)
+    session:scheduleSave(Save)
 end
 
 local function isFurnitureItem(name)
@@ -282,18 +283,18 @@ local function enterGame(data)
     local currentNpcAllowed=false
     for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
     if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
-    saveData = data
+    saveData = session:setSaveData(data)
     stopSludges = StopSludges.new()
     local image = characterImages[data.character]
     local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
     if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end
     if data.scene=="stop" then restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
-    player = {x = restoredX, y = restoredY, speed = 185,
-        image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1}
-    scene = data.scene
-    state, inventoryOpen, mapOpen, dialogue, editMode, chestOpen, activeChest = "game", false, false, nil, false, false, nil
+    player = session:setPlayer({x = restoredX, y = restoredY, speed = 185,
+        image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1})
+    session:activate(data,player)
+    scene = session.scene
+    state, inventoryOpen, mapOpen, dialogue, editMode, chestOpen, activeChest = session.screen, false, false, nil, false, false, nil
     carTransition=nil
-    if data.location>=50 then state="ending" end
     return true
 end
 
@@ -617,14 +618,14 @@ local function setupNPC()
 end
 
 local function enterStop()
-    scene="stop"; saveData.scene=scene; player.x,player.y=270,490; setupNPC(); writeSave()
+    scene=session:setScene("stop"); player.x,player.y=270,490; setupNPC(); writeSave()
 end
 
 local beginEncounter
 local function attemptLeaveTrain()
     local key=tostring(saveData.location); local encounter=saveData.encounters[key]
     local requiredEvent=not saveData.events[key] and Events.required(saveData,saveData.location)
-    if requiredEvent then randomEvent=requiredEvent; state="event"; return end
+    if requiredEvent then randomEvent=requiredEvent; state=session:setScreen("event"); return end
     if not encounter then
         -- Battles should be the primary stop interruption; trail events remain less common.
         -- Story and mystery chapters are checked above; ordinary stops still
@@ -644,7 +645,7 @@ local function attemptLeaveTrain()
     end
     if encounter.hasMob and not encounter.resolved and (encounter.mobFile or encounter.mobFiles) then beginEncounter(encounter)
     elseif not encounter.hasMob and not saveData.events[tostring(saveData.location)] then
-        randomEvent=Events.random(saveData); state="event"
+        randomEvent=Events.random(saveData); state=session:setScreen("event")
     else enterStop() end
 end
 
@@ -652,7 +653,7 @@ local function battleContext()
     return {battle=battle,saveData=saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=7,BOARD_ROWS=4,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
 end
 beginEncounter=function(encounter)
-    local c=battleContext(); battle=BattleController.begin(c,encounter); battleZoom=1; state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
+    local c=battleContext(); battle=BattleController.begin(c,encounter); battleZoom=1; state=session:setScreen("battle"); inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
 end
 
 local function resolveEventChoice(index)
@@ -661,7 +662,7 @@ local function resolveEventChoice(index)
     if result.blocked then return end
     randomEvent=nil; writeSave()
     if result.encounter then beginEncounter(result.encounter); return end
-    state="game"; enterStop()
+    state=session:setScreen("game"); enterStop()
     dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
 end
 
@@ -790,7 +791,7 @@ function love.update(dt)
     animationClock = animationClock + dt
     Clouds.update(cloudLayer, dt)
     if state=="intro" then
-        if Systems.intro.update(ui.introCinematic,dt) then state="slots" end
+        if Systems.intro.update(ui.introCinematic,dt) then state=session:setScreen("slots") end
         return
     end
     if ui.assetStreamer then ui.assetStreamer:update(state,scene,saveData,battle,npcActor) end
@@ -838,7 +839,7 @@ function love.update(dt)
             ensureStopLayout(); passengerContributions(); processPassengerArrivals(); writeSave()
         end
         if not travelTransition.arriveSoundPlayed and travelTransition.t>=timing.arrive then travelTransition.arriveSoundPlayed=true; ui.playSfx("trainArrive") end
-        if travelTransition.t>=timing.total then travelTransition=nil; sceneryOffset=0; landscapeOffset=0; if saveData.location>=50 then state="ending" elseif saveData.arrivalNotice then dialogue={speaker="Passenger",text=saveData.arrivalNotice,timer=4}; saveData.arrivalNotice=nil; writeSave() end end
+        if travelTransition.t>=timing.total then travelTransition=nil; sceneryOffset=0; landscapeOffset=0; if saveData.location>=50 then state=session:setScreen("ending") elseif saveData.arrivalNotice then dialogue={speaker="Passenger",text=saveData.arrivalNotice,timer=4}; saveData.arrivalNotice=nil; writeSave() end end
         return
     end
     if holdPickupIndex then
@@ -1000,7 +1001,7 @@ local function resolveExitPrompt(choice)
     if choice~="yes" then return end
     if prompt=="title" then
         writeSave()
-        state="slots"
+        state=session:setScreen("slots")
     elseif prompt=="quit" then
         love.event.quit()
     end
@@ -1816,10 +1817,10 @@ end
 
 function ui.handleBattleMousePressed(x,y,rightClick)
     local result=Systems.battleUI.handleMouse(ui.battleUIContext(),x,y,rightClick)
-    if result=="missing" then state="game"
-    elseif result=="continue_win" then battle=nil; state="game"; enterStop()
+    if result=="missing" then state=session:setScreen("game")
+    elseif result=="continue_win" then battle=nil; state=session:setScreen("game"); enterStop()
     elseif result=="continue_loss" or result=="retreat" then
-        battle=nil; state="game"; scene="train"; saveData.scene=scene; npcActor=nil; writeSave()
+        battle=nil; state=session:setScreen("game"); scene=session:setScene("train"); npcActor=nil; writeSave()
     end
 end
 
@@ -1928,7 +1929,7 @@ function ui.handleGameMousePressed(x,y)
     if dialogue then dialogue=nil; return true end
     if Util.pointIn(x,y,ui.leaveTrain) then attemptLeaveTrain(); return true end
     if Util.pointIn(x,y,ui.travel) and saveData.location<50 and saveData.resources.food>0 and saveData.resources.water>0 and saveData.resources.coal>0 then travelConfirm=true; return true end
-    if Util.pointIn(x,y,ui.returnDoor) then local left,right,top,bottom=trainFloorBounds(); scene="train"; npcActor=nil; saveData.scene=scene; player.x,player.y=right,(top+bottom)/2; writeSave(); return true end
+    if Util.pointIn(x,y,ui.returnDoor) then local left,right,top,bottom=trainFloorBounds(); scene=session:setScene("train"); npcActor=nil; player.x,player.y=right,(top+bottom)/2; writeSave(); return true end
     if Util.pointIn(x,y,ui.pickup) then pickUpNearby(); return true end
     return false
 end
@@ -1954,18 +1955,18 @@ function love.mousepressed(x,y,button)
     if button==2 and state=="battle" then ui.handleBattleMousePressed(x,y,true); return end
     if button~=1 then return end
     if state=="event" then local choice=EventUI.hit(x,y,ui.eventChoices,Util.pointIn); if choice then resolveEventChoice(choice) end; return end
-    if state=="ending" then if Util.pointIn(x,y,ui.endingButton) then writeSave(); state="slots" end; return end
+    if state=="ending" then if Util.pointIn(x,y,ui.endingButton) then writeSave(); state=session:setScreen("slots") end; return end
     if travelConfirm then
         if Util.pointIn(x,y,ui.travelNo) then travelConfirm=false; return end
         if Util.pointIn(x,y,ui.travelYes) then local cost=travelCost(); if saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal then saveData.resources.food=saveData.resources.food-cost.food; saveData.resources.water=saveData.resources.water-cost.water; saveData.resources.coal=saveData.resources.coal-cost.coal; travelConfirm=false; travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end
         return
     end
     if state=="slots" then
-        for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=Save.read(i); if data then selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then selectedSlot=i; state="characters"; return elseif Util.pointIn(x,y,ui.slotDelete[i]) then Save.remove(i); return end end
+        for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=Save.read(i); if data then selectedSlot=session:selectSlot(i); enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then selectedSlot=session:selectSlot(i); state=session:setScreen("characters"); return elseif Util.pointIn(x,y,ui.slotDelete[i]) then Save.remove(i); return end end
     elseif state=="characters" then
         if Util.pointIn(x,y,ui.characterUp) then characterScroll=math.max(0,characterScroll-1); return end
         if Util.pointIn(x,y,ui.characterDown) then characterScroll=characterScroll+1; return end
-        for i,r in ipairs(ui.characters or {}) do if Util.pointIn(x,y,r) then saveData=newSave(characters[i]); enterGame(saveData); writeSave(); return end end
+        for i,r in ipairs(ui.characters or {}) do if Util.pointIn(x,y,r) then saveData=session:setSaveData(newSave(characters[i])); enterGame(saveData); writeSave(); return end end
     elseif state=="battle" then ui.handleBattleMousePressed(x,y,false)
     elseif state=="game" then
         -- UI and modal layers always get first refusal. Only an unconsumed
@@ -2023,7 +2024,7 @@ local function keypressedGlobal(key)
         local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then resolveEventChoice(choice) end
         return
     end
-    if state=="ending" then if key=="return" or key=="space" then writeSave(); state="slots" end; return end
+    if state=="ending" then if key=="return" or key=="space" then writeSave(); state=session:setScreen("slots") end; return end
     if state=="characters" and (key=="down" or key=="s" or key=="pagedown") then characterScroll=characterScroll+1; return end
     if state=="characters" and (key=="up" or key=="w" or key=="pageup") then characterScroll=math.max(0,characterScroll-1); return end
     if travelConfirm then if key=="escape" then travelConfirm=false elseif key=="return" or key=="e" then local cost=travelCost(); if saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal then saveData.resources.food=saveData.resources.food-cost.food; saveData.resources.water=saveData.resources.water-cost.water; saveData.resources.coal=saveData.resources.coal-cost.coal; travelConfirm=false; travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end; return end
@@ -2032,13 +2033,13 @@ local function keypressedGlobal(key)
             if key=="i" or key=="escape" then inventoryOpen=false; draggedSlot=nil; inventoryDragActive=false end
         elseif not battle.finished and key=="i" and BattleRules.activeUnit(battle) and BattleRules.activeUnit(battle).team=="ally" then inventoryOpen=true; draggedSlot=nil; inventoryDragActive=false; ui.playSfx("menu")
         elseif battle.finished and (key=="return" or key=="space" or key=="e") then
-            local outcome=battle.finished; battle=nil; state="game"; if outcome=="win" then enterStop() else scene="train"; saveData.scene=scene; writeSave() end
+            local outcome=battle.finished; battle=nil; state=session:setScreen("game"); if outcome=="win" then enterStop() else scene=session:setScene("train"); writeSave() end
         elseif not battle.finished and tonumber(key) and battle.options and battle.options[tonumber(key)] then battleAttack(battle.options[tonumber(key)])
         elseif not battle.finished and key=="h" then battleHeal()
         elseif not battle.finished and key=="m" and not battle.moveUsed then battle.phase="move"; setBattlePrompt("Choose a highlighted terrain piece to move.")
         elseif not battle.finished and key=="g" then battleGuard()
         elseif not battle.finished and key=="space" then advanceBattleTurn()
-        elseif not battle.finished and (key=="r" or key=="escape") then battle=nil; state="game"; scene="train"; saveData.scene=scene; writeSave() end
+        elseif not battle.finished and (key=="r" or key=="escape") then battle=nil; state=session:setScreen("game"); scene=session:setScene("train"); writeSave() end
         return
     end
     if state=="game" and inventoryOpen and key=="e" then inventoryOpen=false; chestOpen=false; activeChest=nil; draggedSlot=nil; inventoryDragActive=false; if giftOpen then giftOpen=false; giftSlot=nil end; writeSave(); return true end
@@ -2057,13 +2058,13 @@ function ui.routeWorldInteraction(key)
     elseif action=="car" then beginCarTransition((saveData.activeCar or 1)+arg)
     elseif action=="talkNPC" then ui.playSfx("talking"); talkToNPC()
     elseif action=="enterHouse" then
-        saveData.lastStopDoor=arg; saveData.activeHouseDoor=arg; ui.playSfx("doors"); scene="house"; saveData.scene=scene
+        saveData.lastStopDoor=arg; saveData.activeHouseDoor=arg; ui.playSfx("doors"); scene=session:setScene("house")
         local homeLayout=Stops.ensureDoor(saveData,Catalog,arg); ensureHouseItems(); player.x,player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
     elseif action=="exitHouse" then
-        ui.playSfx("doors"); ensureStopLayout(); scene="stop"; saveData.scene=scene; saveData.activeHouseDoor=nil
+        ui.playSfx("doors"); ensureStopLayout(); scene=session:setScene("stop"); saveData.activeHouseDoor=nil
         local x,y=Settlements.doorPoint(saveData.location,saveData.lastStopDoor); player.x,player.y=Settlements.clamp(x,y,saveData.location); setupNPC(); writeSave()
     elseif action=="returnTrain" then
-        ui.playSfx("trainDoor"); local left,right,top,bottom=trainFloorBounds(); scene="train"; npcActor=nil; saveData.scene=scene; player.x,player.y=right,(top+bottom)/2; writeSave()
+        ui.playSfx("trainDoor"); local left,right,top,bottom=trainFloorBounds(); scene=session:setScene("train"); npcActor=nil; player.x,player.y=right,(top+bottom)/2; writeSave()
     elseif action=="give" then giveWeaponToNearby()
     elseif action=="holdPickup" then holdPickupIndex=arg; holdPickupTime=0
     elseif action=="pickup" then nearbyItem=arg; pickUpNearby()
@@ -2103,11 +2104,11 @@ end
 
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
-        if name=="state" then return state elseif name=="selectedSlot" then return selectedSlot elseif name=="saveData" then return saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return scene elseif name=="player" then return player elseif name=="inventoryOpen" then return inventoryOpen elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll elseif name=="tradeOpen" then return tradeOpen elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="poseMenu" then return poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return battle elseif name=="travelTransition" then return travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return actionTimer elseif name=="travelConfirm" then return travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode elseif name=="carTransition" then return carTransition
-        elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems
+        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return inventoryOpen elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll elseif name=="tradeOpen" then return tradeOpen elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="poseMenu" then return poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return battle elseif name=="travelTransition" then return travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return actionTimer elseif name=="travelConfirm" then return travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode elseif name=="carTransition" then return carTransition
+        elseif name=="session" then return session elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return newSave elseif name=="enterGame" then return enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
     end,__newindex=function(_,name,value)
-        if name=="state" then state=value elseif name=="selectedSlot" then selectedSlot=value elseif name=="saveData" then saveData=value elseif name=="scene" then scene=value elseif name=="player" then player=value elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value elseif name=="tradeOpen" then tradeOpen=value elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="poseMenu" then poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then battle=value elseif name=="travelTransition" then travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then actionTimer=value elseif name=="travelConfirm" then travelConfirm=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value elseif name=="carTransition" then carTransition=value end
+        if name=="state" then state=session:setScreen(value) elseif name=="selectedSlot" then selectedSlot=session:selectSlot(value) elseif name=="saveData" then saveData=session:setSaveData(value) elseif name=="scene" then scene=session:setScene(value) elseif name=="player" then player=session:setPlayer(value) elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value elseif name=="tradeOpen" then tradeOpen=value elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="poseMenu" then poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then battle=value elseif name=="travelTransition" then travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then actionTimer=value elseif name=="travelConfirm" then travelConfirm=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value elseif name=="carTransition" then carTransition=value end
     end})
     SmokePlaythrough.install(smokeScope)
 end

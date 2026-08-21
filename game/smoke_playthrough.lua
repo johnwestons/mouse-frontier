@@ -24,6 +24,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             maintenanceTargets=Maintenance.targetCount(),maintenanceProgress=Maintenance.progressCount(maintenanceSession),
             maintenanceCursor=maintenanceSession.cursorActive,maintenanceCompleted=maintenanceSession.completed,
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
+            sessionSynchronized=session and session.screen==state and session.scene==scene and session.saveData==saveData and session.player==player and session.selectedSlot==selectedSlot,
             assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
             fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
     end
@@ -174,6 +175,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             end,check=function(_,_,_,result) return result==true end},
             {name="retreat_battle_key",action=function() love.keypressed("r"); return "r" end,expect={state="game",scene="train",battleActive=false}},
             fixtureStep("ending"),
+            {name="game_session_synchronized",action=function() return true end,expect={sessionSynchronized=true}},
             {name="save_round_trip",action=function()
                 local payload={version=CURRENT_SAVE_VERSION,location=17,nested={value="smoke-save"}}
                 local wrote=Save.write(99,payload); local loaded=Save.read(99); Save.remove(99)
@@ -246,7 +248,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                 end,check=function(_,_,snapshot)
                     if snapshot.state=="ending" and snapshot.location>=50 then return true end
                     return false,"still progressing: stop "..tostring(snapshot.location)
-                end,expect={state="ending",location=50}}
+                end,expect={state="ending",location=50,sessionSynchronized=true}}
             }
             steps=fullSteps
             for _,step in ipairs(steps) do
