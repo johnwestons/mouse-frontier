@@ -1988,6 +1988,7 @@ function ui.handleGameMousePressed(x,y)
     if Util.pointIn(x,y,ui.trainUpgrade) then trainUpgradeOpen=true; inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; return true end
     if Util.pointIn(x,y,ui.maintenance) then
         inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; dialogue=nil
+        Camera:endPan()
         Maintenance.open(maintenanceSession,saveData); ui.playSfx("menu"); return true
     end
     if ui.handleEditorMousePressed(x,y) then return true end
@@ -2040,6 +2041,7 @@ function love.mousemoved(x,y)
         Camera:movePan(x,y,scaleX); return
     end
     x,y=screenToGame(x,y)
+    if state=="game" and maintenanceSession.open then maintenanceSession.mouseX,maintenanceSession.mouseY=x,y; return end
     if state=="game" and editMode and ui.editSliderDrag then ui.updateEditColorSlider(x); return end
     if state=="game" and editMode and editDragging and editedItem then
             local item=saveData.droppedItems[editedItem]; if item then local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,x)); item.y=math.max(top,math.min(bottom,y)) end
@@ -2164,6 +2166,8 @@ if ui.smokeRequested then
             coal=saveData and saveData.resources.coal,health=saveData and saveData.health,
             inventoryOpen=inventoryOpen,mapOpen=mapOpen,traveling=travelTransition~=nil,
             maintenanceOpen=maintenanceSession.open,maintenanceCondition=saveData and Maintenance.condition(saveData),
+            maintenanceTargets=Maintenance.targetCount(),maintenanceProgress=Maintenance.progressCount(maintenanceSession),
+            maintenanceCursor=maintenanceSession.cursorActive,maintenanceCompleted=maintenanceSession.completed,
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
             assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
             fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
@@ -2209,13 +2213,38 @@ if ui.smokeRequested then
                 check=function(_,_,_,result) return result.after==result.before+1 end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
             {name="open_maintenance",action=function()
-                state="game"; scene="train"; saveData.scene=scene; Maintenance.open(maintenanceSession,saveData); ui.smokeDraw(); return true
-            end,expect={maintenanceOpen=true,maintenanceCondition=72}},
+                state="game"; scene="train"; saveData.scene=scene; Maintenance.open(maintenanceSession,saveData)
+                if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCaptureRequested=true end
+                ui.smokeDraw(); return true
+            end,expect={maintenanceOpen=true,maintenanceCondition=72,maintenanceTargets=3,maintenanceProgress=0,maintenanceCursor=true}},
             {name="service_running_gear",action=function()
-                for i=1,5 do love.keypressed(tostring(i)) end
-                love.keypressed("return"); ui.smokeDraw(); return saveData.maintenance.totalServices
-            end,check=function(_,_,snapshot,result) return result==1 and snapshot.maintenanceCondition==100 end},
+                love.mousepressed(50,300,1)
+                local outsideProgress=Maintenance.progressCount(maintenanceSession)
+                local x1,y1=Maintenance.targetPosition(1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1)
+                local x2,y2=Maintenance.targetPosition(2); love.mousepressed(x2,y2,1)
+                local x3,y3=Maintenance.targetPosition(3); love.mousepressed(x3,y3,1); love.mousepressed(x3,y3,1)
+                local beforeDone={condition=Maintenance.condition(saveData),progress=Maintenance.progressCount(maintenanceSession)}
+                love.mousepressed(712,544,1)
+                if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCompleteCaptureRequested=true end
+                ui.smokeDraw()
+                return {services=saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,
+                    lights=Maintenance.progressLights(maintenanceSession),cursor=maintenanceSession.cursorActive}
+            end,check=function(_,_,snapshot,result)
+                local lit=0; for _,value in ipairs(result.lights or {}) do if value then lit=lit+1 end end
+                return result.services==1 and result.outsideProgress==0 and result.beforeDone.condition==72 and result.beforeDone.progress==5 and
+                    lit==5 and result.cursor==false and snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true
+            end},
             {name="close_maintenance",action=function() love.keypressed("escape"); return true end,expect={maintenanceOpen=false}},
+            {name="maintenance_persists_at_stop",action=function()
+                Maintenance.open(maintenanceSession,saveData)
+                local before=saveData.maintenance.totalServices
+                local x,y=Maintenance.targetPosition(1); local result=Maintenance.mousepressed(maintenanceSession,x,y,saveData)
+                local persisted={progress=Maintenance.progressCount(maintenanceSession),cursor=maintenanceSession.cursorActive,
+                    completed=maintenanceSession.completed,services=saveData.maintenance.totalServices,before=before,result=result}
+                Maintenance.close(maintenanceSession); return persisted
+            end,check=function(_,_,snapshot,result)
+                return result.progress==5 and result.cursor==false and result.completed and result.services==result.before and snapshot.maintenanceOpen==false
+            end},
             {name="confirm_travel",action=function() state="game"; scene="train"; saveData.scene=scene; travelConfirm=true; love.keypressed("return"); return true end,
                 expect={food=9,water=9,coal=9,traveling=true}},
             {name="complete_travel",action=function() return true end,expect={location=2,traveling=false},timeout=20},
@@ -2339,8 +2368,18 @@ if ui.smokeRequested then
         end
     end
     function love.draw()
+        if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(340,343) end
+        if ui.smokeMaintenanceCompleteCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(712,544) end
         local ok,message=xpcall(ui.smokeDraw,debug.traceback)
         if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); love.event.quit(1); return end
+        if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open then
+            ui.smokeMaintenanceCaptureRequested=false
+            love.graphics.captureScreenshot("maintenance-smoke-preview.png")
+        end
+        if ui.smokeMaintenanceCompleteCaptureRequested and maintenanceSession.open then
+            ui.smokeMaintenanceCompleteCaptureRequested=false
+            love.graphics.captureScreenshot("maintenance-smoke-complete-preview.png")
+        end
     end
 end
 
