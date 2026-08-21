@@ -72,7 +72,8 @@ local trainUpgradeOpen=false
 local poseMenu, playerPose = false, "idle"
 local tradeOpen, tradeNPC = false, nil
 local giftOpen, giftNPC, giftSlot = false, nil, nil
-local exitPrompt = nil
+-- Kept outside the top-level local pool because LÖVE limits main.lua locals.
+exitPrompt = nil
 local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
 local BOARD_COLS, BOARD_ROWS = 7, 4
