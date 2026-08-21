@@ -51,6 +51,9 @@ Catalog.itemEffects = {
     ["dried-berry-pouch"]={food=3,label="EAT"}, ["cornbread-square"]={food=4,label="EAT"},
     ["mushroom-stew"]={food=5,water=1,label="EAT"}, ["jerky-bundle"]={food=4,label="EAT"},
     ["preserved-peaches"]={food=3,water=1,label="EAT"}, ["metal-water-flask"]={water=4,label="DRINK"},
+    ["smoked-trout"]={food=4,label="EAT"}, ["honey-biscuits"]={food=3,label="EAT"},
+    ["roasted-squash"]={food=4,label="EAT"}, ["acorn-cluster"]={food=2,label="EAT"},
+    ["oat-porridge"]={food=5,water=1,label="EAT"},
     ["blue-water-bottle"]={water=3,label="DRINK"}, ["rainwater-jar"]={water=5,label="DRINK"},
     ["patched-canteen"]={water=5,label="DRINK"}, ["boxed-fruit-drink"]={water=3,food=1,label="DRINK"},
     ["ceramic-water-crock"]={water=7,label="DRINK"}
@@ -236,9 +239,9 @@ Catalog.questRewardItems={"food-ration","water-bottle","field-bandage-roll","wra
 Catalog.ammoPickupAmounts={rocks=8,arrows=6,["ball-bearings"]=8,["9mm"]=12,["45-cal"]=8,["556"]=10,["22lr"]=15,["30-carbine"]=10,["8mm"]=8,["380-acp"]=8,["32-acp"]=8,["12-gauge"]=6,["762x39"]=10}
 
 Catalog.lootPools = {
-    food={"food-ration","bread-loaf","red-apple","carrot","hand-pie","jam-jar","berry-jar","trail-beans-can","dried-berry-pouch","cornbread-square","jerky-bundle"},
+    food={"food-ration","bread-loaf","red-apple","carrot","hand-pie","jam-jar","berry-jar","trail-beans-can","dried-berry-pouch","cornbread-square","jerky-bundle","smoked-trout","honey-biscuits","roasted-squash","acorn-cluster","oat-porridge"},
     water={"water-bottle","water-canteen","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink"},
-    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","water-canteen","coal-chunk","rocks","arrows","ball-bearings","wrapped-sweet"},
+    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","water-canteen","coal-chunk","rocks","arrows","ball-bearings","wrapped-sweet","honey-biscuits","acorn-cluster"},
     uncommon={"hand-pie","jam-jar","trail-mix-pouch","trail-cheese","metal-water-flask","rainwater-jar","field-bandage-roll","herbal-tonic","9mm","22lr","45-cal","30-carbine","380-acp","32-acp","12-gauge","patched-canvas-pack","frontier-380-revolver"},
     rare={"mushroom-stew","preserved-peaches","ceramic-water-crock","healing-salve","frontier-medkit","compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","weathered-lever-rifle","compact-carbine","frontier-long-barrel-revolver","wood-stock-survival-carbine","frontier-22-target-pistol","frontier-380-pocket-pistol","frontier-12g-pump-shotgun","frontier-762-carbine","frontier-sr22-pistol","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-32-pocket-pistol","frontier-22-pocket-pistol","frontier-silver-22-revolver","frontier-22-lever-rifle","frontier-45-1911","frontier-long-22-target-pistol","frontier-katana","frontier-mace","frontier-battle-axe","frontier-longsword","frontier-machete","frontier-spear","frontier-hatchet","frontier-hand-axe","weathered-leather-pack","red-leather-pack","compact-sling-pack","black-sling-pack","556","762x39","8mm","bedroll-hiking-pack","frontier-leather-pack"},
     legendary={"rose-heart-arrow","blade-hearts","machine-pistol","rugged-submachine-gun","improvised-service-rifle","vintage-bolt-action-rifle","emergency-syringe-case","scavenger-frame-pack"}

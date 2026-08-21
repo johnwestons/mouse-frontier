@@ -35,14 +35,6 @@ local function loadSet(manager,file)
     for action,count in pairs(CharacterAnimation.actions) do
         if generatedSet and action=="walk" then count=6 end
         local path=manager.root.."/"..directory.."/"..action..".png"
-        -- The radio cat's authored idle sheet was accidentally populated with
-        -- the homesteader/settler pose.  Use its canonical character sprite
-        -- for the idle frame until a dedicated two-frame idle sheet replaces
-        -- it; all other radio-cat actions remain on their authored sheets.
-        if file=="radio-cat.png" and action=="idle" then
-            path="assets/sprites/MainCharacters/radio-cat.png"
-            count=1
-        end
         local image=manager.loadImage(path)
         if image then
             local width,height=image:getDimensions(); local frameWidth=width/count; local quads={}
@@ -109,18 +101,11 @@ function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,
     if not animation then return false end
     local passiveRate={idle=.70,sit=.55,lay=.38,walk=5.2}
     local frameRate=action=="hit" and 8.5 or (passiveRate[action] or 6)
-    -- The lay sheets were authored with their first two poses facing the
-    -- opposite direction from the rest of the character set.  Keep the
-    -- relaxed two-pose loop (rather than exposing the inconsistent third
-    -- source frame) and mirror it once so it follows the normal facing
+    -- The lay sheets face opposite the rest of the character set, so mirror
+    -- the authored two-frame resting loop once to follow the normal facing
     -- convention: +1 faces right, -1 faces left.
     local layCorrection = action == "lay"
     local frame = action=="death" and animation.count or (math.floor((phase or clock)*frameRate)%animation.count)+1
-    if layCorrection then
-        -- Until matched lay frames are authored, hold the first grounded pose
-        -- instead of visibly snapping between differently positioned bodies.
-        frame = 1
-    end
     local baseExtent=set.baseExtent or animation.visibleExtent or math.max(animation.w,animation.h)
     local visible=animation.visibleExtent or baseExtent
     -- Walk sheets can have a much tighter crop than the idle sheet (the

@@ -56,3 +56,17 @@ You can also drag the entire project folder onto `love.exe`. Do not open `main.l
 - `backgroundReferences/` — landscape references; the prototype currently scrolls the desert landscape
 
 LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder.
+
+## Automated smoke playthrough
+
+Run `.stabilization/run-smoke.ps1` from PowerShell to launch the hidden watchdog test. The tester starts a fresh character, walks, opens and scrolls menus, spends supplies to travel, enters and exits a house, exercises an encounter and retreat, renders every major screen, and validates the asset contract.
+
+Each run writes `.stabilization/smoke-report.rpt`. The report contains pass/fail checkpoints plus typed action return values and snapshots of important game variables. A callback error, failed expectation, stalled step, missing report, or watchdog timeout produces a nonzero exit code.
+
+To test route reachability all the way to stop 50, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\\.stabilization\\run-smoke.ps1" -Full -Visible
+```
+
+Full-route reports identify whether the run reached the ending, exhausted supplies, stalled, or hit a code error. Full-route mode provisions supplies and auto-resolves encounters so route/ending reachability can be separated from combat difficulty; the normal smoke run continues to exercise battle controls.
