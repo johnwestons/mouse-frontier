@@ -46,27 +46,30 @@ local function drawSource(source, backgroundY, rotation, centerX, centerY, offse
     love.graphics.pop()
 end
 
-local function withEllipseStencil(wheel, callback)
+local function withWheelStencil(wheel, excludeRodBand, callback)
     love.graphics.stencil(function()
         love.graphics.ellipse("fill", wheel.x, wheel.y, WHEEL_RADIUS_X, WHEEL_RADIUS_Y)
     end, "replace", 1)
+    if excludeRodBand then
+        -- Scissor rectangles use screen coordinates in LÖVE, while this panel
+        -- is drawn in scaled game coordinates. Subtract the rod band from the
+        -- stencil instead so the full wheel survives at every window size.
+        love.graphics.stencil(function()
+            love.graphics.rectangle("fill", wheel.x - WHEEL_RADIUS_X, wheel.y - 19,
+                WHEEL_RADIUS_X * 2, 38)
+        end, "replace", 0, true)
+    end
     love.graphics.setStencilTest("equal", 1)
     callback()
     love.graphics.setStencilTest()
 end
 
 local function drawOuterWheel(source, backgroundY, wheel, angle)
-    withEllipseStencil(wheel, function()
+    withWheelStencil(wheel, true, function()
         -- The rod crosses the wheel centers in the source art. Render the
         -- rotating wheel above and below that band, then layer the animated
         -- rod and rotating axle square separately for clean mechanical depth.
-        love.graphics.setScissor(wheel.x - WHEEL_RADIUS_X, wheel.y - WHEEL_RADIUS_Y,
-            WHEEL_RADIUS_X * 2, WHEEL_RADIUS_Y - 19)
         drawSource(source, backgroundY, angle, wheel.x, wheel.y)
-        love.graphics.setScissor(wheel.x - WHEEL_RADIUS_X, wheel.y + 19,
-            WHEEL_RADIUS_X * 2, WHEEL_RADIUS_Y - 19)
-        drawSource(source, backgroundY, angle, wheel.x, wheel.y)
-        love.graphics.setScissor()
     end)
 end
 
