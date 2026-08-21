@@ -22,6 +22,7 @@ end
 
 function Clouds.draw(layer, mode, width, height, sceneryOffset, stopNumber)
     if not layer or #layer.images == 0 then return end
+    local opacity = mode == "stop" and 0.50 or 0.80
     local span = width + 260
     for _, cloud in ipairs(placements) do
         local image = layer.images[cloud.image] or layer.images[1]
@@ -35,7 +36,7 @@ function Clouds.draw(layer, mode, width, height, sceneryOffset, stopNumber)
             local baseY = mode == "stop" and stopY or cloud.yTrain
             local y = mode == "train" and math.min(height * 0.32, baseY) or baseY
             y = y + math.sin(layer.time * 0.12 + cloud.phase * 8) * 2
-            love.graphics.setColor(1, 1, 1, 0.80)
+            love.graphics.setColor(1, 1, 1, opacity)
             love.graphics.draw(image, x, y, 0, cloud.scale, cloud.scale, iw / 2, ih / 2)
         end
     end

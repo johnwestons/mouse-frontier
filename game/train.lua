@@ -71,10 +71,14 @@ end
 
 function Train.drawTracks(track,width)
     if not track then return false end
-    -- Overscan so fractional viewport scaling and widescreen rounding never
-    -- expose a gap at either edge. Anchor the near rail to the rolling-stock
-    -- baseline so changing the overscan does not move the train off the rail.
-    local overscan=96
+    -- The virtual game canvas is aspect-fit in fullscreen. On an ultrawide
+    -- window, that leaves extra visible horizontal space outside the 960px
+    -- game width; size the overscan from the actual window so the rails reach
+    -- both physical edges instead of stopping inside the letterboxed view.
+    local windowWidth,windowHeight=love.graphics.getDimensions()
+    local viewportScale=math.min(windowWidth/width,windowHeight/720)
+    local visibleVirtualWidth=windowWidth/viewportScale
+    local overscan=math.max(96,(visibleVirtualWidth-width)/2+8)
     local imageWidth=track:getWidth(); local scale=(width+overscan*2)/imageWidth
     love.graphics.setColor(1,1,1)
     local trackTop=Train.railY-Train.trackRailSourceY*scale

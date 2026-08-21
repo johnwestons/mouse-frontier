@@ -199,6 +199,11 @@ function Assets.load(targets)
         end
     end
     ui.objectTintShader = loadShader()
+    scenery.titleImage = loadImage("assets/sprites/ui/title/title-option-3.png", "UI")
+    scenery.introBackground = loadImage("assets/backgrounds/intro/train-journey-sunrise.png", "UI")
+    scenery.introLocomotive = loadImage("assets/sprites/train/cinematic-locomotive.png", "UI")
+    scenery.introLocomotiveSheet = loadImage("assets/sprites/train/cinematic-locomotive-run-10-v2.png", "UI")
+    scenery.introCars = loadImage("assets/sprites/train/cinematic-five-car-consist.png", "UI")
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/MainCharacters")) do
         if Roster.isPlayable(file) then
@@ -209,10 +214,11 @@ function Assets.load(targets)
     table.sort(characters)
 
     local backgroundFiles = love.filesystem.getDirectoryItems("assets/backgrounds")
-    for index = 1, 12 do
-        local prefix = "^stop%-" .. string.format("%02d", index)
-        for _, file in ipairs(backgroundFiles) do
-            if file:match(prefix) then targets.backgroundImages[index] = loadImage("assets/backgrounds/" .. file,"scenery") end
+    for _, file in ipairs(backgroundFiles) do
+        local index=file:match("^stop%-(%d%d)")
+        if index then
+            index=tonumber(index)
+            targets.backgroundImages[index]=loadImage("assets/backgrounds/" .. file,"scenery")
         end
     end
 

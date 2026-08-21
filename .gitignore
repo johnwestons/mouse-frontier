@@ -1,6 +1,9 @@
 # Local audit outputs and intermediate image-generation files
 .stabilization/
 tmp/
+output/sprite-doctor/
+__pycache__/
+*.pyc
 
 # Local runtime save data
 saves/
@@ -9,4 +12,3 @@ save*.json
 # OS/editor noise
 Thumbs.db
 .DS_Store
-

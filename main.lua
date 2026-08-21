@@ -38,12 +38,12 @@ local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router")}
-local state = "slots"
+local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic")}
+local state = "intro"
 local selectedSlot, saveData, player
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
 local scenery, backgroundImages, ui = {}, {}, {}
-local sceneryOffset, animationClock, trainAnimationClock = 0, 0, 0
+local sceneryOffset, landscapeOffset, animationClock, trainAnimationClock = 0, 0, 0, 0
 local cloudLayer
 local battleZoom = 1
 local walkingSoundTimer = 0
@@ -72,6 +72,7 @@ local trainUpgradeOpen=false
 local poseMenu, playerPose = false, "idle"
 local tradeOpen, tradeNPC = false, nil
 local giftOpen, giftNPC, giftSlot = false, nil, nil
+local exitPrompt = nil
 local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
 local BOARD_COLS, BOARD_ROWS = 7, 4
@@ -758,6 +759,7 @@ function love.load()
         mobDeathImages=mobDeathImages, mobWalkImages=mobWalkImages, mobRangedImages=mobRangedImages,
         familyImages=familyImages, itemIdleImages=itemIdleImages,
     })
+    ui.introCinematic=Systems.intro.new(10)
     cloudLayer = Clouds.new(scenery.cloudImages)
     scenery.settlements=Settlements.load(function(path)
         local ok,image=pcall(love.graphics.newImage,path)
@@ -789,6 +791,10 @@ function love.update(dt)
     Save.update(dt)
     animationClock = animationClock + dt
     Clouds.update(cloudLayer, dt)
+    if state=="intro" then
+        if Systems.intro.update(ui.introCinematic,dt) then state="slots" end
+        return
+    end
     if ui.assetStreamer then ui.assetStreamer:update(state,scene,saveData,battle,npcActor) end
     -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
     -- the retired random decoration wildlife remains disconnected.
@@ -819,16 +825,22 @@ function love.update(dt)
             if t>=timing.change then ui.departSource:stop(); ui.departSource=nil end
         end
         if t<timing.depart then speedFactor=(t/timing.depart)^2 elseif t<timing.arrive then speedFactor=1 else speedFactor=math.max(0,1-(t-timing.arrive)/timing.arrivalDuration)^2 end
-        sceneryOffset=(sceneryOffset+(25+125*speedFactor)*EngineUpgrades.profile(saveData.engineLevel).speed*dt)%W
+        local sceneryDistance=(25+125*speedFactor)*EngineUpgrades.profile(saveData.engineLevel).speed*dt
+        sceneryOffset=(sceneryOffset+sceneryDistance)%W
+        landscapeOffset=landscapeOffset+sceneryDistance
         if not travelTransition.changed and travelTransition.t>=timing.change then
             travelTransition.changed=true; saveData.location=saveData.location+1; saveData.stopped=true; saveData.visitedStops[saveData.location]=true
             Maintenance.onTravel(saveData)
-            local stopX,stopY=Settlements.trainPoint(saveData.location); player.x,player.y=stopX,stopY+42
+            -- The scene is still the train interior at this point. Keep the
+            -- player in the active car; trainPoint coordinates belong to the
+            -- destination stop map and would place the character outside the
+            -- train until the next movement clamp corrected it.
+            player.x,player.y=clampToTrainFloor(player.x,player.y)
             for _,id in ipairs(saveData.trainCars or {}) do if id=="greenhouse" then saveData.resources.food=math.min(30,saveData.resources.food+1) elseif id=="medical" then saveData.health=math.min(saveData.maxHealth,saveData.health+3) end end
             ensureStopLayout(); passengerContributions(); processPassengerArrivals(); writeSave()
         end
         if not travelTransition.arriveSoundPlayed and travelTransition.t>=timing.arrive then travelTransition.arriveSoundPlayed=true; ui.playSfx("trainArrive") end
-        if travelTransition.t>=timing.total then travelTransition=nil; sceneryOffset=0; if saveData.location>=50 then state="ending" elseif saveData.arrivalNotice then dialogue={speaker="Passenger",text=saveData.arrivalNotice,timer=4}; saveData.arrivalNotice=nil; writeSave() end end
+        if travelTransition.t>=timing.total then travelTransition=nil; sceneryOffset=0; landscapeOffset=0; if saveData.location>=50 then state="ending" elseif saveData.arrivalNotice then dialogue={speaker="Passenger",text=saveData.arrivalNotice,timer=4}; saveData.arrivalNotice=nil; writeSave() end end
         return
     end
     if holdPickupIndex then
@@ -844,7 +856,11 @@ function love.update(dt)
     end
     if scene ~= "train" and not npcActor then setupNPC() end
     if dialogue then dialogue.timer = dialogue.timer - dt; if dialogue.timer <= 0 then dialogue = nil end end
-    if scene=="train" then sceneryOffset = (sceneryOffset + 18 * dt) % W end
+    if scene=="train" then
+        local sceneryDistance=18*dt
+        sceneryOffset=(sceneryOffset+sceneryDistance)%W
+        landscapeOffset=landscapeOffset+sceneryDistance
+    end
     if carTransition then
         carTransition.t=math.min(carTransition.duration,carTransition.t+dt)
         player.moving=false
@@ -968,19 +984,58 @@ function ui.drawJourneyHUD()
     end
 end
 
-local function button(text, x, y, w, h, active)
+local function button(text, x, y, w, h, active, textScale)
     if ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
-    love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8, w-10, "center")
+    local scale=textScale or 1
+    love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8*scale, w-10, "center",0,scale,scale)
     return {x=x,y=y,w=w,h=h}
+end
+
+local function requestExitPrompt(kind)
+    exitPrompt=kind
+    if ui.playSfx then ui.playSfx("menu") end
+end
+
+local function resolveExitPrompt(choice)
+    local prompt=exitPrompt
+    exitPrompt=nil
+    if choice~="yes" then return end
+    if prompt=="title" then
+        writeSave()
+        state="slots"
+    elseif prompt=="quit" then
+        love.event.quit()
+    end
+end
+
+local function drawExitPrompt()
+    if not exitPrompt then return end
+    love.graphics.setColor(0,0,0,.70)
+    love.graphics.rectangle("fill",0,0,W,H)
+    drawMenuFrame(270,252,420,196,2,.99)
+    love.graphics.setColor(colors.cream)
+    local title=exitPrompt=="quit" and "Quit Game?" or "Return to Title Screen?"
+    love.graphics.printf(title,290,290,380,"center",0,1.25,1.25)
+    love.graphics.setColor(colors.brass)
+    love.graphics.rectangle("fill",315,340,330,2)
+    ui.exitYes=button("Yes",330,375,115,44,true,.92)
+    ui.exitNo=button("No",515,375,115,44,true,.92)
 end
 
 function ui.drawSlots()
     love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
-    love.graphics.printf("MOUSE FRONTIER", 0, 82, W, "center", 0, 2.2, 2.2)
-    love.graphics.printf("Choose a journey", 0, 145, W, "center")
+    if scenery.titleImage then
+        local scale=math.min(540/scenery.titleImage:getWidth(),185/scenery.titleImage:getHeight())
+        love.graphics.setColor(1,1,1)
+        love.graphics.draw(scenery.titleImage,W/2,88,0,scale,scale,scenery.titleImage:getWidth()/2,scenery.titleImage:getHeight()/2)
+    else
+        love.graphics.printf("MOUSE FRONTIER", 0, 82, W, "center", 0, 2.2, 2.2)
+    end
+    love.graphics.setColor(colors.cream)
+    love.graphics.printf("Choose a journey", 0, 182, W, "center")
     ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
     for i=1,3 do
-        local data, y = Save.read(i), 210+(i-1)*125
+        local data, y = Save.read(i), 225+(i-1)*125
         love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", 210, y, 540, 96, 12, 12)
         love.graphics.setColor(colors.cream); love.graphics.print("SAVE "..i, 232, y+18, 0, 1.3, 1.3)
         love.graphics.print(data and (Util.titleFromFile(data.character).."  •  Stop "..tostring(data.location or 1)) or "New journey", 232, y+52)
@@ -1033,11 +1088,12 @@ function ui.drawCharacterSelect()
 end
 
 local function drawLandscape()
-    local image = backgroundImages[((saveData.location-1)%12)+1]
+    local backgroundCount=#backgroundImages
+    local image = backgroundCount>0 and backgroundImages[((saveData.location-1)%backgroundCount)+1] or nil
     if image then
         local s=math.max(W/image:getWidth(), H/image:getHeight())
-        local iw=image:getWidth()*s; love.graphics.setColor(0.78,0.78,0.78)
-        for x=sceneryOffset-iw, W+iw, iw do love.graphics.draw(image,x,0,0,s,s) end
+        local iw=image:getWidth()*s; local offset=landscapeOffset%iw; love.graphics.setColor(0.78,0.78,0.78)
+        for x=offset-iw, W+iw, iw do love.graphics.draw(image,x,0,0,s,s) end
     else love.graphics.clear(0.55,0.37,0.20) end
 end
 
@@ -1281,7 +1337,6 @@ end
 
 local function drawStop()
     if scenery.settlements and Settlements.draw(scenery.settlements,saveData.location,W,H) then
-        Clouds.draw(cloudLayer, "stop", W, H, sceneryOffset, saveData.location)
         local trainX,trainY=Settlements.trainPoint(saveData.location)
         if scenery.redTrain then
             local image=scenery.redTrain; local scale=52/math.max(image:getWidth(),image:getHeight())
@@ -1303,7 +1358,6 @@ local function drawStop()
         drawNPC(); drawPlayer(); return
     end
     drawGround()
-    Clouds.draw(cloudLayer, "stop", W, H, sceneryOffset, saveData.location)
     local env=scenery.environment or {}
     local homes={"house-overgrown","house-purple","house-shed","home-water-tower","home-roadside-diner","home-burrow-mound","home-general-store","home-signal-cabin"}
     local trees={"tree-broadleaf","tree-flowering","tree-dead-cloth","tree-cottonwood","tree-mushroom","tree-burned-regrowth","tree-apple-swing"}
@@ -1583,7 +1637,7 @@ local function drawTacticalBattle()
     local newest=#log-offset; local first=math.max(1,newest-2); local row=0
     love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*16,520,"left",0,.67,.67); row=row+1 end
     ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0)
-    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil
+    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
     if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
     if active then
         -- Character card occupies the lower-left corner between the battle
@@ -1598,10 +1652,12 @@ local function drawTacticalBattle()
     end
     if battle.finished then ui.battleContinue=button(battle.finished=="win" and "CONTINUE TO STOP" or "RETURN TO TRAIN",330,605,300,45,true)
     elseif active and active.team=="ally" then
+        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,575,944,105,9,9)
+        love.graphics.setColor(colors.brass); love.graphics.print("ATTACK",20,578,0,.54,.54); love.graphics.print("ACTIONS",548,578,0,.54,.54)
         local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
         for i,w in ipairs(options) do
-            local bx=55+(i-1)*185
-            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,580,175,38,true)
+            local bx=20+(i-1)*174
+            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,592,166,34,true,.66)
             local mx,my=screenToGame(love.mouse.getPosition())
             if Util.pointIn(mx,my,ui.battleWeapons[i]) then
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
@@ -1610,29 +1666,31 @@ local function drawTacticalBattle()
                 local details=string.format("%s  DMG %d-%d  %s  RANGE %d",stats.name,stats.min,stats.max,string.upper(combat.kind or "melee"),combat.range or 0)
                 if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
                 details=details.."  DUR "..durability.."%"
-                love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.90); love.graphics.rectangle("fill",bx,540,175,34,5,5)
-                love.graphics.setColor(colors.cream); love.graphics.printf(details,bx-8,546,191,"center",0,.52,.52)
+                love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
+                love.graphics.setColor(colors.cream); love.graphics.printf(details,200,546,560,"center",0,.58,.58)
             end
         end
-        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",585,580,84,38,not battle.moveUsed)
-        ui.battleHeal=button("HEAL [H]",677,580,84,38,true); ui.battleGuard=button("GUARD [G]",769,580,84,38,true); ui.battleAbility=button("ABILITY",861,580,84,38,not battle.abilitiesUsed[active.id])
-        love.graphics.setColor(colors.brass); love.graphics.print("QUICK POTIONS",500,631,0,.58,.58)
+        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",548,592,94,34,not battle.moveUsed,.66)
+        ui.battleHeal=button("HEAL [H]",648,592,94,34,true,.66)
+        ui.battleGuard=button("GUARD [G]",748,592,94,34,true,.66)
+        ui.battleAbility=button("ABILITY",848,592,94,34,not battle.abilitiesUsed[active.id],.66)
+        ui.battleInventory=button("PACK [I]",20,638,105,34,true,.68)
+        love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48)
         local potionIndex=0
         for i=1,(saveData.inventoryCapacity or 6) do
             local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
             if effect and effect.potion and potionIndex<5 then
-                potionIndex=potionIndex+1; local px=495+(potionIndex-1)*72
-                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,649,66,30,true),name=item}
+                potionIndex=potionIndex+1; local px=135+(potionIndex-1)*80
+                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,638,74,34,true,.52),name=item}
             end
         end
-        ui.battleInventory=button("BACKPACK [I]",20,641,150,38,true)
-        ui.battleEnd=button("END TURN",765,641,94,38,true); ui.battleRetreat=button("RETREAT",867,641,78,38,true)
-        local activeName=(active.name or ""):lower()
+        ui.battleEnd=button("END TURN",665,638,140,34,true,.72)
+        ui.battleRetreat=button("RETREAT",815,638,127,34,true,.72)
         local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
         local mx,my=screenToGame(love.mouse.getPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
-            love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.88); love.graphics.rectangle("fill",490,558,150,48,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."\n"..abilityProfile.description,495,578,140,"center",0,.58,.58)
+            love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
+            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
         end
         love.graphics.setColor(colors.cream); love.graphics.print(active.name.."  HP "..active.hp.."/"..active.maxHP.."  MOVE "..active.move.."  ARMOR "..active.armor,65,115)
     end
@@ -1704,7 +1762,7 @@ end
 local function drawGame()
     ui.returnDoor=nil
     if scene=="train" then
-        drawLandscape(); Clouds.draw(cloudLayer, "train", W, H, sceneryOffset); drawTracks(); local tx=0
+        drawLandscape(); drawTracks(); local tx=0
         if travelTransition then
             local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel)
             if t<timing.depart then local p=t/timing.depart; tx=-W*(p*p*p)
@@ -1719,6 +1777,7 @@ local function drawGame()
         else drawTrainView(saveData.activeCar or 1,0,saveData.activeCar or 1,player.x,player.y) end
         love.graphics.pop()
     elseif scene=="house" then drawHouse() else drawStop() end
+    if scene=="train" or scene=="stop" then Clouds.draw(cloudLayer,scene,W,H,sceneryOffset,saveData.location) end
     ui.drawResource("FOOD",saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",saveData.resources.water,140,colors.blue,110)
     ui.drawResource("COAL",saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",saveData.resources.oil,380,colors.brass,110)
     ui.drawJourneyHUD()
@@ -1726,14 +1785,14 @@ local function drawGame()
     -- Keep the departure control with the other scene controls, directly
     -- beneath Options, so it remains discoverable without covering the train.
     ui.leaveTrain=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and button("LEAVE TRAIN",790,194,135,32,true) or nil
-    ui.backpack=button(inventoryOpen and "CLOSE" or "BACKPACK",830,20,95,36,true)
+    ui.backpack=button(inventoryOpen and "CLOSE" or "PACK",830,20,95,36,true)
     ui.map=button(mapOpen and "CLOSE MAP" or "MAP",735,20,87,36,true)
     ui.editMode=scene=="train" and button(editMode and "EDITING" or "MOVE / SCALE",745,70,180,36,true) or nil
     ui.trainUpgrade=scene=="train" and button("UPGRADE  "..saveData.scrap.." SCRAP",510,70,220,36,true) or nil
     ui.maintenance=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and not travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(saveData)).."%",510,112,220,32,true) or nil
     ui.pose=button(poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
     ui.options=button(ui.optionsOpen and "CLOSE" or "OPTIONS",840,112,85,32,true)
-    ui.stopAttack=scene=="stop" and button("SWORD  ATTACK",790,650,135,38,true) or nil
+    ui.stopAttack=scene=="stop" and button("ATTACK",790,650,135,38,true) or nil
     local pendingMail=0; for _,mail in ipairs(saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
     if pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end
     if #(saveData.passengers or {})>0 then love.graphics.setColor(colors.cream); love.graphics.print("Passengers: "..#saveData.passengers,560,151,0,.82,.82) end
@@ -1809,7 +1868,6 @@ local function drawGame()
     ui.drawDialogue()
     if trainUpgradeOpen then ui.drawTrainUpgrades() end
     if tradeOpen then drawTrade() end
-    if travelTransition then local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel); local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade); love.graphics.setColor(0,0,0,alpha); love.graphics.rectangle("fill",0,0,W,H) end
     if maintenanceSession.open then
         maintenanceSession.mouseX,maintenanceSession.mouseY=screenToGame(love.mouse.getPosition())
         Maintenance.draw(maintenanceSession,saveData)
@@ -1829,6 +1887,11 @@ end
 
 function love.draw()
     love.graphics.clear(0.025,0.02,0.025,1)
+    if state=="intro" then
+        local windowWidth,windowHeight=love.graphics.getDimensions()
+        Systems.intro.draw(ui.introCinematic,scenery,colors,windowWidth,windowHeight)
+        return
+    end
     local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
     love.graphics.push()
     love.graphics.translate(offsetX,offsetY)
@@ -1838,7 +1901,15 @@ function love.draw()
         Camera:apply(focusX,focusY)
     end
     if state=="slots" then ui.drawSlots() elseif state=="characters" then ui.drawCharacterSelect() elseif state=="battle" then drawTacticalBattle() elseif state=="event" then ui.drawRandomEvent() elseif state=="ending" then drawEnding() elseif travelConfirm then ui.drawTravelConfirm() else drawGame() end
+    if exitPrompt then drawExitPrompt() end
     love.graphics.pop()
+    if travelTransition then
+        local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel)
+        local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade)
+        local windowWidth,windowHeight=love.graphics.getDimensions()
+        love.graphics.setColor(0,0,0,alpha)
+        love.graphics.rectangle("fill",0,0,windowWidth,windowHeight)
+    end
 end
 
 function ui.offerGift(slot)
@@ -2060,6 +2131,15 @@ function ui.handleGameMousePressed(x,y)
 end
 
 function love.mousepressed(x,y,button)
+    if state=="intro" then Systems.intro.skip(ui.introCinematic); return end
+    if exitPrompt then
+        if button==1 then
+            x,y=screenToGame(x,y)
+            if ui.exitYes and Util.pointIn(x,y,ui.exitYes) then resolveExitPrompt("yes")
+            elseif ui.exitNo and Util.pointIn(x,y,ui.exitNo) then resolveExitPrompt("no") end
+        end
+        return
+    end
     if button==3 and state=="game" and not travelConfirm and not maintenanceSession.open and not ui.radioOpen and not inventoryOpen and not mapOpen and not dialogue and not tradeOpen and not trainUpgradeOpen and not poseMenu and not ui.optionsOpen and not editMode then Camera:beginPan(x,y); return end
     x,y=screenToGame(x,y)
     if state=="game" and carTransition then return end
@@ -2140,7 +2220,7 @@ local function keypressedGlobal(key)
         local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then resolveEventChoice(choice) end
         return
     end
-    if state=="ending" then if key=="return" or key=="space" or key=="escape" then writeSave(); state="slots" end; return end
+    if state=="ending" then if key=="return" or key=="space" then writeSave(); state="slots" end; return end
     if state=="characters" and (key=="down" or key=="s" or key=="pagedown") then characterScroll=characterScroll+1; return end
     if state=="characters" and (key=="up" or key=="w" or key=="pageup") then characterScroll=math.max(0,characterScroll-1); return end
     if travelConfirm then if key=="escape" then travelConfirm=false elseif key=="return" or key=="e" then local cost=travelCost(); if saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal then saveData.resources.food=saveData.resources.food-cost.food; saveData.resources.water=saveData.resources.water-cost.water; saveData.resources.coal=saveData.resources.coal-cost.coal; travelConfirm=false; travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end; return end
@@ -2189,8 +2269,14 @@ function ui.routeWorldInteraction(key)
 end
 
 function love.keypressed(key)
+    if state=="intro" then Systems.intro.skip(ui.introCinematic); return end
+    if exitPrompt then
+        if key=="return" or key=="y" then resolveExitPrompt("yes")
+        elseif key=="escape" or key=="n" then resolveExitPrompt("no") end
+        return
+    end
     if keypressedGlobal(key) then return end
-    if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif state=="game" and (inventoryOpen or mapOpen or dialogue or editMode) then inventoryOpen=false; chestOpen=false; activeChest=nil; mapOpen=false; dialogue=nil; questOffer=nil; editMode=false; editedItem=nil; draggedSlot=nil; giftOpen=false; giftSlot=nil; writeSave() elseif state~="slots" then writeSave(); state="slots" else love.event.quit() end end
+    if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif state=="game" and (inventoryOpen or mapOpen or dialogue or editMode) then inventoryOpen=false; chestOpen=false; activeChest=nil; mapOpen=false; dialogue=nil; questOffer=nil; editMode=false; editedItem=nil; draggedSlot=nil; giftOpen=false; giftSlot=nil; writeSave() elseif state~="slots" then requestExitPrompt("title") else requestExitPrompt("quit") end end
     if key=="i" and state=="game" and not editMode then
         if nearChest then activeChest=saveData.droppedItems[nearChest]; if activeChest then activeChest.storage=activeChest.storage or {}; chestOpen=true; inventoryOpen=true; draggedSlot=nil end
         else inventoryOpen=not inventoryOpen; chestOpen=false; activeChest=nil; draggedSlot=nil end
@@ -2235,7 +2321,8 @@ if ui.smokeRequested then
     local function setFixture(name)
         inventoryOpen,mapOpen,tradeOpen,trainUpgradeOpen,poseMenu=false,false,false,false,false
         ui.optionsOpen,ui.radioOpen=false,false
-        if name=="slots" then state="slots"
+        if name=="intro" then state="intro"; ui.introCinematic=Systems.intro.new(10)
+        elseif name=="slots" then state="slots"
         elseif name=="characters" then state="characters"
         elseif name=="event" then state="event"; scene="stop"; randomEvent=Events.random(saveData)
         elseif name=="battle" then
@@ -2259,8 +2346,8 @@ if ui.smokeRequested then
         local reportPath=os.getenv("MOUSE_FRONTIER_SMOKE_REPORT") or os.getenv("MOUSE_FRONTIER_SMOKE_RPT") or "smoke-test.rpt"
         ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
         local startX=player.x
-        local steps={fixtureStep("slots"),fixtureStep("characters"),
-            {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10}},
+        local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
+            {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10}},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end
                 local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old

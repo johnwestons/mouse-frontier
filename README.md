@@ -70,3 +70,9 @@ powershell -ExecutionPolicy Bypass -File ".\\.stabilization\\run-smoke.ps1" -Ful
 ```
 
 Full-route reports identify whether the run reached the ending, exhausted supplies, stalled, or hit a code error. Full-route mode provisions supplies and auto-resolves encounters so route/ending reachability can be separated from combat difficulty; the normal smoke run continues to exercise battle controls.
+
+## Character sprite processing
+
+Use `tools/character_sprite_doctor.py` to audit, preview, repair, or import complete character animation sets. It checks frame counts, crop and scale consistency, centering, baselines, alpha residue, missing actions, and likely character-identity mix-ups. Repairs are previewed by default and applied changes receive timestamped backups.
+
+The complete workflow and atlas layout are documented in [`tools/SPRITE_WORKFLOW.md`](tools/SPRITE_WORKFLOW.md).
