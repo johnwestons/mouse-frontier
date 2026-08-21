@@ -1,11 +1,13 @@
 local Maintenance = {}
+local WheelAnimation = require("game.maintenance_wheel_animation")
+local PanelAnimation = require("game.maintenance_panel_animation")
 
 local ASSET_ROOT = "assets/sprites/maintenance/oil-running-gear/"
 local BACKGROUND_Y = 90
 local TARGETS = {
-    {x = 340, y = 343, radius = 42, doses = 2},
-    {x = 537, y = 343, radius = 42, doses = 1},
-    {x = 735, y = 343, radius = 42, doses = 2},
+    {x = 313, y = 365, radius = 18, doses = 2},
+    {x = 493, y = 365, radius = 18, doses = 1},
+    {x = 675, y = 365, radius = 18, doses = 2},
 }
 local LAMPS = {
     {x = 351, y = 545}, {x = 413, y = 545}, {x = 475, y = 545},
@@ -14,6 +16,7 @@ local LAMPS = {
 local DONE_RECT = {x = 659, y = 512, w = 106, h = 64}
 local CLOSE_RECT = {x = 881, y = 104, w = 42, h = 34}
 local TOTAL_DOSES = #LAMPS
+local CONDITION_SOURCE, DONE_SOURCE = PanelAnimation.sourceRects()
 
 local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
@@ -87,6 +90,11 @@ function Maintenance.new()
         serviceBursts = {},
         canPump = 0,
         testMotion = 0,
+        donePress = 0,
+        conditionMotion = 0,
+        conditionFrom = 72,
+        conditionTo = 72,
+        title = "OIL THE RUNNING GEAR",
         mouseX = 480,
         mouseY = 360,
     }
@@ -140,6 +148,25 @@ function Maintenance.targetPosition(index)
     return target and target.x, target and target.y
 end
 
+function Maintenance.setTitle(session, title)
+    if type(title) == "string" and title ~= "" then session.title = title end
+end
+
+function Maintenance.animationSpec()
+    local doneFrames, conditionFrames = PanelAnimation.frameCount()
+    return {wheelFrames = WheelAnimation.frameCount(), doneFrames = doneFrames, conditionFrames = conditionFrames}
+end
+
+function Maintenance.animationState(session)
+    local wheelElapsed = session.testMotion > 0 and (WheelAnimation.duration() - session.testMotion) or 0
+    return {
+        wheelFrame = WheelAnimation.frameAt(wheelElapsed),
+        doneFrame = PanelAnimation.doneFrame(session.donePress or 0),
+        conditionFrame = PanelAnimation.conditionFrame(session.conditionMotion or 0),
+        smokePuffs = #(session.serviceBursts or {}),
+    }
+end
+
 function Maintenance.open(session, data)
     local state = Maintenance.ensure(data)
     session.open = true
@@ -153,16 +180,28 @@ function Maintenance.open(session, data)
     session.lampPulse = {0, 0, 0, 0, 0}
     session.canPump = 0
     session.testMotion = 0
+    session.donePress = 0
+    session.conditionMotion = 0
+    session.conditionFrom = state.condition
+    session.conditionTo = state.condition
     session.message = session.completed and "RUNNING GEAR SERVICED AT THIS STOP" or "PLACE THE OIL-CAN NOZZLE ON A WHEEL HUB"
     session.assetError = nil
     session.pulse = 0
     if not session.assets then
         local background, backgroundError = loadImage("minigame-background.png")
+        local base, baseError = loadImage("minigame-base.png")
         local oilCan, oilCanError = loadImage("oil-can.png")
         local oilDrop, oilDropError = loadImage("oil-drop.png")
         local serviceEffect, serviceEffectError = loadImage("service-effect.png")
-        session.assets = {background = background, oilCan = oilCan, oilDrop = oilDrop, serviceEffect = serviceEffect}
-        session.assetError = backgroundError or oilCanError or oilDropError or serviceEffectError
+        local conditionQuad, doneQuad
+        if background then
+            local width, height = background:getDimensions()
+            conditionQuad = love.graphics.newQuad(CONDITION_SOURCE.x, CONDITION_SOURCE.y, CONDITION_SOURCE.w, CONDITION_SOURCE.h, width, height)
+            doneQuad = love.graphics.newQuad(DONE_SOURCE.x, DONE_SOURCE.y, DONE_SOURCE.w, DONE_SOURCE.h, width, height)
+        end
+        session.assets = {background = background, base = base, oilCan = oilCan, oilDrop = oilDrop,
+            serviceEffect = serviceEffect, conditionQuad = conditionQuad, doneQuad = doneQuad}
+        session.assetError = backgroundError or baseError or oilCanError or oilDropError or serviceEffectError
     end
     session.cursorActive = not session.completed and session.assets and session.assets.oilCan ~= nil
     setSystemCursorVisible(not session.cursorActive)
@@ -214,9 +253,13 @@ function Maintenance.complete(session, data)
     state.totalServices = state.totalServices + 1
     session.completed = true
     session.cursorActive = false
-    session.testMotion = 1.45
+    session.testMotion = WheelAnimation.duration()
+    session.donePress = PanelAnimation.doneDuration()
+    session.conditionFrom = before
+    session.conditionTo = state.condition
+    session.conditionMotion = PanelAnimation.conditionDuration()
     for i, target in ipairs(TARGETS) do
-        session.targetMotion[i] = 1.45
+        session.targetMotion[i] = WheelAnimation.duration()
         session.serviceBursts[#session.serviceBursts + 1] = {x = target.x + 12, y = target.y - 18, life = 1.0, total = 1.0, delay = (i - 1) * .10}
     end
     setSystemCursorVisible(true)
@@ -229,6 +272,8 @@ function Maintenance.update(session, dt)
     session.pulse = (session.pulse + dt) % (math.pi * 2)
     session.canPump = math.max(0, session.canPump - dt)
     session.testMotion = math.max(0, session.testMotion - dt)
+    session.donePress = math.max(0, session.donePress - dt)
+    session.conditionMotion = math.max(0, session.conditionMotion - dt)
     for i = 1, #TARGETS do session.targetMotion[i] = math.max(0, (session.targetMotion[i] or 0) - dt) end
     for i = 1, TOTAL_DOSES do session.lampPulse[i] = math.max(0, (session.lampPulse[i] or 0) - dt) end
     for i = #session.spriteDrops, 1, -1 do
@@ -267,20 +312,19 @@ local function drawFallbackPanel()
     love.graphics.printf("OIL THE RUNNING GEAR", 0, 130, 960, "center", 0, 1.6, 1.6)
 end
 
-local function drawConditionPanel(data)
-    local condition = Maintenance.condition(data)
-    love.graphics.setColor(.035, .027, .023, .97)
-    love.graphics.rectangle("fill", 44, 487, 226, 78, 7, 7)
-    love.graphics.setColor(.54, .34, .15, 1)
-    love.graphics.setLineWidth(2); love.graphics.rectangle("line", 44, 487, 226, 78, 7, 7); love.graphics.setLineWidth(1)
-    love.graphics.setColor(.96, .82, .48, 1)
-    love.graphics.print("GEAR CONDITION", 59, 498, 0, .70, .70)
-    love.graphics.printf(math.floor(condition) .. "%", 205, 497, 48, "right", 0, .76, .76)
-    love.graphics.setColor(.10, .07, .05, 1); love.graphics.rectangle("fill", 59, 526, 194, 18, 4, 4)
+local function drawConditionPanel(session, data)
+    local condition = session.conditionMotion > 0 and
+        PanelAnimation.conditionValue(session.conditionFrom, session.conditionTo, session.conditionMotion) or Maintenance.condition(data)
+    local source, quad = session.assets and session.assets.background, session.assets and session.assets.conditionQuad
+    if not PanelAnimation.drawCondition(source, quad, session.conditionMotion) then
+        love.graphics.setColor(.035, .027, .023, .97); love.graphics.rectangle("fill", 20, 483, 276, 123, 7, 7)
+    end
+    -- The original frame and label remain sprite art; only the instrument's
+    -- inner reading is live so saved wear is represented accurately.
+    love.graphics.setColor(.08, .055, .04, .97); love.graphics.rectangle("fill", 54, 531, 215, 31, 3, 3)
     local meterColor = condition < 25 and {.88, .20, .12} or (condition < 50 and {.95, .55, .12} or {.34, .78, .34})
-    love.graphics.setColor(meterColor); love.graphics.rectangle("fill", 62, 529, 188 * condition / 100, 12, 3, 3)
-    love.graphics.setColor(.87, .75, .52, 1)
-    love.graphics.printf(condition < 25 and "CRITICAL  •  +2 COAL" or (condition < 50 and "WORN  •  +1 COAL" or "RUNNING EFFICIENTLY"), 55, 550, 204, "center", 0, .54, .54)
+    love.graphics.setColor(meterColor); love.graphics.rectangle("fill", 58, 536, 207 * condition / 100, 20, 2, 2)
+    love.graphics.setColor(.96, .82, .48, 1); love.graphics.printf(math.floor(condition) .. "%", 208, 506, 62, "right", 0, .72, .72)
 end
 
 local function drawTargetState(session, index, target)
@@ -302,12 +346,26 @@ end
 local function targetMotionAngle(session, index)
     local timer = session.targetMotion[index] or 0
     if timer <= 0 then return 0 end
-    if session.testMotion > 0 then
-        local elapsed = 1.45 - session.testMotion
-        return elapsed * 7.5 + (index - 1) * .05
-    end
     local elapsed = .42 - timer
     return math.sin(elapsed * 25) * .12 * (timer / .42)
+end
+
+local function drawDoneSprite(session)
+    local source, quad = session.assets and session.assets.background, session.assets and session.assets.doneQuad
+    local hover = pointInRect(session.mouseX or -1000, session.mouseY or -1000, DONE_RECT)
+    PanelAnimation.drawDone(source, quad, session.donePress, hover, allOiled(session) and not session.completed)
+end
+
+local function drawTitle(session)
+    local title = session.title or "OIL THE RUNNING GEAR"
+    love.graphics.push()
+    love.graphics.translate(480, 126)
+    love.graphics.scale(1.20, 1.20)
+    love.graphics.setColor(.08, .045, .02, .95)
+    love.graphics.printf(title, -155, -8, 310, "center")
+    love.graphics.setColor(.92, .63, .25, 1)
+    love.graphics.printf(title, -155, -10, 310, "center")
+    love.graphics.pop()
 end
 
 local function drawMovingHub(session, index, target, background)
@@ -367,7 +425,7 @@ local function drawAnimatedSprites(session)
         for _, burst in ipairs(session.serviceBursts) do
             if burst.delay <= 0 then
                 local progress = 1 - burst.life / burst.total
-                local scale = .07 + progress * .025
+                local scale = .052 + progress * .018
                 love.graphics.setColor(1, 1, 1, clamp(burst.life * 1.5, 0, 1))
                 love.graphics.draw(effect, burst.x, burst.y, -.25, scale, scale, width * .25, height * .72)
             end
@@ -379,12 +437,18 @@ function Maintenance.draw(session, data)
     if not session.open then return end
     love.graphics.setColor(0, 0, 0, .84); love.graphics.rectangle("fill", 0, 0, 960, 720)
     local background = session.assets and session.assets.background
-    if background then
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(background, 0, BACKGROUND_Y, 0, 960 / background:getWidth(), 540 / background:getHeight())
-    else drawFallbackPanel() end
+    local base = session.assets and session.assets.base
+    local elapsed = session.testMotion > 0 and (WheelAnimation.duration() - session.testMotion) or 0
+    local layered = WheelAnimation.draw(background, base, BACKGROUND_Y, elapsed)
+    if not layered then
+        if background then
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(background, 0, BACKGROUND_Y, 0, 960 / background:getWidth(), 540 / background:getHeight())
+        else drawFallbackPanel() end
+    end
 
-    for i, target in ipairs(TARGETS) do drawMovingHub(session, i, target, background) end
+    if session.testMotion <= 0 then for i, target in ipairs(TARGETS) do drawMovingHub(session, i, target, background) end end
+    drawTitle(session)
     for i, target in ipairs(TARGETS) do drawTargetState(session, i, target) end
     for i, lamp in ipairs(LAMPS) do drawLamp(session, i, lamp) end
     for _, particle in ipairs(session.particles) do
@@ -392,7 +456,8 @@ function Maintenance.draw(session, data)
         love.graphics.circle("fill", particle.x, particle.y, 2.7)
     end
     drawAnimatedSprites(session)
-    drawConditionPanel(data)
+    drawConditionPanel(session, data)
+    drawDoneSprite(session)
 
     if allOiled(session) and not session.completed then
         love.graphics.setColor(1, .70, .12, .22); love.graphics.rectangle("fill", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8)

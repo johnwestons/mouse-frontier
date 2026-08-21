@@ -2228,11 +2228,21 @@ if ui.smokeRequested then
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCompleteCaptureRequested=true end
                 ui.smokeDraw()
                 return {services=saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,
-                    lights=Maintenance.progressLights(maintenanceSession),cursor=maintenanceSession.cursorActive}
+                    lights=Maintenance.progressLights(maintenanceSession),cursor=maintenanceSession.cursorActive,
+                    animationSpec=Maintenance.animationSpec(),animationState=Maintenance.animationState(maintenanceSession)}
             end,check=function(_,_,snapshot,result)
                 local lit=0; for _,value in ipairs(result.lights or {}) do if value then lit=lit+1 end end
+                local spec,state=result.animationSpec or {},result.animationState or {}
                 return result.services==1 and result.outsideProgress==0 and result.beforeDone.condition==72 and result.beforeDone.progress==5 and
-                    lit==5 and result.cursor==false and snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true
+                    lit==5 and result.cursor==false and snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true and
+                    spec.wheelFrames==5 and spec.doneFrames==5 and spec.conditionFrames==5 and state.smokePuffs==3
+            end},
+            {name="maintenance_animation_settles",action=function()
+                Maintenance.update(maintenanceSession,1.1); ui.smokeDraw()
+                return Maintenance.animationState(maintenanceSession)
+            end,check=function(_,_,snapshot,result)
+                return result.wheelFrame==1 and result.doneFrame==5 and result.conditionFrame==5 and result.smokePuffs==0 and
+                    snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true
             end},
             {name="close_maintenance",action=function() love.keypressed("escape"); return true end,expect={maintenanceOpen=false}},
             {name="maintenance_persists_at_stop",action=function()
@@ -2368,8 +2378,10 @@ if ui.smokeRequested then
         end
     end
     function love.draw()
-        if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(340,343) end
-        if ui.smokeMaintenanceCompleteCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(712,544) end
+        if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(313,365) end
+        if ui.smokeMaintenanceCompleteCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then
+            love.mouse.setPosition(712,544); Maintenance.update(maintenanceSession,.34)
+        end
         local ok,message=xpcall(ui.smokeDraw,debug.traceback)
         if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); love.event.quit(1); return end
         if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open then
