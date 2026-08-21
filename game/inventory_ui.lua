@@ -77,6 +77,12 @@ function InventoryUI.draw(ctx)
         love.graphics.print(stats.name.."  TIER "..stats.tier,585,123,0,.86,.86)
         love.graphics.print("DAMAGE "..stats.min.."-"..stats.max.."  "..string.upper(combat.kind or "melee").."  RANGE "..(combat.range or 1),585,148,0,.68,.68)
         love.graphics.print("DURABILITY "..durability.."%"..(combat.ammo and ("  "..ctx.title(combat.ammo).." "..(data.ammo[combat.ammo] or 0)) or ""),585,169,0,.68,.68)
+    elseif inspectName and Catalog.itemEffects[inspectName] and Catalog.itemEffects[inspectName].potion then
+        local effect=Catalog.itemEffects[inspectName]
+        ctx.drawMenuFrame(565,110,350,80,3,.92); love.graphics.setColor(ctx.colors.cream)
+        love.graphics.print(ctx.title(inspectName),585,123,0,.86,.86)
+        love.graphics.print(effect.description,585,148,0,.62,.62)
+        love.graphics.print("DOUBLE CLICK TO DRINK BEFORE NEXT BATTLE",585,169,0,.55,.55)
     elseif inspectName and Catalog.itemEffects[inspectName] and (Catalog.itemEffects[inspectName].food or Catalog.itemEffects[inspectName].water) then
         local effect=Catalog.itemEffects[inspectName]; local restored={}
         if effect.food then restored[#restored+1]="FOOD +"..effect.food end

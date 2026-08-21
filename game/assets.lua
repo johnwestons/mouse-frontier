@@ -4,6 +4,7 @@ local EventUI = require("game.event_ui")
 local Roster = require("game.roster")
 local Wildlife = require("game.wildlife") -- retained only for dynamic chickens
 local AssetDiagnostics = require("game.asset_diagnostics")
+local LootProgression = require("game.loot_progression")
 
 local Assets = {}
 local missingRequired
@@ -103,6 +104,8 @@ local function validateCatalogArt(ui)
     requireKeys(Catalog.ammoPickupAmounts, "catalog ammunition")
     requireList(Catalog.questRewardItems, "catalog quest reward")
     for _, pool in pairs(Catalog.lootPools or {}) do requireList(pool, "catalog loot") end
+    local progressionOk,progressionErrors=LootProgression.validate(Catalog)
+    if not progressionOk then for _,message in ipairs(progressionErrors) do AssetDiagnostics.record("loot-progression","catalog progression",message) end end
 end
 
 local function loadBattleAtlas(file, label)

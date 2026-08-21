@@ -6,7 +6,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
 end
 
 local W, H = 960, 720
-local CURRENT_SAVE_VERSION = 24
+local CURRENT_SAVE_VERSION = 25
 local Audio = require("game.audio")
 local Save = require("game.save")
 local Train = require("game.train")
@@ -35,6 +35,7 @@ local InteriorDoors = require("game.interior_doors")
 local Interactions = require("game.interactions")
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
+local Maintenance = require("game.maintenance")
 local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router")}
 local state = "slots"
 local selectedSlot, saveData, player
@@ -71,6 +72,7 @@ local giftOpen, giftNPC, giftSlot = false, nil, nil
 local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
 local BOARD_COLS, BOARD_ROWS = 7, 4
+local maintenanceSession = Maintenance.new()
 
 
 -- Rolling-stock layout: the car sits farther right to leave room for the
@@ -119,7 +121,7 @@ local function newSave(character)
         if Roster.isNpcCandidate(file) and file ~= character and not seen[file] then npcRoster[#npcRoster + 1] = file end
     end
     table.sort(npcRoster)
-    local worldItems, itemNames = {}, {"water-bottle","pickaxe","potted-sprout","flower-pot","potted-flowers","wrapped-sweet","food-ration","coal-bucket","coal-chunk"}
+    local worldItems = {}
     worldItems[#worldItems+1]={name="travel-chest",x=car.x+275,y=car.y+255,scene="train",carIndex=1,scale=1,rotation=0,storage={}}
     worldItems[#worldItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
     worldItems[#worldItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
@@ -134,23 +136,19 @@ local function newSave(character)
         droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
         encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
         choices = {}, stopLayouts = {}, stopSludges={}, events = {}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={},
+        maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0},
         inventoryCapacity=6, backpack=nil,
         scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
-        specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,
+        specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,
         audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false}, playerX = car.x + 300, playerY = car.y + 285
     }
-    for i,name in ipairs(itemNames) do House.storeLoot(result,Catalog,name,i) end
-    for i,name in ipairs(Catalog.weaponProgression) do House.storeLoot(result,Catalog,name,i+1) end
-    for _,entry in ipairs({{"field-bandage-roll",2},{"herbal-tonic",5},{"frontier-medkit",8}}) do House.storeLoot(result,Catalog,entry[1],entry[2]) end
-    for i,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do House.storeLoot(result,Catalog,name,math.max(1,i*2-1)) end
-    House.storeLoot(result,Catalog,"rose-heart-arrow",7); House.storeLoot(result,Catalog,"blade-hearts",15)
-    local expanded={"trail-beans-can","dried-berry-pouch","cornbread-square","mushroom-stew","jerky-bundle","preserved-peaches","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink","ceramic-water-crock","compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","machine-pistol","weathered-lever-rifle","compact-carbine","rugged-submachine-gun","improvised-service-rifle"}
-    for i,name in ipairs(expanded) do House.storeLoot(result,Catalog,name,2+i*2) end
+    for i,name in ipairs({"coal-bucket","pickaxe","potted-sprout","flower-pot","potted-flowers"}) do House.storeLoot(result,Catalog,name,i) end
     return result
 end
 
 local function enterGame(data)
     if type(data)~="table" then return false end
+    Maintenance.close(maintenanceSession)
     ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
     data.version = CURRENT_SAVE_VERSION
     data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
@@ -175,6 +173,7 @@ local function enterGame(data)
     data.stopLayouts = data.stopLayouts or {}
     data.stopSludges = data.stopSludges or {}
     data.events = data.events or {}
+    Maintenance.ensure(data)
     data.weaponDurability=data.weaponDurability or {}
     data.weaponProficiency=data.weaponProficiency or {}
     data.supplyQuests=data.supplyQuests or {}
@@ -182,6 +181,17 @@ local function enterGame(data)
     data.passengers=data.passengers or {}
     data.questAsked=data.questAsked or {}
     data.lootRolls=data.lootRolls or {}
+    if (data.lootBalanceVersion or 0)<1 then
+        for i=#data.droppedItems,1,-1 do
+            local item=data.droppedItems[i]
+            local rollKey=tostring(item.location or data.location)..":"..tostring(item.houseDoor or 1)
+            if item.scene=="house" and Catalog.storageCapacities[item.name] and not item.droppedByPlayer and not data.lootRolls[rollKey] then
+                table.remove(data.droppedItems,i)
+            end
+        end
+        data.lootBalanceVersion=1
+    end
+    data.nextBattlePotions=data.nextBattlePotions or {}
     data.npcOffers=data.npcOffers or {}; data.npcWeapons=data.npcWeapons or {}
     data.inventoryCapacity=data.inventoryCapacity or 6
     data.scrap=data.scrap or 0
@@ -202,11 +212,7 @@ local function enterGame(data)
     data.trait=assignedTrait
     data.health=math.min(data.maxHealth,data.health or data.maxHealth)
     for i,item in ipairs(data.droppedItems) do item.layer=item.layer or i end
-    if not data.specialItemsAdded then
-        data.droppedItems[#data.droppedItems+1]={name="rose-heart-arrow",x=690,y=535,scene="stop",location=7}
-        data.droppedItems[#data.droppedItems+1]={name="blade-hearts",x=720,y=535,scene="stop",location=15}
-        data.specialItemsAdded=true
-    end
+    if not data.specialItemsAdded then data.specialItemsAdded=true end
     for i,passenger in ipairs(data.passengers) do
         local left,right,top,bottom=trainFloorBounds(); passenger.x,passenger.y=clampToTrainFloor(passenger.x or car.x+230+(i-1)*85,passenger.y or (top+bottom)/2)
         passenger.homeX=math.max(left,math.min(right,passenger.homeX or passenger.x)); passenger.homeY=math.max(top,math.min(bottom,passenger.homeY or passenger.y)); passenger.wait=passenger.wait or 1; passenger.job=passenger.job or Passengers.jobFor(passenger.npc); passenger.pose=passenger.pose or "idle"; passenger.carIndex=math.max(1,math.min(#data.trainCars,passenger.carIndex or 1))
@@ -219,19 +225,9 @@ local function enterGame(data)
     for _,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do
         data.ammo[name]=math.max(0,tonumber(data.ammo[name]) or 0)
     end
-    if not data.ammoDropsAdded then
-        for i,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr"}) do data.droppedItems[#data.droppedItems+1]={name=name,x=330+(i%4)*125,y=545,scene="stop",location=math.max(1,i*2-1)} end
-        data.ammoDropsAdded=true
-    end
+    if not data.ammoDropsAdded then data.ammoDropsAdded=true end
     data.weapons=nil
-    if not data.weaponDropsAdded then
-        local owned={}
-        for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then owned[data.inventory[i]]=true end end
-        for i=1,2 do if data.equipment[i] then owned[data.equipment[i]]=true end end
-        for _,item in ipairs(data.droppedItems) do owned[item.name]=true end
-        for i,name in ipairs(Catalog.weaponProgression) do if not owned[name] then data.droppedItems[#data.droppedItems+1]={name=name,x=760,y=555,scene="stop",location=i+1} end end
-        data.weaponDropsAdded=true
-    end
+    if not data.weaponDropsAdded then data.weaponDropsAdded=true end
     if not data.starterChestAdded then
         local found=false; for _,item in ipairs(data.droppedItems) do if item.name=="travel-chest" and item.scene=="train" then item.storage=item.storage or {}; found=true end end
         if not found then data.droppedItems[#data.droppedItems+1]={name="travel-chest",x=car.x+165,y=car.y+285,scene="train",scale=1,rotation=0,storage={}} end
@@ -254,11 +250,7 @@ local function enterGame(data)
     for _,item in ipairs(data.droppedItems) do
         if item.name=="travel-chest" and item.scene=="train" and (item.x<car.x+35 or item.x>car.x+car.w-35) then item.x,item.y=car.x+165,car.y+285 end
     end
-    if not data.medicalDropsAdded then
-        local medical={{"field-bandage-roll",2},{"herbal-tonic",5},{"frontier-medkit",8}}
-        for _,entry in ipairs(medical) do data.droppedItems[#data.droppedItems+1]={name=entry[1],x=690,y=535,scene="stop",location=entry[2]} end
-        data.medicalDropsAdded=true
-    end
+    if not data.medicalDropsAdded then data.medicalDropsAdded=true end
     if not data.lootContainerMigration then
         local loose={}
         for i=#data.droppedItems,1,-1 do
@@ -270,11 +262,8 @@ local function enterGame(data)
         for _,loot in ipairs(loose) do House.storeLoot(data,Catalog,loot.name,loot.location) end
         data.lootContainerMigration=true
     end
-    if not data.expandedLootAdded then
-        local expanded={"trail-beans-can","dried-berry-pouch","cornbread-square","mushroom-stew","jerky-bundle","preserved-peaches","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink","ceramic-water-crock","compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","machine-pistol","weathered-lever-rifle","compact-carbine","rugged-submachine-gun","improvised-service-rifle"}
-        for i,name in ipairs(expanded) do House.storeLoot(data,Catalog,name,math.min(49,2+i*2)) end
-        data.expandedLootAdded=true
-    end
+    if not data.expandedLootAdded then data.expandedLootAdded=true end
+    data.lootBalanceVersion=data.lootBalanceVersion or 1
     data.encounters = data.encounters or {}
     local loadedNpcCandidates={}
     for file in pairs(npcImages) do loadedNpcCandidates[#loadedNpcCandidates+1]=file end
@@ -396,6 +385,11 @@ local function consumeSelected()
         dialogue={speaker="Special Heart",text="Your maximum health increased by 5!",timer=2.5}
         setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
     end
+    if effect and effect.potion then
+        saveData.nextBattlePotions[name]=true
+        dialogue={speaker=Util.titleFromFile(name),text=effect.description.." It will activate at the next battle.",timer=2.5}
+        setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
+    end
     if not effect then return false end
     local capacity=20; for _,id in ipairs(saveData.trainCars or {}) do if id=="storage" then capacity=30; break end end
     local foodFull=effect.food and saveData.resources.food>=capacity
@@ -484,7 +478,9 @@ local function travelCost()
     local sleeper=false; for _,id in ipairs(saveData.trainCars or {}) do if id=="sleeper" then sleeper=true end end
     local passengerCost=sleeper and math.ceil(passengers/2) or passengers
     local food,water,coal=EngineUpgrades.applyCosts(saveData.engineLevel,(1+math.floor(leg/4)+passengerCost)*(trait.food or 1),(1+math.floor(leg/3)+passengerCost)*(trait.water or 1),(1+math.floor(leg/5)+terrainCoal)*(trait.coal or 1))
-    return {food=food,water=water,coal=coal,passengers=passengers,terrain=terrain}
+    local maintenanceCoal=Maintenance.coalPenalty(saveData)
+    coal=coal+maintenanceCoal
+    return {food=food,water=water,coal=coal,passengers=passengers,terrain=terrain,maintenanceCoal=maintenanceCoal}
 end
 
 local function processPassengerArrivals()
@@ -673,6 +669,7 @@ local function battleMoveTo(q,r) BattleController.move(battleContext(),q,r) end
 local function battleHeal() BattleController.heal(battleContext()) end
 local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
+local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
 
 function ui.playSfx(kind)
     if ui.audio and saveData then return ui.audio:playSfx(kind,saveData.audio,battle) end
@@ -788,6 +785,7 @@ function love.update(dt)
         sceneryOffset=(sceneryOffset+(25+125*speedFactor)*EngineUpgrades.profile(saveData.engineLevel).speed*dt)%W
         if not travelTransition.changed and travelTransition.t>=timing.change then
             travelTransition.changed=true; saveData.location=saveData.location+1; saveData.stopped=true; saveData.visitedStops[saveData.location]=true
+            Maintenance.onTravel(saveData)
             local stopX,stopY=Settlements.trainPoint(saveData.location); player.x,player.y=stopX,stopY+42
             for _,id in ipairs(saveData.trainCars or {}) do if id=="greenhouse" then saveData.resources.food=math.min(30,saveData.resources.food+1) elseif id=="medical" then saveData.health=math.min(saveData.maxHealth,saveData.health+3) end end
             ensureStopLayout(); passengerContributions(); processPassengerArrivals(); writeSave()
@@ -820,7 +818,8 @@ function love.update(dt)
         end
         return
     end
-    if inventoryOpen or mapOpen or dialogue or editMode or ui.radioOpen then return end
+    Maintenance.update(maintenanceSession,dt)
+    if maintenanceSession.open or inventoryOpen or mapOpen or dialogue or editMode or ui.radioOpen then return end
     local dx = movementAxis("a", "d") + movementAxis("left", "right")
     local dy = movementAxis("w", "s") + movementAxis("up", "down")
     player.moving = dx ~= 0 or dy ~= 0
@@ -1379,6 +1378,7 @@ function ui.drawTravelConfirm()
     love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
     love.graphics.printf("TERRAIN: "..string.upper(cost.terrain or "plains"),280,377,400,"center",0,.78,.78)
     if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengers.." food and water.",280,385,400,"center",0,0.82,0.82) end
+    if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
     local enough=saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal
     ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",305,425,220,48,enough); ui.travelNo=button("CANCEL",545,425,110,48,true)
 end
@@ -1542,7 +1542,7 @@ local function drawTacticalBattle()
     local newest=#log-offset; local first=math.max(1,newest-2); local row=0
     love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*16,520,"left",0,.67,.67); row=row+1 end
     ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0)
-    ui.battleWeapons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil
+    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil
     if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
     if active then
         -- Character card occupies the lower-left corner between the battle
@@ -1576,6 +1576,14 @@ local function drawTacticalBattle()
         ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",610,580,110,38,not battle.moveUsed)
         ui.battleHeal=button("HEAL [H]",730,580,110,38,true); ui.battleGuard=button("GUARD [G]",610,625,110,34,true); ui.battleEnd=button("END TURN",730,625,110,34,true); ui.battleRetreat=button("RETREAT",835,625,100,34,true)
         ui.battleAbility=button("ABILITY",495,625,105,34,not battle.abilitiesUsed[active.id])
+        local potionIndex=0
+        for i=1,(saveData.inventoryCapacity or 6) do
+            local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
+            if effect and effect.potion and potionIndex<5 then
+                potionIndex=potionIndex+1; local px=495+(potionIndex-1)*88
+                ui.battlePotionButtons[potionIndex]={button("USE "..string.upper(effect.shortName or effect.potion),px,665,82,28,true),name=item}
+            end
+        end
         local activeName=(active.name or ""):lower()
         local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
         local mx,my=screenToGame(love.mouse.getPosition())
@@ -1671,12 +1679,13 @@ local function drawGame()
     ui.map=button(mapOpen and "CLOSE MAP" or "MAP",735,20,50,36,true)
     ui.editMode=scene=="train" and button(editMode and "EDITING" or "MOVE / SCALE",745,70,180,36,true) or nil
     ui.trainUpgrade=scene=="train" and button("UPGRADE  "..saveData.scrap.." SCRAP",510,70,220,36,true) or nil
+    ui.maintenance=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and not travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(saveData)).."%",510,112,220,32,true) or nil
     ui.pose=button(poseMenu and "CLOSE POSES" or "POSE",790,112,135,32,true)
     ui.options=button(ui.optionsOpen and "CLOSE OPTIONS" or "OPTIONS",790,154,135,32,true)
     ui.stopAttack=scene=="stop" and button("SWORD  ATTACK",790,650,135,38,true) or nil
     local pendingMail=0; for _,mail in ipairs(saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
     if pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end
-    if #(saveData.passengers or {})>0 then love.graphics.setColor(colors.cream); love.graphics.print("Passengers: "..#saveData.passengers,560,112,0,.9,.9) end
+    if #(saveData.passengers or {})>0 then love.graphics.setColor(colors.cream); love.graphics.print("Passengers: "..#saveData.passengers,560,151,0,.82,.82) end
     ui.exitTrain = nil
     local tipColor={colors.panel[1],colors.panel[2],colors.panel[3],.50}
     local nearbyFurniture=nearbyItem and isFurnitureItem(saveData.droppedItems[nearbyItem] and saveData.droppedItems[nearbyItem].name)
@@ -1750,6 +1759,10 @@ local function drawGame()
     if trainUpgradeOpen then ui.drawTrainUpgrades() end
     if tradeOpen then drawTrade() end
     if travelTransition then local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel); local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade); love.graphics.setColor(0,0,0,alpha); love.graphics.rectangle("fill",0,0,W,H) end
+    if maintenanceSession.open then
+        maintenanceSession.mouseX,maintenanceSession.mouseY=screenToGame(love.mouse.getPosition())
+        Maintenance.draw(maintenanceSession,saveData)
+    end
 end
 
 local function drawEnding()
@@ -1769,7 +1782,7 @@ function love.draw()
     love.graphics.push()
     love.graphics.translate(offsetX,offsetY)
     love.graphics.scale(scaleX,scaleY)
-    if state=="game" and not travelConfirm and Camera:isActive() then
+    if state=="game" and not travelConfirm and not maintenanceSession.open and Camera:isActive() then
         local focusX,focusY=(player and player.x or W/2),(player and player.y or H/2)
         Camera:apply(focusX,focusY)
     end
@@ -1854,8 +1867,11 @@ function ui.handleBattleMousePressed(x,y,rightClick)
         local unit=BattleRules.activeUnit(battle); local abilityProfile=Catalog.characterAbility(unit and unit.file or ""); local kind=abilityProfile.kind
         useBattleAbility(kind); return
     end
+    for _,entry in ipairs(ui.battlePotionButtons or {}) do
+        if Util.pointIn(x,y,entry[1]) then ui.playSfx("menu"); useBattlePotion(entry[2]); return end
+    end
     if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); advanceBattleTurn(); return end
-    if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); battle=nil; state="game"; scene="train"; saveData.scene=scene; npcActor=nil; writeSave(); return end
+    if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); saveData.battlePotionLootChance=nil; battle=nil; state="game"; scene="train"; saveData.scene=scene; npcActor=nil; writeSave(); return end
     local q,r=screenToBoardSpace(x,y); local active=BattleRules.activeUnit(battle)
     if q then
         local clicked=BattleRules.unitAt(battle,q,r)
@@ -1941,6 +1957,11 @@ function ui.handleEditorMousePressed(x,y)
 end
 
 function ui.handleGameMousePressed(x,y)
+    if maintenanceSession.open then
+        local result=Maintenance.mousepressed(maintenanceSession,x,y,saveData)
+        if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
+        return true
+    end
     if ui.handleRadioMousePressed(x,y) then return true end
     if inventoryOpen then
         if Util.pointIn(x,y,ui.backpack) then inventoryOpen=false; chestOpen=false; activeChest=nil; draggedSlot=nil; inventoryDragActive=false; writeSave() else ui.handleInventoryClick(x,y) end
@@ -1965,6 +1986,10 @@ function ui.handleGameMousePressed(x,y)
     end
     if Util.pointIn(x,y,ui.editMode) then editMode=not editMode; editedItem=nil; editDragging=false; ui.editSliderDrag=nil; inventoryOpen=false; mapOpen=false; writeSave(); return true end
     if Util.pointIn(x,y,ui.trainUpgrade) then trainUpgradeOpen=true; inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; return true end
+    if Util.pointIn(x,y,ui.maintenance) then
+        inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; dialogue=nil
+        Maintenance.open(maintenanceSession,saveData); ui.playSfx("menu"); return true
+    end
     if ui.handleEditorMousePressed(x,y) then return true end
     if Util.pointIn(x,y,ui.backpack) then inventoryOpen=not inventoryOpen; if not inventoryOpen then chestOpen=false; activeChest=nil end; draggedSlot=nil; inventoryDragActive=false; return true end
     if Util.pointIn(x,y,ui.map) then mapOpen=not mapOpen; if mapOpen then mapScroll=math.max(0,math.floor((saveData.location-1)/6)-2) end; inventoryOpen=false; draggedSlot=nil; return true end
@@ -1977,10 +2002,10 @@ function ui.handleGameMousePressed(x,y)
 end
 
 function love.mousepressed(x,y,button)
-    if button==3 and state=="game" and not travelConfirm and not ui.radioOpen and not inventoryOpen and not mapOpen and not dialogue and not tradeOpen and not trainUpgradeOpen and not poseMenu and not ui.optionsOpen and not editMode then Camera:beginPan(x,y); return end
+    if button==3 and state=="game" and not travelConfirm and not maintenanceSession.open and not ui.radioOpen and not inventoryOpen and not mapOpen and not dialogue and not tradeOpen and not trainUpgradeOpen and not poseMenu and not ui.optionsOpen and not editMode then Camera:beginPan(x,y); return end
     x,y=screenToGame(x,y)
     if state=="game" and carTransition then return end
-    if button==2 and state=="game" and not editMode and not mapOpen and not tradeOpen and not inventoryOpen and not dialogue and not travelConfirm and not trainUpgradeOpen and not poseMenu and not ui.optionsOpen and not ui.radioOpen then
+    if button==2 and state=="game" and not maintenanceSession.open and not editMode and not mapOpen and not tradeOpen and not inventoryOpen and not dialogue and not travelConfirm and not trainUpgradeOpen and not poseMenu and not ui.optionsOpen and not ui.radioOpen then
         local action,index=Systems.interactions.mouseAction(ui.interaction,button)
         if action=="openStorage" then activeChest=saveData.droppedItems[index]; activeChest.storage=activeChest.storage or {}; if activeChest.mailbox then activeChest.mailUnread=false; writeSave() end; chestOpen=true; inventoryOpen=true; draggedSlot=nil; inventoryDragActive=false end
         return
@@ -2040,12 +2065,17 @@ function love.wheelmoved(_,y)
         end
     elseif state=="game" and mapOpen then mapScroll=math.max(0,mapScroll-(y>0 and 1 or -1))
     elseif state=="characters" then characterScroll=math.max(0,characterScroll-(y>0 and 1 or -1))
-    elseif state=="game" and not inventoryOpen and not editMode and not ui.radioOpen then
+    elseif state=="game" and not maintenanceSession.open and not inventoryOpen and not editMode and not ui.radioOpen then
         Camera:wheel(y)
     end
 end
 
 local function keypressedGlobal(key)
+    if maintenanceSession.open then
+        local result=Maintenance.keypressed(maintenanceSession,key,saveData)
+        if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
+        return true
+    end
     if tradeOpen then if key=="escape" or key=="q" then tradeOpen=false; tradeNPC=nil; writeSave() end; return end
     if state=="event" then
         local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then resolveEventChoice(choice) end
@@ -2074,7 +2104,7 @@ end
 
 function ui.routeWorldInteraction(key)
     local action,arg=Systems.interactions.keyAction({selected=ui.interaction,dialogue=dialogue,
-        blocked=state~="game" or inventoryOpen or mapOpen or editMode or carTransition,
+        blocked=state~="game" or maintenanceSession.open or inventoryOpen or mapOpen or editMode or carTransition,
         isFurniture=function(index) local item=saveData.droppedItems[index]; return isFurnitureItem(item and item.name) end},key)
     if not action then return false end
     if action=="closeDialogue" then dialogue=nil
@@ -2133,6 +2163,7 @@ if ui.smokeRequested then
             food=saveData and saveData.resources.food,water=saveData and saveData.resources.water,
             coal=saveData and saveData.resources.coal,health=saveData and saveData.health,
             inventoryOpen=inventoryOpen,mapOpen=mapOpen,traveling=travelTransition~=nil,
+            maintenanceOpen=maintenanceSession.open,maintenanceCondition=saveData and Maintenance.condition(saveData),
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
             assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
             fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
@@ -2177,6 +2208,14 @@ if ui.smokeRequested then
             {name="scroll_map_key",action=function() local before=mapScroll; love.keypressed("down"); return {before=before,after=mapScroll} end,
                 check=function(_,_,_,result) return result.after==result.before+1 end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
+            {name="open_maintenance",action=function()
+                state="game"; scene="train"; saveData.scene=scene; Maintenance.open(maintenanceSession,saveData); ui.smokeDraw(); return true
+            end,expect={maintenanceOpen=true,maintenanceCondition=72}},
+            {name="service_running_gear",action=function()
+                for i=1,5 do love.keypressed(tostring(i)) end
+                love.keypressed("return"); ui.smokeDraw(); return saveData.maintenance.totalServices
+            end,check=function(_,_,snapshot,result) return result==1 and snapshot.maintenanceCondition==100 end},
+            {name="close_maintenance",action=function() love.keypressed("escape"); return true end,expect={maintenanceOpen=false}},
             {name="confirm_travel",action=function() state="game"; scene="train"; saveData.scene=scene; travelConfirm=true; love.keypressed("return"); return true end,
                 expect={food=9,water=9,coal=9,traveling=true}},
             {name="complete_travel",action=function() return true end,expect={location=2,traveling=false},timeout=20},
@@ -2305,4 +2344,4 @@ if ui.smokeRequested then
     end
 end
 
-function love.quit() writeSave(); Save.flush(); if ui.audio and ui.audio.shutdown then ui.audio:shutdown() end end
+function love.quit() Maintenance.release(maintenanceSession); writeSave(); Save.flush(); if ui.audio and ui.audio.shutdown then ui.audio:shutdown() end end

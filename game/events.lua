@@ -1,4 +1,5 @@
 local Events = {}
+local LootProgression = require("game.loot_progression")
 
 local function C(label,hint,data)
     data=data or {}; data.label=label; data.hint=hint; return data
@@ -239,12 +240,10 @@ function Events.canChoose(data,choice)
     return true
 end
 
-local function scaledPool(catalog,location,quality)
-    if quality=="medical" then return {"field-bandage-roll","herbal-tonic","frontier-medkit"} end
-    if quality=="legendary" then return catalog.lootPools.legendary end
-    if quality=="rare" or (quality=="scaled" and location>=25) then return catalog.lootPools.rare end
-    if quality=="uncommon" or quality=="scaled" then return catalog.lootPools.uncommon end
-    return catalog.lootPools.common
+local function scaledItem(catalog,location,quality)
+    if quality=="medical" then return LootProgression.rollMedical(catalog,location,"uncommon") end
+    local minimum=LootProgression.qualityRarity(quality)
+    return LootProgression.rollItem(catalog,location,{minimumRarity=minimum,weaponChance=quality=="legendary" and .45 or .12})
 end
 
 local function giveItem(data,catalog,item)
@@ -267,12 +266,11 @@ local function giveItem(data,catalog,item)
 end
 
 local function scaledWeapon(catalog,location,quality)
-    local progress=math.max(1,math.min(#catalog.weaponProgression,math.floor((location-1)/2)+1+(quality or 1)))
-    local low=math.max(1,progress-3); return catalog.weaponProgression[love.math.random(low,progress)]
+    return LootProgression.rollWeapon(catalog,location,LootProgression.qualityRarity(quality))
 end
 
 local function giveAmmo(data,catalog,weapon)
-    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or ({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"})[love.math.random(13)]
+    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or LootProgression.rollAmmo(catalog,data.location)
     local amount=(catalog.ammoPickupAmounts[ammo] or 6)+math.floor((data.location or 1)/10)
     data.ammo[ammo]=(data.ammo[ammo] or 0)+amount; return ammo,amount
 end
@@ -289,7 +287,7 @@ function Events.resolve(data,catalog,event,choiceIndex)
     if choice.loseItem then for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then notes[#notes+1]="lost "..data.inventory[i]; data.inventory[i]=nil; break end end end
     local weapon
     if choice.weapon then weapon=scaledWeapon(catalog,data.location,2); giveItem(data,catalog,weapon); notes[#notes+1]="found "..weapon end
-    if choice.itemPool then local pool=scaledPool(catalog,data.location,choice.itemPool); local item=pool[love.math.random(#pool)]; giveItem(data,catalog,item); notes[#notes+1]="found "..item end
+    if choice.itemPool then local item=scaledItem(catalog,data.location,choice.itemPool); giveItem(data,catalog,item); notes[#notes+1]="found "..item end
     if choice.ammo then local ammo,amount=giveAmmo(data,catalog,weapon); notes[#notes+1]="received "..amount.." "..ammo end
     if choice.ammoCost then
         local remaining=3
@@ -319,8 +317,9 @@ end
 function Events.grantBattleLoot(data,catalog,encounter)
     if not encounter or not encounter.eventReward then return "" end
     local weapon=scaledWeapon(catalog,data.location,encounter.eventRewardQuality or 2); giveItem(data,catalog,weapon)
-    local ammo,amount=giveAmmo(data,catalog,weapon); local pool=scaledPool(catalog,data.location,(encounter.eventRewardQuality or 2)>=3 and "rare" or "uncommon")
-    local item=pool[love.math.random(#pool)]; giveItem(data,catalog,item)
+    local ammo,amount=giveAmmo(data,catalog,weapon); local quality=(encounter.eventRewardQuality or 2)>=3 and "rare" or "uncommon"
+    if (data.battlePotionLootChance or 0)>0 and love.math.random()<data.battlePotionLootChance then quality="rare" end
+    local item=scaledItem(catalog,data.location,quality); giveItem(data,catalog,item)
     return " Event loot: "..title(weapon)..", "..title(item)..", and "..amount.." "..title(ammo).."."
 end
 

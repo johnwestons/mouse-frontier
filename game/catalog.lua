@@ -91,6 +91,16 @@ Catalog.itemEffects = {
     ["smoked-trout"]={food=4,label="EAT"}, ["honey-biscuits"]={food=3,label="EAT"},
     ["roasted-squash"]={food=4,label="EAT"}, ["acorn-cluster"]={food=2,label="EAT"},
     ["oat-porridge"]={food=5,water=1,label="EAT"},
+    ["red-potion-vial"]={potion="attack",attack=3,label="DRINK",description="Next battle: +3 attack."},
+    ["green-potion-vial"]={potion="health",healthMax=6,health=6,label="DRINK",description="Next battle: +6 max health and heal 6 HP."},
+    ["yellow-potion-vial"]={potion="move",move=2,label="DRINK",description="Next battle: +2 movement."},
+    ["purple-potion-vial"]={potion="loot",rareLootChance=.45,label="DRINK",description="Next battle: +45% rare-loot chance."},
+    ["blue-potion-vial"]={potion="defense",defense=3,label="DRINK",description="Next battle: +3 defense."},
+    ["red-double-attack-vial"]={potion="double-attack",extraAttacks=1,battleAction=true,shortName="2X ATTACK",label="DRINK",description="This battle: attack twice during one turn."},
+    ["yellow-double-move-vial"]={potion="double-move",extraMoves=1,battleAction=true,shortName="2X MOVE",label="DRINK",description="This battle: move twice during one turn."},
+    ["blue-guard-vial"]={potion="guard",guardAllies=true,battleAction=true,shortName="GUARD ALL",label="DRINK",description="This battle: guard yourself and allies for one turn."},
+    ["purple-accuracy-vial"]={potion="accuracy",perfectAccuracy=true,battleAction=true,shortName="100% AIM",label="DRINK",description="This battle: your attacks have 100% accuracy for one turn."},
+    ["green-regeneration-vial"]={potion="regeneration",regenAmount=2,regenRounds=3,battleAction=true,shortName="REGEN +2",label="DRINK",description="This battle: heal yourself and allies for 2 HP over 3 turns."},
     ["blue-water-bottle"]={water=3,label="DRINK"}, ["rainwater-jar"]={water=5,label="DRINK"},
     ["patched-canteen"]={water=5,label="DRINK"}, ["boxed-fruit-drink"]={water=3,food=1,label="DRINK"},
     ["ceramic-water-crock"]={water=7,label="DRINK"}
@@ -121,11 +131,11 @@ Catalog.weaponStats = {
     ["compact-scrap-pistol"]={name="Compact Scrap Pistol",min=5,max=9,tier=4},
     ["long-barrel-22-pistol"]={name="Long-Barrel .22 Pistol",min=5,max=8,tier=4},
     ["heavy-frontier-pistol"]={name="Heavy Frontier Pistol",min=7,max=12,tier=6},
-    ["machine-pistol"]={name="Machine Pistol",min=6,max=10,tier=6},
+    ["machine-pistol"]={name="Machine Pistol",min=6,max=10,tier=5},
     ["weathered-lever-rifle"]={name="Weathered Lever Rifle",min=8,max=13,tier=7},
     ["improvised-service-rifle"]={name="Improvised Service Rifle",min=9,max=15,tier=8},
     ["compact-carbine"]={name="Compact Carbine",min=8,max=14,tier=7},
-    ["rugged-submachine-gun"]={name="Rugged Submachine Gun",min=7,max=12,tier=7},
+    ["rugged-submachine-gun"]={name="Rugged Submachine Gun",min=7,max=12,tier=6},
     ["wrist-braced-slingshot"]={name="Wrist-Braced Slingshot",min=3,max=5,tier=2},
     ["metal-scrap-slingshot"]={name="Metal Scrap Slingshot",min=4,max=6,tier=3},
     ["long-hunting-slingshot"]={name="Long Hunting Slingshot",min=5,max=8,tier=4},
@@ -133,7 +143,7 @@ Catalog.weaponStats = {
     ["improvised-556-rifle"]={name="Improvised 5.56 Rifle",min=10,max=16,tier=9},
     ["frontier-long-barrel-revolver"]={name="Long-Barrel Frontier Revolver",min=7,max=12,tier=6},
     ["frontier-22-lever-rifle"]={name="Frontier .22 Lever Rifle",min=7,max=12,tier=6},
-    ["frontier-45-1911"]={name="Frontier .45 1911",min=9,max=15,tier=7},
+    ["frontier-45-1911"]={name="Frontier .45 1911",min=9,max=15,tier=8},
     ["frontier-380-revolver"]={name="Frontier .380 Revolver",min=6,max=10,tier=5},
     ["frontier-long-22-target-pistol"]={name="Frontier Long .22 Target Pistol",min=6,max=10,tier=5},
     ["wood-stock-survival-carbine"]={name="Wood-Stock Survival Carbine",min=8,max=13,tier=7},
@@ -149,7 +159,7 @@ Catalog.weaponStats = {
     , ["frontier-556-carbine"]={name="Frontier 5.56 Carbine",min=10,max=16,tier=9}
     , ["frontier-9mm-smg"]={name="Frontier 9mm SMG",min=8,max=13,tier=8}
     , ["frontier-22-target-pistol"]={name="Frontier .22 Target Pistol",min=5,max=9,tier=4}
-    , ["frontier-380-pocket-pistol"]={name="Frontier .380 Pocket Pistol",min=6,max=10,tier=6}
+    , ["frontier-380-pocket-pistol"]={name="Frontier .380 Pocket Pistol",min=6,max=10,tier=5}
     , ["frontier-12g-pump-shotgun"]={name="Frontier 12-Gauge Pump Shotgun",min=9,max=15,tier=7}
     , ["frontier-762-carbine"]={name="Frontier 7.62x39 Carbine",min=10,max=16,tier=8}
     , ["frontier-sr22-pistol"]={name="Frontier .22 Target Pistol",min=5,max=9,tier=4}
@@ -229,13 +239,15 @@ Catalog.weaponCombat = {
 }
 
 Catalog.weaponProgression = {
-    "trail-slingshot","brass-knuckle-duster","train-wrench","rail-spike-dagger","scrap-hatchet","rusty-cleaver",
-    "scrap-boomerang","miners-pick","hunting-bow","gear-hammer","rail-spike-spear","critter-crossbow",
-    "steam-shock-baton","chain-flail","scrap-pistol","sawed-off-shotgun","frontier-lever-rifle",
-    "compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","machine-pistol","weathered-lever-rifle",
-    "compact-carbine","rugged-submachine-gun","improvised-service-rifle","wrist-braced-slingshot",
-    "metal-scrap-slingshot","long-hunting-slingshot","patched-22-survival-rifle","improvised-556-rifle",
-    "frontier-long-barrel-revolver","wood-stock-survival-carbine","vintage-bolt-action-rifle","frontier-22-target-pistol","frontier-380-pocket-pistol","frontier-9mm-smg","frontier-556-carbine","frontier-12g-pump-shotgun","frontier-762-carbine","frontier-sr22-pistol","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-32-pocket-pistol","frontier-22-pocket-pistol","frontier-silver-22-revolver","frontier-22-lever-rifle","frontier-45-1911","frontier-380-revolver","frontier-long-22-target-pistol","frontier-ak-compact","frontier-9mm-glock","frontier-pearl-pocket-pistol","frontier-silver-compact-pistol","frontier-compact-9mm-pistol","frontier-single-shot-hunter","frontier-lever-carbine","frontier-katana","frontier-mace","frontier-battle-axe","frontier-longsword","frontier-machete","frontier-spear","frontier-hatchet","frontier-hand-axe"
+    "trail-slingshot","brass-knuckle-duster","train-wrench",
+    "rail-spike-dagger","scrap-hatchet","rusty-cleaver","frontier-short-sword","wrist-braced-slingshot",
+    "scrap-boomerang","miners-pick","hunting-bow","metal-scrap-slingshot","frontier-22-pocket-pistol","frontier-pearl-pocket-pistol",
+    "gear-hammer","rail-spike-spear","compact-scrap-pistol","long-barrel-22-pistol","long-hunting-slingshot","frontier-hatchet","frontier-22-target-pistol","frontier-sr22-pistol","frontier-32-pocket-pistol",
+    "critter-crossbow","chain-flail","machine-pistol","frontier-380-revolver","frontier-long-22-target-pistol","frontier-spear","frontier-silver-22-revolver","frontier-silver-compact-pistol","frontier-compact-9mm-pistol","frontier-380-pocket-pistol",
+    "scrap-pistol","steam-shock-baton","heavy-frontier-pistol","rugged-submachine-gun","patched-22-survival-rifle","frontier-long-barrel-revolver","frontier-22-lever-rifle","frontier-mace","frontier-machete","frontier-hand-axe","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-9mm-glock","frontier-single-shot-hunter",
+    "sawed-off-shotgun","weathered-lever-rifle","compact-carbine","wood-stock-survival-carbine","frontier-katana","frontier-12g-pump-shotgun","frontier-lever-carbine",
+    "frontier-lever-rifle","improvised-service-rifle","frontier-battle-axe","frontier-9mm-smg","frontier-762-carbine","frontier-ak-compact","frontier-45-1911",
+    "improvised-556-rifle","vintage-bolt-action-rifle","frontier-longsword","frontier-556-carbine"
 }
 
 function Catalog.weaponFamily(name)
@@ -278,10 +290,21 @@ Catalog.ammoPickupAmounts={rocks=8,arrows=6,["ball-bearings"]=8,["9mm"]=12,["45-
 Catalog.lootPools = {
     food={"food-ration","bread-loaf","red-apple","carrot","hand-pie","jam-jar","berry-jar","trail-beans-can","dried-berry-pouch","cornbread-square","jerky-bundle","smoked-trout","honey-biscuits","roasted-squash","acorn-cluster","oat-porridge"},
     water={"water-bottle","water-canteen","metal-water-flask","blue-water-bottle","rainwater-jar","patched-canteen","boxed-fruit-drink"},
-    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","water-canteen","coal-chunk","rocks","arrows","ball-bearings","wrapped-sweet","honey-biscuits","acorn-cluster"},
-    uncommon={"hand-pie","jam-jar","trail-mix-pouch","trail-cheese","metal-water-flask","rainwater-jar","field-bandage-roll","herbal-tonic","9mm","22lr","45-cal","30-carbine","380-acp","32-acp","12-gauge","patched-canvas-pack","frontier-380-revolver"},
-    rare={"mushroom-stew","preserved-peaches","ceramic-water-crock","healing-salve","frontier-medkit","compact-scrap-pistol","long-barrel-22-pistol","heavy-frontier-pistol","weathered-lever-rifle","compact-carbine","frontier-long-barrel-revolver","wood-stock-survival-carbine","frontier-22-target-pistol","frontier-380-pocket-pistol","frontier-12g-pump-shotgun","frontier-762-carbine","frontier-sr22-pistol","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-32-pocket-pistol","frontier-22-pocket-pistol","frontier-silver-22-revolver","frontier-22-lever-rifle","frontier-45-1911","frontier-long-22-target-pistol","frontier-katana","frontier-mace","frontier-battle-axe","frontier-longsword","frontier-machete","frontier-spear","frontier-hatchet","frontier-hand-axe","weathered-leather-pack","red-leather-pack","compact-sling-pack","black-sling-pack","556","762x39","8mm","bedroll-hiking-pack","frontier-leather-pack"},
-    legendary={"rose-heart-arrow","blade-hearts","machine-pistol","rugged-submachine-gun","improvised-service-rifle","vintage-bolt-action-rifle","emergency-syringe-case","scavenger-frame-pack"}
+    common={"food-ration","bread-loaf","red-apple","carrot","water-bottle","coal-chunk","rocks","arrows","ball-bearings","wrapped-sweet","honey-biscuits","acorn-cluster","dried-berry-pouch"},
+    uncommon={"hand-pie","jam-jar","berry-jar","melon-slice","campfire-skewers","trail-mix-pouch","trail-cheese","bean-tin","trail-beans-can","cornbread-square","jerky-bundle","smoked-trout","roasted-squash","oat-porridge","water-canteen","ceramic-water-flask","metal-water-flask","blue-water-bottle","berry-soda","boxed-fruit-drink","field-bandage-roll","healing-salve","hot-water-bottle","9mm","22lr","45-cal","380-acp","32-acp","patched-canvas-pack"},
+    rare={"mushroom-stew","preserved-peaches","large-water-jug","rainwater-jar","patched-canteen","ceramic-water-crock","herbal-tonic","wooden-splint-kit","antidote-vial","frontier-medkit","red-potion-vial","green-potion-vial","yellow-potion-vial","purple-potion-vial","blue-potion-vial","red-double-attack-vial","yellow-double-move-vial","blue-guard-vial","purple-accuracy-vial","green-regeneration-vial","30-carbine","12-gauge","556","762x39","8mm","weathered-leather-pack","red-leather-pack","compact-sling-pack","black-sling-pack","bedroll-hiking-pack","frontier-leather-pack"},
+    legendary={"rose-heart-arrow","blade-hearts","emergency-syringe-case","scavenger-frame-pack"}
 }
+
+Catalog.itemRarity={}
+for _,rarity in ipairs({"common","uncommon","rare","legendary"}) do
+    for _,name in ipairs(Catalog.lootPools[rarity]) do Catalog.itemRarity[name]=rarity end
+end
+
+function Catalog.rarityFor(name)
+    local stats=Catalog.weaponStats[name]
+    if stats then return stats.tier>=9 and "legendary" or (stats.tier>=6 and "rare" or (stats.tier>=3 and "uncommon" or "common")) end
+    return Catalog.itemRarity[name] or "common"
+end
 
 return Catalog

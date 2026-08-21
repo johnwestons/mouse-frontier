@@ -1,4 +1,5 @@
 local Stops = {}
+local LootProgression = require("game.loot_progression")
 
 local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree","autumn-tree","white-birch","dead-white-tree","dead-brown-tree","tall-stump","mossy-stump","flowering-shrub","white-flower-shrub","red-berry-bush","fern-cluster","tall-reeds","red-mushrooms","brown-mushrooms","wild-herb-patch","butterfly-flowers","mossy-boulders","fallen-log","hollow-log","branch-pile","broken-fence","signpost","straight-fence","stone-fire-ring","lit-campfire","patched-tent","rusty-barrel","wooden-barrel","supply-crate","reinforced-crate","old-stone-well","weathered-gravestone","loose-stones"}
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
@@ -9,14 +10,7 @@ local function offerRoll()
     return roll<.20 and "mail" or (roll<.34 and "ride" or (roll<.52 and "supplies" or (roll<.62 and "trade" or "none")))
 end
 
-local function stock(catalog)
-    local result={}
-    for index=1,4 do
-        local pool=index==4 and catalog.lootPools.rare or (index>=2 and catalog.lootPools.uncommon or catalog.lootPools.common)
-        result[index]=pool[love.math.random(#pool)]
-    end
-    return result
-end
+local function stock(catalog,location) return LootProgression.tradeStock(catalog,location) end
 
 local function differentNpc(roster,outside)
     if #roster<=1 then return outside end
@@ -87,8 +81,8 @@ function Stops.ensure(data,catalog,scene)
         end
     end
     layout.offer=layout.npcOffers[layout.npcOutside] or layout.offer or "none"
-    if not layout.npcWeapon then local maximum=math.max(1,math.min(#catalog.weaponProgression,2+math.floor((data.location or 1)/3))); layout.npcWeapon=catalog.weaponProgression[love.math.random(maximum)] end
-    if layout.offer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=layout.tradeNpc or layout.npc end
+    if not layout.npcWeapon then layout.npcWeapon=LootProgression.rollWeapon(catalog,data.location,"common") end
+    if layout.offer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=layout.tradeNpc or layout.npc end
     if not layout.decorations then
         layout.decorations={}
         for index=1,love.math.random(5,7) do local spot=decorationSpots[index]; local name=props[love.math.random(#props)]; local tall=name:find("tree") or name:find("birch"); layout.decorations[#layout.decorations+1]={kind="prop",name=name,x=spot[1]+love.math.random(-18,18),y=spot[2]+love.math.random(-12,12),scale=tall and .52 or (.27+love.math.random()*.12)} end
@@ -103,7 +97,7 @@ function Stops.ensure(data,catalog,scene)
     end
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"
-    if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end
+    if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end
     return layout
 end
 

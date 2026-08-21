@@ -1,5 +1,6 @@
 local House = {}
 local Compositions = require("game.furniture_compositions")
+local LootProgression = require("game.loot_progression")
 
 local arrangements={
     {{300,350,1.35},{470,350,1.35},{735,365,1.35},{330,535,1.45},{700,530,1.5}},
@@ -66,13 +67,16 @@ end
 function House.rollLoot(data,catalog,location)
     data.lootRolls=data.lootRolls or {}; local key=tostring(location)..":"..tostring(data.activeHouseDoor or 1)
     if data.lootRolls[key] then return end
-    House.storeLoot(data,catalog,catalog.lootPools.food[love.math.random(#catalog.lootPools.food)],location)
-    House.storeLoot(data,catalog,catalog.lootPools.water[love.math.random(#catalog.lootPools.water)],location)
-    local rareChance=math.min(.24,.06+location*.004); local legendaryChance=location>=8 and math.min(.06,.008+(location-7)*.0015) or 0
+    House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"food",location),location)
+    House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"water",location),location)
     local rolls=love.math.random(2,4)+(location%10==0 and 1 or 0)
     for _=1,rolls do
-        local n=love.math.random(); local tier=n<legendaryChance and "legendary" or (n<legendaryChance+rareChance and "rare" or (n<legendaryChance+rareChance+.26 and "uncommon" or "common"))
-        local pool=catalog.lootPools[tier]; House.storeLoot(data,catalog,pool[love.math.random(#pool)],location)
+        local item=LootProgression.rollItem(catalog,location,{weaponChance=.12})
+        if item then House.storeLoot(data,catalog,item,location) end
+    end
+    if location%5==0 and (data.activeHouseDoor or 1)==1 then
+        local milestone=LootProgression.rollWeapon(catalog,location,"uncommon")
+        if milestone then House.storeLoot(data,catalog,milestone,location) end
     end
     data.lootRolls[key]=true
 end
