@@ -14,6 +14,7 @@ local Viewport = require("game.viewport")
 local Catalog = require("game.catalog")
 local Inventory = require("game.inventory")
 local CharacterAnimation = require("game.character_animation")
+local WeaponAttachment = require("game.weapon_attachment")
 local Family = require("game.family")
 local EngineUpgrades = require("game.engine_upgrades")
 local Passengers = require("game.passengers")
@@ -1513,9 +1514,13 @@ local function drawTacticalBattle()
         local action=(u.hitTimer or 0)>0 and "hit" or ((u.actionTimer or 0)>0 and (u.action or "idle") or "idle")
         local facing=BattleRules.facing(battle,u)
         local actionPhase=(u.actionTimer or 0)>0 and math.max(0,.45-u.actionTimer) or animationClock+i*.13
+        local attachedWeapon=false
         local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase)
         if not animated and img then local s=math.min(76/img:getWidth(),96/img:getHeight()); if battle.lastTarget==u.id and battle.hitFlash>0 then love.graphics.setColor(1,.3,.25) else love.graphics.setColor(1,1,1) end; love.graphics.draw(img,x,y+10+bob,0,s*facing,s,img:getWidth()/2,img:getHeight()) end
-        if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" then ui.drawItem(u.actionItem,{x=x+10,y=y-38,w=38,h=38}) end
+        if animated and u.team=="ally" and action=="ranged" and (u.actionTimer or 0)>0 and WeaponAttachment.isFirearm(Catalog,u.actionItem) then
+            attachedWeapon=WeaponAttachment.draw(characterAnimations,u.file,u.actionItem,ui.propImages[u.actionItem],x,y+20,76,96,facing,actionPhase)
+        end
+        if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" and not attachedWeapon then ui.drawItem(u.actionItem,{x=x+10,y=y-38,w=38,h=38}) end
         if (u.damageNumberTimer or 0)>0 and u.damageNumber then
             local rise=(.9-u.damageNumberTimer)*24
             love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
@@ -2180,6 +2185,14 @@ if ui.smokeRequested then
             fixtureStep("house"),
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("q"); return "q" end,expect={state="game",scene="stop"}},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
+            {name="render_firearm_attachments",action=function()
+                local unit=battle and battle.units and battle.units[1]
+                if not unit then return false end
+                unit.action="ranged"; unit.actionTimer=.44; unit.actionItem="frontier-9mm-service-pistol"; ui.smokeDraw()
+                unit.actionItem="frontier-22-lever-rifle"; unit.actionTimer=.22; ui.smokeDraw()
+                unit.action=nil; unit.actionItem=nil; unit.actionTimer=0
+                return true
+            end,check=function(_,_,_,result) return result==true end},
             {name="retreat_battle_key",action=function() love.keypressed("r"); return "r" end,expect={state="game",scene="train",battleActive=false}},
             fixtureStep("ending"),
             {name="save_round_trip",action=function()
