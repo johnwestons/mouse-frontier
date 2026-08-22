@@ -650,7 +650,7 @@ function ui.resolveGameplayInputServices(name)
     elseif name=="moveEditedItem" then return moveEditedItem elseif name=="attackStopSludge" then return attackStopSludge
     elseif name=="acceptQuest" then return Systems.journeyRules.acceptQuest elseif name=="attemptLeaveTrain" then return Systems.journeyRules.attemptLeaveTrain
     elseif name=="travelCost" then return Systems.journeyRules.travelCost elseif name=="playTrainDepart" then return playTrainDepart
-    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="newSave" then return Systems.sessionBootstrap.newSave
+    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="trainObjectBounds" then return trainObjectBounds elseif name=="newSave" then return Systems.sessionBootstrap.newSave
     elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="resolveEventChoice" then return resolveEventChoice
     elseif name=="enterStop" then return Systems.journeyRules.enterStop elseif name=="battleAttack" then return battleAttack
     elseif name=="battleHeal" then return battleHeal elseif name=="battleGuard" then return battleGuard
