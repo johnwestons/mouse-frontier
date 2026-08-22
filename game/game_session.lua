@@ -41,8 +41,7 @@ function GameSession:activate(data,player)
     self.saveData=data
     self.player=player
     self.scene=(data and data.scene) or "train"
-    self.screen=data and data.location>=50 and "ending" or "game"
-    return self
+    return data and data.location>=50 and "ending" or "game"
 end
 
 function GameSession:sync(screen,slot,data,player,scene)
