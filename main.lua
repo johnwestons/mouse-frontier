@@ -36,7 +36,7 @@ local Interactions = require("game.interactions")
 local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),inventoryActions=require("game.inventory_actions"),journeyRules=require("game.journey_rules"),sessionBootstrap=require("game.session_bootstrap"),gameplayUpdate=require("game.gameplay_update"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
+local Systems = {inventory=require("game.inventory_ui"),inventoryActions=require("game.inventory_actions"),journeyRules=require("game.journey_rules"),sessionBootstrap=require("game.session_bootstrap"),gameplayUpdate=require("game.gameplay_update"),screenUI=require("game.screen_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
 screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
@@ -438,170 +438,30 @@ screens:register("game",{update=function() return false end})
 
 function love.update(dt) return Systems.gameplayUpdate.update(dt) end
 
-local function drawMenuFrame(x,y,w,h,kind,alpha)
-    local frame=ui.menuFrames and ui.menuFrames[kind or 1]
-    if frame then
-        love.graphics.setColor(1,1,1,alpha or 1)
-        local sw,sh=frame.w,frame.h; local sx=math.floor(sw*.22); local sy=math.floor(sh*.28)
-        local dx=math.min(kind==4 and 11 or 16,math.floor(w/4)); local dy=math.min(kind==4 and 8 or 14,math.floor(h/4))
-        local xs={0,sx,sw-sx,sw}; local ys={0,sy,sh-sy,sh}; local xd={x,x+dx,x+w-dx,x+w}; local yd={y,y+dy,y+h-dy,y+h}
-        for row=1,3 do for col=1,3 do local qw,qh=xs[col+1]-xs[col],ys[row+1]-ys[row]; local dw,dh=xd[col+1]-xd[col],yd[row+1]-yd[row]; if qw>0 and qh>0 and dw>0 and dh>0 then love.graphics.draw(frame.image,frame.quads[row][col],xd[col],yd[row],0,dw/qw,dh/qh) end end end
-    else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,w,h,8,8) end
+function ui.resolveScreenUI(name)
+    if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui elseif name=="colors" then return colors
+    elseif name=="saveData" then return saveData elseif name=="exitPrompt" then return exitPrompt elseif name=="state" then return state
+    elseif name=="scenery" then return scenery elseif name=="characters" then return characters elseif name=="characterScroll" then return characterScroll
+    elseif name=="characterImages" then return characterImages elseif name=="mapScroll" then return mapScroll elseif name=="dialogue" then return dialogue
+    elseif name=="questOffer" then return questOffer elseif name=="tradeNPC" then return tradeNPC elseif name=="editedItem" then return editedItem
+    elseif name=="randomEvent" then return randomEvent elseif name=="animationClock" then return animationClock elseif name=="npcImages" then return npcImages
+    elseif name=="screens" then return screens elseif name=="session" then return session elseif name=="Systems" then return Systems
+    elseif name=="Save" then return Save elseif name=="Util" then return Util elseif name=="Catalog" then return Catalog
+    elseif name=="Inventory" then return Inventory elseif name=="EventUI" then return EventUI elseif name=="Events" then return Events
+    elseif name=="EngineUpgrades" then return EngineUpgrades elseif name=="writeSave" then return writeSave
+    elseif name=="screenToGame" then return screenToGame elseif name=="ensureStopLayout" then return ensureStopLayout end
 end
 
-function ui.drawJourneyHUD()
-    -- Consolidate the loose journey text into the same brass-and-iron visual
-    -- language as the rest of the interface.
-    drawMenuFrame(10,58,410,132,4,.90)
-    love.graphics.setColor(colors.brass)
-    love.graphics.rectangle("fill",25,91,378,2)
-    love.graphics.setColor(colors.cream)
-    love.graphics.print("STOP "..saveData.location,26,70,0,1.05,1.05)
-    love.graphics.printf((saveData.trait and saveData.trait.name or "Survivor").."  •  CARS "..#(saveData.trainCars or {}),145,72,255,"right",0,.76,.76)
-    love.graphics.print("MOVE",26,99,0,.70,.70)
-    love.graphics.print("WASD / ARROWS",80,98,0,.80,.80)
-    ui.drawHealthBar("HP",saveData.health,saveData.maxHealth,25,119,220)
-
-    local level=saveData.stats.level or 1
-    local xp=saveData.stats.xp or 0
-    local nextXP=math.max(1,saveData.stats.nextXP or 10)
-    love.graphics.setColor(colors.cream)
-    love.graphics.print("LV "..level,265,119,0,.86,.86)
-    love.graphics.print(xp.." / "..nextXP.." XP",318,119,0,.70,.70)
-    love.graphics.setColor(.08,.06,.045,.92); love.graphics.rectangle("fill",265,149,130,12,3,3)
-    love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",267,151,126*math.min(1,xp/nextXP),8,2,2)
-    love.graphics.setColor(colors.cream); love.graphics.printf("JOURNEY STATUS",25,169,370,"center",0,.56,.56)
-
-    local ammoParts={}
-    for i=1,2 do
-        local weapon=saveData.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
-        if combat and combat.ammo then ammoParts[#ammoParts+1]=Util.titleFromFile(combat.ammo).."  "..(saveData.ammo[combat.ammo] or 0) end
-    end
-    if #ammoParts>0 then
-        drawMenuFrame(500,143,225,42,4,.90)
-        love.graphics.setColor(colors.brass); love.graphics.print("AMMO",516,156,0,.66,.66)
-        love.graphics.setColor(colors.cream); love.graphics.printf(table.concat(ammoParts,"   •   "),568,155,140,"center",0,.66,.66)
-    end
+function ui.assignScreenUI(name,value)
+    if name=="exitPrompt" then exitPrompt=value elseif name=="state" then state=value
+    elseif name=="characterScroll" then characterScroll=value elseif name=="mapScroll" then mapScroll=value
+    else return false end
+    return true
 end
 
-local function button(text, x, y, w, h, active, textScale)
-    if ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
-    local scale=textScale or 1
-    love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8*scale, w-10, "center",0,scale,scale)
-    return {x=x,y=y,w=w,h=h}
-end
-
-local function requestExitPrompt(kind)
-    exitPrompt=kind
-    if ui.playSfx then ui.playSfx("menu") end
-end
-
-local function resolveExitPrompt(choice)
-    local prompt=exitPrompt
-    exitPrompt=nil
-    if choice~="yes" then return end
-    if prompt=="title" then
-        writeSave()
-        screens:transition("slots"); state=session.screen
-    elseif prompt=="quit" then
-        love.event.quit()
-    end
-end
-
-local function drawExitPrompt()
-    if not exitPrompt then return end
-    love.graphics.setColor(0,0,0,.70)
-    love.graphics.rectangle("fill",0,0,W,H)
-    drawMenuFrame(270,252,420,196,2,.99)
-    love.graphics.setColor(colors.cream)
-    local title=exitPrompt=="quit" and "Quit Game?" or "Return to Title Screen?"
-    love.graphics.printf(title,290,290,380,"center",0,1.25,1.25)
-    love.graphics.setColor(colors.brass)
-    love.graphics.rectangle("fill",315,340,330,2)
-    ui.exitYes=button("Yes",330,375,115,44,true,.92)
-    ui.exitNo=button("No",515,375,115,44,true,.92)
-end
-
-function ui.drawSlots()
-    love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
-    if scenery.titleImage then
-        local scale=math.min(540/scenery.titleImage:getWidth(),185/scenery.titleImage:getHeight())
-        love.graphics.setColor(1,1,1)
-        love.graphics.draw(scenery.titleImage,W/2,88,0,scale,scale,scenery.titleImage:getWidth()/2,scenery.titleImage:getHeight()/2)
-    else
-        love.graphics.printf("MOUSE FRONTIER", 0, 82, W, "center", 0, 2.2, 2.2)
-    end
-    love.graphics.setColor(colors.cream)
-    love.graphics.printf("Choose a journey", 0, 182, W, "center")
-    ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
-    for i=1,3 do
-        local data, y = Save.read(i), 225+(i-1)*125
-        love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", 210, y, 540, 96, 12, 12)
-        love.graphics.setColor(colors.cream); love.graphics.print("SAVE "..i, 232, y+18, 0, 1.3, 1.3)
-        love.graphics.print(data and (Util.titleFromFile(data.character).."  •  Stop "..tostring(data.location or 1)) or "New journey", 232, y+52)
-        if data then
-            ui.slots[i]=button("CONTINUE",500,y+16,105,32,true)
-            ui.slotNew[i]=button("NEW",612,y+16,52,32,true)
-            ui.slotDelete[i]=button("DELETE",671,y+16,65,32,true)
-        else ui.slotNew[i]=button("NEW GAME",585,y+25,138,46,true) end
-    end
-end
-
-function ui.drawCharacterSelect()
-    love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
-    love.graphics.printf("CHOOSE YOUR TRAVELER", 0, 34, W, "center", 0, 1.6, 1.6)
-    love.graphics.printf("Everyone else will remain available as an NPC.", 0, 70, W, "center")
-    ui.characters = {}
-    local rows=math.ceil(#characters/5); local maxScroll=math.max(0,rows-3); characterScroll=math.max(0,math.min(maxScroll,characterScroll))
-    local hoveredFile
-    local mouseX,mouseY=screenToGame(love.mouse.getPosition())
-    for i, file in ipairs(characters) do
-        local col, row = (i-1)%5, math.floor((i-1)/5); local x, y = 42+col*182, 100+(row-characterScroll)*198
-        local r={x=x,y=y,w=150,h=180}; ui.characters[i]=r
-        if y>78 and y<700 then
-        love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", x,y,r.w,r.h,10,10)
-        local img=characterImages[file]
-        if img then local s=math.min(112/img:getWidth(),120/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,x+75,y+68,0,s,s,img:getWidth()/2,img:getHeight()/2) end
-        love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),x+5,y+142,r.w-10,"center",0,0.82,0.82)
-        if Util.pointIn(mouseX,mouseY,r) then hoveredFile=file end
-        end
-    end
-    if hoveredFile then
-        local lower=hoveredFile:lower()
-        local trait=Catalog.characterTrait(hoveredFile)
-        local abilityProfile=Catalog.characterAbility(hoveredFile)
-        local ability,abilityDescription=abilityProfile.name,abilityProfile.description
-        local tooltipW,tooltipH=265,142
-        local tx,ty=mouseX+18,mouseY+18
-        if tx+tooltipW>W then tx=mouseX-tooltipW-18 end
-        if ty+tooltipH>H then ty=H-tooltipH-10 end
-        love.graphics.setColor(.055,.04,.03,.97); love.graphics.rectangle("fill",tx,ty,tooltipW,tooltipH,8,8)
-        love.graphics.setColor(colors.brass); love.graphics.rectangle("line",tx,ty,tooltipW,tooltipH,8,8)
-        love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(hoveredFile),tx+12,ty+10,tooltipW-24,"left",0,.88,.88)
-        love.graphics.setColor(colors.brass); love.graphics.print("ABILITY  "..ability,tx+12,ty+34,0,.65,.65)
-        love.graphics.setColor(colors.cream); love.graphics.printf(abilityDescription,tx+12,ty+51,tooltipW-24,"left",0,.62,.62)
-        love.graphics.setColor(colors.brass); love.graphics.print("TRAIT  "..trait.name,tx+12,ty+79,0,.65,.65)
-        love.graphics.setColor(colors.cream); love.graphics.printf(trait.description,tx+12,ty+96,tooltipW-24,"left",0,.58,.58)
-    end
-    ui.characterUp=button("^",905,110,38,42,characterScroll>0); ui.characterDown=button("v",905,590,38,42,characterScroll<maxScroll)
-    love.graphics.setColor(colors.cream); love.graphics.print("SCROLL",898,165,0,0.65,0.65)
-end
+Systems.screenUI=Systems.screenUI.install(ui.resolveScreenUI,ui.assignScreenUI)
 
 
-function ui.drawResource(name, value, x, color, width)
-    width=width or 150
-    local barWidth=math.max(20,width-66)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,width,34,7,7)
-    love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(barWidth,value*barWidth/20)),16,4,4)
-    love.graphics.setColor(colors.cream); love.graphics.print(name.." "..value,x+6,28,0,.92,.92)
-end
-
-function ui.drawHealthBar(label,value,maxValue,x,y,w)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,w,30,6,6)
-    love.graphics.setColor(0.25,0.08,0.07); love.graphics.rectangle("fill",x+55,y+8,w-65,14,3,3)
-    love.graphics.setColor(0.78,0.18,0.16); love.graphics.rectangle("fill",x+55,y+8,(w-65)*math.max(0,value)/math.max(1,maxValue),14,3,3)
-    love.graphics.setColor(colors.cream); love.graphics.print(label.." "..value.."/"..maxValue,x+7,y+7)
-end
 
 function ui.setInventoryState(name,value)
     if name=="draggedSlot" then draggedSlot=value elseif name=="inventoryDragActive" then inventoryDragActive=value
@@ -614,7 +474,7 @@ function ui.inventoryContext()
     return {data=saveData,activeChest=activeChest,chestOpen=chestOpen,inventoryOpen=inventoryOpen,draggedSlot=draggedSlot,inventoryDragActive=inventoryDragActive,
         giftOpen=giftOpen,giftNPC=giftNPC,giftSlot=giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=nearNPC,nearPassenger=nearPassenger,
         ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=Systems.inventoryActions.isWeapon,
-        drawMenuFrame=drawMenuFrame,button=button,pointer=function() return screenToGame(love.mouse.getPosition()) end,value=Systems.inventoryActions.containerValue,set=ui.setInventoryState,
+        drawMenuFrame=Systems.screenUI.drawMenuFrame,button=Systems.screenUI.button,pointer=function() return screenToGame(love.mouse.getPosition()) end,value=Systems.inventoryActions.containerValue,set=ui.setInventoryState,
         battleMode=state=="battle",move=Systems.inventoryActions.moveBetweenSlots,quickTransfer=Systems.inventoryActions.quickTransfer,collectAmmo=Systems.inventoryActions.collectAmmo,drop=state=="battle" and function() return false end or Systems.inventoryActions.dropFromContainer,
         consume=state=="battle" and Systems.inventoryActions.consumeBattleSelected or Systems.inventoryActions.consumeSelected}
 end
@@ -623,154 +483,8 @@ function ui.drawInventory() Systems.inventory.draw(ui.inventoryContext()) end
 function ui.drawChestInventory() Systems.inventory.drawChest(ui.inventoryContext()) end
 function ui.drawItem(name,r) Systems.inventory.drawItem(ui.inventoryContext(),name,r) end
 
-local function drawTrade()
-    local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
-    love.graphics.setColor(0,0,0,.72); love.graphics.rectangle("fill",0,0,W,H)
-    drawMenuFrame(90,65,780,600,1,1); love.graphics.setColor(colors.cream)
-    love.graphics.printf(Util.titleFromFile(tradeNPC or saveData.currentNPC).."'S TRADING POST",110,95,740,"center",0,1.35,1.35)
-    love.graphics.printf("YOUR SCRAP: "..(saveData.scrap or 0).."   •   Buy supplies, sell gear, or give your ally a weapon",120,135,720,"center",0,.82,.82)
-    ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
-    for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",365,y+12,90,38,saveData.scrap>=price and Inventory.firstEmptySlot(saveData)~=nil) end end
-    love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..(layout.tradeBudget or 0).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-    local row=0; for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),700,y+5,110,30,true); if Systems.inventoryActions.isWeapon(name) then ui.tradeGive[i]=button("GIVE",700,y+37,110,28,true) end; row=row+1 end end
-    ui.tradeClose=button("DONE TRADING",375,605,210,40,true)
-end
 
 
-function ui.drawMap()
-    love.graphics.setColor(0.05,0.035,0.02,0.78); love.graphics.rectangle("fill",0,0,W,H)
-    love.graphics.setColor(0.76,0.59,0.34); love.graphics.rectangle("fill",70,75,820,570,18,18)
-    love.graphics.setColor(0.66,0.47,0.27)
-    for y=95,625,20 do for x=90+(y%37),870,43 do love.graphics.rectangle("fill",x,y,3,2) end end
-    love.graphics.setColor(0.49,0.31,0.18); love.graphics.setLineWidth(8); love.graphics.rectangle("line",70,75,820,570,18,18)
-    love.graphics.setColor(0.35,0.23,0.13); love.graphics.printf("THE MOUSE FRONTIER TRAIL",70,96,820,"center",0,1.5,1.5)
-    local visited=math.max(1,saveData.location); local points={}; local biomes={"Desert","Wetland","Canyon","Ruins","Badlands","Forest","Old City","River","Deep Woods","Pale City","Autumn Wood","Wastes"}
-    local maxScroll=math.max(0,math.floor((visited-1)/6)-2); mapScroll=math.max(0,math.min(maxScroll,mapScroll))
-    for i=1,visited do
-        local col=(i-1)%6; local row=math.floor((i-1)/6)
-        local px=145+col*132; if row%2==1 then px=805-col*132 end
-        local py=215+(row-mapScroll)*155+math.sin(i*1.73)*42
-        points[#points+1]={px,py}
-    end
-    -- Revealed terrain sketches around every visited stop.
-    for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
-        local kind=((i-1)%4)+1; love.graphics.setColor(0.42,0.34,0.20,0.9)
-        if kind==1 then for k=-2,2 do love.graphics.polygon("fill",p[1]+k*15,p[2]-35,p[1]+k*15-8,p[2]-20,p[1]+k*15+8,p[2]-20) end
-        elseif kind==2 then love.graphics.setLineWidth(4); love.graphics.arc("line","open",p[1],p[2]-22,35,0.1,3.0)
-        elseif kind==3 then for k=-2,2 do love.graphics.line(p[1]+k*13,p[2]-42,p[1]+k*13,p[2]-24); love.graphics.circle("fill",p[1]+k*13,p[2]-45,6) end
-        else love.graphics.rectangle("line",p[1]-28,p[2]-53,55,27); love.graphics.polygon("fill",p[1]-32,p[2]-53,p[1],p[2]-72,p[1]+32,p[2]-53) end
-    end end
-    local current=points[#points]
-    if current and current[2]>175 and current[2]<535 and scenery.redTrain then
-        local s=72/scenery.redTrain:getWidth(); love.graphics.setColor(1,1,1)
-        love.graphics.draw(scenery.redTrain,current[1]+36,current[2]-64,0,-s,s)
-    end
-    -- Dotted, winding path instead of straight route segments.
-    love.graphics.setColor(0.61,0.16,0.12)
-    for i=2,#points do local a,b=points[i-1],points[i]; if (a[2]>160 and a[2]<550) or (b[2]>160 and b[2]<550) then for step=0,12 do if step%2==0 then local t=step/12; local bend=math.sin(t*math.pi)*((i%2==0) and 22 or -22); local x=a[1]+(b[1]-a[1])*t; local y=a[2]+(b[2]-a[2])*t+bend; love.graphics.circle("fill",x,y,4) end end end end
-    for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
-        love.graphics.setColor(i==#points and colors.red or colors.cream); love.graphics.circle("fill",p[1],p[2],i==#points and 13 or 9)
-        love.graphics.setColor(colors.ink); love.graphics.printf(tostring(i),p[1]-14,p[2]-7,28,"center")
-        love.graphics.setColor(0.30,0.19,0.11); love.graphics.printf(biomes[((i-1)%#biomes)+1],p[1]-52,p[2]+16,104,"center",0,0.78,0.78)
-    end end
-    local enc=saveData.encounters[tostring(saveData.location)]; local status=not enc and "Unexplored stop" or (enc.hasMob and not enc.resolved and "Danger nearby" or (enc.hasMob and "Mob cleared" or "Peaceful stop"))
-    love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,62,8,8)
-    love.graphics.setColor(colors.cream); love.graphics.printf("CURRENT: Stop "..saveData.location.." - "..biomes[((saveData.location-1)%#biomes)+1].." - "..status,120,562,720,"center")
-    love.graphics.printf("Only visited country is revealed.  Press M to close.",120,586,720,"center",0,0.8,0.8)
-    ui.mapUp=button("^",805,115,42,36,mapScroll>0); ui.mapDown=button("v",805,155,42,36,mapScroll<maxScroll)
-    love.graphics.setColor(colors.ink); love.graphics.print("PAGE "..(mapScroll+1).."/"..(maxScroll+1),720,130,0,0.75,0.75)
-    love.graphics.setLineWidth(1)
-end
-
-function ui.drawDialogue()
-    if not dialogue then return end
-    local x,y,w,h=230,115,500,105
-    drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
-    love.graphics.setColor(colors.cream); love.graphics.print(dialogue.speaker or "Traveler",x+20,y+17,0,1.15,1.15); love.graphics.printf(dialogue.text,x+20,y+49,w-40,"left")
-    if dialogue.choice and questOffer then
-        local agreeing=questOffer.kind=="trade" and "YES, AGREE TO TRADE" or "YES, I'LL HELP"
-        local declining=questOffer.kind=="trade" and "NO, DECLINE TRADE" or "SORRY, NO"
-        ui.questAccept=button(agreeing,x+70,y+h+18,165,40,true); ui.questDecline=button(declining,x+265,y+h+18,165,40,true)
-    else ui.questAccept=nil; ui.questDecline=nil end
-end
-
-function ui.drawTravelConfirm()
-    Systems.worldRenderer.drawLandscape(); Systems.worldRenderer.drawTracks(); Systems.worldRenderer.drawLocomotive(); Systems.worldRenderer.drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",255,185,450,330,16,16)
-    local cost=Systems.journeyRules.travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(saveData.location+1),275,220,410,"center",0,1.5,1.5)
-    love.graphics.printf("The next stretch is farther than the last.\nThis journey will consume:",300,275,360,"center")
-    love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
-    love.graphics.printf("TERRAIN: "..string.upper(cost.terrain or "plains"),280,377,400,"center",0,.78,.78)
-    if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengers.." food and water.",280,385,400,"center",0,0.82,0.82) end
-    if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
-    local enough=saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal
-    ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",305,425,220,48,enough); ui.travelNo=button("CANCEL",545,425,110,48,true)
-end
-
-function ui.drawRandomEvent()
-    Systems.worldRenderer.drawLandscape(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
-    ui.eventChoices=EventUI.draw(randomEvent,scenery.eventArt,drawMenuFrame,button,colors,saveData.eventProgress or {},function(choice) return Events.canChoose(saveData,choice) end)
-end
-
-local function ownsTrainCar(id) for _,owned in ipairs(saveData.trainCars or {}) do if owned==id then return true end end return false end
-function ui.drawTrainUpgrades()
-    love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
-    love.graphics.setColor(colors.brass); love.graphics.printf("TRAIN WORKSHOP",150,95,660,"center",0,1.7,1.7)
-    local engine=EngineUpgrades.profile(saveData.engineLevel); local nextEngine=EngineUpgrades.next(saveData.engineLevel)
-    love.graphics.setColor(colors.cream); love.graphics.printf("Scrap: "..saveData.scrap.."   •   Buy cars and improve your locomotive",170,132,620,"center")
-    love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
-    love.graphics.setColor(colors.brass); love.graphics.print("ENGINE  "..engine.name,205,166,0,.88,.88)
-    love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%",205,190,0,.68,.68)
-    ui.engineUpgrade=button(nextEngine and (nextEngine.cost.." SCRAP") or "MAX LEVEL",630,170,125,36,nextEngine and saveData.scrap>=nextEngine.cost or false)
-    ui.trainCars={}
-    for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local owned=ownsTrainCar(c.id); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,47,7,7); love.graphics.setColor(colors.cream); love.graphics.print(c.name.."  —  "..c.description,205,y+9,0,.78,.78); ui.trainCars[i]=button(owned and "OWNED" or c.cost.." SCRAP",630,y+6,125,34,not owned and saveData.scrap>=c.cost) end
-    ui.upgradeClose=button("CLOSE",405,594,150,38,true)
-end
-
-function ui.drawEditControls()
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",110,158,815,122,10,10)
-    love.graphics.setColor(colors.cream); love.graphics.print(editedItem and "MOVE / SCALE SELECTED ITEM" or "SELECT A YELLOW HANDLE",132,172)
-    ui.editLeft=button("<",132,222,40,36,editedItem~=nil); ui.editRight=button(">",220,222,40,36,editedItem~=nil)
-    ui.editUp=button("^",176,202,40,34,editedItem~=nil); ui.editDown=button("v",176,244,40,34,editedItem~=nil)
-    ui.editSmaller=button("SIZE -",280,216,82,38,editedItem~=nil)
-    ui.editLarger=button("SIZE +",370,216,82,38,editedItem~=nil)
-    ui.editRotate=button("ROTATE",460,216,82,38,editedItem~=nil)
-    ui.editBack=button("LAYER -",560,194,82,34,editedItem~=nil); ui.editForward=button("LAYER +",650,194,82,34,editedItem~=nil)
-    ui.editPickup=button("PICK UP",560,236,82,34,editedItem~=nil)
-    ui.editDone=button("DONE",650,236,82,34,true)
-    local item=editedItem and saveData.droppedItems[editedItem]
-    local function slider(label,x,y,w,value,kind)
-        love.graphics.setColor(colors.cream); love.graphics.print(label,x,y-17,0,.65,.65)
-        love.graphics.setColor(.11,.07,.04,.9); love.graphics.rectangle("fill",x,y,w,9,4,4)
-        local parts=18
-        for n=0,parts-1 do
-            local t=n/(parts-1)
-            if kind=="hue" then
-                local h=t*6; local sector=math.floor(h); local f=h-sector; local q=1-f
-                local r,g,b=1,0,0
-                if sector==0 then r,g,b=1,f,0 elseif sector==1 then r,g,b=q,1,0 elseif sector==2 then r,g,b=0,1,f elseif sector==3 then r,g,b=0,q,1 elseif sector==4 then r,g,b=f,0,1 else r,g,b=1,0,q end
-                love.graphics.setColor(r,g,b,.9)
-            else love.graphics.setColor(t,t,t,.9) end
-            love.graphics.rectangle("fill",x+t*w-2,y+1,w/(parts-1)+3,7)
-        end
-        love.graphics.setColor(colors.cream); love.graphics.circle("fill",x+value*w,y+4.5,6)
-        love.graphics.setColor(colors.ink); love.graphics.circle("line",x+value*w,y+4.5,6)
-        return {x=x-7,y=y-7,w=w+14,h=23}
-    end
-    local hue=item and (item.hue or 0) or 0
-    local saturation=item and math.max(0,math.min(2,item.saturation or 1)) or 1
-    ui.editHue=slider("HUE  "..math.floor(hue*360).."°",755,190,145,hue,"hue")
-    ui.editSaturation=slider("SATURATION  "..math.floor(saturation*100).."%",755,239,145,saturation/2,"saturation")
-end
-
-function ui.updateEditColorSlider(x)
-    local item=editedItem and saveData.droppedItems[editedItem]
-    local control=ui.editSliderDrag=="hue" and ui.editHue or ui.editSaturation
-    if not item or not control then return end
-    local value=math.max(0,math.min(1,(x-(control.x+7))/(control.w-14)))
-    if ui.editSliderDrag=="hue" then item.hue=value else item.saturation=value*2 end
-end
 
 function ui.battleUIContext()
     return {
@@ -782,7 +496,7 @@ function ui.battleUIContext()
         animationClock=animationClock,characterAnimations=characterAnimations,
         saveData=saveData,inventoryOpen=inventoryOpen,ui=ui,
         drawLandscape=Systems.worldRenderer.drawLandscape,drawGround=Systems.worldRenderer.drawGround,
-        drawAnimatedCharacter=Systems.worldRenderer.drawAnimatedCharacter,button=button,screenToGame=screenToGame,
+        drawAnimatedCharacter=Systems.worldRenderer.drawAnimatedCharacter,button=Systems.screenUI.button,screenToGame=screenToGame,
         setInventoryOpen=function(value) inventoryOpen=value end,
         resetInventoryDrag=function() draggedSlot=nil; inventoryDragActive=false end,
         battleAttack=battleAttack,setBattlePrompt=setBattlePrompt,battleHeal=battleHeal,battleGuard=battleGuard,
@@ -857,8 +571,8 @@ local function resolveGameplayHUD(name)
     elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="inventoryDragActive" then return inventoryDragActive
     elseif name=="draggedSlot" then return draggedSlot elseif name=="EngineUpgrades" then return EngineUpgrades
     elseif name=="Clouds" then return Clouds elseif name=="Maintenance" then return Maintenance
-    elseif name=="Util" then return Util elseif name=="button" then return button
-    elseif name=="drawMenuFrame" then return drawMenuFrame elseif name=="drawTrade" then return drawTrade
+    elseif name=="Util" then return Util elseif name=="button" then return Systems.screenUI.button
+    elseif name=="drawMenuFrame" then return Systems.screenUI.drawMenuFrame elseif name=="drawTrade" then return Systems.screenUI.drawTrade
     elseif name=="isFurnitureItem" then return isFurnitureItem elseif name=="containerValue" then return Systems.inventoryActions.containerValue
     elseif name=="screenToGame" then return screenToGame elseif name=="drawLandscape" then return Systems.worldRenderer.drawLandscape
     elseif name=="drawTracks" then return Systems.worldRenderer.drawTracks elseif name=="drawTrainView" then return Systems.worldRenderer.drawTrainView
@@ -868,17 +582,6 @@ Systems.gameplayHUD=Systems.gameplayHUD.install(resolveGameplayHUD)
 
 
 
-local function drawEnding()
-    Systems.worldRenderer.drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
-    love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",120,90,720,540,20,20)
-    love.graphics.setColor(colors.brass); love.graphics.printf("CALIFORNIA",120,135,720,"center",0,2.2,2.2)
-    love.graphics.setColor(colors.cream); love.graphics.printf("After 50 stops, the Mouse Frontier finally reaches the end of the line.",205,215,550,"center",0,1.15,1.15)
-    love.graphics.printf("You found your family. The old train became a lifeline for every critter you met along the way—and your journey west became a story they will tell for generations.",220,285,520,"center")
-    local family={saveData.character,(saveData.npcRoster or {})[1],(saveData.npcRoster or {})[2]}
-    for i,file in ipairs(family) do local img=characterImages[file] or npcImages[file]; if img then local s=math.min(105/img:getWidth(),145/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,360+(i-1)*120,475+math.sin(animationClock*3+i)*3,0,s,s,img:getWidth()/2,img:getHeight()/2) end end
-    ui.endingButton=button("RETURN TO SAVE FILES",350,560,260,48,true)
-end
-
 screens:register("intro",{draw=function()
     local windowWidth,windowHeight=love.graphics.getDimensions()
     Systems.intro.draw(ui.introCinematic,scenery,colors,windowWidth,windowHeight)
@@ -887,7 +590,7 @@ screens:register("slots",{draw=ui.drawSlots})
 screens:register("characters",{draw=ui.drawCharacterSelect})
 screens:register("battle",{draw=ui.drawTacticalBattle})
 screens:register("event",{draw=ui.drawRandomEvent})
-screens:register("ending",{draw=drawEnding})
+screens:register("ending",{draw=Systems.screenUI.drawEnding})
 screens:register("game",{draw=function() if travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
 
 function love.draw()
@@ -902,7 +605,7 @@ function love.draw()
         Camera:apply(focusX,focusY)
     end
     screens:draw()
-    if exitPrompt then drawExitPrompt() end
+    if exitPrompt then Systems.screenUI.drawExitPrompt() end
     love.graphics.pop()
     if travelTransition then
         local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel)
@@ -943,7 +646,7 @@ function ui.resolveGameplayInputServices(name)
     elseif name=="InteriorDoors" then return InteriorDoors elseif name=="scenery" then return scenery
     elseif name=="writeSave" then return writeSave elseif name=="screenToGame" then return screenToGame
     elseif name=="isWeapon" then return Systems.inventoryActions.isWeapon elseif name=="isFurnitureItem" then return isFurnitureItem
-    elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="ownsTrainCar" then return ownsTrainCar
+    elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="ownsTrainCar" then return Systems.screenUI.ownsTrainCar
     elseif name=="moveEditedItem" then return moveEditedItem elseif name=="attackStopSludge" then return attackStopSludge
     elseif name=="acceptQuest" then return Systems.journeyRules.acceptQuest elseif name=="attemptLeaveTrain" then return Systems.journeyRules.attemptLeaveTrain
     elseif name=="travelCost" then return Systems.journeyRules.travelCost elseif name=="playTrainDepart" then return playTrainDepart
@@ -955,8 +658,8 @@ function ui.resolveGameplayInputServices(name)
     elseif name=="beginCarTransition" then return beginCarTransition elseif name=="talkToNPC" then return Systems.journeyRules.talkToNPC
     elseif name=="ensureHouseItems" then return ensureHouseItems elseif name=="setupNPC" then return setupNPC
     elseif name=="giveWeaponToNearby" then return Systems.inventoryActions.giveWeaponToNearby elseif name=="pickUpNearby" then return Systems.inventoryActions.pickUpNearby
-    elseif name=="addCoalToFire" then return Systems.inventoryActions.addCoalToFire elseif name=="requestExitPrompt" then return requestExitPrompt
-    elseif name=="resolveExitPrompt" then return resolveExitPrompt end
+    elseif name=="addCoalToFire" then return Systems.inventoryActions.addCoalToFire elseif name=="requestExitPrompt" then return Systems.screenUI.requestExitPrompt
+    elseif name=="resolveExitPrompt" then return Systems.screenUI.resolveExitPrompt end
 end
 
 function ui.resolveGameplayInput(name)
