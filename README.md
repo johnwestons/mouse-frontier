@@ -2,6 +2,8 @@
 
 A playable foundation for a post-apocalyptic critter journey aboard a four-car train.
 
+The project is under a formal [code-structure freeze](CODE_FREEZE.md) while gameplay, content, testing, and release polish continue.
+
 ## Run on Windows
 
 1. Install [LÖVE 11.x for Windows](https://love2d.org/) using the 64-bit installer.
