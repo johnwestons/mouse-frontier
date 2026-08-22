@@ -36,7 +36,7 @@ local Interactions = require("game.interactions")
 local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager")}
+local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud")}
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
 screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
@@ -1097,69 +1097,6 @@ function ui.drawCharacterSelect()
     love.graphics.setColor(colors.cream); love.graphics.print("SCROLL",898,165,0,0.65,0.65)
 end
 
-local function drawLandscape()
-    local backgroundCount=#backgroundImages
-    local image = backgroundCount>0 and backgroundImages[((saveData.location-1)%backgroundCount)+1] or nil
-    if image then
-        local s=math.max(W/image:getWidth(), H/image:getHeight())
-        local iw=image:getWidth()*s; local offset=landscapeOffset%iw; love.graphics.setColor(0.78,0.78,0.78)
-        for x=offset-iw, W+iw, iw do love.graphics.draw(image,x,0,0,s,s) end
-    else love.graphics.clear(0.55,0.37,0.20) end
-end
-
-local function drawTracks()
-    if Train.drawTracks(scenery.track,W) then return end
-    -- Fallback track uses the same rail baseline as the artwork-backed path.
-    local railY=Train.railY
-    local farRailY=railY-(414-300)*(W/2172)
-    love.graphics.setColor(0.16,0.12,0.09); love.graphics.rectangle("fill",0,farRailY-2,W,12); love.graphics.rectangle("fill",0,railY-2,W,12)
-    love.graphics.setColor(0.28,0.20,0.12)
-    for x=sceneryOffset%70-70, W,70 do love.graphics.rectangle("fill",x,farRailY-12,18,railY-farRailY+34) end
-    love.graphics.setColor(0.52,0.48,0.42); love.graphics.rectangle("fill",0,farRailY+2,W,5); love.graphics.rectangle("fill",0,railY+2,W,5)
-end
-
-local function drawLocomotive()
-    local frames=scenery.worldTrainFrames or {}; local frameIndex=(math.floor(trainAnimationClock)%3)+1; local image=frames[frameIndex] or scenery.worldTrain
-    if not image then return end
-    Train.drawLocomotive(image,frames[frameIndex] and frameIndex or nil,car)
-end
-
-local function drawTrainCar(index)
-    local x=car.x; local y=car.y
-    local carId=saveData.trainCars and saveData.trainCars[index]
-    local carImage=carId and scenery.trainCarImages and scenery.trainCarImages[carId]
-    if carImage then
-        Train.drawCarImage(carImage,car)
-        if index==1 then
-            if scenery.boiler then local s=150/scenery.boiler:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.boiler,x+165,y+244,0,s,s,scenery.boiler:getWidth()/2,scenery.boiler:getHeight()/2) end
-            local fireFrame=scenery.fireFrames and scenery.fireFrames[(math.floor(animationClock/0.55)%#scenery.fireFrames)+1] or scenery.fire
-            if fireFrame then local s=48/fireFrame:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(fireFrame,x+165,y+252,0,s,s,fireFrame:getWidth()/2,fireFrame:getHeight()/2) end
-        end
-        return
-    end
-    love.graphics.setColor(0.10,0.09,0.08); love.graphics.circle("fill",x+35,y+car.h+13,22); love.graphics.circle("fill",x+car.w-35,y+car.h+13,22)
-    love.graphics.setColor(colors.brass); love.graphics.circle("line",x+35,y+car.h+13,13); love.graphics.circle("line",x+car.w-35,y+car.h+13,13)
-    love.graphics.setColor(colors.trim); love.graphics.polygon("fill",x-8,y+18,x+8,y,x+car.w-18,y,x+car.w+8,y+18,x+car.w+8,y+car.h,x-8,y+car.h)
-    love.graphics.setColor(colors.wall); love.graphics.polygon("fill",x,y+18,x+car.w,y+18,x+car.w,y+car.h-10,x+12,y+car.h-10,x,y+car.h-32)
-    for wx=x+25,x+car.w-60,110 do
-        love.graphics.setColor(colors.trim); love.graphics.rectangle("fill",wx-4,y+30,48,76,5,5)
-        love.graphics.setColor(0.52,0.72,0.76); love.graphics.rectangle("fill",wx,y+34,40,68,3,3)
-        love.graphics.setColor(1,1,1,0.18); love.graphics.rectangle("fill",wx+5,y+39,7,55)
-        if scenery.curtain then local cs=84/scenery.curtain:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.curtain,wx+20,y+68,0,cs,cs,scenery.curtain:getWidth()/2,scenery.curtain:getHeight()/2) end
-    end
-    local fy=y+118; love.graphics.setColor(colors.floorA); love.graphics.rectangle("fill",x+10,fy,car.w-20,car.h-128)
-    if scenery.homeTexture then love.graphics.setColor(1,1,1); love.graphics.draw(scenery.homeTexture,x+10,fy,0,(car.w-20)/scenery.homeTexture:getWidth(),(car.h-128)/scenery.homeTexture:getHeight())
-    else love.graphics.setColor(colors.floorB); for yy=fy, y+car.h-10,25 do love.graphics.rectangle("fill",x+10,yy,car.w-20,3) end end
-    love.graphics.setColor(0.20,0.22,0.23); love.graphics.rectangle("line",x+10,fy,car.w-20,car.h-128)
-    love.graphics.setColor(colors.brass); for rx=x+20,x+car.w-18,36 do love.graphics.circle("fill",rx,fy+5,2) end
-    love.graphics.setColor(colors.trim); love.graphics.rectangle("fill",x-5,y+143,12,72); love.graphics.rectangle("fill",x+car.w-7,y+143,12,72)
-    if index==1 then
-        if scenery.boiler then local s=150/scenery.boiler:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.boiler,x+105,y+194,0,s,s,scenery.boiler:getWidth()/2,scenery.boiler:getHeight()/2)
-        else love.graphics.setColor(0.12,0.10,0.08); love.graphics.rectangle("fill",x+38,y+135,135,118,12,12) end
-        local fireFrame=scenery.fireFrames and scenery.fireFrames[(math.floor(animationClock/0.55)%#scenery.fireFrames)+1] or scenery.fire
-        if fireFrame then local s=48/fireFrame:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(fireFrame,x+105,y+202,0,s,s,fireFrame:getWidth()/2,fireFrame:getHeight()/2) end
-    end
-end
 
 function ui.drawResource(name, value, x, color, width)
     width=width or 150
@@ -1209,214 +1146,6 @@ local function drawTrade()
     ui.tradeClose=button("DONE TRADING",375,605,210,40,true)
 end
 
-local function drawAnimatedCharacter(file,action,x,y,maxW,maxH,facing,phase)
-    return CharacterAnimation.draw(characterAnimations,file,action,x,y,maxW,maxH,facing,phase,animationClock)
-end
-
-local function drawPlayer()
-    if not player.image then return end
-    if characterAnimations[saveData.character] then
-        if player.moving and actionTimer<=0 then
-            love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",player.x,player.y+28,20,7)
-            if drawAnimatedCharacter(saveData.character,"walk",player.x,player.y+34,82,104,player.facing,animationClock) then return end
-        end
-        if not player.moving or actionTimer>0 then
-            local action=actionTimer>0 and (actionKind or "use") or (playerPose=="sit" and "sit" or (playerPose=="lay" and "lay" or "idle"))
-            love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",player.x,player.y+28,20,7)
-            local actionPhase=actionTimer>0 and math.max(0,.35-actionTimer) or animationClock
-            drawAnimatedCharacter(saveData.character,action,player.x,player.y+34,82,104,player.facing,actionPhase)
-            if actionTimer>0 and actionHeldItem then ui.drawItem(actionHeldItem,{x=player.x+(player.facing==1 and 12 or -42),y=player.y-22,w=32,h=32}) end
-            return
-        end
-    end
-    local actionImage=actionTimer>0 and characterActionImages[saveData.character]
-    local image,drawFacing,scale=actionImage or player.image,-player.facing,player.scale
-    -- Action sheets use much more of their canvas than the idle portraits. Match
-    -- their visible body size, not only the PNG canvas height.
-    if actionImage then scale=((player.image:getHeight()*player.scale)/actionImage:getHeight())*.78 end
-    if player.moving and actionTimer<=0 then
-        local walk=characterWalkImages[saveData.character]
-        if walk then image=walk; drawFacing=-player.facing; scale=math.min(0.075,90/image:getHeight()) end
-    end
-    local bob=0
-    love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",player.x,player.y+28,20,7)
-    local rotation,scaleY,yOffset=0,scale,0
-    if playerPose=="sit" then scaleY=scale*.72; yOffset=10 elseif playerPose=="lay" then rotation=math.pi/2; scaleY=scale*.82; yOffset=16 end
-    love.graphics.setColor(1,1,1); love.graphics.draw(image,player.x,player.y+bob+yOffset,rotation,scale*drawFacing,scaleY,image:getWidth()/2,image:getHeight()/2)
-end
-
-local function drawDroppedItems(carIndex)
-    local cacheKey=carIndex and ("train:"..tostring(carIndex)) or (scene..":"..tostring(saveData.location)..":"..tostring(saveData.activeHouseDoor or 0))
-    local revision=ui.itemOrderRevision or 0
-    ui.itemOrderCache=ui.itemOrderCache or {}
-    local cached=ui.itemOrderCache[cacheKey]
-    local ordered
-    if cached and cached.revision==revision then ordered=cached.items else
-        ordered={}
-        for i,item in ipairs(saveData.droppedItems) do
-            local visible=carIndex and item.scene=="train" and (item.carIndex or 1)==carIndex or (not carIndex and itemIsHere(item))
-            if visible then ordered[#ordered+1]={index=i,item=item} end
-        end
-        table.sort(ordered,function(a,b) return (a.item.layer or a.index)<(b.item.layer or b.index) end)
-        ui.itemOrderCache[cacheKey]={revision=revision,items=ordered}
-    end
-    for _,entry in ipairs(ordered) do local i,item=entry.index,entry.item
-        local img=ui.propImages[item.name]; local scale=item.scale or 1; local rotation=item.rotation or 0
-        if img then
-            local idleFrames=itemIdleImages[item.name]
-            if idleFrames and not editMode then img=idleFrames[(math.floor(animationClock/1.05)%#idleFrames)+1] or img end
-            local s=math.min(58/img:getWidth(),58/img:getHeight())*scale
-            local plant=not idleFrames and (item.name:find("tree") or item.name:find("plant") or item.name:find("potted") or item.name:find("flower") or item.name:find("sprout") or item.name:find("fern") or item.name:find("shrub") or item.name:find("reeds") or item.name:find("herb") or item.name:find("mushroom"))
-            love.graphics.setColor(1,1,1)
-            local tintShader=ui.objectTintShader
-            if tintShader then tintShader:send("hueShift",item.hue or 0); tintShader:send("saturation",item.saturation or 1); love.graphics.setShader(tintShader) end
-            if plant and not editMode then
-                local phase=(item.x*.017+item.y*.011); local sway=math.sin(animationClock*.85+phase)*math.rad(.75); local bob=math.sin(animationClock*1.05+phase)*.45
-                local bottom=item.y+img:getHeight()*s/2
-                love.graphics.draw(img,item.x,bottom+bob,rotation+sway,s,s,img:getWidth()/2,img:getHeight())
-            else love.graphics.draw(img,item.x,item.y,rotation,s,s,img:getWidth()/2,img:getHeight()/2) end
-            if tintShader then love.graphics.setShader() end
-        else ui.drawItem(item.name,{x=item.x-30*scale,y=item.y-30*scale,w=60*scale,h=60*scale}) end
-        if item.name=="mailbox-reward" and item.mailUnread and ui.propImages["family-letter"] and not editMode then
-            local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight())
-            love.graphics.setColor(1,1,1); love.graphics.draw(mail,item.x,item.y-48+math.sin(animationClock*3)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2)
-        end
-        if editMode and (not carIndex or carIndex==(saveData.activeCar or 1)) then local hx,hy=item.x+31,item.y+31; love.graphics.setColor(1,.78,.1); love.graphics.rectangle("fill",hx-7,hy-7,14,14); love.graphics.setColor(colors.ink); love.graphics.rectangle("line",hx-7,hy-7,14,14); if editedItem==i then love.graphics.setColor(colors.brass); love.graphics.setLineWidth(3); love.graphics.circle("line",item.x,item.y,38); love.graphics.setLineWidth(1) end end
-    end
-end
-
-local function trainItemAt(x,y)
-    local best,bestLayer=nil,-math.huge
-    for i,item in ipairs(saveData.droppedItems) do
-        if itemIsHere(item) then
-            local hx,hy=item.x+31,item.y+31
-            if math.abs(x-hx)<=14 and math.abs(y-hy)<=14 and (item.layer or i)>bestLayer then best,bestLayer=i,item.layer or i end
-        end
-    end
-    return best
-end
-
-local function drawNPC()
-    local npcFile=saveData.currentNPC; local img=npcFile and (npcImages[npcFile] or characterImages[npcFile])
-    if not (img and npcActor) then return end
-    local idle=0
-    if npcActor.targetX and characterAnimations[npcFile] then
-        love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",npcActor.x,npcActor.y+28,20,7)
-        if drawAnimatedCharacter(npcFile,"walk",npcActor.x,npcActor.y+34,82,104,npcActor.facing or 1,animationClock) then
-            love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),npcActor.x-100,npcActor.y+50,200,"center")
-            Family.draw(npcActor,familyImages,animationClock)
-            return
-        end
-    elseif npcActor.targetX and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then img=npcWalkImages[npcFile] or characterWalkImages[npcFile] end
-    local s=math.min(0.075,90/img:getHeight()); local facing=-(npcActor.facing or 1)
-    if npcActor.targetX and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then facing=-facing end
-    love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",npcActor.x,npcActor.y+28,20,7)
-    if not npcActor.targetX and drawAnimatedCharacter(npcFile,"idle",npcActor.x,npcActor.y+34,82,104,facing) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,npcActor.x,npcActor.y+idle,0,s*facing,s,img:getWidth()/2,img:getHeight()/2) end
-    love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),npcActor.x-100,npcActor.y+50,200,"center")
-    if pendingMailHere() and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=34/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,npcActor.x,npcActor.y-82+math.sin(animationClock*4)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2) end
-    Family.draw(npcActor,familyImages,animationClock)
-end
-
-local function drawPassengers(carIndex)
-    local visibleCar=carIndex or (saveData.activeCar or 1)
-    for i,passenger in ipairs(saveData.passengers or {}) do
-        if (passenger.carIndex or 1)==visibleCar then
-        local moving=passenger.targetX~=nil; local legacyWalk=moving and (npcWalkImages[passenger.npc] or characterWalkImages[passenger.npc]); local img=legacyWalk or npcImages[passenger.npc] or characterImages[passenger.npc]
-        if img then local s=math.min(.075,90/img:getHeight()); local face=passenger.facing or 1; love.graphics.setColor(0,0,0,0.22); love.graphics.ellipse("fill",passenger.x,passenger.y+28,20,7); if drawAnimatedCharacter(passenger.npc,moving and "walk" or (passenger.pose or "idle"),passenger.x,passenger.y+34,82,104,face,animationClock+i*.2) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,passenger.x,passenger.y,0,s*(legacyWalk and -face or -face),s,img:getWidth()/2,img:getHeight()/2) end end
-        end
-    end
-end
-
-local function drawGround()
-    if scenery.stopGround then
-        local atlas=scenery.stopGround; local index=((saveData.location-1)%4)+1
-        love.graphics.setColor(1,1,1)
-        -- Draw one continuous surface. Repeating this non-seamless artwork in
-        -- 320-pixel strips exposed the left/right borders of every copy.
-        love.graphics.draw(atlas.image,atlas.quads[index],0,360,0,W/atlas.w,360/atlas.h)
-        return
-    end
-    love.graphics.setColor(0.27,0.38,0.16); love.graphics.rectangle("fill",0,430,W,290)
-    love.graphics.setColor(0.34,0.48,0.20)
-    for y=442,710,24 do for x=(y/24%2)*18,950,36 do love.graphics.rectangle("fill",x,y,3,7) end end
-    love.graphics.setColor(0.55,0.45,0.28)
-    love.graphics.polygon("fill",120,720,255,590,440,548,610,520,960,555,960,635,650,590,460,610,300,655,230,720)
-    love.graphics.setColor(0.66,0.56,0.36)
-    for x=245,900,75 do love.graphics.rectangle("fill",x,590-math.sin(x)*25,18,8) end
-end
-
-local function drawStop()
-    if scenery.settlements and Settlements.draw(scenery.settlements,saveData.location,W,H) then
-        local trainX,trainY=Settlements.trainPoint(saveData.location)
-        if scenery.redTrain then
-            local image=scenery.redTrain; local scale=52/math.max(image:getWidth(),image:getHeight())
-            love.graphics.setColor(1,1,1,.92)
-            love.graphics.draw(image,trainX,trainY-8,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
-        end
-        love.graphics.setColor(1,.78,.12,.78)
-        love.graphics.circle("line",trainX,trainY+math.sin(animationClock*3)*2,12)
-        love.graphics.setColor(colors.cream)
-        love.graphics.printf("Q",trainX-12,trainY-5,24,"center",0,.7,.7)
-        drawDroppedItems()
-        StopSludges.draw(stopSludges,{data=saveData,location=saveData.location,clock=animationClock,images={
-            idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-            walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-            hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-            death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-        }})
-        ui.drawChickens(ensureStopLayout()); ui.drawMice(ensureStopLayout())
-        drawNPC(); drawPlayer(); return
-    end
-    drawGround()
-    local env=scenery.environment or {}
-    local homes={"house-overgrown","house-purple","house-shed","home-water-tower","home-roadside-diner","home-burrow-mound","home-general-store","home-signal-cabin"}
-    local trees={"tree-broadleaf","tree-flowering","tree-dead-cloth","tree-cottonwood","tree-mushroom","tree-burned-regrowth","tree-apple-swing"}
-    local layout=(scene=="house" and Stops.ensureDoor(saveData,Catalog,saveData.activeHouseDoor or saveData.lastStopDoor)) or ensureStopLayout()
-    local decorations={}; for i,decoration in ipairs(layout.decorations or {}) do decorations[i]=decoration end; table.sort(decorations,function(a,b) return a.y<b.y end)
-    for _,decoration in ipairs(decorations) do
-        local pool=decoration.kind=="wildlife" and scenery.stopWildlife or scenery.stopProps; local image=pool and pool[decoration.name]
-        if image then
-            local name=decoration.name or ""; local wildlife=decoration.kind=="wildlife"; local plant=not wildlife and (name:find("tree") or name:find("birch") or name:find("flower") or name:find("shrub") or name:find("fern") or name:find("reeds") or name:find("herb") or name:find("mushroom") or name:find("bush") or name:find("cactus"))
-            local phase=decoration.x*.019+decoration.y*.013
-            local feeding=scenery.stopWildlifeFeeding and scenery.stopWildlifeFeeding[name]
-            if wildlife and feeding then local cycle=(animationClock+phase)%6.4; if cycle>=2.2 and cycle<5.4 then image=feeding end end
-            local sway=plant and math.sin(animationClock*.72+phase)*math.rad(name:find("tree") and .85 or .55) or 0
-            local bob=plant and math.sin(animationClock*.9+phase)*.55 or 0
-            love.graphics.setColor(1,1,1); love.graphics.draw(image,decoration.x,decoration.y+bob,sway,decoration.scale,decoration.scale,image:getWidth()/2,image:getHeight())
-        end
-    end
-    local house=env[homes[layout.house or 1]]
-    local treeA,treeB=env[trees[layout.tree or 1]],env[trees[((layout.tree or 1)%#trees)+1]]
-    if treeA then local x=layout.treeA or 135; local s=210/treeA:getHeight(); local sway=math.sin(animationClock*.64+x*.021)*math.rad(.9); love.graphics.setColor(1,1,1); love.graphics.draw(treeA,x,480,sway,s,s,treeA:getWidth()/2,treeA:getHeight()) end
-    if treeB then local x=layout.treeB or 830; local s=180/treeB:getHeight(); local sway=math.sin(animationClock*.67+x*.019+1.7)*math.rad(.8); love.graphics.draw(treeB,x,495,sway,s,s,treeB:getWidth()/2,treeB:getHeight()) end
-    if house then local s=280/house:getHeight(); love.graphics.draw(house,layout.houseX or 520,515,0,s,s,house:getWidth()/2,house:getHeight()) end
-    if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
-    love.graphics.setColor(1,.78,.12,.72); love.graphics.circle("line",145,425+math.sin(animationClock*3)*2,11); love.graphics.setColor(colors.cream); love.graphics.printf("Q",133,421,24,"center",0,.7,.7)
-    drawDroppedItems()
-    StopSludges.draw(stopSludges,{data=saveData,location=saveData.location,clock=animationClock,images={
-        idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-        walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-        hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-        death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-    }})
-    ui.drawChickens(layout); ui.drawMice(layout)
-    drawNPC(); drawPlayer()
-end
-
-local function drawHouse()
-    drawLandscape()
-    local layout=ensureStopLayout()
-    local interior=ui.assetStreamer and ui.assetStreamer:getInterior(layout.interior or 1)
-    if interior then
-        love.graphics.setColor(1,1,1)
-        love.graphics.draw(interior,105,205,0,750/interior:getWidth(),445/interior:getHeight())
-    else
-        love.graphics.setColor(0.23,0.14,0.09); love.graphics.rectangle("fill",105,205,750,445,12,12)
-        love.graphics.setColor(0.63,0.48,0.29); love.graphics.rectangle("fill",125,225,710,405)
-        if scenery.homeTexture then love.graphics.setColor(1,1,1); love.graphics.draw(scenery.homeTexture,125,225,0,710/scenery.homeTexture:getWidth(),405/scenery.homeTexture:getHeight()) end
-    end
-    drawDroppedItems(); drawNPC(); drawPlayer()
-end
 
 function ui.drawMap()
     love.graphics.setColor(0.05,0.035,0.02,0.78); love.graphics.rectangle("fill",0,0,W,H)
@@ -1476,7 +1205,7 @@ function ui.drawDialogue()
 end
 
 function ui.drawTravelConfirm()
-    drawLandscape(); drawTracks(); drawLocomotive(); drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
+    Systems.worldRenderer.drawLandscape(); Systems.worldRenderer.drawTracks(); Systems.worldRenderer.drawLocomotive(); Systems.worldRenderer.drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
     love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",255,185,450,330,16,16)
     local cost=travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(saveData.location+1),275,220,410,"center",0,1.5,1.5)
     love.graphics.printf("The next stretch is farther than the last.\nThis journey will consume:",300,275,360,"center")
@@ -1489,7 +1218,7 @@ function ui.drawTravelConfirm()
 end
 
 function ui.drawRandomEvent()
-    drawLandscape(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
+    Systems.worldRenderer.drawLandscape(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
     ui.eventChoices=EventUI.draw(randomEvent,scenery.eventArt,drawMenuFrame,button,colors,saveData.eventProgress or {},function(choice) return Events.canChoose(saveData,choice) end)
 end
 
@@ -1562,8 +1291,8 @@ function ui.battleUIContext()
         mobDeathImages=mobDeathImages,mobWalkImages=mobWalkImages,mobRangedImages=mobRangedImages,
         animationClock=animationClock,characterAnimations=characterAnimations,
         saveData=saveData,inventoryOpen=inventoryOpen,ui=ui,
-        drawLandscape=drawLandscape,drawGround=drawGround,
-        drawAnimatedCharacter=drawAnimatedCharacter,button=button,screenToGame=screenToGame,
+        drawLandscape=Systems.worldRenderer.drawLandscape,drawGround=Systems.worldRenderer.drawGround,
+        drawAnimatedCharacter=Systems.worldRenderer.drawAnimatedCharacter,button=button,screenToGame=screenToGame,
         setInventoryOpen=function(value) inventoryOpen=value end,
         resetInventoryDrag=function() draggedSlot=nil; inventoryDragActive=false end,
         battleAttack=battleAttack,setBattlePrompt=setBattlePrompt,battleHeal=battleHeal,battleGuard=battleGuard,
@@ -1574,35 +1303,34 @@ end
 
 function ui.drawTacticalBattle() Systems.battleUI.draw(ui.battleUIContext()) end
 
-local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
-    local carCount=#(saveData.trainCars or {})
-    love.graphics.push(); love.graphics.translate(offsetX or 0,0)
-    if focusIndex==1 then
-        drawLocomotive(); drawTrainCar(1); drawDroppedItems(1); drawPassengers(1)
-        if playerCar==1 then
-            love.graphics.push(); love.graphics.translate((playerX or player.x)-player.x,(playerY or player.y)-player.y); drawPlayer(); love.graphics.pop()
-        end
-    else
-        -- Additional cars use the same full-size transform as the default
-        -- living car. The viewport clips the neighboring car naturally while
-        -- the slide transition pans between complete, consistently scaled cars.
-        local scale=1
-        local first=focusIndex<carCount and focusIndex or math.max(1,focusIndex-1)
-        local last=math.min(carCount,first+1)
-        for index=first,last do
-            local slot=index-first
-            local targetX=16+slot*(car.w+16)
-            love.graphics.push()
-            love.graphics.translate(targetX-car.x,0)
-            drawTrainCar(index); drawDroppedItems(index); drawPassengers(index)
-            if playerCar==index then
-                love.graphics.push(); love.graphics.translate((playerX or player.x)-player.x,(playerY or player.y)-player.y); drawPlayer(); love.graphics.pop()
-            end
-            love.graphics.pop()
-        end
-    end
-    love.graphics.pop()
+local function resolveWorldRenderer(name)
+    if name=="W" then return W elseif name=="H" then return H
+    elseif name=="backgroundImages" then return backgroundImages elseif name=="saveData" then return saveData
+    elseif name=="landscapeOffset" then return landscapeOffset elseif name=="scenery" then return scenery
+    elseif name=="sceneryOffset" then return sceneryOffset elseif name=="trainAnimationClock" then return trainAnimationClock
+    elseif name=="animationClock" then return animationClock elseif name=="car" then return car
+    elseif name=="colors" then return colors elseif name=="characterAnimations" then return characterAnimations
+    elseif name=="characterImages" then return characterImages elseif name=="characterWalkImages" then return characterWalkImages
+    elseif name=="characterActionImages" then return characterActionImages elseif name=="player" then return player
+    elseif name=="actionTimer" then return actionTimer elseif name=="actionHeldItem" then return actionHeldItem
+    elseif name=="actionKind" then return actionKind elseif name=="playerPose" then return playerPose
+    elseif name=="ui" then return ui elseif name=="editMode" then return editMode
+    elseif name=="editedItem" then return editedItem elseif name=="scene" then return scene
+    elseif name=="itemIdleImages" then return itemIdleImages elseif name=="npcActor" then return npcActor
+    elseif name=="npcImages" then return npcImages elseif name=="npcWalkImages" then return npcWalkImages
+    elseif name=="familyImages" then return familyImages elseif name=="mobImages" then return mobImages
+    elseif name=="mobIdleImages" then return mobIdleImages elseif name=="mobWalkImages" then return mobWalkImages
+    elseif name=="mobHitImages" then return mobHitImages elseif name=="mobDeathImages" then return mobDeathImages
+    elseif name=="stopSludges" then return stopSludges elseif name=="StopSludges" then return StopSludges
+    elseif name=="Train" then return Train
+    elseif name=="CharacterAnimation" then return CharacterAnimation elseif name=="Catalog" then return Catalog
+    elseif name=="Family" then return Family
+    elseif name=="Settlements" then return Settlements elseif name=="Stops" then return Stops
+    elseif name=="Util" then return Util elseif name=="itemIsHere" then return itemIsHere
+    elseif name=="pendingMailHere" then return pendingMailHere elseif name=="ensureStopLayout" then return ensureStopLayout end
 end
+Systems.worldRenderer=Systems.worldRenderer.install(resolveWorldRenderer)
+
 
 local function beginCarTransition(targetIndex)
     if carTransition or scene~="train" then return false end
@@ -1621,123 +1349,37 @@ local function moveEditedItem(dx,dy)
     local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,item.x+dx)); item.y=math.max(top,math.min(bottom,item.y+dy)); writeSave()
 end
 
-local function drawGame()
-    ui.returnDoor=nil
-    if scene=="train" then
-        drawLandscape(); drawTracks(); local tx=0
-        if travelTransition then
-            local t=travelTransition.t; local timing=EngineUpgrades.timings(saveData.engineLevel)
-            if t<timing.depart then local p=t/timing.depart; tx=-W*(p*p*p)
-            elseif t<timing.arrive then tx=-W
-            else local p=math.min(1,(t-timing.arrive)/timing.arrivalDuration); local eased=1-(1-p)^3; tx=W*(1-eased) end
-        end
-        love.graphics.push(); love.graphics.translate(tx,0)
-        if carTransition then
-            local p=math.min(1,carTransition.t/carTransition.duration); local eased=p*p*(3-2*p); local direction=carTransition.to>carTransition.from and -1 or 1
-            drawTrainView(carTransition.from,direction*W*eased,carTransition.from,player.x,player.y)
-            drawTrainView(carTransition.to,direction*W*(eased-1),nil)
-        else drawTrainView(saveData.activeCar or 1,0,saveData.activeCar or 1,player.x,player.y) end
-        love.graphics.pop()
-    elseif scene=="house" then drawHouse() else drawStop() end
-    if scene=="train" or scene=="stop" then Clouds.draw(cloudLayer,scene,W,H,sceneryOffset,saveData.location) end
-    ui.drawResource("FOOD",saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",saveData.resources.water,140,colors.blue,110)
-    ui.drawResource("COAL",saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",saveData.resources.oil,380,colors.brass,110)
-    ui.drawJourneyHUD()
-    ui.travel=scene=="train" and button(saveData.location>=50 and "JOURNEY COMPLETE" or "TRAVEL TO NEXT STOP",510,20,220,36,saveData.location<50 and saveData.resources.food>0 and saveData.resources.water>0 and saveData.resources.coal>0) or nil
-    -- Keep the departure control with the other scene controls, directly
-    -- beneath Options, so it remains discoverable without covering the train.
-    ui.leaveTrain=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and button("LEAVE TRAIN",790,194,135,32,true) or nil
-    ui.backpack=button(inventoryOpen and "CLOSE" or "PACK",830,20,95,36,true)
-    ui.map=button(mapOpen and "CLOSE MAP" or "MAP",735,20,87,36,true)
-    ui.editMode=scene=="train" and button(editMode and "EDITING" or "MOVE / SCALE",745,70,180,36,true) or nil
-    ui.trainUpgrade=scene=="train" and button("UPGRADE  "..saveData.scrap.." SCRAP",510,70,220,36,true) or nil
-    ui.maintenance=scene=="train" and saveData.stopped and (saveData.activeCar or 1)==1 and not travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(saveData)).."%",510,112,220,32,true) or nil
-    ui.pose=button(poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
-    ui.options=button(ui.optionsOpen and "CLOSE" or "OPTIONS",840,112,85,32,true)
-    ui.stopAttack=scene=="stop" and button("ATTACK",790,650,135,38,true) or nil
-    local pendingMail=0; for _,mail in ipairs(saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
-    if pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end
-    if #(saveData.passengers or {})>0 then love.graphics.setColor(colors.cream); love.graphics.print("Passengers: "..#saveData.passengers,560,151,0,.82,.82) end
-    ui.exitTrain = nil
-    local tipColor={colors.panel[1],colors.panel[2],colors.panel[3],.50}
-    local nearbyFurniture=nearbyItem and isFurnitureItem(saveData.droppedItems[nearbyItem] and saveData.droppedItems[nearbyItem].name)
-    local contextText,contextScale
-    if not inventoryOpen and not editMode and not carTransition then
-        if ui.nearRadio then contextText,contextScale="P  OPEN RADIO",.72
-        elseif nearPassenger then contextText,contextScale="Q  TALK   •   G  GIVE",.72
-        elseif nearCarNext then contextText,contextScale="Q  ENTER NEXT CAR",.72
-        elseif nearCarPrev then contextText,contextScale="Q  RETURN TO PREVIOUS CAR",.66
-        elseif nearNPC then contextText,contextScale="Q  TALK   •   G  GIVE",.72
-        elseif nearMailbox then contextText,contextScale="RIGHT CLICK OPEN REWARD MAILBOX",.66
-        elseif nearChest then contextText,contextScale="RIGHT CLICK OPEN   •   HOLD E PICK UP",.66
-        elseif nearbyFurniture then contextText,contextScale="HOLD E  PICK UP FURNITURE",.72
-        elseif nearHouse then contextText,contextScale="Q  ENTER HOME",.78
-        elseif ui.interaction and ui.interaction.kind=="houseExit" then contextText,contextScale="Q  LEAVE HOME",.78
-        elseif nearReturnTrain then contextText,contextScale="Q  BOARD TRAIN",.78
-        elseif nearFire then contextText,contextScale="E  ADD COAL",.78 end
-    end
-    if contextText then
-        love.graphics.setColor(tipColor); love.graphics.rectangle("fill",325,300,310,40,6,6); love.graphics.setColor(colors.cream)
-        love.graphics.printf(contextText,325,312,310,"center",0,contextScale,contextScale)
-        if holdPickupIndex then love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",365,335,230*math.min(1,holdPickupTime/HOLD_PICKUP_SECONDS),5,2,2) end
-    end
-    if scene=="train" and #(saveData.trainCars or {})>1 then love.graphics.setColor(colors.cream); love.graphics.printf("CAR "..(saveData.activeCar or 1).." / "..#saveData.trainCars.."  •  "..Util.titleFromFile(saveData.trainCars[saveData.activeCar or 1]),510,188,410,"center",0,.72,.72) end
-    ui.pickup = nearbyItem and not nearbyFurniture and not editMode and button("PICK UP  [E]",390,650,180,38,true) or nil
-    if inventoryOpen then if chestOpen then ui.drawChestInventory() end; ui.drawInventory() end
-    if inventoryOpen and inventoryDragActive and draggedSlot and containerValue(draggedSlot) then local mx,my=screenToGame(love.mouse.getPosition()); ui.drawItem(containerValue(draggedSlot),{x=mx-32,y=my-32,w=64,h=64}) end
-    if mapOpen then ui.drawMap() end
-    if editMode then ui.drawEditControls() end
-    ui.poseIdle=nil; ui.poseSit=nil; ui.poseLay=nil; ui.poseAction=nil
-    ui.musicDown=nil; ui.musicUp=nil; ui.sfxDown=nil; ui.sfxUp=nil; ui.rainDown=nil; ui.rainUp=nil; ui.musicPrevious=nil; ui.musicPause=nil; ui.musicNext=nil; ui.musicMute=nil
-    if poseMenu then love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",735,198,190,150,8,8); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); love.graphics.setColor(colors.cream); love.graphics.printf("Movement returns to standing",750,306,160,"center",0,.68,.68) end
-    if ui.optionsOpen then
-        drawMenuFrame(565,175,370,380,2,.98); love.graphics.setColor(colors.cream); love.graphics.print("AUDIO OPTIONS",595,196,0,1.05,1.05)
-        love.graphics.print("MUSIC  "..math.floor((saveData.audio.musicVolume or .10)*100).."%",635,252)
-        ui.musicDown=button("-",770,242,45,34,true); ui.musicUp=button("+",830,242,45,34,true)
-        love.graphics.print("SOUND FX  "..math.floor((saveData.audio.sfxVolume or .55)*100).."%",635,301)
-        ui.sfxDown=button("-",770,291,45,34,true); ui.sfxUp=button("+",830,291,45,34,true)
-        love.graphics.print("RAIN  "..math.floor((saveData.audio.rainVolume or .20)*100).."%",635,350)
-        ui.rainDown=button("-",770,340,45,34,true); ui.rainUp=button("+",830,340,45,34,true)
-        local stationLabel=saveData.audio.station=="chill" and "CHILL RADIO" or (saveData.audio.station=="vibes" and "VIBES RADIO" or "8-BIT SCORE")
-        love.graphics.print("STATION: "..stationLabel,635,399,0,.85,.85)
-        local status=ui.audio and (ui.audio.lastError and ("ERROR: "..ui.audio.lastError) or (ui.audio.nowPlaying and ("PLAYING: "..Util.titleFromFile(ui.audio.nowPlaying:match("[^/]+$") or ui.audio.nowPlaying)) or "STARTING MUSIC...")) or "AUDIO UNAVAILABLE"
-        love.graphics.setColor(ui.audio and ui.audio.lastError and colors.red or colors.cream); love.graphics.printf(status,610,431,285,"left",0,.60,.60)
-        ui.musicPrevious=button("|<",600,479,68,38,true); ui.musicPause=button(saveData.audio.musicPaused and "PLAY" or "PAUSE",676,479,72,38,true)
-        ui.musicNext=button(">|",756,479,68,38,true); ui.musicMute=button(saveData.audio.musicMuted and "UNMUTE" or "MUTE",832,479,82,38,true)
-    end
-    if ui.radioOpen then
-        love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,W,H)
-        if ui.radioFace then love.graphics.setColor(1,1,1); love.graphics.draw(ui.radioFace,130,95,0,700/ui.radioFace:getWidth(),450/ui.radioFace:getHeight()) else drawMenuFrame(130,95,700,450,2,1) end
-        -- Keep station selectors and ambience controls on distinct rows. This
-        -- prevents the rain hitbox from being interpreted as the chill button
-        -- when the radio is scaled or shown fullscreen.
-        ui.radio8bit={x=248,y=468,w=82,h=54}; ui.radioChill={x=343,y=468,w=82,h=54}; ui.radioVibes={x=438,y=468,w=82,h=54}
-        ui.radioRain={x=533,y=468,w=82,h=54}; ui.radioClose={x=628,y=468,w=82,h=54}
-        for i,r in ipairs({ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose}) do
-            if ui.radioButtonsImage and ui.radioButtonQuads then love.graphics.setColor(1,1,1); local iw,ih=ui.radioButtonsImage:getDimensions(); local q=((i-1)%3)+1; love.graphics.draw(ui.radioButtonsImage,ui.radioButtonQuads[q],r.x,r.y,0,r.w/(iw/3),r.h/ih) else button("",r.x,r.y,r.w,r.h,true) end
-        end
-        local stationName=saveData.audio.station=="chill" and "CHILL RADIO" or (saveData.audio.station=="vibes" and "VIBES RADIO" or "8-BIT SCORE")
-        love.graphics.setColor(colors.cream); love.graphics.printf(stationName,300,405,360,"center",0,1.1,1.1)
-        love.graphics.printf(saveData.audio.rainEnabled and "RAIN: ON" or "RAIN: OFF",300,432,360,"center",0,.78,.78)
-        local mx,my=screenToGame(love.mouse.getPosition()); local tip
-        if Util.pointIn(mx,my,ui.radio8bit) then tip="Scene-based 8-bit score"
-        elseif Util.pointIn(mx,my,ui.radioChill) then tip="Chill Radio"
-        elseif Util.pointIn(mx,my,ui.radioVibes) then tip="Vibes Radio"
-        elseif Util.pointIn(mx,my,ui.radioRain) then tip=saveData.audio.rainEnabled and "Turn rain ambience off" or "Turn rain ambience on"
-        elseif Util.pointIn(mx,my,ui.radioClose) then tip="Close radio" end
-        if tip then love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.86); love.graphics.rectangle("fill",mx-85,my-42,170,30,5,5); love.graphics.setColor(colors.cream); love.graphics.printf(tip,mx-80,my-34,160,"center",0,.72,.72) end
-    end
-    ui.drawDialogue()
-    if trainUpgradeOpen then ui.drawTrainUpgrades() end
-    if tradeOpen then drawTrade() end
-    if maintenanceSession.open then
-        maintenanceSession.mouseX,maintenanceSession.mouseY=screenToGame(love.mouse.getPosition())
-        Maintenance.draw(maintenanceSession,saveData)
-    end
+local function resolveGameplayHUD(name)
+    if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui
+    elseif name=="scene" then return scene elseif name=="saveData" then return saveData elseif name=="player" then return player
+    elseif name=="travelTransition" then return travelTransition elseif name=="carTransition" then return carTransition
+    elseif name=="cloudLayer" then return cloudLayer elseif name=="sceneryOffset" then return sceneryOffset
+    elseif name=="colors" then return colors elseif name=="inventoryOpen" then return inventoryOpen
+    elseif name=="mapOpen" then return mapOpen elseif name=="editMode" then return editMode
+    elseif name=="poseMenu" then return poseMenu elseif name=="trainUpgradeOpen" then return trainUpgradeOpen
+    elseif name=="tradeOpen" then return tradeOpen elseif name=="maintenanceSession" then return maintenanceSession
+    elseif name=="nearbyItem" then return nearbyItem elseif name=="nearPassenger" then return nearPassenger
+    elseif name=="nearCarNext" then return nearCarNext elseif name=="nearCarPrev" then return nearCarPrev
+    elseif name=="nearNPC" then return nearNPC elseif name=="nearMailbox" then return nearMailbox
+    elseif name=="nearChest" then return nearChest elseif name=="nearHouse" then return nearHouse
+    elseif name=="nearReturnTrain" then return nearReturnTrain elseif name=="nearFire" then return nearFire
+    elseif name=="holdPickupIndex" then return holdPickupIndex elseif name=="holdPickupTime" then return holdPickupTime
+    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="inventoryDragActive" then return inventoryDragActive
+    elseif name=="draggedSlot" then return draggedSlot elseif name=="EngineUpgrades" then return EngineUpgrades
+    elseif name=="Clouds" then return Clouds elseif name=="Maintenance" then return Maintenance
+    elseif name=="Util" then return Util elseif name=="button" then return button
+    elseif name=="drawMenuFrame" then return drawMenuFrame elseif name=="drawTrade" then return drawTrade
+    elseif name=="isFurnitureItem" then return isFurnitureItem elseif name=="containerValue" then return containerValue
+    elseif name=="screenToGame" then return screenToGame elseif name=="drawLandscape" then return Systems.worldRenderer.drawLandscape
+    elseif name=="drawTracks" then return Systems.worldRenderer.drawTracks elseif name=="drawTrainView" then return Systems.worldRenderer.drawTrainView
+    elseif name=="drawHouse" then return Systems.worldRenderer.drawHouse elseif name=="drawStop" then return Systems.worldRenderer.drawStop end
 end
+Systems.gameplayHUD=Systems.gameplayHUD.install(resolveGameplayHUD)
+
+
 
 local function drawEnding()
-    drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
+    Systems.worldRenderer.drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
     love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",120,90,720,540,20,20)
     love.graphics.setColor(colors.brass); love.graphics.printf("CALIFORNIA",120,135,720,"center",0,2.2,2.2)
     love.graphics.setColor(colors.cream); love.graphics.printf("After 50 stops, the Mouse Frontier finally reaches the end of the line.",205,215,550,"center",0,1.15,1.15)
@@ -1756,7 +1398,7 @@ screens:register("characters",{draw=ui.drawCharacterSelect})
 screens:register("battle",{draw=ui.drawTacticalBattle})
 screens:register("event",{draw=ui.drawRandomEvent})
 screens:register("ending",{draw=drawEnding})
-screens:register("game",{draw=function() if travelConfirm then ui.drawTravelConfirm() else drawGame() end end})
+screens:register("game",{draw=function() if travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
 
 function love.draw()
     love.graphics.clear(0.025,0.02,0.025,1)
@@ -1903,7 +1545,7 @@ function ui.handleEditorMousePressed(x,y)
         else local slot=Inventory.firstEmptySlot(saveData); if slot then saveData.inventory[slot]=item.name; table.remove(saveData.droppedItems,editedItem); editedItem=nil; writeSave() end end
         return true
     end
-    editedItem=trainItemAt(x,y); editDragging=editedItem~=nil; return true
+    editedItem=Systems.worldRenderer.trainItemAt(x,y); editDragging=editedItem~=nil; return true
 end
 
 function ui.handleGameMousePressed(x,y)
