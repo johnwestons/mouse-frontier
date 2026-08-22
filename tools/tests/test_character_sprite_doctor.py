@@ -18,6 +18,7 @@ from character_sprite_doctor import (  # noqa: E402
     SpriteDoctor,
     assemble_strip,
     measure_frame,
+    remove_edge_neutral_backdrop,
     remove_edge_green,
     save_repair_plan,
 )
@@ -184,6 +185,15 @@ class SpriteDoctorTests(unittest.TestCase):
         ImageDraw.Draw(edge_art).rectangle((0, 45, 5, 65), fill=(25, 210, 40, 255))
         preserved = remove_edge_green(edge_art)
         self.assertEqual(255, preserved.getpixel((2, 55))[3])
+
+    def test_neutral_backdrop_cleanup_preserves_enclosed_light_art(self) -> None:
+        backdrop = Image.new("RGBA", (200, 120), (242, 242, 242, 255))
+        draw = ImageDraw.Draw(backdrop)
+        draw.rectangle((55, 15, 145, 110), fill=(90, 55, 30, 255))
+        draw.rectangle((80, 40, 120, 80), fill=(248, 248, 245, 255))
+        cleaned = remove_edge_neutral_backdrop(backdrop)
+        self.assertEqual(0, cleaned.getpixel((0, 0))[3])
+        self.assertEqual(255, cleaned.getpixel((100, 60))[3])
 
     def test_recovering_unconscious_art_upgrades_legacy_walk_in_same_plan(self) -> None:
         directory = self.add_character("upgrade-mouse", (155, 85, 175, 255))

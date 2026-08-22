@@ -1,7 +1,7 @@
 # Local audit outputs and intermediate image-generation files
 .stabilization/
 tmp/
-output/sprite-doctor/
+output/
 __pycache__/
 *.pyc
 

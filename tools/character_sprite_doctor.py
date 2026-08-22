@@ -455,8 +455,51 @@ def remove_edge_green(image: Image.Image) -> Image.Image:
     return Image.fromarray(rgba, "RGBA")
 
 
+def remove_edge_neutral_backdrop(image: Image.Image) -> Image.Image:
+    """Remove bright neutral generator backdrops connected to an image edge."""
+    rgba = np.array(image.convert("RGBA"), copy=True)
+    height, width = rgba.shape[:2]
+    rgb = rgba[:, :, :3].astype(np.int16)
+    alpha = rgba[:, :, 3]
+    channel_range = rgb.max(axis=2) - rgb.min(axis=2)
+    keyed = (alpha > 0) & (rgb.mean(axis=2) > 225) & (channel_range < 12)
+    edge_key_count = int(
+        keyed[0, :].sum() + keyed[-1, :].sum()
+        + keyed[:, 0].sum() + keyed[:, -1].sum()
+    )
+    perimeter = max(1, width * 2 + height * 2 - 4)
+    if edge_key_count < max(16, round(perimeter * 0.20)):
+        return Image.fromarray(rgba, "RGBA")
+
+    seen = np.zeros((height, width), dtype=bool)
+    queue: deque[tuple[int, int]] = deque()
+    for x in range(width):
+        for y in (0, height - 1):
+            if keyed[y, x] and not seen[y, x]:
+                seen[y, x] = True
+                queue.append((y, x))
+    for y in range(height):
+        for x in (0, width - 1):
+            if keyed[y, x] and not seen[y, x]:
+                seen[y, x] = True
+                queue.append((y, x))
+    while queue:
+        y, x = queue.popleft()
+        for next_y, next_x in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+            if (0 <= next_y < height and 0 <= next_x < width
+                    and keyed[next_y, next_x] and not seen[next_y, next_x]):
+                seen[next_y, next_x] = True
+                queue.append((next_y, next_x))
+    rgba[seen, 3] = 0
+    return Image.fromarray(rgba, "RGBA")
+
+
+def remove_edge_background(image: Image.Image) -> Image.Image:
+    return remove_edge_neutral_backdrop(remove_edge_green(image))
+
+
 def source_strip_frames(source: Image.Image, frame_count: int) -> list[Image.Image]:
-    cleaned = remove_edge_green(source)
+    cleaned = remove_edge_background(source)
     return [normalize_frame(frame) for frame in split_evenly(cleaned, frame_count)]
 
 
@@ -465,7 +508,7 @@ def atlas_action_frames(atlas: Image.Image, action: str) -> list[Image.Image]:
         raise ValueError(f"the 6x4 atlas does not contain {action}")
     if atlas.width % 6 or atlas.height % 4:
         raise ValueError("complete atlas must divide cleanly into a 6x4 grid")
-    atlas = remove_edge_green(atlas)
+    atlas = remove_edge_background(atlas)
     cell_width, cell_height = atlas.width // 6, atlas.height // 4
     frames: list[Image.Image] = []
     for column, row in COMPLETE_ATLAS_LAYOUT[action]:
