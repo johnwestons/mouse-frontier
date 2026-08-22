@@ -36,7 +36,7 @@ local Interactions = require("game.interactions")
 local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),inventoryActions=require("game.inventory_actions"),journeyRules=require("game.journey_rules"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
+local Systems = {inventory=require("game.inventory_ui"),inventoryActions=require("game.inventory_actions"),journeyRules=require("game.journey_rules"),sessionBootstrap=require("game.session_bootstrap"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
 screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
@@ -118,189 +118,32 @@ local function isFurnitureItem(name)
     return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
 end
 
-local function newSave(character)
-    local npcRoster, seen = {}, {}
-    for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS")) do
-        if Roster.isNpcCandidate(file) then npcRoster[#npcRoster + 1], seen[file] = file, true end
-    end
-    for _, file in ipairs(characters) do
-        if Roster.isNpcCandidate(file) and file ~= character and not seen[file] then npcRoster[#npcRoster + 1] = file end
-    end
-    table.sort(npcRoster)
-    local worldItems = {}
-    worldItems[#worldItems+1]={name="travel-chest",x=car.x+275,y=car.y+255,scene="train",carIndex=1,scale=1,rotation=0,storage={}}
-    worldItems[#worldItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
-    worldItems[#worldItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
-    local result={
-        version = CURRENT_SAVE_VERSION, character = character, location = 1, scene = "train", stopped = true,
-        npcRoster = npcRoster, currentNPC = npcRoster[1],
-        resources = {food = 10, water = 10, coal = 10, oil = 10},
-        health = 20, maxHealth = 20, stats={level=1,xp=0,nextXP=10},
-        equipment = {"frontier-short-sword", "trail-slingshot"},
-        ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0,["30-carbine"]=0,["8mm"]=0,["380-acp"]=0,["32-acp"]=0,["12-gauge"]=0,["762x39"]=0},
-        inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
-        droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
-        encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
-        choices = {}, stopLayouts = {}, stopSludges={}, events = {}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={},
-        maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0},
-        inventoryCapacity=6, backpack=nil,
-        scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
-        specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,
-        audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false}, playerX = car.x + 300, playerY = car.y + 285
-    }
-    for i,name in ipairs({"coal-bucket","pickaxe","potted-sprout","flower-pot","potted-flowers"}) do House.storeLoot(result,Catalog,name,i) end
-    return result
+function ui.resolveSessionBootstrap(name)
+    if name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="characters" then return characters
+    elseif name=="characterImages" then return characterImages elseif name=="npcImages" then return npcImages
+    elseif name=="saveData" then return saveData elseif name=="player" then return player elseif name=="scene" then return scene
+    elseif name=="car" then return car elseif name=="ui" then return ui elseif name=="maintenanceSession" then return maintenanceSession
+    elseif name=="session" then return session elseif name=="screens" then return screens
+    elseif name=="Roster" then return Roster elseif name=="House" then return House elseif name=="Catalog" then return Catalog
+    elseif name=="Maintenance" then return Maintenance elseif name=="EngineUpgrades" then return EngineUpgrades
+    elseif name=="Passengers" then return Passengers elseif name=="Events" then return Events elseif name=="StopSludges" then return StopSludges
+    elseif name=="Settlements" then return Settlements elseif name=="trainObjectBounds" then return trainObjectBounds
+    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="clampToTrainFloor" then return clampToTrainFloor
+    elseif name=="isFurnitureItem" then return isFurnitureItem end
 end
 
-local function enterGame(data)
-    if type(data)~="table" then return false end
-    Maintenance.close(maintenanceSession)
-    ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
-    data.version = CURRENT_SAVE_VERSION
-    data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
-    data.resources=type(data.resources)=="table" and data.resources or {}
-    for _,name in ipairs({"food","water","coal"}) do data.resources[name]=math.max(0,tonumber(data.resources[name]) or 0) end
-    -- Existing saves predate train oil; give them the same starter reserve as
-    -- a new game instead of loading them into an unwinnable empty state.
-    data.resources.oil=math.max(0,tonumber(data.resources.oil) or 10)
-    data.scene = data.scene or "train"
-    data.stopped = data.stopped == nil and true or data.stopped
-    data.droppedItems = data.droppedItems or {}
-    for _, item in ipairs(data.droppedItems) do
-        item.scene = item.scene or "train"
-        if item.scene=="train" then
-            item.carIndex=item.carIndex or 1
-            local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,item.x or left)); item.y=math.max(top,math.min(bottom,item.y or top))
-        end
-        if item.scene ~= "train" then item.location = item.location or data.location end
-    end
-    data.visitedStops = data.visitedStops or {[data.location or 1] = true}
-    data.visitedStops[data.location or 1] = true
-    data.houseInitialized = data.houseInitialized or {}
-    data.houseLayoutsArranged = data.houseLayoutsArranged or {}
-    data.npcStates = data.npcStates or {}
-    data.stopLayouts = data.stopLayouts or {}
-    data.stopSludges = data.stopSludges or {}
-    data.events = data.events or {}
-    Maintenance.ensure(data)
-    data.weaponDurability=data.weaponDurability or {}
-    data.weaponProficiency=data.weaponProficiency or {}
-    data.supplyQuests=data.supplyQuests or {}
-    data.mailQuests=data.mailQuests or {}
-    data.passengers=data.passengers or {}
-    data.questAsked=data.questAsked or {}
-    data.lootRolls=data.lootRolls or {}
-    if (data.lootBalanceVersion or 0)<1 then
-        for i=#data.droppedItems,1,-1 do
-            local item=data.droppedItems[i]
-            local rollKey=tostring(item.location or data.location)..":"..tostring(item.houseDoor or 1)
-            if item.scene=="house" and Catalog.storageCapacities[item.name] and not item.droppedByPlayer and not data.lootRolls[rollKey] then
-                table.remove(data.droppedItems,i)
-            end
-        end
-        data.lootBalanceVersion=1
-    end
-    data.nextBattlePotions=data.nextBattlePotions or {}
-    data.npcOffers=data.npcOffers or {}; data.npcWeapons=data.npcWeapons or {}
-    data.inventoryCapacity=data.inventoryCapacity or 6
-    data.scrap=data.scrap or 0
-    data.audio=data.audio or {station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false}
-    data.audio.musicPaused=data.audio.musicPaused or false; data.audio.musicMuted=data.audio.musicMuted or false
-    data.audio.station=data.audio.station or "8bit"; if data.audio.musicVolume==nil then data.audio.musicVolume=.10 end; data.audio.sfxVolume=data.audio.sfxVolume or .55; data.audio.rainVolume=data.audio.rainVolume or .20
-    if data.audio.rainEnabled==nil then data.audio.rainEnabled=data.audio.station=="chill" end
-    data.trainCars=data.trainCars or {"living-car"}
-    data.activeCar=math.max(1,math.min(#data.trainCars,data.activeCar or 1))
-    data.engineLevel=math.max(0,math.min(#EngineUpgrades.tiers-1,data.engineLevel or 0))
-    local assignedTrait=Catalog.characterTrait(data.character)
-    if not data.traitBaselineApplied then
-        data.maxHealth=(data.maxHealth or 20)+(assignedTrait.maxHealth or 0)
-        data.traitBaselineApplied=true
-    elseif not data.trait or data.trait.name~=assignedTrait.name then
-        data.maxHealth=(data.maxHealth or 20)-(data.trait and data.trait.maxHealth or 0)+(assignedTrait.maxHealth or 0)
-    end
-    data.trait=assignedTrait
-    data.health=math.min(data.maxHealth,data.health or data.maxHealth)
-    for i,item in ipairs(data.droppedItems) do item.layer=item.layer or i end
-    if not data.specialItemsAdded then data.specialItemsAdded=true end
-    for i,passenger in ipairs(data.passengers) do
-        local left,right,top,bottom=trainFloorBounds(); passenger.x,passenger.y=clampToTrainFloor(passenger.x or car.x+230+(i-1)*85,passenger.y or (top+bottom)/2)
-        passenger.homeX=math.max(left,math.min(right,passenger.homeX or passenger.x)); passenger.homeY=math.max(top,math.min(bottom,passenger.homeY or passenger.y)); passenger.wait=passenger.wait or 1; passenger.job=passenger.job or Passengers.jobFor(passenger.npc); passenger.pose=passenger.pose or "idle"; passenger.carIndex=math.max(1,math.min(#data.trainCars,passenger.carIndex or 1))
-    end
-    data.health, data.maxHealth = data.health or 20, data.maxHealth or 20
-    data.stats=data.stats or {level=1,xp=0,nextXP=10}
-    data.inventory = data.inventory or {}
-    data.equipment = data.equipment or {}
-    data.ammo=data.ammo or {}
-    for _,name in ipairs({"rocks","arrows","ball-bearings","9mm","45-cal","556","22lr","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do
-        data.ammo[name]=math.max(0,tonumber(data.ammo[name]) or 0)
-    end
-    if not data.ammoDropsAdded then data.ammoDropsAdded=true end
-    data.weapons=nil
-    if not data.weaponDropsAdded then data.weaponDropsAdded=true end
-    if not data.starterChestAdded then
-        local found=false; for _,item in ipairs(data.droppedItems) do if item.name=="travel-chest" and item.scene=="train" then item.storage=item.storage or {}; found=true end end
-        if not found then data.droppedItems[#data.droppedItems+1]={name="travel-chest",x=car.x+165,y=car.y+285,scene="train",scale=1,rotation=0,storage={}} end
-        data.starterChestAdded=true
-    end
-    for _,item in ipairs(data.droppedItems) do if Catalog.storageCapacities[item.name] then item.storage=item.storage or {} end end
-    if not data.radioAdded then
-        data.droppedItems[#data.droppedItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
-        data.radioAdded=true
-    end
-    local mailboxFound=false
-    for _,item in ipairs(data.droppedItems) do
-        if item.name=="mailbox-reward" and item.scene=="train" then
-            mailboxFound=true; item.mailbox=true; item.permanent=true; item.scale=(item.scale and item.scale>=.9) and item.scale or 1.15; item.storage=item.storage or {}; item.mailUnread=item.mailUnread==true
-        end
-    end
-    if not mailboxFound then
-        data.droppedItems[#data.droppedItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
-    end
-    for _,item in ipairs(data.droppedItems) do
-        if item.name=="travel-chest" and item.scene=="train" and (item.x<car.x+35 or item.x>car.x+car.w-35) then item.x,item.y=car.x+165,car.y+285 end
-    end
-    if not data.medicalDropsAdded then data.medicalDropsAdded=true end
-    if not data.lootContainerMigration then
-        local loose={}
-        for i=#data.droppedItems,1,-1 do
-            local item=data.droppedItems[i]
-            if (item.scene=="stop" or item.scene=="house") and not item.droppedByPlayer and not isFurnitureItem(item.name) then
-                loose[#loose+1]={name=item.name,location=item.location or data.location}; table.remove(data.droppedItems,i)
-            end
-        end
-        for _,loot in ipairs(loose) do House.storeLoot(data,Catalog,loot.name,loot.location) end
-        data.lootContainerMigration=true
-    end
-    if not data.expandedLootAdded then data.expandedLootAdded=true end
-    data.lootBalanceVersion=data.lootBalanceVersion or 1
-    data.encounters = data.encounters or {}
-    local loadedNpcCandidates={}
-    for file in pairs(npcImages) do loadedNpcCandidates[#loadedNpcCandidates+1]=file end
-    Events.ensure(data)
-    -- Older saves may have selected a character that is now a mob-only asset.
-    -- Keep the save usable by moving that selection to the first valid hero.
-    if not Roster.isPlayable(data.character) or not characterImages[data.character] then
-        data.character = characters[1]
-    end
-    data.npcRoster = Roster.mergeNpcRoster(data.npcRoster,loadedNpcCandidates,data.character)
-    local currentNpcAllowed=false
-    for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
-    if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
-    saveData = session:setSaveData(data)
-    stopSludges = StopSludges.new()
-    local image = characterImages[data.character]
-    local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
-    if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end
-    if data.scene=="stop" then restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
-    player = session:setPlayer({x = restoredX, y = restoredY, speed = 185,
-        image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1})
-    local targetScreen=session:activate(data,player)
-    screens:transition(targetScreen)
-    scene = session.scene
-    state, inventoryOpen, mapOpen, dialogue, editMode, chestOpen, activeChest = session.screen, false, false, nil, false, false, nil
-    carTransition=nil
+function ui.assignSessionBootstrap(name,value)
+    if name=="saveData" then saveData=value elseif name=="stopSludges" then stopSludges=value elseif name=="player" then player=value
+    elseif name=="scene" then scene=value elseif name=="state" then state=value elseif name=="inventoryOpen" then inventoryOpen=value
+    elseif name=="mapOpen" then mapOpen=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value
+    elseif name=="chestOpen" then chestOpen=value elseif name=="activeChest" then activeChest=value elseif name=="carTransition" then carTransition=value
+    else return false end
     return true
 end
+
+Systems.sessionBootstrap=Systems.sessionBootstrap.install(ui.resolveSessionBootstrap,ui.assignSessionBootstrap)
+
+
 
 local function screenToGame(x,y)
     x,y=Viewport.toGame(x,y,W,H)
@@ -1205,8 +1048,8 @@ function ui.resolveGameplayInputServices(name)
     elseif name=="moveEditedItem" then return moveEditedItem elseif name=="attackStopSludge" then return attackStopSludge
     elseif name=="acceptQuest" then return Systems.journeyRules.acceptQuest elseif name=="attemptLeaveTrain" then return Systems.journeyRules.attemptLeaveTrain
     elseif name=="travelCost" then return Systems.journeyRules.travelCost elseif name=="playTrainDepart" then return playTrainDepart
-    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="newSave" then return newSave
-    elseif name=="enterGame" then return enterGame elseif name=="resolveEventChoice" then return resolveEventChoice
+    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="newSave" then return Systems.sessionBootstrap.newSave
+    elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="resolveEventChoice" then return resolveEventChoice
     elseif name=="enterStop" then return Systems.journeyRules.enterStop elseif name=="battleAttack" then return battleAttack
     elseif name=="battleHeal" then return battleHeal elseif name=="battleGuard" then return battleGuard
     elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="setBattlePrompt" then return setBattlePrompt
@@ -1259,7 +1102,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return inventoryOpen elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll elseif name=="tradeOpen" then return tradeOpen elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="poseMenu" then return poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return battle elseif name=="travelTransition" then return travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return actionTimer elseif name=="travelConfirm" then return travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode elseif name=="carTransition" then return carTransition
         elseif name=="session" then return session elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems
-        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return newSave elseif name=="enterGame" then return enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
+        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then screens:transition(value); state=session.screen elseif name=="selectedSlot" then selectedSlot=session:selectSlot(value) elseif name=="saveData" then saveData=session:setSaveData(value) elseif name=="scene" then scene=session:setScene(value) elseif name=="player" then player=session:setPlayer(value) elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value elseif name=="tradeOpen" then tradeOpen=value elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="poseMenu" then poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then battle=value elseif name=="travelTransition" then travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then actionTimer=value elseif name=="travelConfirm" then travelConfirm=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value elseif name=="carTransition" then carTransition=value end
     end})
