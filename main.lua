@@ -36,7 +36,7 @@ local Interactions = require("game.interactions")
 local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
-local Systems = {inventory=require("game.inventory_ui"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
+local Systems = {inventory=require("game.inventory_ui"),inventoryActions=require("game.inventory_actions"),journeyRules=require("game.journey_rules"),interactions=require("game.interaction_router"),intro=require("game.intro_cinematic"),battleUI=require("game.battle_ui"),session=require("game.game_session"),screens=require("game.screen_manager"),worldRenderer=require("game.world_renderer"),gameplayHUD=require("game.gameplay_hud"),gameplayInput=require("game.gameplay_input")}
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
 screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
@@ -313,11 +313,10 @@ local function screenToGame(x,y)
     return x,y
 end
 
-local function isWeapon(name) return Inventory.isWeapon(name,Catalog.weaponStats) end
 
 local function updateStopSludges(dt)
     if scene~="stop" or not saveData or not player then return end
-    StopSludges.update(stopSludges,{data=saveData,location=saveData.location,player=player,npc=npcActor,catalog=Catalog,isWeapon=isWeapon,clock=animationClock,
+    StopSludges.update(stopSludges,{data=saveData,location=saveData.location,player=player,npc=npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
         clamp=function(x,y) return Settlements.clamp(x,y,saveData.location) end,
         dropCoal=function(x,y)
             saveData.droppedItems[#saveData.droppedItems+1]={name="coal-chunk",x=x,y=y,scene="stop",location=saveData.location,droppedByPlayer=false}
@@ -327,120 +326,11 @@ end
 
 local function attackStopSludge(x,y)
     if scene~="stop" or inventoryOpen or mapOpen or dialogue or editMode or ui.radioOpen or trainUpgradeOpen or poseMenu or ui.optionsOpen then return false end
-    return StopSludges.attack(stopSludges,{data=saveData,location=saveData.location,player=player,npc=npcActor,catalog=Catalog,isWeapon=isWeapon,clock=animationClock,
+    return StopSludges.attack(stopSludges,{data=saveData,location=saveData.location,player=player,npc=npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
         onAction=function(weapon) actionHeldItem=weapon; actionKind="melee"; actionTimer=.42 end,
         playSfx=function(kind) ui.playSfx(kind) end})
 end
 
-local function containerValue(ref)
-    return Inventory.value(saveData,activeChest,ref)
-end
-
-local function setContainerValue(ref,value)
-    Inventory.setValue(saveData,activeChest,ref,value)
-end
-
-local function moveBetweenSlots(source,target)
-    local moved=Inventory.move(saveData,activeChest,source,target,Catalog.weaponStats,Catalog.ammoPickupAmounts)
-    if moved then writeSave() end
-    return moved
-end
-
-local function quickTransfer(ref)
-    if not chestOpen then return false end
-    local moved=Inventory.quickTransfer(saveData,activeChest,ref,Catalog.weaponStats,Catalog.ammoPickupAmounts,Catalog.storageCapacities)
-    if moved then writeSave() end
-    return moved
-end
-
-local function collectAmmo(ref)
-    if not ref or ref.kind~="chest" then return false end
-    local name=containerValue(ref); local amount=name and Catalog.ammoPickupAmounts[name]
-    if not amount then return false end
-    saveData.ammo[name]=(saveData.ammo[name] or 0)+amount
-    setContainerValue(ref,nil); draggedSlot=nil; inventoryDragActive=false; writeSave()
-    dialogue={speaker="Ammo",text="Collected "..amount.." "..Util.titleFromFile(name).." ammunition.",timer=1.6}
-    return true
-end
-
-local function dropFromContainer(ref)
-    local name=containerValue(ref); if not name then return false end
-    local dropped={name=name,x=player.x+35,y=player.y,scene=scene,scale=1,rotation=0,droppedByPlayer=true}
-    if scene=="train" then dropped.carIndex=saveData.activeCar or 1 end
-    if scene~="train" then dropped.location=saveData.location end
-    if Catalog.storageCapacities[name] then dropped.storage={} end
-    saveData.droppedItems[#saveData.droppedItems+1]=dropped
-    setContainerValue(ref,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-end
-
-local function consumeSelected()
-    if not draggedSlot then return false end
-    local name=containerValue(draggedSlot); local effect=Catalog.itemEffects[name]
-    actionHeldItem=name; actionKind="use"; actionTimer=.45
-    if isWeapon(name) and (nearNPC or nearPassenger) then
-        if nearPassenger then saveData.passengers[nearPassenger].weapon=name
-        else local layout=saveData.stopLayouts[tostring(saveData.location)]; if layout then layout.npcWeapon=name end; if npcActor then npcActor.weapon=name end end
-        dialogue={speaker="Weapon Given",text=Util.titleFromFile(name).." is now equipped by your ally.",timer=2}
-        setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-    end
-    local pack=Catalog.backpackUpgrades[name]
-    if pack then
-        if pack.capacity<=(saveData.inventoryCapacity or 6) then dialogue={speaker=pack.label,text="Your current backpack already carries at least that much.",timer=2}; return false end
-        saveData.inventoryCapacity=pack.capacity; saveData.backpack=name
-        dialogue={speaker=pack.label,text="Equipped! Carry capacity increased to "..pack.capacity.." slots.",timer=2.5}
-        setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-    end
-    if name=="rose-heart-arrow" or name=="blade-hearts" then
-        saveData.maxHealth=saveData.maxHealth+5; saveData.health=math.min(saveData.maxHealth,saveData.health+5)
-        dialogue={speaker="Special Heart",text="Your maximum health increased by 5!",timer=2.5}
-        setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-    end
-    if effect and effect.potion then
-        saveData.nextBattlePotions[name]=true
-        dialogue={speaker=Util.titleFromFile(name),text=effect.description.." It will activate at the next battle.",timer=2.5}
-        setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-    end
-    if not effect then return false end
-    local capacity=20; for _,id in ipairs(saveData.trainCars or {}) do if id=="storage" then capacity=30; break end end
-    local foodFull=effect.food and saveData.resources.food>=capacity
-    local waterFull=effect.water and saveData.resources.water>=capacity
-    local oilFull=effect.oil and saveData.resources.oil>=capacity
-    if (effect.food or effect.water or effect.oil) and (not effect.food or foodFull) and (not effect.water or waterFull) and (not effect.oil or oilFull) then
-        local fullName=oilFull and "Oil storage is full." or (foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full."))
-        dialogue={speaker="Storage Full",text=fullName,timer=2.2}
-        return false
-    end
-    if effect.food then saveData.resources.food=math.min(capacity,saveData.resources.food+effect.food) end
-    if effect.water then saveData.resources.water=math.min(capacity,saveData.resources.water+effect.water) end
-    if effect.oil then saveData.resources.oil=math.min(capacity,saveData.resources.oil+effect.oil) end
-    if effect.health then saveData.health=math.min(saveData.maxHealth,saveData.health+effect.health) end
-    dialogue={speaker=Util.titleFromFile(name),text=effect.oil and ("Stored +"..effect.oil.." train oil.") or ("That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored.")),timer=1.4}
-    setContainerValue(draggedSlot,nil); draggedSlot=nil; inventoryDragActive=false; writeSave(); return true
-end
-
-local function pickUpNearby()
-    if not nearbyItem then return end
-    local item=saveData.droppedItems[nearbyItem]
-    if item.permanent then dialogue={speaker=Util.titleFromFile(item.name),text="This stays aboard the train.",timer=1.4}; return end
-    if item.name=="rose-heart-arrow" or item.name=="blade-hearts" then
-        saveData.maxHealth=saveData.maxHealth+5; saveData.health=math.min(saveData.maxHealth,saveData.health+5)
-        dialogue={speaker="Special Heart",text="Your maximum health increased by 5!",timer=2.5}
-        table.remove(saveData.droppedItems,nearbyItem); nearbyItem=nil; writeSave(); return
-    end
-    if Catalog.ammoPickupAmounts[item.name] then
-        local amount=Catalog.ammoPickupAmounts[item.name]; saveData.ammo[item.name]=(saveData.ammo[item.name] or 0)+amount
-        dialogue={speaker=Util.titleFromFile(item.name),text="Picked up "..amount.." rounds.",timer=1.6}
-        table.remove(saveData.droppedItems,nearbyItem); nearbyItem=nil; writeSave(); return
-    end
-    if Catalog.storageCapacities[item.name] and item.storage and next(item.storage) then dialogue={speaker=Util.titleFromFile(item.name),text="Empty this container before picking it up.",timer=4}; return end
-    local slot=Inventory.firstEmptySlot(saveData)
-    if not slot then
-        dialogue={speaker="Backpack Full",text="There is no room in your backpack.",timer=2.2}
-        return
-    end
-    saveData.inventory[slot]=item.name
-    table.remove(saveData.droppedItems,nearbyItem); nearbyItem=nil; writeSave()
-end
 
 local function itemIsHere(item)
     if item.scene ~= scene then return false end
@@ -449,156 +339,12 @@ local function itemIsHere(item)
     return item.location == saveData.location
 end
 
-local function findInventoryItem(names)
-    for i = 1, (saveData.inventoryCapacity or 6) do
-        for _, name in ipairs(names) do if saveData.inventory[i] == name then return i, name end end
-    end
-end
-
-local function addCoalToFire()
-    local coalCapacity=20
-    for _,id in ipairs(saveData.trainCars or {}) do if id=="coal-hauler" then coalCapacity=30; break end end
-    if saveData.resources.coal>=coalCapacity then
-        dialogue={speaker="Storage Full",text="Coal storage is full.",timer=2.2}
-        return
-    end
-    local slot, name = findInventoryItem({"coal-bucket", "coal-chunk"})
-    if not slot then dialogue = {speaker="Fire", text="Bring me coal from your backpack!", timer=2}; return end
-    local amount = name == "coal-bucket" and 3 or 1
-    saveData.inventory[slot] = nil
-    saveData.resources.coal = math.min(coalCapacity, saveData.resources.coal + amount)
-    dialogue = {speaker="Fire", text="That's the good stuff!  +"..amount.." fuel", timer=2}
-    writeSave()
-end
 
 local function ensureHouseItems() House.ensure(saveData,Catalog,isFurnitureItem) end
 
-local function giveWeaponToNearby()
-    local targetPassenger=nearPassenger and saveData.passengers[nearPassenger]
-    if not nearNPC and not targetPassenger then return false end
-    giftOpen=true; giftNPC=targetPassenger and targetPassenger.npc or saveData.currentNPC; giftSlot=nil; inventoryOpen=true; chestOpen=false; activeChest=nil; draggedSlot=nil
-    return true
-end
 
 local function ensureStopLayout() return Stops.ensure(saveData,Catalog,scene) end
 
-local function travelCost()
-    local leg=math.max(0,(saveData.location or 1)-1)
-    local passengers=#(saveData.passengers or {})
-    local terrain=({"plains","desert","mountains","ruins","forest"})[((saveData.location or 1)-1)%5+1]
-    local terrainCoal=terrain=="mountains" and 2 or (terrain=="ruins" and 1 or 0); local trait=saveData.trait or Catalog.characterTraitProfiles[1]
-    local sleeper=false; for _,id in ipairs(saveData.trainCars or {}) do if id=="sleeper" then sleeper=true end end
-    local passengerCost=sleeper and math.ceil(passengers/2) or passengers
-    local food,water,coal=EngineUpgrades.applyCosts(saveData.engineLevel,(1+math.floor(leg/4)+passengerCost)*(trait.food or 1),(1+math.floor(leg/3)+passengerCost)*(trait.water or 1),(1+math.floor(leg/5)+terrainCoal)*(trait.coal or 1))
-    local maintenanceCoal=Maintenance.coalPenalty(saveData)
-    coal=coal+maintenanceCoal
-    return {food=food,water=water,coal=coal,passengers=passengers,terrain=terrain,maintenanceCoal=maintenanceCoal}
-end
-
-local function processPassengerArrivals()
-    for i=#saveData.passengers,1,-1 do
-        local passenger=saveData.passengers[i]
-        if saveData.location>=passenger.destination then
-            table.remove(saveData.passengers,i)
-            local coal=math.max(1,math.floor(love.math.random(1,3)*(saveData.trait.reward or 1))); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
-            local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(saveData); if slot then saveData.inventory[slot]=item end
-            saveData.arrivalNotice=(Util.titleFromFile(passenger.npc).." reached their stop and left you "..coal.." coal"..(slot and " and "..Util.titleFromFile(item) or "")..".")
-        end
-    end
-end
-
-local function passengerContributions()
-    local notes={}; local hasGreenhouse=false; for _,id in ipairs(saveData.trainCars or {}) do if id=="greenhouse" then hasGreenhouse=true end end
-    for _,p in ipairs(saveData.passengers or {}) do
-        p.job=p.job or Passengers.jobFor(p.npc); local gained
-        if p.job=="greenhouse" and hasGreenhouse then saveData.resources.food=math.min(30,saveData.resources.food+2); gained="grew 2 food"
-        elseif p.job=="fireman" then saveData.resources.coal=math.min(30,saveData.resources.coal+1); gained="salvaged 1 coal"
-        elseif p.job=="medic" then local before=saveData.health; saveData.health=math.min(saveData.maxHealth,saveData.health+2); gained="restored "..(saveData.health-before).." health"
-        else local resource=({"food","water","coal"})[love.math.random(3)]; saveData.resources[resource]=math.min(30,saveData.resources[resource]+1); gained="scavenged 1 "..resource end
-        notes[#notes+1]=Util.titleFromFile(p.npc).." "..gained
-    end
-    if #notes>0 then saveData.arrivalNotice=table.concat(notes,". ").."." end
-end
-
-local function giveQuestReward(message)
-    local coal=math.max(1,math.floor(love.math.random(1,3)*(saveData.trait.reward or 1))); saveData.resources.coal=math.min(20,saveData.resources.coal+coal)
-    local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(saveData)
-    if slot then saveData.inventory[slot]=item else House.storeLoot(saveData,Catalog,item,saveData.location) end
-    dialogue={speaker="Traveler",text=(message or "Thank you!").."  You received "..coal.." coal and "..Util.titleFromFile(item)..".",timer=4}
-end
-
-local function pendingMailHere()
-    for _,quest in ipairs(saveData.mailQuests or {}) do
-        if not quest.complete and quest.destination==saveData.location and quest.recipient==saveData.currentNPC then return quest end
-    end
-end
-
-local function acceptQuest(kind)
-    if kind=="mail" then
-        local maxAhead=math.max(1,math.min(8,50-saveData.location)); local destination=math.min(50,saveData.location+love.math.random(1,maxAhead))
-        local layout=saveData.stopLayouts[tostring(destination)] or {houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7)}
-        local roster=saveData.npcRoster or {}; layout.npc=layout.npc or roster[love.math.random(math.max(1,#roster))] or saveData.currentNPC; saveData.stopLayouts[tostring(destination)]=layout
-        saveData.mailQuests[#saveData.mailQuests+1]={sender=saveData.currentNPC,recipient=layout.npc,origin=saveData.location,destination=destination,complete=false}
-        dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text="Thank you. Please look for "..Util.titleFromFile(layout.npc).." around stop "..destination..".",timer=4}
-    elseif kind=="ride" then
-        local remaining=math.max(1,50-saveData.location); local job=Passengers.jobFor(saveData.currentNPC); local rideStops=Passengers.rideLength(job,remaining,saveData.resources.food,saveData.resources.water,love.math.random(-1,1))
-        local index=#saveData.passengers+1; local px=car.x+225+(index-1)*85
-        local layout=ensureStopLayout()
-        saveData.passengers[index]={npc=saveData.currentNPC,destination=saveData.location+rideStops,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
-        dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text="Thank you! I'll ride for "..rideStops..(rideStops==1 and " stop" or " stops").." and help as your "..job..".",timer=4}
-    elseif kind=="trade" then
-        tradeOpen=true; tradeNPC=saveData.currentNPC; dialogue=nil
-    elseif kind=="supplies" then
-        local destination=math.min(50,saveData.location+love.math.random(1,math.max(1,math.min(6,50-saveData.location))))
-        local amount=3; local added=0; local addedSlots={}
-        for _=1,amount do
-            local slot=Inventory.firstEmptySlot(saveData)
-            if not slot then break end
-            saveData.inventory[slot]=({"food-ration","bread-loaf","jerky-bundle"})[love.math.random(3)]; addedSlots[#addedSlots+1]=slot; added=added+1
-        end
-        if added<amount then
-            for _,slot in ipairs(addedSlots) do saveData.inventory[slot]=nil end
-            saveData.resources.food=math.min(30,saveData.resources.food+amount)
-            saveData.supplyQuests[#saveData.supplyQuests+1]={origin=saveData.location,destination=destination,amount=amount,complete=false,foodItems=0,storedAtTrain=true}
-            dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text="Your backpack is full, so the 3 food items were sent to the train stores for stop "..destination..".",timer=5}
-        else
-            saveData.supplyQuests[#saveData.supplyQuests+1]={origin=saveData.location,destination=destination,amount=amount,complete=false,foodItems=amount}
-            dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text="Take these 3 food items to the settlers at stop "..destination..". They will reward you when it arrives.",timer=5}
-        end
-    end
-    questOffer=nil; writeSave()
-end
-
-local function talkToNPC()
-    for _,supply in ipairs(saveData.supplyQuests or {}) do
-        if not supply.complete and supply.destination==saveData.location then
-            if supply.storedAtTrain or supply.foodItems==nil then
-                if saveData.resources.food>=supply.amount then saveData.resources.food=saveData.resources.food-supply.amount; supply.complete=true; giveQuestReward("Those supplies will keep us going. Thank you!"); writeSave()
-                else dialogue={speaker="Settler",text="You don't have enough food stored for our delivery. We're hungry and disappointed.",timer=4} end
-                return
-            end
-            local remaining=supply.foodItems or supply.amount; local consumed={}
-            for i=1,(saveData.inventoryCapacity or 6) do
-                local n=saveData.inventory[i]; if n and Catalog.itemEffects[n] and Catalog.itemEffects[n].food and remaining>0 then consumed[#consumed+1]=i; remaining=remaining-1 end
-            end
-            if remaining<=0 then for _,i in ipairs(consumed) do saveData.inventory[i]=nil end; supply.complete=true; giveQuestReward("Those supplies will keep us going. Thank you!"); writeSave()
-            else dialogue={speaker="Settler",text="You need the 3 food items I gave you for this delivery.",timer=4} end
-            return
-        end
-    end
-    local mail=pendingMailHere()
-    if mail then mail.complete=true; giveQuestReward(Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]); writeSave(); return end
-    local key=tostring(saveData.location)..":"..tostring(saveData.currentNPC); local layout=ensureStopLayout()
-    -- Read the offer for the NPC being spoken to.  A stop can have several
-    -- critters, and their quest rolls must not leak between conversations.
-    local kind=(layout.npcOffers and layout.npcOffers[saveData.currentNPC]) or "none"
-    if not saveData.questAsked[key] and kind~="none" and saveData.location<50 then
-        saveData.questAsked[key]=true; questOffer={kind=kind}
-        local text=kind=="mail" and Catalog.mailRequestLines[love.math.random(#Catalog.mailRequestLines)] or (kind=="ride" and Catalog.rideRequestLines[love.math.random(#Catalog.rideRequestLines)] or (kind=="supplies" and "Settlers farther west are hungry. Could you deliver some food for us?" or "I've got supplies to trade. Want to take a look?"))
-        dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return
-    end
-    dialogue={speaker=Util.titleFromFile(saveData.currentNPC or "Traveler"),text=Catalog.dialogueLines[love.math.random(#Catalog.dialogueLines)],timer=6}
-end
 
 local function setupNPC()
     if scene == "train" then npcActor = nil; return end
@@ -621,37 +367,8 @@ local function setupNPC()
     Family.ensure(npcActor,saveData.currentNPC)
 end
 
-local function enterStop()
-    scene=session:setScene("stop"); player.x,player.y=270,490; setupNPC(); writeSave()
-end
-
 local beginEncounter
-local function attemptLeaveTrain()
-    local key=tostring(saveData.location); local encounter=saveData.encounters[key]
-    local requiredEvent=not saveData.events[key] and Events.required(saveData,saveData.location)
-    if requiredEvent then randomEvent=requiredEvent; screens:transition("event"); state=session.screen; return end
-    if not encounter then
-        -- Battles should be the primary stop interruption; trail events remain less common.
-        -- Story and mystery chapters are checked above; ordinary stops still
-        -- favor combat while leaving room for the five random event families.
-        local hasMob=love.math.random()<0.58
-        local tier=saveData.location<=4 and "easy" or (saveData.location<=8 and "medium" or "hard")
-        encounter={rolled=true,hasMob=hasMob,resolved=not hasMob,tier=tier}
-        local pool=Catalog.mobTiers[tier]
-        if hasMob and #pool>0 then
-            encounter.mobFiles={}
-            for i=1,Catalog.encounterMobCount(tier,saveData.location) do
-                encounter.mobFiles[i]=pool[love.math.random(#pool)]
-            end
-            encounter.mobFile=encounter.mobFiles[1]
-        end
-        saveData.encounters[key]=encounter; writeSave()
-    end
-    if encounter.hasMob and not encounter.resolved and (encounter.mobFile or encounter.mobFiles) then beginEncounter(encounter)
-    elseif not encounter.hasMob and not saveData.events[tostring(saveData.location)] then
-        randomEvent=Events.random(saveData); screens:transition("event"); state=session.screen
-    else enterStop() end
-end
+
 
 local function battleContext()
     return {battle=battle,saveData=saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=7,BOARD_ROWS=4,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
@@ -666,7 +383,7 @@ local function resolveEventChoice(index)
     if result.blocked then return end
     randomEvent=nil; writeSave()
     if result.encounter then beginEncounter(result.encounter); return end
-    screens:transition("game"); state=session.screen; enterStop()
+    screens:transition("game"); state=session.screen; Systems.journeyRules.enterStop()
     dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
 end
 
@@ -682,19 +399,50 @@ local function battleHeal() BattleController.heal(battleContext()) end
 local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
-local function consumeBattleSelected()
-    if not draggedSlot then return false end
-    local name=containerValue(draggedSlot); if not name then return false end
-    local effect=Catalog.itemEffects[name]
-    if isWeapon(name) then
-        local moved=moveBetweenSlots(draggedSlot,{kind="equipment",index=1})
-        if moved then draggedSlot=nil; inventoryDragActive=false; writeSave() end
-        return moved
-    end
-    local used=(effect and effect.health and BattleController.useHealingItem(battleContext(),name)) or (effect and effect.potion and useBattlePotion(name))
-    if used then draggedSlot=nil; inventoryDragActive=false; inventoryOpen=false end
-    return used or false
+function ui.resolveInventoryActions(name)
+    if name=="saveData" then return saveData elseif name=="activeChest" then return activeChest elseif name=="chestOpen" then return chestOpen
+    elseif name=="draggedSlot" then return draggedSlot elseif name=="inventoryDragActive" then return inventoryDragActive
+    elseif name=="dialogue" then return dialogue elseif name=="player" then return player elseif name=="scene" then return scene
+    elseif name=="nearNPC" then return nearNPC elseif name=="nearPassenger" then return nearPassenger elseif name=="npcActor" then return npcActor
+    elseif name=="nearbyItem" then return nearbyItem elseif name=="giftOpen" then return giftOpen elseif name=="giftNPC" then return giftNPC
+    elseif name=="giftSlot" then return giftSlot elseif name=="inventoryOpen" then return inventoryOpen
+    elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionKind" then return actionKind elseif name=="actionTimer" then return actionTimer
+    elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="Util" then return Util
+    elseif name=="writeSave" then return writeSave elseif name=="battleContext" then return battleContext
+    elseif name=="BattleController" then return BattleController elseif name=="useBattlePotion" then return useBattlePotion end
 end
+
+function ui.assignInventoryActions(name,value)
+    if name=="activeChest" then activeChest=value elseif name=="chestOpen" then chestOpen=value
+    elseif name=="draggedSlot" then draggedSlot=value elseif name=="inventoryDragActive" then inventoryDragActive=value
+    elseif name=="dialogue" then dialogue=value elseif name=="nearbyItem" then nearbyItem=value
+    elseif name=="giftOpen" then giftOpen=value elseif name=="giftNPC" then giftNPC=value elseif name=="giftSlot" then giftSlot=value
+    elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="actionHeldItem" then actionHeldItem=value
+    elseif name=="actionKind" then actionKind=value elseif name=="actionTimer" then actionTimer=value else return false end
+    return true
+end
+
+function ui.resolveJourneyRules(name)
+    if name=="saveData" then return saveData elseif name=="dialogue" then return dialogue elseif name=="questOffer" then return questOffer
+    elseif name=="tradeOpen" then return tradeOpen elseif name=="tradeNPC" then return tradeNPC elseif name=="car" then return car
+    elseif name=="scene" then return scene elseif name=="player" then return player elseif name=="randomEvent" then return randomEvent
+    elseif name=="state" then return state elseif name=="screens" then return screens elseif name=="session" then return session
+    elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="EngineUpgrades" then return EngineUpgrades
+    elseif name=="Maintenance" then return Maintenance elseif name=="Passengers" then return Passengers elseif name=="Util" then return Util
+    elseif name=="House" then return House elseif name=="Events" then return Events elseif name=="ensureStopLayout" then return ensureStopLayout
+    elseif name=="setupNPC" then return setupNPC elseif name=="writeSave" then return writeSave elseif name=="beginEncounter" then return beginEncounter end
+end
+
+function ui.assignJourneyRules(name,value)
+    if name=="dialogue" then dialogue=value elseif name=="questOffer" then questOffer=value
+    elseif name=="tradeOpen" then tradeOpen=value elseif name=="tradeNPC" then tradeNPC=value
+    elseif name=="scene" then scene=value elseif name=="randomEvent" then randomEvent=value elseif name=="state" then state=value
+    else return false end
+    return true
+end
+
+Systems.inventoryActions=Systems.inventoryActions.install(ui.resolveInventoryActions,ui.assignInventoryActions)
+Systems.journeyRules=Systems.journeyRules.install(ui.resolveJourneyRules,ui.assignJourneyRules)
 
 function ui.playSfx(kind)
     if ui.audio and saveData then return ui.audio:playSfx(kind,saveData.audio,battle) end
@@ -847,7 +595,7 @@ function love.update(dt)
             -- train until the next movement clamp corrected it.
             player.x,player.y=clampToTrainFloor(player.x,player.y)
             for _,id in ipairs(saveData.trainCars or {}) do if id=="greenhouse" then saveData.resources.food=math.min(30,saveData.resources.food+1) elseif id=="medical" then saveData.health=math.min(saveData.maxHealth,saveData.health+3) end end
-            ensureStopLayout(); passengerContributions(); processPassengerArrivals(); writeSave()
+            ensureStopLayout(); Systems.journeyRules.passengerContributions(); Systems.journeyRules.processPassengerArrivals(); writeSave()
         end
         if not travelTransition.arriveSoundPlayed and travelTransition.t>=timing.arrive then travelTransition.arriveSoundPlayed=true; ui.playSfx("trainArrive") end
         if travelTransition.t>=timing.total then travelTransition=nil; sceneryOffset=0; landscapeOffset=0; if saveData.location>=50 then screens:transition("ending"); state=session.screen elseif saveData.arrivalNotice then dialogue={speaker="Passenger",text=saveData.arrivalNotice,timer=4}; saveData.arrivalNotice=nil; writeSave() end end
@@ -860,7 +608,7 @@ function love.update(dt)
         else
             holdPickupTime=holdPickupTime+dt
             if holdPickupTime>=HOLD_PICKUP_SECONDS then
-                nearbyItem=holdPickupIndex; pickUpNearby(); holdPickupIndex,holdPickupTime=nil,0
+                nearbyItem=holdPickupIndex; Systems.inventoryActions.pickUpNearby(); holdPickupIndex,holdPickupTime=nil,0
             end
         end
     end
@@ -1123,10 +871,10 @@ end
 function ui.inventoryContext()
     return {data=saveData,activeChest=activeChest,chestOpen=chestOpen,inventoryOpen=inventoryOpen,draggedSlot=draggedSlot,inventoryDragActive=inventoryDragActive,
         giftOpen=giftOpen,giftNPC=giftNPC,giftSlot=giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=nearNPC,nearPassenger=nearPassenger,
-        ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=isWeapon,
-        drawMenuFrame=drawMenuFrame,button=button,pointer=function() return screenToGame(love.mouse.getPosition()) end,value=containerValue,set=ui.setInventoryState,
-        battleMode=state=="battle",move=moveBetweenSlots,quickTransfer=quickTransfer,collectAmmo=collectAmmo,drop=state=="battle" and function() return false end or dropFromContainer,
-        consume=state=="battle" and consumeBattleSelected or consumeSelected}
+        ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=Systems.inventoryActions.isWeapon,
+        drawMenuFrame=drawMenuFrame,button=button,pointer=function() return screenToGame(love.mouse.getPosition()) end,value=Systems.inventoryActions.containerValue,set=ui.setInventoryState,
+        battleMode=state=="battle",move=Systems.inventoryActions.moveBetweenSlots,quickTransfer=Systems.inventoryActions.quickTransfer,collectAmmo=Systems.inventoryActions.collectAmmo,drop=state=="battle" and function() return false end or Systems.inventoryActions.dropFromContainer,
+        consume=state=="battle" and Systems.inventoryActions.consumeBattleSelected or Systems.inventoryActions.consumeSelected}
 end
 
 function ui.drawInventory() Systems.inventory.draw(ui.inventoryContext()) end
@@ -1142,7 +890,7 @@ local function drawTrade()
     ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
     for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",365,y+12,90,38,saveData.scrap>=price and Inventory.firstEmptySlot(saveData)~=nil) end end
     love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..(layout.tradeBudget or 0).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-    local row=0; for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),700,y+5,110,30,true); if isWeapon(name) then ui.tradeGive[i]=button("GIVE",700,y+37,110,28,true) end; row=row+1 end end
+    local row=0; for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),700,y+5,110,30,true); if Systems.inventoryActions.isWeapon(name) then ui.tradeGive[i]=button("GIVE",700,y+37,110,28,true) end; row=row+1 end end
     ui.tradeClose=button("DONE TRADING",375,605,210,40,true)
 end
 
@@ -1207,7 +955,7 @@ end
 function ui.drawTravelConfirm()
     Systems.worldRenderer.drawLandscape(); Systems.worldRenderer.drawTracks(); Systems.worldRenderer.drawLocomotive(); Systems.worldRenderer.drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
     love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",255,185,450,330,16,16)
-    local cost=travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(saveData.location+1),275,220,410,"center",0,1.5,1.5)
+    local cost=Systems.journeyRules.travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(saveData.location+1),275,220,410,"center",0,1.5,1.5)
     love.graphics.printf("The next stretch is farther than the last.\nThis journey will consume:",300,275,360,"center")
     love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
     love.graphics.printf("TERRAIN: "..string.upper(cost.terrain or "plains"),280,377,400,"center",0,.78,.78)
@@ -1327,7 +1075,7 @@ local function resolveWorldRenderer(name)
     elseif name=="Family" then return Family
     elseif name=="Settlements" then return Settlements elseif name=="Stops" then return Stops
     elseif name=="Util" then return Util elseif name=="itemIsHere" then return itemIsHere
-    elseif name=="pendingMailHere" then return pendingMailHere elseif name=="ensureStopLayout" then return ensureStopLayout end
+    elseif name=="pendingMailHere" then return Systems.journeyRules.pendingMailHere elseif name=="ensureStopLayout" then return ensureStopLayout end
 end
 Systems.worldRenderer=Systems.worldRenderer.install(resolveWorldRenderer)
 
@@ -1369,7 +1117,7 @@ local function resolveGameplayHUD(name)
     elseif name=="Clouds" then return Clouds elseif name=="Maintenance" then return Maintenance
     elseif name=="Util" then return Util elseif name=="button" then return button
     elseif name=="drawMenuFrame" then return drawMenuFrame elseif name=="drawTrade" then return drawTrade
-    elseif name=="isFurnitureItem" then return isFurnitureItem elseif name=="containerValue" then return containerValue
+    elseif name=="isFurnitureItem" then return isFurnitureItem elseif name=="containerValue" then return Systems.inventoryActions.containerValue
     elseif name=="screenToGame" then return screenToGame elseif name=="drawLandscape" then return Systems.worldRenderer.drawLandscape
     elseif name=="drawTracks" then return Systems.worldRenderer.drawTracks elseif name=="drawTrainView" then return Systems.worldRenderer.drawTrainView
     elseif name=="drawHouse" then return Systems.worldRenderer.drawHouse elseif name=="drawStop" then return Systems.worldRenderer.drawStop end
@@ -1452,20 +1200,20 @@ function ui.resolveGameplayInputServices(name)
     elseif name=="BattleRules" then return BattleRules elseif name=="Stops" then return Stops elseif name=="Settlements" then return Settlements
     elseif name=="InteriorDoors" then return InteriorDoors elseif name=="scenery" then return scenery
     elseif name=="writeSave" then return writeSave elseif name=="screenToGame" then return screenToGame
-    elseif name=="isWeapon" then return isWeapon elseif name=="isFurnitureItem" then return isFurnitureItem
+    elseif name=="isWeapon" then return Systems.inventoryActions.isWeapon elseif name=="isFurnitureItem" then return isFurnitureItem
     elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="ownsTrainCar" then return ownsTrainCar
     elseif name=="moveEditedItem" then return moveEditedItem elseif name=="attackStopSludge" then return attackStopSludge
-    elseif name=="acceptQuest" then return acceptQuest elseif name=="attemptLeaveTrain" then return attemptLeaveTrain
-    elseif name=="travelCost" then return travelCost elseif name=="playTrainDepart" then return playTrainDepart
+    elseif name=="acceptQuest" then return Systems.journeyRules.acceptQuest elseif name=="attemptLeaveTrain" then return Systems.journeyRules.attemptLeaveTrain
+    elseif name=="travelCost" then return Systems.journeyRules.travelCost elseif name=="playTrainDepart" then return playTrainDepart
     elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="newSave" then return newSave
     elseif name=="enterGame" then return enterGame elseif name=="resolveEventChoice" then return resolveEventChoice
-    elseif name=="enterStop" then return enterStop elseif name=="battleAttack" then return battleAttack
+    elseif name=="enterStop" then return Systems.journeyRules.enterStop elseif name=="battleAttack" then return battleAttack
     elseif name=="battleHeal" then return battleHeal elseif name=="battleGuard" then return battleGuard
     elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="setBattlePrompt" then return setBattlePrompt
-    elseif name=="beginCarTransition" then return beginCarTransition elseif name=="talkToNPC" then return talkToNPC
+    elseif name=="beginCarTransition" then return beginCarTransition elseif name=="talkToNPC" then return Systems.journeyRules.talkToNPC
     elseif name=="ensureHouseItems" then return ensureHouseItems elseif name=="setupNPC" then return setupNPC
-    elseif name=="giveWeaponToNearby" then return giveWeaponToNearby elseif name=="pickUpNearby" then return pickUpNearby
-    elseif name=="addCoalToFire" then return addCoalToFire elseif name=="requestExitPrompt" then return requestExitPrompt
+    elseif name=="giveWeaponToNearby" then return Systems.inventoryActions.giveWeaponToNearby elseif name=="pickUpNearby" then return Systems.inventoryActions.pickUpNearby
+    elseif name=="addCoalToFire" then return Systems.inventoryActions.addCoalToFire elseif name=="requestExitPrompt" then return requestExitPrompt
     elseif name=="resolveExitPrompt" then return resolveExitPrompt end
 end
 
@@ -1511,7 +1259,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return inventoryOpen elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll elseif name=="tradeOpen" then return tradeOpen elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="poseMenu" then return poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return battle elseif name=="travelTransition" then return travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return actionTimer elseif name=="travelConfirm" then return travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode elseif name=="carTransition" then return carTransition
         elseif name=="session" then return session elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems
-        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return newSave elseif name=="enterGame" then return enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
+        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return newSave elseif name=="enterGame" then return enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then screens:transition(value); state=session.screen elseif name=="selectedSlot" then selectedSlot=session:selectSlot(value) elseif name=="saveData" then saveData=session:setSaveData(value) elseif name=="scene" then scene=session:setScene(value) elseif name=="player" then player=session:setPlayer(value) elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value elseif name=="tradeOpen" then tradeOpen=value elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="poseMenu" then poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then battle=value elseif name=="travelTransition" then travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then actionTimer=value elseif name=="travelConfirm" then travelConfirm=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value elseif name=="carTransition" then carTransition=value end
     end})
