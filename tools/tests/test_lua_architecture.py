@@ -39,6 +39,7 @@ class LuaArchitectureTests(unittest.TestCase):
         screen_ui = (ROOT / "game" / "screen_ui.lua").read_text(encoding="utf-8")
         world_renderer = (ROOT / "game" / "world_renderer.lua").read_text(encoding="utf-8")
         gameplay_hud = (ROOT / "game" / "gameplay_hud.lua").read_text(encoding="utf-8")
+        battle_runtime = (ROOT / "game" / "battle_runtime.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -100,6 +101,14 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("dependency resolver", gameplay_hud)
         self.assertIn("Systems.gameplayHUD=Systems.gameplayHUD.new({", app)
         self.assertNotIn("resolveGameplayHUD", app)
+        self.assertIn('battleRuntime = require("game.battle_runtime")', systems)
+        self.assertIn("return {new=new}", battle_runtime)
+        self.assertNotIn("setfenv", battle_runtime)
+        self.assertNotIn("dependency resolver", battle_runtime)
+        self.assertIn("Systems.battleRuntime=Systems.battleRuntime.new({", app)
+        self.assertNotIn("local function battleContext", app)
+        self.assertNotIn("function ui.battleUIContext", app)
+        self.assertIn("useBattleHealingItem=Systems.battleRuntime.useHealingItem", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

@@ -11,9 +11,8 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
-  local BattleController=required(context,"battleController","table")
   local writeSave=required(context,"writeSave","function")
-  local battleContext=required(context,"battleContext","function")
+  local useBattleHealingItem=required(context,"useBattleHealingItem","function")
   local useBattlePotion=required(context,"useBattlePotion","function")
 
   local function isWeapon(name) return Inventory.isWeapon(name,Catalog.weaponStats) end
@@ -172,7 +171,7 @@ local function new(context)
           if moved then runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave() end
           return moved
       end
-      local used=(effect and effect.health and BattleController.useHealingItem(battleContext(),name)) or (effect and effect.potion and useBattlePotion(name))
+      local used=(effect and effect.health and useBattleHealingItem(name)) or (effect and effect.potion and useBattlePotion(name))
       if used then runtime.draggedSlot=nil; runtime.inventoryDragActive=false; runtime.inventoryOpen=false end
       return used or false
   end

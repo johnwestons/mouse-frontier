@@ -28,6 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
+| Composition root | Combat context, commands, UI wiring, and transitions split across `game/app.lua` | `game/app.lua` wires a dedicated battle runtime facade | Battle orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -52,6 +53,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 9. Screen UI now uses a validated explicit context. Menu, slot, character, map, dialogue, event, workshop, editor, and ending screens read/write runtime state directly; mobile and renderer ordering is handled through declared callbacks rather than a global resolver.
 10. World rendering now uses a validated explicit context. Landscape, train, character, NPC, passenger, stop, house, item, wildlife, and sludge drawing read current session state through runtime ownership, with declared getters only for startup animations and save-restored sludge collections that can be replaced at runtime.
 11. Gameplay HUD now uses a validated explicit context. World composition, travel and car transitions, resources, mobile and desktop menus, interaction prompts, inventory overlays, audio controls, radio, trade, upgrades, and maintenance read current application state through declared runtime and service boundaries. This completes the production resolver-adapter migration.
+12. Battle orchestration now lives behind a validated runtime facade. Encounter startup, controller context, battle commands, tactical UI context, mouse-result transitions, and per-frame battle updates share one service; inventory and input consume focused battle operations instead of rebuilding controller access in the composition root.
 
 ## Definition of done for this migration wave
 

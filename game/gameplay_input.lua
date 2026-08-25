@@ -47,6 +47,7 @@ local function new(context)
   local enterGame=required(context,"enterGame","function")
   local resolveEventChoice=required(context,"resolveEventChoice","function")
   local enterStop=required(context,"enterStop","function")
+  local handleBattleMouse=required(context,"handleBattleMouse","function")
   local battleAttack=required(context,"battleAttack","function")
   local battleHeal=required(context,"battleHeal","function")
   local battleGuard=required(context,"battleGuard","function")
@@ -115,12 +116,7 @@ local function new(context)
   end
 
   function ui.handleBattleMousePressed(x,y,rightClick)
-      local result=Systems.battleUI.handleMouse(ui.battleUIContext(),x,y,rightClick)
-      if result=="missing" then runtime.state="game"
-      elseif result=="continue_win" then runtime.battle=nil; runtime.state="game"; enterStop()
-      elseif result=="continue_loss" or result=="retreat" then
-          runtime.battle=nil; runtime.state="game"; runtime.scene="train"; runtime.npcActor=nil; writeSave()
-      end
+      return handleBattleMouse(x,y,rightClick)
   end
 
   function ui.handleRadioMousePressed(x,y)
