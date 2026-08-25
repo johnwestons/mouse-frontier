@@ -9,6 +9,7 @@ local SESSION_FIELDS = {
 }
 
 local TRANSIENT_DEFAULTS = {
+    animationClock = 0,
     actionTimer = 0,
     battleZoom = 1,
     characterScroll = 0,
@@ -19,13 +20,23 @@ local TRANSIENT_DEFAULTS = {
     holdPickupTime = 0,
     inventoryDragActive = false,
     inventoryOpen = false,
+    landscapeOffset = 0,
     mapOpen = false,
     mapScroll = 0,
+    nearCarNext = false,
+    nearCarPrev = false,
+    nearFire = false,
+    nearHouse = false,
+    nearNPC = false,
+    nearReturnTrain = false,
     playerPose = "idle",
     poseMenu = false,
+    sceneryOffset = 0,
     tradeOpen = false,
+    trainAnimationClock = 0,
     trainUpgradeOpen = false,
     travelConfirm = false,
+    walkingSoundTimer = 0,
 }
 
 local function readSessionField(self, key)

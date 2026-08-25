@@ -33,6 +33,7 @@ class LuaArchitectureTests(unittest.TestCase):
         runtime = (ROOT / "game" / "runtime_state.lua").read_text(encoding="utf-8")
         bootstrap = (ROOT / "game" / "session_bootstrap.lua").read_text(encoding="utf-8")
         gameplay_input = (ROOT / "game" / "gameplay_input.lua").read_text(encoding="utf-8")
+        gameplay_update = (ROOT / "game" / "gameplay_update.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -64,6 +65,11 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("setfenv", gameplay_input)
         self.assertNotIn("dependency resolver", gameplay_input)
         self.assertIn("Systems.gameplayInput=Systems.gameplayInput.new({", app)
+        self.assertIn("return {new=new}", gameplay_update)
+        self.assertNotIn("setfenv", gameplay_update)
+        self.assertNotIn("dependency resolver", gameplay_update)
+        self.assertIn("Systems.gameplayUpdate=GameplayUpdate.new({", app)
+        self.assertNotIn("resolveGameplayUpdate", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
