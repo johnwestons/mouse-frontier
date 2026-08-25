@@ -26,8 +26,8 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Save version | Entry-point constant passed through implicit resolvers | Owned by `game/save_schema.lua`, with sequential legacy upgrades and strict validation | Complete |
 | Mobile inheritance | Mobile adapter wired directly in the former monolithic entry point | Adapter owned by `game/app.lua`; package stages the shared tree | Complete |
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
-| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap, gameplay input/update, and inventory actions complete |
-| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, input, and update-owned fields complete; remaining adapters are incremental |
+| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap, gameplay input/update, inventory actions, and journey rules complete |
+| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, input/update, inventory, and journey-owned fields complete; remaining adapters are incremental |
 
 ## Execution sequence
 
@@ -44,10 +44,11 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 1. `game/runtime_state.lua` now owns authoritative access to screen, selected slot, save data, player, and scene while preserving `GameSession` save behavior and `ScreenManager` transitions.
 2. Session bootstrap now uses a validated explicit context and writes central fields through runtime state.
 3. Gameplay input now uses a validated explicit context; it no longer receives string-resolved dependencies or writes application locals indirectly.
-4. Input-owned overlay, transition, interaction, and battle fields now live in runtime state. Remaining journey, screen, renderer, and HUD adapters move in focused changes rather than one high-risk rewrite.
+4. Input-owned overlay, transition, interaction, and battle fields now live in runtime state. Remaining screen, renderer, and HUD adapters move in focused changes rather than one high-risk rewrite.
 5. Save loading and writing now pass through a non-mutating version 1-to-25 migration boundary. Future, cyclic, and structurally corrupt payloads are rejected; legacy slots are rewritten with their original file retained as a backup; corrupt primaries recover without destroying the known-good backup.
 6. Gameplay update now uses a validated explicit context. Its clocks, travel offsets, held-action state, and world-interaction proximity flags are owned by runtime state instead of application locals exposed through hidden reads and writes.
 7. Inventory actions now use a validated explicit context and mutate inventory, chest, gift, dialogue, pickup, and battle-item state directly through runtime ownership.
+8. Journey rules now use a validated explicit context. Travel costs, passenger contributions, quests, stop entry, encounters, and event routing mutate authoritative runtime/session state directly, including runtime ownership of the active random event.
 
 ## Definition of done for this migration wave
 

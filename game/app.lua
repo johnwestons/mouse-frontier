@@ -55,7 +55,6 @@ local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, 
 local scenery, backgroundImages, ui = {}, {}, {}
 local cloudLayer
 local stopSludges = StopSludges.new()
-local randomEvent = nil
 local characterWalkImages, npcWalkImages = {}, {}
 local characterActionImages, mobAttackImages, mobIdleImages, mobHitImages = {}, {}, {}, {}
 local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {}, {}
@@ -209,10 +208,10 @@ beginEncounter=function(encounter)
 end
 
 local function resolveEventChoice(index)
-    local event=randomEvent; if not event then return end
+    local event=runtime.randomEvent; if not event then return end
     local result=Events.resolve(runtime.saveData,Catalog,event,index); ui.playSfx("menu")
     if result.blocked then return end
-    randomEvent=nil; writeSave()
+    runtime.randomEvent=nil; writeSave()
     if result.encounter then beginEncounter(result.encounter); return end
     runtime.state="game"; Systems.journeyRules.enterStop()
     runtime.dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
@@ -230,25 +229,6 @@ local function battleHeal() BattleController.heal(battleContext()) end
 local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
-function ui.resolveJourneyRules(name)
-    if name=="saveData" then return runtime.saveData elseif name=="dialogue" then return runtime.dialogue elseif name=="questOffer" then return runtime.questOffer
-    elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="car" then return car
-    elseif name=="scene" then return runtime.scene elseif name=="player" then return runtime.player elseif name=="randomEvent" then return randomEvent
-    elseif name=="state" then return runtime.state elseif name=="screens" then return screens elseif name=="session" then return session
-    elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="EngineUpgrades" then return EngineUpgrades
-    elseif name=="Maintenance" then return Maintenance elseif name=="Passengers" then return Passengers elseif name=="Util" then return Util
-    elseif name=="House" then return House elseif name=="Events" then return Events elseif name=="ensureStopLayout" then return ensureStopLayout
-    elseif name=="setupNPC" then return setupNPC elseif name=="writeSave" then return writeSave elseif name=="beginEncounter" then return beginEncounter end
-end
-
-function ui.assignJourneyRules(name,value)
-    if name=="dialogue" then runtime.dialogue=value elseif name=="questOffer" then runtime.questOffer=value
-    elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="tradeNPC" then runtime.tradeNPC=value
-    elseif name=="scene" then runtime.scene=value elseif name=="randomEvent" then randomEvent=value elseif name=="state" then runtime.state=value
-    else return false end
-    return true
-end
-
 Systems.inventoryActions=Systems.inventoryActions.new({
     runtime=runtime,
     inventory=Inventory,
@@ -259,7 +239,22 @@ Systems.inventoryActions=Systems.inventoryActions.new({
     battleContext=battleContext,
     useBattlePotion=useBattlePotion,
 })
-Systems.journeyRules=Systems.journeyRules.install(ui.resolveJourneyRules,ui.assignJourneyRules)
+Systems.journeyRules=Systems.journeyRules.new({
+    runtime=runtime,
+    car=car,
+    inventory=Inventory,
+    catalog=Catalog,
+    engineUpgrades=EngineUpgrades,
+    maintenance=Maintenance,
+    passengers=Passengers,
+    util=Util,
+    house=House,
+    events=Events,
+    ensureStopLayout=ensureStopLayout,
+    setupNPC=setupNPC,
+    writeSave=writeSave,
+    beginEncounter=beginEncounter,
+})
 
 function ui.playSfx(kind)
     if ui.audio and runtime.saveData then return ui.audio:playSfx(kind,runtime.saveData.audio,runtime.battle) end
@@ -444,7 +439,7 @@ function ui.resolveScreenUI(name)
     elseif name=="scenery" then return scenery elseif name=="characters" then return characters elseif name=="characterScroll" then return runtime.characterScroll
     elseif name=="characterImages" then return characterImages elseif name=="mapScroll" then return runtime.mapScroll elseif name=="dialogue" then return runtime.dialogue
     elseif name=="questOffer" then return runtime.questOffer elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="editedItem" then return runtime.editedItem
-    elseif name=="randomEvent" then return randomEvent elseif name=="animationClock" then return runtime.animationClock elseif name=="npcImages" then return npcImages
+    elseif name=="randomEvent" then return runtime.randomEvent elseif name=="animationClock" then return runtime.animationClock elseif name=="npcImages" then return npcImages
     elseif name=="screens" then return screens elseif name=="session" then return session elseif name=="Systems" then return Systems
     elseif name=="Save" then return Save elseif name=="Util" then return Util elseif name=="Catalog" then return Catalog
     elseif name=="Inventory" then return Inventory elseif name=="EventUI" then return EventUI elseif name=="Events" then return Events
@@ -708,11 +703,11 @@ end
 function App.installSmoke()
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
-        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
+        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
         elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return mobileControls elseif name=="Camera" then return Camera
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
     end,__newindex=function(_,name,value)
-        if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
+        if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
     end})
     SmokePlaythrough.install(smokeScope)
 end
