@@ -78,8 +78,7 @@ local trainUpgradeOpen=false
 local poseMenu, playerPose = false, "idle"
 local tradeOpen, tradeNPC = false, nil
 local giftOpen, giftNPC, giftSlot = false, nil, nil
--- Kept outside the top-level local pool because LÖVE limits main.lua locals.
-exitPrompt = nil
+local exitPrompt = nil
 local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
 local maintenanceSession = Maintenance.new()
