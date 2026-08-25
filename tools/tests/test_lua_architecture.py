@@ -41,6 +41,7 @@ class LuaArchitectureTests(unittest.TestCase):
         gameplay_hud = (ROOT / "game" / "gameplay_hud.lua").read_text(encoding="utf-8")
         battle_runtime = (ROOT / "game" / "battle_runtime.lua").read_text(encoding="utf-8")
         world_scene = (ROOT / "game" / "world_scene.lua").read_text(encoding="utf-8")
+        audio_runtime = (ROOT / "game" / "audio_runtime.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -120,6 +121,18 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("function ui.updateChickens", app)
         self.assertIn("resetStopSludges=Systems.worldScene.resetStopSludges", app)
         self.assertIn("updateWorldScene=Systems.worldScene.update", app)
+        self.assertIn('audioRuntime = require("game.audio_runtime")', systems)
+        self.assertIn("return {new=new}", audio_runtime)
+        self.assertNotIn("setfenv", audio_runtime)
+        self.assertNotIn("dependency resolver", audio_runtime)
+        self.assertIn("Systems.audioRuntime=Systems.audioRuntime.new({", app)
+        self.assertNotIn("function ui.playSfx", app)
+        self.assertNotIn("function ui.musicCategory", app)
+        self.assertNotIn("ui.audio", app)
+        self.assertNotIn("ui.audio", gameplay_input)
+        self.assertNotIn("ui.audio", gameplay_hud)
+        self.assertIn("updateAudio=Systems.audioRuntime.update", app)
+        self.assertIn("getAudioStatus=Systems.audioRuntime.status", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

@@ -115,6 +115,13 @@ Systems.worldScene=Systems.worldScene.new({
     writeSave=writeSave,
 })
 
+Systems.audioRuntime=Systems.audioRuntime.new({
+    runtime=runtime,
+    ui=ui,
+    catalog=Catalog,
+    audio=Audio,
+})
+
 Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     saveSchema=SaveSchema,
     characters=characters,
@@ -231,37 +238,10 @@ Systems.journeyRules=Systems.journeyRules.new({
     beginEncounter=Systems.battleRuntime.beginEncounter,
 })
 
-function ui.playSfx(kind)
-    if ui.audio and runtime.saveData then return ui.audio:playSfx(kind,runtime.saveData.audio,runtime.battle) end
-end
-
-local function playTrainDepart()
-    ui.departSource=ui.playSfx("trainDepart")
-end
-
-function ui.weaponSfx(weaponName,combat)
-    if weaponName=="trail-slingshot" or weaponName=="scrap-boomerang" or combat.ammo=="arrows" then return "bow" end
-    if combat.kind~="ranged" then return weaponName=="scratch" and "slash" or "sword" end
-    local tier=(Catalog.weaponStats[weaponName] and Catalog.weaponStats[weaponName].tier) or 1
-    return tier<=4 and "gunshotLight" or (tier<=6 and "gunshotMedium" or "gunshotHeavy")
-end
-
-function ui.musicCategory()
-    if runtime.state=="ending" then return "endingHappy" end
-    if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.tier=="hard" and "bossFight" or "battle" end
-    if runtime.scene=="house" then return "insideHomes" end
-    if runtime.scene=="stop" or runtime.state=="event" then return "stops" end
-    return "train"
-end
-
-function ui.updateMusic()
-    if runtime.saveData and ui.audio then ui.audio:update(runtime.saveData.audio,ui.musicCategory()) end
-end
-
 function App.load()
     love.graphics.setDefaultFilter("nearest", "nearest")
     love.graphics.setFont(love.graphics.newFont(16))
-    ui.audio=Audio.new(); ui.audio:installGunPools()
+    Systems.audioRuntime.initialize()
     love.filesystem.createDirectory("saves")
     characterAnimations=Assets.load({
         ui=ui, scenery=scenery, characters=characters, characterImages=characterImages,
@@ -359,6 +339,7 @@ function App.load()
         util=Util,
         passengers=Passengers,
         screenToGame=screenToGame,
+        updateAudio=Systems.audioRuntime.update,
         ensureStopLayout=Systems.worldScene.ensureStopLayout,
         updateWorldScene=Systems.worldScene.update,
         clampToTrainFloor=clampToTrainFloor,
@@ -511,6 +492,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     containerValue=Systems.inventoryActions.containerValue,
     screenToGame=screenToGame,
     pointerPosition=pointerPosition,
+    getAudioStatus=Systems.audioRuntime.status,
     drawLandscape=Systems.worldRenderer.drawLandscape,
     drawTracks=Systems.worldRenderer.drawTracks,
     drawTrainView=Systems.worldRenderer.drawTrainView,
@@ -589,7 +571,12 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     acceptQuest=Systems.journeyRules.acceptQuest,
     attemptLeaveTrain=Systems.journeyRules.attemptLeaveTrain,
     travelCost=Systems.journeyRules.travelCost,
-    playTrainDepart=playTrainDepart,
+    playTrainDepart=Systems.audioRuntime.playTrainDepart,
+    audioResetMusic=Systems.audioRuntime.resetMusic,
+    audioPreviousTrack=Systems.audioRuntime.previousTrack,
+    audioTogglePause=Systems.audioRuntime.togglePause,
+    audioNextTrack=Systems.audioRuntime.nextTrack,
+    audioToggleMute=Systems.audioRuntime.toggleMute,
     trainFloorBounds=trainFloorBounds,
     trainObjectBounds=trainObjectBounds,
     newSave=Systems.sessionBootstrap.newSave,
@@ -655,6 +642,6 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
 end
 end
 
-function App.quit() Maintenance.release(maintenanceSession); writeSave(); Save.flush(); if ui.audio and ui.audio.shutdown then ui.audio:shutdown() end end
+function App.quit() Maintenance.release(maintenanceSession); writeSave(); Save.flush(); Systems.audioRuntime.shutdown() end
 
 return App

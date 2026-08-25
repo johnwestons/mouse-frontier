@@ -2,6 +2,7 @@
 -- Feature modules remain independently require-able; game.app constructs the
 -- runtime-facing services after it has created authoritative application state.
 return {
+    audioRuntime = require("game.audio_runtime"),
     battleRuntime = require("game.battle_runtime"),
     battleUI = require("game.battle_ui"),
     gameplayHUD = require("game.gameplay_hud"),

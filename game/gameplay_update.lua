@@ -32,6 +32,7 @@ local function new(context)
   local Util=required(context,"util","table")
   local Passengers=required(context,"passengers","table")
   local screenToGame=required(context,"screenToGame","function")
+  local updateAudio=required(context,"updateAudio","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
   local updateWorldScene=required(context,"updateWorldScene","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
@@ -66,7 +67,7 @@ local function new(context)
       -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
       -- the retired random decoration wildlife remains disconnected.
       runtime.walkingSoundTimer=math.max(0,runtime.walkingSoundTimer-dt)
-      ui.updateMusic()
+      updateAudio()
       local trainRate=2.2
       if runtime.travelTransition then
           local t=runtime.travelTransition.t or 0; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)

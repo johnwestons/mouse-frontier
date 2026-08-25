@@ -28,7 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat and world-scene behavior split across `game/app.lua` | `game/app.lua` wires dedicated battle and world-scene services | Battle and world-scene orchestration extracted; further domain extraction is incremental |
+| Composition root | Combat, world-scene, and audio behavior split across `game/app.lua` | `game/app.lua` wires dedicated battle, world-scene, and audio services | Battle, world-scene, and audio orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -55,6 +55,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 11. Gameplay HUD now uses a validated explicit context. World composition, travel and car transitions, resources, mobile and desktop menus, interaction prompts, inventory overlays, audio controls, radio, trade, upgrades, and maintenance read current application state through declared runtime and service boundaries. This completes the production resolver-adapter migration.
 12. Battle orchestration now lives behind a validated runtime facade. Encounter startup, controller context, battle commands, tactical UI context, mouse-result transitions, and per-frame battle updates share one service; inventory and input consume focused battle operations instead of rebuilding controller access in the composition root.
 13. World-scene orchestration now lives behind a validated service. Stop and house layout, NPC restoration, dropped-item location rules, sludge state/combat, chicken flocks, and mice share one owner; save bootstrap resets service-owned encounter state while update, rendering, journey, input, and smoke paths consume focused operations.
+14. Audio orchestration now lives behind a validated runtime service. Audio initialization and shutdown, scene-aware music categories, sound effects, weapon sound mapping, train departure playback, radio resets, track controls, mute/pause state, and HUD status share one owner; input and HUD no longer access the raw audio engine.
 
 ## Definition of done for this migration wave
 

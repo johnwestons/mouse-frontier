@@ -158,7 +158,11 @@ end
 function Audio:update(settings, category)
     for index=#self.activeSfx,1,-1 do
         local source=self.activeSfx[index]
-        if not source:isPlaying() then if source.release then pcall(source.release,source) end; table.remove(self.activeSfx,index) end
+        if not source:isPlaying() then
+            if source==self.arrivalSource then self.arrivalSource=nil end
+            if source.release then pcall(source.release,source) end
+            table.remove(self.activeSfx,index)
+        end
     end
     if self.arrivalSource and self.arrivalSource:isPlaying() and self.arrivalSource:tell() >= 21 then
         self.arrivalSource:stop(); self.arrivalSource=nil
