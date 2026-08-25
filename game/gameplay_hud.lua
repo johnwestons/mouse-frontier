@@ -15,7 +15,7 @@ local function new(context)
   local maintenanceSession=required(context,"maintenanceSession","table")
   local HOLD_PICKUP_SECONDS=required(context,"holdPickupSeconds","number")
   local getCloudLayer=required(context,"getCloudLayer","function")
-  local getMobileControls=required(context,"getMobileControls","function")
+  local mobileEnabled=required(context,"mobileEnabled","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
@@ -36,7 +36,6 @@ local function new(context)
 
   local function drawGame()
       local cloudLayer=getCloudLayer()
-      local mobileControls=getMobileControls()
       ui.returnDoor=nil
       if runtime.scene=="train" then
           drawLandscape(); drawTracks(); local tx=0
@@ -58,7 +57,7 @@ local function new(context)
       ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110)
       ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110)
       ui.drawJourneyHUD()
-      local mobile=mobileControls and mobileControls:isEnabled()
+      local mobile=mobileEnabled()
       ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
       if mobile then
           if ui.mobileMenuOpen then

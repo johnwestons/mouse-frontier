@@ -1,12 +1,12 @@
 local InventoryUI = {}
 
 local function inventorySlotRect(ctx,index)
-    if ctx.mobileControls and ctx.mobileControls:isEnabled() then return ctx.Inventory.mobileInventorySlotRect(index) end
+    if ctx.mobileEnabled then return ctx.Inventory.mobileInventorySlotRect(index) end
     return ctx.Inventory.inventorySlotRect(index)
 end
 
 local function equipmentSlotRect(ctx,index)
-    if ctx.mobileControls and ctx.mobileControls:isEnabled() then return ctx.Inventory.mobileEquipmentSlotRect(index) end
+    if ctx.mobileEnabled then return ctx.Inventory.mobileEquipmentSlotRect(index) end
     return ctx.Inventory.equipmentSlotRect(index)
 end
 
@@ -110,7 +110,7 @@ function InventoryUI.draw(ctx)
     local battleUsable=ctx.battleMode and (ctx.isWeapon(selectedName) or (effect and (effect.health or effect.potion)))
     local actionLabel=ctx.battleMode and (ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1" or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON"))
         or (gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT AN ITEM TO USE"))))
-    local mobile=ctx.mobileControls and ctx.mobileControls:isEnabled()
+    local mobile=ctx.mobileEnabled
     ui.consume=ctx.button(actionLabel,565,mobile and 620 or 628,230,mobile and 62 or 38,ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift))
     if ctx.giftOpen then
         ctx.drawMenuFrame(220,170,520,180,3,.97); love.graphics.setColor(ctx.colors.cream)

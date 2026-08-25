@@ -28,7 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat, world-scene, audio, inventory-presentation, event, and train-car behavior split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Battle, world-scene, audio, inventory-presentation, event, and train-car orchestration extracted; further domain extraction is incremental |
+| Composition root | Combat, world-scene, audio, inventory-presentation, event, train-car, and mobile-control behavior split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Battle, world-scene, audio, inventory-presentation, event, train-car, and mobile-control orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -59,6 +59,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 15. Inventory presentation now lives behind a validated presenter service. Mutable click timing, UI context construction, desktop/mobile slot presentation, battle restrictions, item drawing, and click/release routing share one owner; application and gameplay input no longer build or consume the raw inventory UI context.
 16. Trail-event orchestration now lives behind a validated runtime service. Required and random event presentation, choice affordability, pointer hit routing, consequence resolution, battle handoff, stop entry, and result dialogue share one owner; journey, screen, input, and smoke paths consume focused event operations instead of the raw event model.
 17. Train-car orchestration now lives behind a validated runtime service. Active-car imagery, floor and object bounds, player clamping, inter-car transition startup/completion, train re-entry, and edited-item placement share one owner; session bootstrap, update, and input consume focused train-car operations, with an automated two-car transition checkpoint.
+18. Mobile-control orchestration now lives behind a validated runtime service. Controller creation, action labels, overlay visibility, movement/held/sprint queries, pointer translation, pinch zoom, synthetic-mouse filtering, touch forwarding, drawing, Android back-key translation, and focus cancellation share one owner; gameplay systems consume focused mobile capabilities instead of the raw controller.
 
 ## Definition of done for this migration wave
 

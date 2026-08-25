@@ -13,7 +13,7 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local colors=required(context,"colors","table")
-  local getMobileControls=required(context,"getMobileControls","function")
+  local mobileEnabled=required(context,"mobileEnabled","function")
   local pointIn=required(context,"pointIn","function")
   local title=required(context,"title","function")
   local isWeapon=required(context,"isWeapon","function")
@@ -65,7 +65,7 @@ local function new(context)
           Inventory=Inventory,
           Catalog=Catalog,
           colors=colors,
-          mobileControls=getMobileControls(),
+          mobileEnabled=mobileEnabled(),
           pointIn=pointIn,
           title=title,
           isWeapon=isWeapon,

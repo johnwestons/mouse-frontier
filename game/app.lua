@@ -61,7 +61,6 @@ local itemIdleImages = {}
 local characterAnimations = {}
 local HOLD_PICKUP_SECONDS = Config.holdPickupSeconds
 local maintenanceSession = Maintenance.new()
-local mobileControls
 
 
 -- Rolling-stock layout: the car sits farther right to leave room for the
@@ -117,6 +116,18 @@ Systems.trainCarRuntime=Systems.trainCarRuntime.new({
     writeSave=writeSave,
 })
 
+Systems.mobileRuntime=Systems.mobileRuntime.new({
+    runtime=runtime,
+    ui=ui,
+    maintenanceSession=maintenanceSession,
+    mobileControls=MobileControls,
+    viewport=Viewport,
+    camera=Camera,
+    width=W,
+    height=H,
+    getGameplayInput=function() return Systems.gameplayInput end,
+})
+
 Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     saveSchema=SaveSchema,
     characters=characters,
@@ -155,13 +166,6 @@ local function screenToGame(x,y)
     return x,y
 end
 
-local function pointerPosition()
-    local x,y=love.mouse.getPosition()
-    if mobileControls then return mobileControls:pointer(x,y) end
-    return x,y
-end
-
-
 Systems.battleRuntime=Systems.battleRuntime.new({
     runtime=runtime,
     width=W,
@@ -181,7 +185,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     mobWalkImages=mobWalkImages,
     mobRangedImages=mobRangedImages,
     getCharacterAnimations=function() return characterAnimations end,
-    getMobileControls=function() return mobileControls end,
+    mobileEnabled=Systems.mobileRuntime.isEnabled,
     getWorldRenderer=function() return Systems.worldRenderer end,
     getScreenUI=function() return Systems.screenUI end,
     catalog=Catalog,
@@ -192,7 +196,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     battleUI=Systems.battleUI,
     writeSave=writeSave,
     screenToGame=screenToGame,
-    pointerPosition=pointerPosition,
+    pointerPosition=Systems.mobileRuntime.pointerPosition,
     enterStop=function(...) return Systems.journeyRules.enterStop(...) end,
     handleInventoryClick=function(x,y) return Systems.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
 })
@@ -261,56 +265,7 @@ function App.load()
         characterAnimations=characterAnimations,
         legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages,npcImages,mobImages},
     })
-    mobileControls=MobileControls.new({
-        width=W,height=H,
-        toGame=function(x,y) return Viewport.toGame(x,y,W,H) end,
-        gameplayActive=function()
-            return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open
-                and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-                and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.exitPrompt
-        end,
-        getZoom=function() return Camera.zoom end,
-        setZoom=function(value) Camera:setZoom(value) end,
-        backVisible=function()
-            if runtime.exitPrompt then return true end
-            if runtime.state=="slots" or runtime.state=="characters" then return true end
-            if runtime.state=="battle" then return runtime.inventoryOpen end
-            return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
-                or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil)
-        end,
-        backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
-        menuVisible=function()
-            return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
-                and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-                and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue
-        end,
-        menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
-        menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; Camera:endPan() end,
-        primaryAction=function()
-            if runtime.dialogue then return "q","CLOSE" end
-            local kind=ui.interaction and ui.interaction.kind
-            if kind=="radio" then return "p","RADIO"
-            elseif kind=="item" then return "e","PICK UP"
-            elseif kind=="chest" then return "i","OPEN"
-            elseif kind=="fire" then return "e","COAL"
-            elseif kind=="npc" or kind=="passenger" then return "q","TALK"
-            elseif kind=="house" then return "q","ENTER"
-            elseif kind=="houseExit" then return "q","EXIT"
-            elseif kind=="returnTrain" then return "q","BOARD"
-            elseif kind=="carNext" or kind=="carPrev" then return "q","DOOR"
-            end
-            return "e","USE"
-        end,
-        secondaryAction=function()
-            local kind=ui.interaction and ui.interaction.kind
-            if kind=="npc" or kind=="passenger" then return "g","GIVE" end
-        end,
-        pressKey=function(key) Systems.gameplayInput.keypressed(key) end,
-        releaseKey=function(key) Systems.gameplayInput.keyreleased(key) end,
-        pressPointer=function(x,y,button) Systems.gameplayInput.mousepressed(x,y,button) end,
-        movePointer=function(x,y,dx,dy) Systems.gameplayInput.mousemoved(x,y,dx,dy) end,
-        releasePointer=function(x,y,button) Systems.gameplayInput.mousereleased(x,y,button) end,
-    })
+    Systems.mobileRuntime.initialize()
     Systems.gameplayUpdate=GameplayUpdate.new({
         runtime=runtime,
         width=W,
@@ -320,7 +275,10 @@ function App.load()
         scenery=scenery,
         cloudLayer=cloudLayer,
         maintenanceSession=maintenanceSession,
-        mobileControls=mobileControls,
+        mobileEnabled=Systems.mobileRuntime.isEnabled,
+        mobileMovement=Systems.mobileRuntime.movement,
+        mobileHeld=Systems.mobileRuntime.isHeld,
+        mobileSprinting=Systems.mobileRuntime.isSprinting,
         interactionRouter=Systems.interactions,
         inventoryActions=Systems.inventoryActions,
         journeyRules=Systems.journeyRules,
@@ -382,7 +340,7 @@ Systems.screenUI=Systems.screenUI.new({
     writeSave=writeSave,
     screenToGame=screenToGame,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
-    mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end,
+    mobileEnabled=Systems.mobileRuntime.isEnabled,
     drawLandscape=function(...) return Systems.worldRenderer.drawLandscape(...) end,
     drawTracks=function(...) return Systems.worldRenderer.drawTracks(...) end,
     drawLocomotive=function(...) return Systems.worldRenderer.drawLocomotive(...) end,
@@ -398,13 +356,13 @@ Systems.inventoryPresenter=Systems.inventoryPresenter.new({
     inventory=Inventory,
     catalog=Catalog,
     colors=colors,
-    getMobileControls=function() return mobileControls end,
+    mobileEnabled=Systems.mobileRuntime.isEnabled,
     pointIn=Util.pointIn,
     title=Util.titleFromFile,
     isWeapon=Systems.inventoryActions.isWeapon,
     drawMenuFrame=Systems.screenUI.drawMenuFrame,
     button=Systems.screenUI.button,
-    pointer=function() return screenToGame(pointerPosition()) end,
+    pointer=function() return screenToGame(Systems.mobileRuntime.pointerPosition()) end,
     value=Systems.inventoryActions.containerValue,
     move=Systems.inventoryActions.moveBetweenSlots,
     quickTransfer=Systems.inventoryActions.quickTransfer,
@@ -460,7 +418,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     maintenanceSession=maintenanceSession,
     holdPickupSeconds=HOLD_PICKUP_SECONDS,
     getCloudLayer=function() return cloudLayer end,
-    getMobileControls=function() return mobileControls end,
+    mobileEnabled=Systems.mobileRuntime.isEnabled,
     engineUpgrades=EngineUpgrades,
     clouds=Clouds,
     maintenance=Maintenance,
@@ -471,7 +429,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     isFurnitureItem=isFurnitureItem,
     containerValue=Systems.inventoryActions.containerValue,
     screenToGame=screenToGame,
-    pointerPosition=pointerPosition,
+    pointerPosition=Systems.mobileRuntime.pointerPosition,
     getAudioStatus=Systems.audioRuntime.status,
     drawLandscape=Systems.worldRenderer.drawLandscape,
     drawTracks=Systems.worldRenderer.drawTracks,
@@ -507,7 +465,7 @@ function App.draw()
     screens:draw()
     if runtime.exitPrompt then Systems.screenUI.drawExitPrompt() end
     love.graphics.pop()
-    if mobileControls then mobileControls:draw(offsetX,offsetY,scaleX,scaleY) end
+    Systems.mobileRuntime.draw(offsetX,offsetY,scaleX,scaleY)
     if runtime.travelTransition then
         local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
         local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade)
@@ -540,7 +498,7 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     interiorDoors=InteriorDoors,
     writeSave=writeSave,
     screenToGame=screenToGame,
-    pointerPosition=pointerPosition,
+    pointerPosition=Systems.mobileRuntime.pointerPosition,
     isWeapon=Systems.inventoryActions.isWeapon,
     isFurnitureItem=isFurnitureItem,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
@@ -581,30 +539,18 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     requestExitPrompt=Systems.screenUI.requestExitPrompt,
     resolveExitPrompt=Systems.screenUI.resolveExitPrompt,
 })
-function App.mousepressed(x,y,button,istouch,...)
-    if mobileControls and mobileControls:ignoreSyntheticMouse(istouch) then return end
-    return Systems.gameplayInput.mousepressed(x,y,button,...)
-end
-function App.mousemoved(x,y,dx,dy,istouch,...)
-    if mobileControls and mobileControls:ignoreSyntheticMouse(istouch) then return end
-    return Systems.gameplayInput.mousemoved(x,y,dx,dy,...)
-end
-function App.mousereleased(x,y,button,istouch,...)
-    if mobileControls and mobileControls:ignoreSyntheticMouse(istouch) then return end
-    return Systems.gameplayInput.mousereleased(x,y,button,...)
-end
+function App.mousepressed(...) return Systems.mobileRuntime.mousepressed(...) end
+function App.mousemoved(...) return Systems.mobileRuntime.mousemoved(...) end
+function App.mousereleased(...) return Systems.mobileRuntime.mousereleased(...) end
 function App.wheelmoved(...) return Systems.gameplayInput.wheelmoved(...) end
-function App.keypressed(key,...)
-    if key=="acback" then key="escape" end
-    return Systems.gameplayInput.keypressed(key,...)
-end
-function App.keyreleased(...) return Systems.gameplayInput.keyreleased(...) end
-function App.touchpressed(id,x,y) if mobileControls then return mobileControls:touchpressed(id,x,y) end end
-function App.touchmoved(id,x,y,dx,dy) if mobileControls then return mobileControls:touchmoved(id,x,y,dx,dy) end end
-function App.touchreleased(id,x,y) if mobileControls then return mobileControls:touchreleased(id,x,y) end end
+function App.keypressed(...) return Systems.mobileRuntime.keypressed(...) end
+function App.keyreleased(...) return Systems.mobileRuntime.keyreleased(...) end
+function App.touchpressed(...) return Systems.mobileRuntime.touchpressed(...) end
+function App.touchmoved(...) return Systems.mobileRuntime.touchmoved(...) end
+function App.touchreleased(...) return Systems.mobileRuntime.touchreleased(...) end
 function App.focus(focused)
+    Systems.mobileRuntime.focus(focused)
     if not focused then
-        if mobileControls then mobileControls:cancelAll() end
         writeSave(); Save.flush()
     end
 end
@@ -615,7 +561,7 @@ function App.installSmoke()
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
-        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return mobileControls elseif name=="Camera" then return Camera
+        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="Camera" then return Camera
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end

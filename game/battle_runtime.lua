@@ -25,7 +25,7 @@ local function new(context)
   local mobWalkImages=required(context,"mobWalkImages","table")
   local mobRangedImages=required(context,"mobRangedImages","table")
   local getCharacterAnimations=required(context,"getCharacterAnimations","function")
-  local getMobileControls=required(context,"getMobileControls","function")
+  local mobileEnabled=required(context,"mobileEnabled","function")
   local getWorldRenderer=required(context,"getWorldRenderer","function")
   local getScreenUI=required(context,"getScreenUI","function")
   local Catalog=required(context,"catalog","table")
@@ -86,7 +86,7 @@ local function new(context)
       local renderer=getWorldRenderer()
       local screenUI=getScreenUI()
       return {
-          W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,scenery=scenery,colors=colors,mobileControls=getMobileControls(),
+          W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,scenery=scenery,colors=colors,mobileEnabled=mobileEnabled(),
           characterImages=characterImages,npcImages=npcImages,mobImages=mobImages,
           characterWalkImages=characterWalkImages,npcWalkImages=npcWalkImages,
           mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,

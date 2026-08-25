@@ -15,7 +15,10 @@ local function new(context)
   local scenery=required(context,"scenery","table")
   local cloudLayer=required(context,"cloudLayer","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
-  local mobileControls=required(context,"mobileControls","table")
+  local mobileEnabled=required(context,"mobileEnabled","function")
+  local mobileMovement=required(context,"mobileMovement","function")
+  local mobileHeld=required(context,"mobileHeld","function")
+  local mobileSprinting=required(context,"mobileSprinting","function")
   local interactionRouter=required(context,"interactionRouter","table")
   local inventoryActions=required(context,"inventoryActions","table")
   local journeyRules=required(context,"journeyRules","table")
@@ -46,7 +49,7 @@ local function new(context)
 
   local function updateInteraction()
       local mx,my
-      if mobileControls:isEnabled() then mx,my=runtime.player.x,runtime.player.y
+      if mobileEnabled() then mx,my=runtime.player.x,runtime.player.y
       else mx,my=screenToGame(love.mouse.getPosition()) end
       local selected=interactionRouter.select({data=runtime.saveData,scene=runtime.scene,player=runtime.player,npc=runtime.npcActor,car=car,mouseX=mx,mouseY=my,
           itemIsHere=itemIsHere,storageCapacities=Catalog.storageCapacities,nearTrain=Settlements.nearTrain,trainPoint=Settlements.trainPoint,
@@ -120,7 +123,7 @@ local function new(context)
       end
       if runtime.holdPickupIndex then
           local item=runtime.saveData and runtime.saveData.droppedItems[runtime.holdPickupIndex]
-          local useHeld=love.keyboard.isDown("e") or mobileControls:isHeld("e")
+          local useHeld=love.keyboard.isDown("e") or mobileHeld("e")
           if not useHeld or not item or not itemIsHere(item) or math.sqrt((runtime.player.x-item.x)^2+(runtime.player.y-item.y)^2)>=75 then
               runtime.holdPickupIndex,runtime.holdPickupTime=nil,0
           else
@@ -142,13 +145,13 @@ local function new(context)
       if maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen then return end
       local dx=movementAxis("a","d")+movementAxis("left","right")
       local dy=movementAxis("w","s")+movementAxis("up","down")
-      local mobileX,mobileY=mobileControls:movement(); dx,dy=dx+mobileX,dy+mobileY
+      local mobileX,mobileY=mobileMovement(); dx,dy=dx+mobileX,dy+mobileY
       runtime.player.moving=dx~=0 or dy~=0
       if runtime.player.moving then
           runtime.playerPose="idle"; runtime.poseMenu=false
           local length=math.sqrt(dx*dx+dy*dy); dx,dy=dx/length,dy/length
           if dx~=0 then runtime.player.facing=dx>0 and 1 or -1 end
-          local sprint=(love.keyboard.isDown("lshift","rshift") or mobileControls:isSprinting()) and 1.7 or 1
+          local sprint=(love.keyboard.isDown("lshift","rshift") or mobileSprinting()) and 1.7 or 1
           local oldX,oldY=runtime.player.x,runtime.player.y
           runtime.player.x,runtime.player.y=runtime.player.x+dx*runtime.player.speed*sprint*dt,runtime.player.y+dy*runtime.player.speed*sprint*dt
           if runtime.walkingSoundTimer<=0 then

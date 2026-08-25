@@ -26,7 +26,7 @@ function BattleUI.draw(ctx)
     local mobDeathImages,mobWalkImages,mobRangedImages=ctx.mobDeathImages,ctx.mobWalkImages,ctx.mobRangedImages
     local animationClock,characterAnimations=ctx.animationClock,ctx.characterAnimations
     local saveData,inventoryOpen,ui=ctx.saveData,ctx.inventoryOpen,ctx.ui
-    local mobile=ctx.mobileControls and ctx.mobileControls:isEnabled()
+    local mobile=ctx.mobileEnabled
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
     drawLandscape(); drawGround()
