@@ -5,8 +5,17 @@ function Inventory.inventorySlotRect(index)
     return {x=584+column*76,y=230+row*56,w=62,h=52}
 end
 
+function Inventory.mobileInventorySlotRect(index)
+    local column,row=(index-1)%4,math.floor((index-1)/4)
+    return {x=575+column*82,y=230+row*78,w=76,h=68}
+end
+
 function Inventory.equipmentSlotRect(index)
     return {x=600+(index-1)*160,y=496,w=128,h=58}
+end
+
+function Inventory.mobileEquipmentSlotRect(index)
+    return {x=580+(index-1)*170,y=490,w=150,h=70}
 end
 
 function Inventory.chestSlotRect(index)

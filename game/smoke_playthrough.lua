@@ -184,6 +184,61 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             end,check=function(_,_,_,result) return result.wrote and result.location==17 and result.nested=="smoke-save" end},
             {name="asset_contract",action=function() return Assets.assetFailureSummary() end,expect={assetFailures=0}}
         }
+        if mobileControls and mobileControls:isEnabled() then
+            local mobileSteps={
+                {name="mobile_joystick_move_and_run",action=function()
+                    saveData=newSave(character); enterGame(saveData)
+                    local before=player.x
+                    love.touchpressed("smoke-stick",116,604)
+                    love.touchmoved("smoke-stick",192,604,76,0)
+                    local sprinting=mobileControls:isSprinting()
+                    ui.smokeUpdate(.25)
+                    love.touchreleased("smoke-stick",192,604)
+                    local axisX,axisY=mobileControls:movement()
+                    return {before=before,after=player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=mobileControls.joystick.x,actionX=mobileControls.primary.x}
+                end,check=function(_,_,_,result)
+                    return result.after>result.before and result.sprinting and result.axisX==0 and result.axisY==0 and result.stickX<=100 and result.actionX>=884
+                end},
+                {name="mobile_action_press_release",action=function()
+                    ui.interaction=nil; dialogue=nil
+                    love.touchpressed("smoke-action",855,615)
+                    local held=mobileControls:isHeld("e")
+                    local action=actionKind
+                    love.touchreleased("smoke-action",855,615)
+                    return {held=held,released=not mobileControls:isHeld("e"),action=action}
+                end,check=function(_,_,_,result) return result.held and result.released and result.action=="use" end},
+                {name="mobile_menu_touch",action=function()
+                    ui.smokeDraw()
+                    love.touchpressed("smoke-menu-open",866,100); love.touchreleased("smoke-menu-open",866,100)
+                    ui.smokeDraw()
+                    local menuOpened=ui.mobileMenuOpen and ui.backpack and ui.backpack.h>=64
+                    love.touchpressed("smoke-pack-open",437,259); love.touchreleased("smoke-pack-open",437,259)
+                    local opened=inventoryOpen and not ui.mobileMenuOpen
+                    ui.smokeDraw()
+                    love.touchpressed("smoke-back",80,101); love.touchreleased("smoke-back",80,101)
+                    return {menuOpened=menuOpened,opened=opened,closed=not inventoryOpen}
+                end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
+                {name="mobile_pinch_zoom",action=function()
+                    ui.mobileMenuOpen=false; inventoryOpen=false; mapOpen=false; dialogue=nil; Camera:setZoom(1)
+                    love.touchpressed("smoke-pinch-a",400,350)
+                    love.touchpressed("smoke-pinch-b",560,350)
+                    love.touchmoved("smoke-pinch-b",640,350,80,0)
+                    local zoomed=Camera.zoom
+                    love.touchreleased("smoke-pinch-b",640,350)
+                    love.touchreleased("smoke-pinch-a",400,350)
+                    local clean=mobileControls.pinch==nil and next(mobileControls.touches)==nil
+                    love.touchpressed("smoke-pinch-c",400,350)
+                    love.touchpressed("smoke-pinch-d",640,350)
+                    love.touchmoved("smoke-pinch-d",420,350,-220,0)
+                    local clamped=Camera.zoom
+                    love.touchreleased("smoke-pinch-d",420,350); love.touchreleased("smoke-pinch-c",400,350)
+                    return {zoomed=zoomed,clamped=clamped,clean=clean}
+                end,check=function(_,_,_,result)
+                    return result.zoomed>1.45 and result.zoomed<1.55 and result.clamped==1 and result.clean
+                end},
+            }
+            for _,step in ipairs(mobileSteps) do steps[#steps+1]=step end
+        end
         for _,step in ipairs(steps) do
             local originalAfter=step.after
             step.after=function(controller,current,record)

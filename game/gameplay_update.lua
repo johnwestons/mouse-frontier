@@ -16,7 +16,9 @@ local function install(resolve,assign)
   local function movementAxis(a, b) return (love.keyboard.isDown(b) and 1 or 0) - (love.keyboard.isDown(a) and 1 or 0) end
 
   local function updateInteraction()
-      local mx,my=screenToGame(love.mouse.getPosition())
+      local mx,my
+      if mobileControls and mobileControls:isEnabled() then mx,my=player.x,player.y
+      else mx,my=screenToGame(love.mouse.getPosition()) end
       local selected=Systems.interactions.select({data=saveData,scene=scene,player=player,npc=npcActor,car=car,mouseX=mx,mouseY=my,
           itemIsHere=itemIsHere,storageCapacities=Catalog.storageCapacities,nearTrain=Settlements.nearTrain,trainPoint=Settlements.trainPoint,
           nearDoor=Settlements.nearDoor,doorPoint=Settlements.doorPoint,hasSettlements=scenery.settlements~=nil,layout=ensureStopLayout,
@@ -81,7 +83,8 @@ local function install(resolve,assign)
       end
       if holdPickupIndex then
           local item=saveData and saveData.droppedItems[holdPickupIndex]
-          if not love.keyboard.isDown("e") or not item or not itemIsHere(item) or math.sqrt((player.x-item.x)^2+(player.y-item.y)^2)>=75 then
+          local useHeld=love.keyboard.isDown("e") or (mobileControls and mobileControls:isHeld("e"))
+          if not useHeld or not item or not itemIsHere(item) or math.sqrt((player.x-item.x)^2+(player.y-item.y)^2)>=75 then
               holdPickupIndex,holdPickupTime=nil,0
           else
               holdPickupTime=holdPickupTime+dt
@@ -111,12 +114,13 @@ local function install(resolve,assign)
       if maintenanceSession.open or inventoryOpen or mapOpen or dialogue or editMode or ui.radioOpen then return end
       local dx = movementAxis("a", "d") + movementAxis("left", "right")
       local dy = movementAxis("w", "s") + movementAxis("up", "down")
+      if mobileControls then local mobileX,mobileY=mobileControls:movement(); dx,dy=dx+mobileX,dy+mobileY end
       player.moving = dx ~= 0 or dy ~= 0
       if player.moving then
           playerPose="idle"; poseMenu=false
           local length = math.sqrt(dx*dx + dy*dy); dx, dy = dx/length, dy/length
           if dx ~= 0 then player.facing = dx > 0 and 1 or -1 end
-          local sprint=love.keyboard.isDown("lshift","rshift") and 1.7 or 1
+          local sprint=(love.keyboard.isDown("lshift","rshift") or (mobileControls and mobileControls:isSprinting())) and 1.7 or 1
           local oldX,oldY=player.x,player.y
           player.x, player.y = player.x + dx*player.speed*sprint*dt, player.y + dy*player.speed*sprint*dt
           if walkingSoundTimer<=0 then

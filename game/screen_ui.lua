@@ -33,8 +33,9 @@ local function install(resolve,assign)
       love.graphics.setColor(colors.cream)
       love.graphics.print("STOP "..saveData.location,26,70,0,1.05,1.05)
       love.graphics.printf((saveData.trait and saveData.trait.name or "Survivor").."  •  CARS "..#(saveData.trainCars or {}),145,72,255,"right",0,.76,.76)
+      local mobile=mobileControls and mobileControls:isEnabled()
       love.graphics.print("MOVE",26,99,0,.70,.70)
-      love.graphics.print("WASD / ARROWS",80,98,0,.80,.80)
+      love.graphics.print(mobile and "TOUCH JOYSTICK" or "WASD / ARROWS",80,98,0,mobile and .70 or .80,mobile and .70 or .80)
       ui.drawHealthBar("HP",saveData.health,saveData.maxHealth,25,119,220)
 
       local level=saveData.stats.level or 1
@@ -62,6 +63,7 @@ local function install(resolve,assign)
   local function button(text, x, y, w, h, active, textScale)
       if ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
       local scale=textScale or 1
+      if mobileControls and mobileControls:isEnabled() then scale=math.max(scale,.78) end
       love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8*scale, w-10, "center",0,scale,scale)
       return {x=x,y=y,w=w,h=h}
   end
@@ -93,8 +95,9 @@ local function install(resolve,assign)
       love.graphics.printf(title,290,290,380,"center",0,1.25,1.25)
       love.graphics.setColor(colors.brass)
       love.graphics.rectangle("fill",315,340,330,2)
-      ui.exitYes=button("Yes",330,375,115,44,true,.92)
-      ui.exitNo=button("No",515,375,115,44,true,.92)
+      local mobile=mobileControls and mobileControls:isEnabled()
+      ui.exitYes=button("YES",mobile and 300 or 330,365,mobile and 160 or 115,mobile and 66 or 44,true,.92)
+      ui.exitNo=button("NO",mobile and 500 or 515,365,mobile and 160 or 115,mobile and 66 or 44,true,.92)
   end
 
   function ui.drawSlots()
@@ -109,16 +112,21 @@ local function install(resolve,assign)
       love.graphics.setColor(colors.cream)
       love.graphics.printf("Choose a journey", 0, 182, W, "center")
       ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
+      local mobile=mobileControls and mobileControls:isEnabled()
       for i=1,3 do
-          local data, y = Save.read(i), 225+(i-1)*125
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", 210, y, 540, 96, 12, 12)
-          love.graphics.setColor(colors.cream); love.graphics.print("SAVE "..i, 232, y+18, 0, 1.3, 1.3)
-          love.graphics.print(data and (Util.titleFromFile(data.character).."  •  Stop "..tostring(data.location or 1)) or "New journey", 232, y+52)
-          if data then
+          local data, y = Save.read(i), (mobile and 215+(i-1)*150 or 225+(i-1)*125)
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", mobile and 160 or 210, y, mobile and 640 or 540, mobile and 126 or 96, 12, 12)
+          love.graphics.setColor(colors.cream); love.graphics.print("SAVE "..i, mobile and 182 or 232, y+18, 0, 1.3, 1.3)
+          love.graphics.print(data and (Util.titleFromFile(data.character).."  •  Stop "..tostring(data.location or 1)) or "New journey", mobile and 182 or 232, y+52)
+          if data and mobile then
+              ui.slots[i]=button("CONTINUE",475,y+31,135,64,true)
+              ui.slotNew[i]=button("NEW",620,y+31,82,64,true)
+              ui.slotDelete[i]=button("DELETE",712,y+31,76,64,true,.78)
+          elseif data then
               ui.slots[i]=button("CONTINUE",500,y+16,105,32,true)
               ui.slotNew[i]=button("NEW",612,y+16,52,32,true)
               ui.slotDelete[i]=button("DELETE",671,y+16,65,32,true)
-          else ui.slotNew[i]=button("NEW GAME",585,y+25,138,46,true) end
+          else ui.slotNew[i]=button("NEW GAME",mobile and 555 or 585,y+(mobile and 31 or 25),mobile and 220 or 138,mobile and 64 or 46,true) end
       end
   end
 
@@ -158,7 +166,8 @@ local function install(resolve,assign)
           love.graphics.setColor(colors.brass); love.graphics.print("TRAIT  "..trait.name,tx+12,ty+79,0,.65,.65)
           love.graphics.setColor(colors.cream); love.graphics.printf(trait.description,tx+12,ty+96,tooltipW-24,"left",0,.58,.58)
       end
-      ui.characterUp=button("^",905,110,38,42,characterScroll>0); ui.characterDown=button("v",905,590,38,42,characterScroll<maxScroll)
+      local mobile=mobileControls and mobileControls:isEnabled()
+      ui.characterUp=button("^",mobile and 876 or 905,110,mobile and 68 or 38,mobile and 70 or 42,characterScroll>0); ui.characterDown=button("v",mobile and 876 or 905,mobile and 565 or 590,mobile and 68 or 38,mobile and 70 or 42,characterScroll<maxScroll)
       love.graphics.setColor(colors.cream); love.graphics.print("SCROLL",898,165,0,0.65,0.65)
   end
 
@@ -180,15 +189,16 @@ local function install(resolve,assign)
 
   local function drawTrade()
       local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
+      local mobile=mobileControls and mobileControls:isEnabled()
       love.graphics.setColor(0,0,0,.72); love.graphics.rectangle("fill",0,0,W,H)
       drawMenuFrame(90,65,780,600,1,1); love.graphics.setColor(colors.cream)
       love.graphics.printf(Util.titleFromFile(tradeNPC or saveData.currentNPC).."'S TRADING POST",110,95,740,"center",0,1.35,1.35)
       love.graphics.printf("YOUR SCRAP: "..(saveData.scrap or 0).."   •   Buy supplies, sell gear, or give your ally a weapon",120,135,720,"center",0,.82,.82)
       ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
-      for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",365,y+12,90,38,saveData.scrap>=price and Inventory.firstEmptySlot(saveData)~=nil) end end
+      for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,saveData.scrap>=price and Inventory.firstEmptySlot(saveData)~=nil) end end
       love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..(layout.tradeBudget or 0).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-      local row=0; for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),700,y+5,110,30,true); if Systems.inventoryActions.isWeapon(name) then ui.tradeGive[i]=button("GIVE",700,y+37,110,28,true) end; row=row+1 end end
-      ui.tradeClose=button("DONE TRADING",375,605,210,40,true)
+      local row=0; for i=1,(saveData.inventoryCapacity or 6) do local name=saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=Systems.inventoryActions.isWeapon(name); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,true); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
+      ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 590 or 605,mobile and 240 or 210,mobile and 64 or 40,true)
   end
 
   function ui.drawMap()
@@ -231,7 +241,8 @@ local function install(resolve,assign)
       love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,62,8,8)
       love.graphics.setColor(colors.cream); love.graphics.printf("CURRENT: Stop "..saveData.location.." - "..biomes[((saveData.location-1)%#biomes)+1].." - "..status,120,562,720,"center")
       love.graphics.printf("Only visited country is revealed.  Press M to close.",120,586,720,"center",0,0.8,0.8)
-      ui.mapUp=button("^",805,115,42,36,mapScroll>0); ui.mapDown=button("v",805,155,42,36,mapScroll<maxScroll)
+      local mobile=mobileControls and mobileControls:isEnabled()
+      ui.mapUp=button("^",mobile and 790 or 805,105,mobile and 68 or 42,mobile and 64 or 36,mapScroll>0); ui.mapDown=button("v",mobile and 790 or 805,mobile and 181 or 155,mobile and 68 or 42,mobile and 64 or 36,mapScroll<maxScroll)
       love.graphics.setColor(colors.ink); love.graphics.print("PAGE "..(mapScroll+1).."/"..(maxScroll+1),720,130,0,0.75,0.75)
       love.graphics.setLineWidth(1)
   end
@@ -244,7 +255,8 @@ local function install(resolve,assign)
       if dialogue.choice and questOffer then
           local agreeing=questOffer.kind=="trade" and "YES, AGREE TO TRADE" or "YES, I'LL HELP"
           local declining=questOffer.kind=="trade" and "NO, DECLINE TRADE" or "SORRY, NO"
-          ui.questAccept=button(agreeing,x+70,y+h+18,165,40,true); ui.questDecline=button(declining,x+265,y+h+18,165,40,true)
+          local mobile=mobileControls and mobileControls:isEnabled()
+          ui.questAccept=button(agreeing,x+(mobile and 35 or 70),y+h+12,mobile and 205 or 165,mobile and 62 or 40,true); ui.questDecline=button(declining,x+(mobile and 260 or 265),y+h+12,mobile and 205 or 165,mobile and 62 or 40,true)
       else ui.questAccept=nil; ui.questDecline=nil end
   end
 
@@ -258,7 +270,8 @@ local function install(resolve,assign)
       if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengers.." food and water.",280,385,400,"center",0,0.82,0.82) end
       if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
       local enough=saveData.resources.food>=cost.food and saveData.resources.water>=cost.water and saveData.resources.coal>=cost.coal
-      ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",305,425,220,48,enough); ui.travelNo=button("CANCEL",545,425,110,48,true)
+      local mobile=mobileControls and mobileControls:isEnabled()
+      ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",mobile and 275 or 305,420,mobile and 270 or 220,mobile and 68 or 48,enough); ui.travelNo=button("CANCEL",mobile and 565 or 545,420,mobile and 150 or 110,mobile and 68 or 48,true)
   end
 
   function ui.drawRandomEvent()
@@ -268,6 +281,7 @@ local function install(resolve,assign)
 
   local function ownsTrainCar(id) for _,owned in ipairs(saveData.trainCars or {}) do if owned==id then return true end end return false end
   function ui.drawTrainUpgrades()
+      local mobile=mobileControls and mobileControls:isEnabled()
       love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
       love.graphics.setColor(colors.brass); love.graphics.printf("TRAIN WORKSHOP",150,95,660,"center",0,1.7,1.7)
@@ -276,23 +290,24 @@ local function install(resolve,assign)
       love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
       love.graphics.setColor(colors.brass); love.graphics.print("ENGINE  "..engine.name,205,166,0,.88,.88)
       love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%",205,190,0,.68,.68)
-      ui.engineUpgrade=button(nextEngine and (nextEngine.cost.." SCRAP") or "MAX LEVEL",630,170,125,36,nextEngine and saveData.scrap>=nextEngine.cost or false)
+      ui.engineUpgrade=button(nextEngine and (nextEngine.cost.." SCRAP") or "MAX LEVEL",mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,nextEngine and saveData.scrap>=nextEngine.cost or false)
       ui.trainCars={}
-      for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local owned=ownsTrainCar(c.id); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,47,7,7); love.graphics.setColor(colors.cream); love.graphics.print(c.name.."  —  "..c.description,205,y+9,0,.78,.78); ui.trainCars[i]=button(owned and "OWNED" or c.cost.." SCRAP",630,y+6,125,34,not owned and saveData.scrap>=c.cost) end
-      ui.upgradeClose=button("CLOSE",405,594,150,38,true)
+      for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local owned=ownsTrainCar(c.id); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7); love.graphics.setColor(colors.cream); love.graphics.print(c.name.."  —  "..c.description,205,y+9,0,.78,.78); ui.trainCars[i]=button(owned and "OWNED" or c.cost.." SCRAP",mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,not owned and saveData.scrap>=c.cost) end
+      ui.upgradeClose=button("CLOSE",mobile and 390 or 405,mobile and 578 or 594,mobile and 180 or 150,mobile and 64 or 38,true)
   end
 
   function ui.drawEditControls()
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",110,158,815,122,10,10)
+      local mobile=mobileControls and mobileControls:isEnabled()
+      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",mobile and 100 or 110,mobile and 145 or 158,mobile and 825 or 815,mobile and 225 or 122,10,10)
       love.graphics.setColor(colors.cream); love.graphics.print(editedItem and "MOVE / SCALE SELECTED ITEM" or "SELECT A YELLOW HANDLE",132,172)
-      ui.editLeft=button("<",132,222,40,36,editedItem~=nil); ui.editRight=button(">",220,222,40,36,editedItem~=nil)
-      ui.editUp=button("^",176,202,40,34,editedItem~=nil); ui.editDown=button("v",176,244,40,34,editedItem~=nil)
-      ui.editSmaller=button("SIZE -",280,216,82,38,editedItem~=nil)
-      ui.editLarger=button("SIZE +",370,216,82,38,editedItem~=nil)
-      ui.editRotate=button("ROTATE",460,216,82,38,editedItem~=nil)
-      ui.editBack=button("LAYER -",560,194,82,34,editedItem~=nil); ui.editForward=button("LAYER +",650,194,82,34,editedItem~=nil)
-      ui.editPickup=button("PICK UP",560,236,82,34,editedItem~=nil)
-      ui.editDone=button("DONE",650,236,82,34,true)
+      ui.editLeft=button("<",mobile and 125 or 132,mobile and 235 or 222,mobile and 56 or 40,mobile and 56 or 36,editedItem~=nil); ui.editRight=button(">",mobile and 245 or 220,mobile and 235 or 222,mobile and 56 or 40,mobile and 56 or 36,editedItem~=nil)
+      ui.editUp=button("^",mobile and 185 or 176,mobile and 202 or 202,mobile and 56 or 40,mobile and 56 or 34,editedItem~=nil); ui.editDown=button("v",mobile and 185 or 176,mobile and 268 or 244,mobile and 56 or 40,mobile and 56 or 34,editedItem~=nil)
+      ui.editSmaller=button("SIZE -",mobile and 320 or 280,mobile and 205 or 216,mobile and 100 or 82,mobile and 52 or 38,editedItem~=nil)
+      ui.editLarger=button("SIZE +",mobile and 430 or 370,mobile and 205 or 216,mobile and 100 or 82,mobile and 52 or 38,editedItem~=nil)
+      ui.editRotate=button("ROTATE",mobile and 540 or 460,mobile and 205 or 216,mobile and 100 or 82,mobile and 52 or 38,editedItem~=nil)
+      ui.editBack=button("LAYER -",mobile and 650 or 560,mobile and 205 or 194,mobile and 100 or 82,mobile and 52 or 34,editedItem~=nil); ui.editForward=button("LAYER +",mobile and 760 or 650,mobile and 205 or 194,mobile and 100 or 82,mobile and 52 or 34,editedItem~=nil)
+      ui.editPickup=button("PICK UP",mobile and 540 or 560,mobile and 270 or 236,mobile and 140 or 82,mobile and 52 or 34,editedItem~=nil)
+      ui.editDone=button("DONE",mobile and 720 or 650,mobile and 270 or 236,mobile and 140 or 82,mobile and 52 or 34,true)
       local item=editedItem and saveData.droppedItems[editedItem]
       local function slider(label,x,y,w,value,kind)
           love.graphics.setColor(colors.cream); love.graphics.print(label,x,y-17,0,.65,.65)
@@ -314,8 +329,8 @@ local function install(resolve,assign)
       end
       local hue=item and (item.hue or 0) or 0
       local saturation=item and math.max(0,math.min(2,item.saturation or 1)) or 1
-      ui.editHue=slider("HUE  "..math.floor(hue*360).."°",755,190,145,hue,"hue")
-      ui.editSaturation=slider("SATURATION  "..math.floor(saturation*100).."%",755,239,145,saturation/2,"saturation")
+      ui.editHue=slider("HUE  "..math.floor(hue*360).."°",mobile and 330 or 755,mobile and 345 or 190,mobile and 180 or 145,hue,"hue")
+      ui.editSaturation=slider("SATURATION  "..math.floor(saturation*100).."%",mobile and 570 or 755,mobile and 345 or 239,mobile and 180 or 145,saturation/2,"saturation")
   end
 
   function ui.updateEditColorSlider(x)

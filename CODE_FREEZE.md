@@ -1,11 +1,14 @@
-# Mouse Frontier Code-Structure Freeze
+# Mouse Frontier Code-Structure Freeze (Lifted)
 
 **Declared:** August 22, 2026  
+**Lifted:** August 25, 2026
 **Baseline tag:** `code-freeze-2026-08-22`
 
-The game's current architecture is now frozen. The major extraction and module-migration phase is complete, and `main.lua` is limited to application lifecycle wiring and coordination between the extracted game systems.
+This file preserves the historical stabilization policy. The freeze was lifted after a cross-project audit found that substantial application composition and mutable coordination still lived in `main.lua`, while the derived Picture Shop project had established a cleaner lifecycle boundary and stronger structural tests.
 
-## Allowed during the freeze
+Active architecture work is governed by [ARCHITECTURE_MIGRATION.md](ARCHITECTURE_MIGRATION.md). Save compatibility, focused verification, and shared Windows/Android source remain mandatory during the migration.
+
+## Previously allowed during the freeze
 
 - Bug and crash fixes
 - Performance, compatibility, and accessibility fixes
@@ -17,7 +20,7 @@ The game's current architecture is now frozen. The major extraction and module-m
 - Tests, diagnostics, documentation, and release tooling
 - Small local refactors necessary to make an approved fix safe
 
-## Frozen without explicit approval
+## Previously frozen without explicit approval
 
 - New architectural layers or broad framework changes
 - Moving major responsibilities between existing modules
@@ -35,6 +38,6 @@ The game's current architecture is now frozen. The major extraction and module-m
 5. Run the full-route smoke playthrough before a release candidate and after changes to travel, encounters, progression, saves, or the ending.
 6. Reopen architecture only through an explicit decision that records the reason, affected systems, migration plan, and verification plan.
 
-## Exit criteria
+## Exit decision
 
-This freeze remains active through final content integration, stabilization, and release polishing. It may be lifted only when a documented structural blocker cannot be addressed safely within the frozen design.
+The documented blocker was the oversized application entry point and its implicit dependency bridge. The migration was approved on August 25, 2026 with a passing pre-change smoke baseline, staged verification, and a requirement that Android continue to derive from the same Lua source tree.

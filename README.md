@@ -2,7 +2,7 @@
 
 A playable foundation for a post-apocalyptic critter journey aboard a four-car train.
 
-The project is under a formal [code-structure freeze](CODE_FREEZE.md) while gameplay, content, testing, and release polish continue.
+The former code-structure freeze has been lifted for a staged [architecture migration](ARCHITECTURE_MIGRATION.md). Save compatibility and the shared Windows/Android source contract remain mandatory.
 
 ## Run on Windows
 
@@ -10,6 +10,12 @@ The project is under a formal [code-structure freeze](CODE_FREEZE.md) while game
 2. Double-click `RUN_GAME.bat` in this project folder.
 
 You can also drag the entire project folder onto `love.exe`. Do not open `main.lua` by itself because LÖVE needs the artwork and configuration files too.
+
+## Build for Android
+
+Run `BUILD_ANDROID.ps1` to derive the current shared game into a phone-sized package, execute the mobile smoke checks, and create a signed sideloadable APK. The first build downloads and verifies its Android build dependencies; later updates reuse the local cache.
+
+Android controls, installation, update flow, and device verification are documented in [ANDROID_PORT.md](ANDROID_PORT.md). The deliberately small platform boundary is recorded in [MOBILE_ARCHITECTURE_DECISION.md](MOBILE_ARCHITECTURE_DECISION.md).
 
 ## Controls
 
@@ -45,7 +51,12 @@ You can also drag the entire project folder onto `love.exe`. Do not open `main.l
 
 ## Project layout
 
-- `main.lua` — save slots, character selection, train, journey resources, inventory, persistent drops, controls, and drawing
+- `main.lua` — thin LÖVE lifecycle forwarding only
+- `game/app.lua` — application composition and lifecycle coordination
+- `game/systems.lua` — application-facing system manifest
+- `game/config.lua` — shared runtime dimensions, layout, timing, and palette configuration
+- `game/save_schema.lua` — authoritative save format version
+- `game/` — gameplay, screens, input, rendering, saves, tests, and platform adapters
 - `conf.lua` — window and game settings
 - `RUN_GAME.bat` — double-click Windows launcher
 - `assets/sprites/MainCharacters/` — selectable player characters

@@ -26,6 +26,7 @@ function BattleUI.draw(ctx)
     local mobDeathImages,mobWalkImages,mobRangedImages=ctx.mobDeathImages,ctx.mobWalkImages,ctx.mobRangedImages
     local animationClock,characterAnimations=ctx.animationClock,ctx.characterAnimations
     local saveData,inventoryOpen,ui=ctx.saveData,ctx.inventoryOpen,ctx.ui
+    local mobile=ctx.mobileControls and ctx.mobileControls:isEnabled()
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
     drawLandscape(); drawGround()
@@ -110,7 +111,8 @@ function BattleUI.draw(ctx)
     local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
     local newest=#log-offset; local first=math.max(1,newest-2); local row=0
     love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*16,520,"left",0,.67,.67); row=row+1 end
-    ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0)
+    if mobile then ui.battleLogUp=nil; ui.battleLogDown=nil
+    else ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0) end
     ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
     if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
     if active then
@@ -124,15 +126,15 @@ function BattleUI.draw(ctx)
         love.graphics.print("HP "..active.hp.."/"..active.maxHP,68,523,0,.56,.56)
         love.graphics.print("MOVE "..active.move.."  ARM "..active.armor,68,541,0,.52,.52)
     end
-    if battle.finished then ui.battleContinue=button(battle.finished=="win" and "CONTINUE TO STOP" or "RETURN TO TRAIN",330,605,300,45,true)
+    if battle.finished then ui.battleContinue=button(battle.finished=="win" and "CONTINUE TO STOP" or "RETURN TO TRAIN",mobile and 300 or 330,mobile and 585 or 605,mobile and 360 or 300,mobile and 70 or 45,true)
     elseif active and active.team=="ally" then
-        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,575,944,105,9,9)
-        love.graphics.setColor(colors.brass); love.graphics.print("ATTACK",20,578,0,.54,.54); love.graphics.print("ACTIONS",548,578,0,.54,.54)
+        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,mobile and 488 or 575,944,mobile and 220 or 105,9,9)
+        if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("ATTACK",20,578,0,.54,.54); love.graphics.print("ACTIONS",548,578,0,.54,.54) end
         local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
         for i,w in ipairs(options) do
-            local bx=20+(i-1)*174
-            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,592,166,34,true,.66)
-            local mx,my=screenToGame(love.mouse.getPosition())
+            local bx=20+(i-1)*(mobile and 210 or 174)
+            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,mobile and 506 or 592,mobile and 200 or 166,mobile and 54 or 34,true,.66)
+            local mx,my=screenToGame(ctx.pointerPosition())
             if Util.pointIn(mx,my,ui.battleWeapons[i]) then
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
                 local combat=Catalog.weaponCombat[w] or Catalog.weaponCombat.scratch
@@ -144,24 +146,24 @@ function BattleUI.draw(ctx)
                 love.graphics.setColor(colors.cream); love.graphics.printf(details,200,546,560,"center",0,.58,.58)
             end
         end
-        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",548,592,94,34,not battle.moveUsed,.66)
-        ui.battleHeal=button("HEAL [H]",648,592,94,34,true,.66)
-        ui.battleGuard=button("GUARD [G]",748,592,94,34,true,.66)
-        ui.battleAbility=button("ABILITY",848,592,94,34,not battle.abilitiesUsed[active.id],.66)
-        ui.battleInventory=button("PACK [I]",20,638,105,34,true,.68)
-        love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48)
+        ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",mobile and 20 or 548,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.moveUsed,.66)
+        ui.battleHeal=button("HEAL",mobile and 240 or 648,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
+        ui.battleGuard=button("GUARD",mobile and 460 or 748,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
+        ui.battleAbility=button("ABILITY",mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.66)
+        ui.battleInventory=button("BACKPACK",20,mobile and 634 or 638,mobile and 200 or 105,mobile and 54 or 34,true,.68)
+        if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48) end
         local potionIndex=0
         for i=1,(saveData.inventoryCapacity or 6) do
             local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
-            if effect and effect.potion and potionIndex<5 then
+            if not mobile and effect and effect.potion and potionIndex<5 then
                 potionIndex=potionIndex+1; local px=135+(potionIndex-1)*80
                 ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,638,74,34,true,.52),name=item}
             end
         end
-        ui.battleEnd=button("END TURN",665,638,140,34,true,.72)
-        ui.battleRetreat=button("RETREAT",815,638,127,34,true,.72)
+        ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
+        ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
         local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
-        local mx,my=screenToGame(love.mouse.getPosition())
+        local mx,my=screenToGame(ctx.pointerPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
             love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
@@ -179,7 +181,7 @@ function BattleUI.draw(ctx)
     if inventoryOpen then
         love.graphics.setColor(0,0,0,.58); love.graphics.rectangle("fill",0,0,W,H)
         ui.drawInventory()
-        ui.battleInventoryClose=button("CLOSE [I]",425,35,105,38,true)
+        ui.battleInventoryClose=button(mobile and "CLOSE BACKPACK" or "CLOSE [I]",mobile and 375 or 425,35,mobile and 210 or 105,mobile and 66 or 38,true)
         love.graphics.setColor(colors.cream)
         love.graphics.printf("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,88,480,"center",0,.78,.78)
     else ui.battleInventoryClose=nil end

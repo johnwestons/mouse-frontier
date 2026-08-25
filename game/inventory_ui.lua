@@ -1,5 +1,15 @@
 local InventoryUI = {}
 
+local function inventorySlotRect(ctx,index)
+    if ctx.mobileControls and ctx.mobileControls:isEnabled() then return ctx.Inventory.mobileInventorySlotRect(index) end
+    return ctx.Inventory.inventorySlotRect(index)
+end
+
+local function equipmentSlotRect(ctx,index)
+    if ctx.mobileControls and ctx.mobileControls:isEnabled() then return ctx.Inventory.mobileEquipmentSlotRect(index) end
+    return ctx.Inventory.equipmentSlotRect(index)
+end
+
 local ammoDisplay = {
     {"9mm","9MM"},{"45-cal",".45"},{"556","5.56"},{"22lr",".22LR"},{"30-carbine",".30"},
     {"8mm","8MM"},{"380-acp",".380"},{"32-acp",".32"},{"12-gauge","12GA"},{"762x39","7.62"},
@@ -9,10 +19,10 @@ local ammoDisplay = {
 function InventoryUI.slotAtPoint(ctx,x,y)
     local data=ctx.data
     for i=1,(data.inventoryCapacity or 6) do
-        if ctx.pointIn(x,y,ctx.Inventory.inventorySlotRect(i)) then return {kind="inventory",index=i} end
+        if ctx.pointIn(x,y,inventorySlotRect(ctx,i)) then return {kind="inventory",index=i} end
     end
     for i=1,2 do
-        if ctx.pointIn(x,y,ctx.Inventory.equipmentSlotRect(i)) then return {kind="equipment",index=i} end
+        if ctx.pointIn(x,y,equipmentSlotRect(ctx,i)) then return {kind="equipment",index=i} end
     end
     if ctx.chestOpen then
         local capacity=ctx.activeChest and ctx.Catalog.storageCapacities[ctx.activeChest.name] or 10
@@ -57,14 +67,14 @@ function InventoryUI.draw(ctx)
     love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,202,340,27,6,6)
     love.graphics.setColor(ctx.colors.cream); love.graphics.print("BACKPACK  -  "..capacity.." SLOTS",575,206,0,1.0,1.0)
     for i=1,capacity do
-        local r=Inventory.inventorySlotRect(i); love.graphics.setColor(0.28,0.22,0.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
+        local r=inventorySlotRect(ctx,i); love.graphics.setColor(0.28,0.22,0.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
         if data.inventory[i] then InventoryUI.drawItem(ctx,data.inventory[i],r) end
     end
     love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,462,340,26,6,6)
     love.graphics.setColor(ctx.colors.cream); love.graphics.print("EQUIPPED WEAPONS",580,466,0,.82,.82)
     ui.equipmentSlots={}
     for i=1,2 do
-        local r=Inventory.equipmentSlotRect(i); ui.equipmentSlots[i]=r
+        local r=equipmentSlotRect(ctx,i); ui.equipmentSlots[i]=r
         love.graphics.setColor(0.32,0.20,0.12); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
         love.graphics.setColor(ctx.colors.brass); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,7,7)
         if data.equipment[i] then InventoryUI.drawItem(ctx,data.equipment[i],r) end
@@ -100,20 +110,21 @@ function InventoryUI.draw(ctx)
     local battleUsable=ctx.battleMode and (ctx.isWeapon(selectedName) or (effect and (effect.health or effect.potion)))
     local actionLabel=ctx.battleMode and (ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1" or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON"))
         or (gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT AN ITEM TO USE"))))
-    ui.consume=ctx.button(actionLabel,565,628,230,38,ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift))
+    local mobile=ctx.mobileControls and ctx.mobileControls:isEnabled()
+    ui.consume=ctx.button(actionLabel,565,mobile and 620 or 628,230,mobile and 62 or 38,ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift))
     if ctx.giftOpen then
         ctx.drawMenuFrame(220,170,520,180,3,.97); love.graphics.setColor(ctx.colors.cream)
         love.graphics.printf("GIVE TO "..ctx.title(ctx.giftNPC or "NPC"),240,190,480,"center",0,1.15,1.15)
         love.graphics.printf("Place one item in the offer slot",250,220,460,"center",0,.78,.78)
         local offer={x=445,y=245,w=70,h=70}; love.graphics.setColor(.28,.22,.16); love.graphics.rectangle("fill",offer.x,offer.y,offer.w,offer.h,7,7)
         if ctx.giftSlot then InventoryUI.drawItem(ctx,data.inventory[ctx.giftSlot],offer) end
-        ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,260,100,36,ctx.giftSlot~=nil); ui.giftCancel=ctx.button("CANCEL",325,260,100,36,true)
+        ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,ctx.giftSlot~=nil); ui.giftCancel=ctx.button("CANCEL",mobile and 295 or 325,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,true)
     else ui.giftSlot=nil; ui.giftConfirm=nil; ui.giftCancel=nil end
     if ctx.battleMode then
         ui.drop=nil
         love.graphics.setColor(ctx.colors.cream)
         love.graphics.printf("Items cannot be dropped during battle.",805,638,110,"center",0,.50,.50)
-    else ui.drop=ctx.button("DROP",805,628,110,38,ctx.draggedSlot~=nil) end
+    else ui.drop=ctx.button("DROP",805,mobile and 620 or 628,110,mobile and 62 or 38,ctx.draggedSlot~=nil) end
 end
 
 function InventoryUI.drawChest(ctx)

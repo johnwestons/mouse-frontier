@@ -28,7 +28,12 @@ function Camera:endPan()
 end
 
 function Camera:wheel(delta)
-    self.zoom=math.max(1,math.min(self.maxZoom,self.zoom+delta*.08))
+    self:setZoom(self.zoom+delta*.08)
+end
+
+function Camera:setZoom(value)
+    self.zoom=math.max(1,math.min(self.maxZoom,value or 1))
+    return self.zoom
 end
 
 return Camera

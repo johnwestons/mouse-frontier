@@ -21,7 +21,18 @@ local function report(self, message)
     print("[AUDIO] " .. message)
 end
 
+local function packagedAudioPath(path)
+    if love.filesystem.getInfo(path) then return path end
+    local stem=path:gsub("%.[^./]+$","")
+    for _,extension in ipairs({".ogg",".mp3",".wav",".flac"}) do
+        local candidate=stem..extension
+        if love.filesystem.getInfo(candidate) then return candidate end
+    end
+    return path
+end
+
 local function loadSource(self, path, kind)
+    path=packagedAudioPath(path)
     local ok, source = pcall(love.audio.newSource, path, kind)
     if not ok then report(self, "Could not load " .. path .. ": " .. tostring(source)); return nil end
     return source

@@ -32,7 +32,7 @@ local function install(resolve,assign)
   end
 
   function ui.handlePoseClick(x,y)
-      if Util.pointIn(x,y,ui.pose) then poseMenu=not poseMenu; ui.optionsOpen=false; ui.playSfx("menu"); return true end
+      if Util.pointIn(x,y,ui.pose) then poseMenu=not poseMenu; ui.optionsOpen=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if not poseMenu then return false end
       if Util.pointIn(x,y,ui.poseIdle) then playerPose="idle"
       elseif Util.pointIn(x,y,ui.poseSit) then playerPose="sit"
@@ -153,11 +153,12 @@ local function install(resolve,assign)
       if trainUpgradeOpen then ui.handleUpgradeMousePressed(x,y); return true end
       if ui.optionsOpen then ui.handleOptionsMousePressed(x,y); return true end
       if poseMenu then if Util.pointIn(x,y,ui.options) then poseMenu=false; ui.optionsOpen=true; ui.playSfx("menu") else ui.handlePoseClick(x,y) end; return true end
-      if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; poseMenu=false; ui.playSfx("menu"); return true end
+      if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; poseMenu=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if ui.handlePoseClick(x,y) then return true end
       if mapOpen then if Util.pointIn(x,y,ui.mapUp) then mapScroll=math.max(0,mapScroll-1) elseif Util.pointIn(x,y,ui.mapDown) then mapScroll=mapScroll+1 end; return true end
       if scene=="stop" and ui.stopAttack and Util.pointIn(x,y,ui.stopAttack) then
-          local mx,my=love.mouse.getPosition(); mx,my=screenToGame(mx,my)
+          ui.mobileMenuOpen=false
+          local mx,my=pointerPosition(); mx,my=screenToGame(mx,my)
           if not mx or not my or (math.abs(mx-player.x)<35 and math.abs(my-player.y)<35) then mx,my=player.x+(player.facing or 1)*100,player.y end
           attackStopSludge(mx,my); return true
       end
@@ -166,19 +167,19 @@ local function install(resolve,assign)
           elseif Util.pointIn(x,y,ui.questDecline) then dialogue={speaker=Util.titleFromFile(saveData.currentNPC),text="I understand. Safe travels.",timer=5}; questOffer=nil end
           return true
       end
-      if Util.pointIn(x,y,ui.editMode) then editMode=not editMode; editedItem=nil; editDragging=false; ui.editSliderDrag=nil; inventoryOpen=false; mapOpen=false; writeSave(); return true end
-      if Util.pointIn(x,y,ui.trainUpgrade) then trainUpgradeOpen=true; inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; return true end
+      if Util.pointIn(x,y,ui.editMode) then editMode=not editMode; ui.mobileMenuOpen=false; editedItem=nil; editDragging=false; ui.editSliderDrag=nil; inventoryOpen=false; mapOpen=false; writeSave(); return true end
+      if Util.pointIn(x,y,ui.trainUpgrade) then trainUpgradeOpen=true; ui.mobileMenuOpen=false; inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; return true end
       if Util.pointIn(x,y,ui.maintenance) then
-          inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; dialogue=nil
+          inventoryOpen=false; mapOpen=false; editMode=false; poseMenu=false; ui.optionsOpen=false; ui.mobileMenuOpen=false; dialogue=nil
           Camera:endPan()
           Maintenance.open(maintenanceSession,saveData); ui.playSfx("menu"); return true
       end
       if ui.handleEditorMousePressed(x,y) then return true end
-      if Util.pointIn(x,y,ui.backpack) then inventoryOpen=not inventoryOpen; if not inventoryOpen then chestOpen=false; activeChest=nil end; draggedSlot=nil; inventoryDragActive=false; return true end
-      if Util.pointIn(x,y,ui.map) then mapOpen=not mapOpen; if mapOpen then mapScroll=math.max(0,math.floor((saveData.location-1)/6)-2) end; inventoryOpen=false; draggedSlot=nil; return true end
+      if Util.pointIn(x,y,ui.backpack) then inventoryOpen=not inventoryOpen; ui.mobileMenuOpen=false; if not inventoryOpen then chestOpen=false; activeChest=nil end; draggedSlot=nil; inventoryDragActive=false; return true end
+      if Util.pointIn(x,y,ui.map) then mapOpen=not mapOpen; ui.mobileMenuOpen=false; if mapOpen then mapScroll=math.max(0,math.floor((saveData.location-1)/6)-2) end; inventoryOpen=false; draggedSlot=nil; return true end
       if dialogue then dialogue=nil; return true end
-      if Util.pointIn(x,y,ui.leaveTrain) then attemptLeaveTrain(); return true end
-      if Util.pointIn(x,y,ui.travel) and saveData.location<50 and saveData.resources.food>0 and saveData.resources.water>0 and saveData.resources.coal>0 then travelConfirm=true; return true end
+      if Util.pointIn(x,y,ui.leaveTrain) then ui.mobileMenuOpen=false; attemptLeaveTrain(); return true end
+      if Util.pointIn(x,y,ui.travel) and saveData.location<50 and saveData.resources.food>0 and saveData.resources.water>0 and saveData.resources.coal>0 then ui.mobileMenuOpen=false; travelConfirm=true; return true end
       if Util.pointIn(x,y,ui.returnDoor) then local left,right,top,bottom=trainFloorBounds(); scene=session:setScene("train"); npcActor=nil; player.x,player.y=right,(top+bottom)/2; writeSave(); return true end
       if Util.pointIn(x,y,ui.pickup) then pickUpNearby(); return true end
       return false
@@ -249,7 +250,7 @@ local function install(resolve,assign)
 
   local function wheelmoved(_,y)
       if state=="battle" and battle then
-          local mouseX,mouseY=love.mouse.getPosition()
+          local mouseX,mouseY=pointerPosition()
           local mx,my=Viewport.toGame(mouseX,mouseY,W,H)
           if mx>=185 and mx<=775 and my>=488 and my<=570 then
               battle.logScroll=math.max(0,math.min(math.max(0,#(battle.log or {})-1),(battle.logScroll or 0)+(y>0 and 1 or -1)))
@@ -264,6 +265,7 @@ local function install(resolve,assign)
   end
 
   local function keypressedGlobal(key)
+      if ui.mobileMenuOpen and key=="escape" then ui.mobileMenuOpen=false; return true end
       if maintenanceSession.open then
           local result=Maintenance.keypressed(maintenanceSession,key,saveData)
           if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
@@ -330,7 +332,7 @@ local function install(resolve,assign)
           return
       end
       if keypressedGlobal(key) then return end
-      if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif state=="game" and (inventoryOpen or mapOpen or dialogue or editMode) then inventoryOpen=false; chestOpen=false; activeChest=nil; mapOpen=false; dialogue=nil; questOffer=nil; editMode=false; editedItem=nil; draggedSlot=nil; giftOpen=false; giftSlot=nil; writeSave() elseif state~="slots" then requestExitPrompt("title") else requestExitPrompt("quit") end end
+      if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif state=="game" and (inventoryOpen or mapOpen or dialogue or editMode or poseMenu or ui.optionsOpen or trainUpgradeOpen) then inventoryOpen=false; chestOpen=false; activeChest=nil; mapOpen=false; dialogue=nil; questOffer=nil; editMode=false; editedItem=nil; draggedSlot=nil; giftOpen=false; giftSlot=nil; poseMenu=false; ui.optionsOpen=false; trainUpgradeOpen=false; writeSave() elseif state~="slots" then requestExitPrompt("title") else requestExitPrompt("quit") end end
       if key=="i" and state=="game" and not editMode then
           if nearChest then activeChest=saveData.droppedItems[nearChest]; if activeChest then activeChest.storage=activeChest.storage or {}; chestOpen=true; inventoryOpen=true; draggedSlot=nil end
           else inventoryOpen=not inventoryOpen; chestOpen=false; activeChest=nil; draggedSlot=nil end
