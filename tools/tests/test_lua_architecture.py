@@ -29,6 +29,7 @@ class LuaArchitectureTests(unittest.TestCase):
         systems = (ROOT / "game" / "systems.lua").read_text(encoding="utf-8")
         schema = (ROOT / "game" / "save_schema.lua").read_text(encoding="utf-8")
         config = (ROOT / "game" / "config.lua").read_text(encoding="utf-8")
+        runtime = (ROOT / "game" / "runtime_state.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -36,9 +37,15 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn('require("game.systems")', app)
         self.assertIn('require("game.save_schema")', app)
         self.assertIn('require("game.config")', app)
+        self.assertIn('require("game.runtime_state")', app)
+        self.assertNotRegex(app, r"local\s+state\s*=")
+        self.assertNotRegex(app, r"local\s+selectedSlot\s*[,=]")
+        self.assertNotRegex(app, r"local\s+scene\s*[,=]")
         self.assertIn("CURRENT_VERSION = 25", schema)
         self.assertIn("baseWidth = 960", config)
         self.assertIn("game.gameplay_input", systems)
+        self.assertIn("function RuntimeState:syncForSave", runtime)
+        self.assertIn("function RuntimeState:isSynchronized", runtime)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

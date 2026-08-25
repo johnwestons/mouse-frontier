@@ -27,7 +27,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Mobile inheritance | Mobile adapter wired directly in the former monolithic entry point | Adapter owned by `game/app.lua`; package stages the shared tree | Complete |
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Planned incrementally |
-| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Planned incrementally |
+| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session fields complete; overlays remain incremental |
 
 ## Execution sequence
 
@@ -38,6 +38,13 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 5. Run Python tests, the normal smoke playthrough, the full-route smoke playthrough, and a mobile package smoke run.
 6. Commit the complete source baseline so desktop and Android upgrades can be mirrored through normal Git history.
 7. Convert remaining implicit resolver-based modules to explicit contexts one domain at a time, starting with session bootstrap and input, with a smoke pass after every conversion.
+
+## Current modernization sequence
+
+1. `game/runtime_state.lua` now owns authoritative access to screen, selected slot, save data, player, and scene while preserving `GameSession` save behavior and `ScreenManager` transitions.
+2. Session bootstrap is next to move from its implicit environment to an explicit context.
+3. Gameplay input follows after bootstrap establishes the context pattern.
+4. Overlay, transition, interaction, and battle fields then move into runtime-state domains in focused changes rather than one high-risk rewrite.
 
 ## Definition of done for this migration wave
 

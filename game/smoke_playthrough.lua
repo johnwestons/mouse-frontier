@@ -26,6 +26,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
             sessionSynchronized=session and session.screen==state and session.scene==scene and session.saveData==saveData and session.player==player and session.selectedSlot==selectedSlot,
             screenManagerSynchronized=screens and screens.current==state and screens.current==session.screen,
+            runtimeSynchronized=runtime and runtime:isSynchronized(screens),
             assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
             fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
     end
@@ -58,7 +59,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
         ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
         local startX=player.x
         local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
-            {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10}},
+            {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end
                 local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old
@@ -304,7 +305,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                 end,check=function(_,_,snapshot)
                     if snapshot.state=="ending" and snapshot.location>=50 then return true end
                     return false,"still progressing: stop "..tostring(snapshot.location)
-                end,expect={state="ending",location=50,sessionSynchronized=true,screenManagerSynchronized=true}}
+                end,expect={state="ending",location=50,sessionSynchronized=true,screenManagerSynchronized=true,runtimeSynchronized=true}}
             }
             steps=fullSteps
             for _,step in ipairs(steps) do
