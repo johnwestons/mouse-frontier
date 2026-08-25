@@ -508,33 +508,41 @@ end
 
 function ui.drawTacticalBattle() Systems.battleUI.draw(ui.battleUIContext()) end
 
-local function resolveWorldRenderer(name)
-    if name=="W" then return W elseif name=="H" then return H
-    elseif name=="backgroundImages" then return backgroundImages elseif name=="saveData" then return runtime.saveData
-    elseif name=="landscapeOffset" then return runtime.landscapeOffset elseif name=="scenery" then return scenery
-    elseif name=="sceneryOffset" then return runtime.sceneryOffset elseif name=="trainAnimationClock" then return runtime.trainAnimationClock
-    elseif name=="animationClock" then return runtime.animationClock elseif name=="car" then return car
-    elseif name=="colors" then return colors elseif name=="characterAnimations" then return characterAnimations
-    elseif name=="characterImages" then return characterImages elseif name=="characterWalkImages" then return characterWalkImages
-    elseif name=="characterActionImages" then return characterActionImages elseif name=="player" then return runtime.player
-    elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionHeldItem" then return runtime.actionHeldItem
-    elseif name=="actionKind" then return runtime.actionKind elseif name=="playerPose" then return runtime.playerPose
-    elseif name=="ui" then return ui elseif name=="editMode" then return runtime.editMode
-    elseif name=="editedItem" then return runtime.editedItem elseif name=="scene" then return runtime.scene
-    elseif name=="itemIdleImages" then return itemIdleImages elseif name=="npcActor" then return runtime.npcActor
-    elseif name=="npcImages" then return npcImages elseif name=="npcWalkImages" then return npcWalkImages
-    elseif name=="familyImages" then return familyImages elseif name=="mobImages" then return mobImages
-    elseif name=="mobIdleImages" then return mobIdleImages elseif name=="mobWalkImages" then return mobWalkImages
-    elseif name=="mobHitImages" then return mobHitImages elseif name=="mobDeathImages" then return mobDeathImages
-    elseif name=="stopSludges" then return stopSludges elseif name=="StopSludges" then return StopSludges
-    elseif name=="Train" then return Train
-    elseif name=="CharacterAnimation" then return CharacterAnimation elseif name=="Catalog" then return Catalog
-    elseif name=="Family" then return Family
-    elseif name=="Settlements" then return Settlements elseif name=="Stops" then return Stops
-    elseif name=="Util" then return Util elseif name=="itemIsHere" then return itemIsHere
-    elseif name=="pendingMailHere" then return Systems.journeyRules.pendingMailHere elseif name=="ensureStopLayout" then return ensureStopLayout end
-end
-Systems.worldRenderer=Systems.worldRenderer.install(resolveWorldRenderer)
+Systems.worldRenderer=Systems.worldRenderer.new({
+    runtime=runtime,
+    width=W,
+    height=H,
+    backgroundImages=backgroundImages,
+    scenery=scenery,
+    car=car,
+    colors=colors,
+    getCharacterAnimations=function() return characterAnimations end,
+    characterImages=characterImages,
+    characterWalkImages=characterWalkImages,
+    characterActionImages=characterActionImages,
+    itemIdleImages=itemIdleImages,
+    npcImages=npcImages,
+    npcWalkImages=npcWalkImages,
+    familyImages=familyImages,
+    mobImages=mobImages,
+    mobIdleImages=mobIdleImages,
+    mobWalkImages=mobWalkImages,
+    mobHitImages=mobHitImages,
+    mobDeathImages=mobDeathImages,
+    getStopSludges=function() return stopSludges end,
+    stopSludgesService=StopSludges,
+    train=Train,
+    characterAnimation=CharacterAnimation,
+    catalog=Catalog,
+    family=Family,
+    settlements=Settlements,
+    stops=Stops,
+    util=Util,
+    ui=ui,
+    itemIsHere=itemIsHere,
+    pendingMailHere=Systems.journeyRules.pendingMailHere,
+    ensureStopLayout=ensureStopLayout,
+})
 
 
 local function beginCarTransition(targetIndex)
