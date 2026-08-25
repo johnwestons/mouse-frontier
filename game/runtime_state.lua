@@ -8,6 +8,26 @@ local SESSION_FIELDS = {
     scene = "scene",
 }
 
+local TRANSIENT_DEFAULTS = {
+    actionTimer = 0,
+    battleZoom = 1,
+    characterScroll = 0,
+    chestOpen = false,
+    editDragging = false,
+    editMode = false,
+    giftOpen = false,
+    holdPickupTime = 0,
+    inventoryDragActive = false,
+    inventoryOpen = false,
+    mapOpen = false,
+    mapScroll = 0,
+    playerPose = "idle",
+    poseMenu = false,
+    tradeOpen = false,
+    trainUpgradeOpen = false,
+    travelConfirm = false,
+}
+
 local function readSessionField(self, key)
     local sessionField = SESSION_FIELDS[key]
     if sessionField then return self.session[sessionField] end
@@ -39,10 +59,12 @@ function RuntimeState.new(options)
     options = options or {}
     assert(options.session, "RuntimeState requires a GameSession")
     assert(type(options.transition) == "function", "RuntimeState requires a screen transition function")
-    return setmetatable({
+    local instance={
         session = options.session,
         transition = options.transition,
-    }, RuntimeState)
+    }
+    for key,value in pairs(TRANSIENT_DEFAULTS) do instance[key]=value end
+    return setmetatable(instance, RuntimeState)
 end
 
 function RuntimeState:activate(data, player)
@@ -59,6 +81,16 @@ function RuntimeState:syncForSave()
         self.player,
         self.scene
     )
+end
+
+function RuntimeState:resetForGameEntry()
+    self.inventoryOpen=false
+    self.mapOpen=false
+    self.dialogue=nil
+    self.editMode=false
+    self.chestOpen=false
+    self.activeChest=nil
+    self.carTransition=nil
 end
 
 function RuntimeState:snapshot()

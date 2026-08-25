@@ -30,7 +30,6 @@ local function new(context)
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local setStopSludges=required(context,"setStopSludges","function")
-  local resetTransientState=required(context,"resetTransientState","function")
 
   local function newSave(character)
       local npcRoster, seen = {}, {}
@@ -208,7 +207,7 @@ local function new(context)
       local activePlayer={x = restoredX, y = restoredY, speed = 185,
           image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1}
       runtime:activate(data,activePlayer)
-      resetTransientState()
+      runtime:resetForGameEntry()
       return true
   end
 

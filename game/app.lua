@@ -54,35 +54,18 @@ local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, 
 local scenery, backgroundImages, ui = {}, {}, {}
 local sceneryOffset, landscapeOffset, animationClock, trainAnimationClock = 0, 0, 0, 0
 local cloudLayer
-local battleZoom = 1
 local walkingSoundTimer = 0
-local inventoryOpen, draggedSlot = false, nil
-local nearbyItem = nil
-local nearHouse, nearNPC, nearPassenger, nearFire, nearReturnTrain, nearCarPrev, nearCarNext, mapOpen, dialogue = false, false, nil, false, false, false, false, false, nil
+local nearHouse, nearNPC, nearPassenger, nearFire, nearReturnTrain, nearCarPrev, nearCarNext = false, false, nil, false, false, false, false
 local nearMailbox = nil
-local npcActor = nil
-local battle = nil
 local stopSludges = StopSludges.new()
-local travelConfirm, travelTransition, randomEvent = false, nil, nil
-local mapScroll, characterScroll, questOffer = 0, 0, nil
-local actionTimer = 0
+local randomEvent = nil
 local actionHeldItem = nil
-local actionKind = nil
-local editMode, editedItem, editDragging = false, nil, false
-local chestOpen, activeChest, nearChest, inventoryDragActive = false, nil, nil, false
 local characterWalkImages, npcWalkImages = {}, {}
 local characterActionImages, mobAttackImages, mobIdleImages, mobHitImages = {}, {}, {}, {}
 local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {}, {}
 local itemIdleImages = {}
 local characterAnimations = {}
-local holdPickupIndex, holdPickupTime = nil, 0
 local HOLD_PICKUP_SECONDS = Config.holdPickupSeconds
-local trainUpgradeOpen=false
-local poseMenu, playerPose = false, "idle"
-local tradeOpen, tradeNPC = false, nil
-local giftOpen, giftNPC, giftSlot = false, nil, nil
-local exitPrompt = nil
-local carTransition = nil
 local lastInventoryClick, lastInventoryClickTime = nil, 0
 local maintenanceSession = Maintenance.new()
 local mobileControls
@@ -144,10 +127,6 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     clampToTrainFloor=clampToTrainFloor,
     isFurnitureItem=isFurnitureItem,
     setStopSludges=function(value) stopSludges=value end,
-    resetTransientState=function()
-        inventoryOpen,mapOpen,dialogue,editMode=false,false,nil,false
-        chestOpen,activeChest,carTransition=false,nil,nil
-    end,
 })
 
 
@@ -156,7 +135,7 @@ local function screenToGame(x,y)
     x,y=Viewport.toGame(x,y,W,H)
     -- Radio/options are screen-space overlays; camera zoom must not shift their
     -- hit testing into a neighboring station button.
-    if runtime.state=="game" and not travelConfirm and not ui.radioOpen and not ui.mobileMenuOpen and Camera:isActive() then
+    if runtime.state=="game" and not runtime.travelConfirm and not ui.radioOpen and not ui.mobileMenuOpen and Camera:isActive() then
         local focusX,focusY=(runtime.player and runtime.player.x or W/2),(runtime.player and runtime.player.y or H/2)
         x,y=Camera:toWorld(x,y,focusX,focusY)
     end
@@ -172,7 +151,7 @@ end
 
 local function updateStopSludges(dt)
     if runtime.scene~="stop" or not runtime.saveData or not runtime.player then return end
-    StopSludges.update(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
+    StopSludges.update(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
         clamp=function(x,y) return Settlements.clamp(x,y,runtime.saveData.location) end,
         dropCoal=function(x,y)
             runtime.saveData.droppedItems[#runtime.saveData.droppedItems+1]={name="coal-chunk",x=x,y=y,scene="stop",location=runtime.saveData.location,droppedByPlayer=false}
@@ -181,9 +160,9 @@ local function updateStopSludges(dt)
 end
 
 local function attackStopSludge(x,y)
-    if runtime.scene~="stop" or inventoryOpen or mapOpen or dialogue or editMode or ui.radioOpen or trainUpgradeOpen or poseMenu or ui.optionsOpen then return false end
-    return StopSludges.attack(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
-        onAction=function(weapon) actionHeldItem=weapon; actionKind="melee"; actionTimer=.42 end,
+    if runtime.scene~="stop" or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen or runtime.trainUpgradeOpen or runtime.poseMenu or ui.optionsOpen then return false end
+    return StopSludges.attack(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=animationClock,
+        onAction=function(weapon) actionHeldItem=weapon; runtime.actionKind="melee"; runtime.actionTimer=.42 end,
         playSfx=function(kind) ui.playSfx(kind) end})
 end
 
@@ -203,7 +182,7 @@ local function ensureStopLayout() return Stops.ensure(runtime.saveData,Catalog,r
 
 
 local function setupNPC()
-    if runtime.scene == "train" then npcActor = nil; return end
+    if runtime.scene == "train" then runtime.npcActor = nil; return end
     local layout=ensureStopLayout()
     runtime.saveData.currentNPC=(runtime.scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
     local key = Util.sceneKey(runtime.scene,runtime.saveData.location)..(runtime.scene=="house" and (":"..tostring(runtime.saveData.activeHouseDoor or 1)) or "")
@@ -219,18 +198,18 @@ local function setupNPC()
         saved.homeX,saved.homeY=Settlements.clamp(saved.homeX,saved.homeY,runtime.saveData.location)
     end
     runtime.saveData.npcStates[key] = saved
-    npcActor = saved
-    Family.ensure(npcActor,runtime.saveData.currentNPC)
+    runtime.npcActor = saved
+    Family.ensure(runtime.npcActor,runtime.saveData.currentNPC)
 end
 
 local beginEncounter
 
 
 local function battleContext()
-    return {battle=battle,saveData=runtime.saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=7,BOARD_ROWS=4,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
+    return {battle=runtime.battle,saveData=runtime.saveData,Catalog=Catalog,Util=Util,BattleRules=BattleRules,Events=Events,BOARD_COLS=7,BOARD_ROWS=4,playSfx=ui.playSfx,weaponSfx=ui.weaponSfx,writeSave=writeSave}
 end
 beginEncounter=function(encounter)
-    local c=battleContext(); battle=BattleController.begin(c,encounter); battleZoom=1; runtime.state="battle"; inventoryOpen=false; mapOpen=false; dialogue=nil; writeSave()
+    local c=battleContext(); runtime.battle=BattleController.begin(c,encounter); runtime.battleZoom=1; runtime.state="battle"; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.dialogue=nil; writeSave()
 end
 
 local function resolveEventChoice(index)
@@ -240,7 +219,7 @@ local function resolveEventChoice(index)
     randomEvent=nil; writeSave()
     if result.encounter then beginEncounter(result.encounter); return end
     runtime.state="game"; Systems.journeyRules.enterStop()
-    dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
+    runtime.dialogue={speaker=result.clue and (event.category=="story" and "Family Trail" or "Missing Critter") or "Trail Event",text=result.clue or result.summary,timer=5}
 end
 
 
@@ -256,31 +235,31 @@ local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
 function ui.resolveInventoryActions(name)
-    if name=="saveData" then return runtime.saveData elseif name=="activeChest" then return activeChest elseif name=="chestOpen" then return chestOpen
-    elseif name=="draggedSlot" then return draggedSlot elseif name=="inventoryDragActive" then return inventoryDragActive
-    elseif name=="dialogue" then return dialogue elseif name=="player" then return runtime.player elseif name=="scene" then return runtime.scene
-    elseif name=="nearNPC" then return nearNPC elseif name=="nearPassenger" then return nearPassenger elseif name=="npcActor" then return npcActor
-    elseif name=="nearbyItem" then return nearbyItem elseif name=="giftOpen" then return giftOpen elseif name=="giftNPC" then return giftNPC
-    elseif name=="giftSlot" then return giftSlot elseif name=="inventoryOpen" then return inventoryOpen
-    elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionKind" then return actionKind elseif name=="actionTimer" then return actionTimer
+    if name=="saveData" then return runtime.saveData elseif name=="activeChest" then return runtime.activeChest elseif name=="chestOpen" then return runtime.chestOpen
+    elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="inventoryDragActive" then return runtime.inventoryDragActive
+    elseif name=="dialogue" then return runtime.dialogue elseif name=="player" then return runtime.player elseif name=="scene" then return runtime.scene
+    elseif name=="nearNPC" then return nearNPC elseif name=="nearPassenger" then return nearPassenger elseif name=="npcActor" then return runtime.npcActor
+    elseif name=="nearbyItem" then return runtime.nearbyItem elseif name=="giftOpen" then return runtime.giftOpen elseif name=="giftNPC" then return runtime.giftNPC
+    elseif name=="giftSlot" then return runtime.giftSlot elseif name=="inventoryOpen" then return runtime.inventoryOpen
+    elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionKind" then return runtime.actionKind elseif name=="actionTimer" then return runtime.actionTimer
     elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="Util" then return Util
     elseif name=="writeSave" then return writeSave elseif name=="battleContext" then return battleContext
     elseif name=="BattleController" then return BattleController elseif name=="useBattlePotion" then return useBattlePotion end
 end
 
 function ui.assignInventoryActions(name,value)
-    if name=="activeChest" then activeChest=value elseif name=="chestOpen" then chestOpen=value
-    elseif name=="draggedSlot" then draggedSlot=value elseif name=="inventoryDragActive" then inventoryDragActive=value
-    elseif name=="dialogue" then dialogue=value elseif name=="nearbyItem" then nearbyItem=value
-    elseif name=="giftOpen" then giftOpen=value elseif name=="giftNPC" then giftNPC=value elseif name=="giftSlot" then giftSlot=value
-    elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="actionHeldItem" then actionHeldItem=value
-    elseif name=="actionKind" then actionKind=value elseif name=="actionTimer" then actionTimer=value else return false end
+    if name=="activeChest" then runtime.activeChest=value elseif name=="chestOpen" then runtime.chestOpen=value
+    elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="inventoryDragActive" then runtime.inventoryDragActive=value
+    elseif name=="dialogue" then runtime.dialogue=value elseif name=="nearbyItem" then runtime.nearbyItem=value
+    elseif name=="giftOpen" then runtime.giftOpen=value elseif name=="giftNPC" then runtime.giftNPC=value elseif name=="giftSlot" then runtime.giftSlot=value
+    elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="actionHeldItem" then actionHeldItem=value
+    elseif name=="actionKind" then runtime.actionKind=value elseif name=="actionTimer" then runtime.actionTimer=value else return false end
     return true
 end
 
 function ui.resolveJourneyRules(name)
-    if name=="saveData" then return runtime.saveData elseif name=="dialogue" then return dialogue elseif name=="questOffer" then return questOffer
-    elseif name=="tradeOpen" then return tradeOpen elseif name=="tradeNPC" then return tradeNPC elseif name=="car" then return car
+    if name=="saveData" then return runtime.saveData elseif name=="dialogue" then return runtime.dialogue elseif name=="questOffer" then return runtime.questOffer
+    elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="car" then return car
     elseif name=="scene" then return runtime.scene elseif name=="player" then return runtime.player elseif name=="randomEvent" then return randomEvent
     elseif name=="state" then return runtime.state elseif name=="screens" then return screens elseif name=="session" then return session
     elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="EngineUpgrades" then return EngineUpgrades
@@ -290,8 +269,8 @@ function ui.resolveJourneyRules(name)
 end
 
 function ui.assignJourneyRules(name,value)
-    if name=="dialogue" then dialogue=value elseif name=="questOffer" then questOffer=value
-    elseif name=="tradeOpen" then tradeOpen=value elseif name=="tradeNPC" then tradeNPC=value
+    if name=="dialogue" then runtime.dialogue=value elseif name=="questOffer" then runtime.questOffer=value
+    elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="tradeNPC" then runtime.tradeNPC=value
     elseif name=="scene" then runtime.scene=value elseif name=="randomEvent" then randomEvent=value elseif name=="state" then runtime.state=value
     else return false end
     return true
@@ -301,7 +280,7 @@ Systems.inventoryActions=Systems.inventoryActions.install(ui.resolveInventoryAct
 Systems.journeyRules=Systems.journeyRules.install(ui.resolveJourneyRules,ui.assignJourneyRules)
 
 function ui.playSfx(kind)
-    if ui.audio and runtime.saveData then return ui.audio:playSfx(kind,runtime.saveData.audio,battle) end
+    if ui.audio and runtime.saveData then return ui.audio:playSfx(kind,runtime.saveData.audio,runtime.battle) end
 end
 
 local function playTrainDepart()
@@ -317,7 +296,7 @@ end
 
 function ui.musicCategory()
     if runtime.state=="ending" then return "endingHappy" end
-    if runtime.state=="battle" then return battle and battle.encounter and battle.encounter.tier=="hard" and "bossFight" or "battle" end
+    if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.tier=="hard" and "bossFight" or "battle" end
     if runtime.scene=="house" then return "insideHomes" end
     if runtime.scene=="stop" or runtime.state=="event" then return "stops" end
     return "train"
@@ -382,29 +361,29 @@ function App.load()
         width=W,height=H,
         toGame=function(x,y) return Viewport.toGame(x,y,W,H) end,
         gameplayActive=function()
-            return runtime.state=="game" and not travelConfirm and not travelTransition and not maintenanceSession.open
-                and not inventoryOpen and not mapOpen and not tradeOpen and not trainUpgradeOpen and not editMode
-                and not poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not exitPrompt
+            return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open
+                and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
+                and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.exitPrompt
         end,
         getZoom=function() return Camera.zoom end,
         setZoom=function(value) Camera:setZoom(value) end,
         backVisible=function()
-            if exitPrompt then return true end
+            if runtime.exitPrompt then return true end
             if runtime.state=="slots" or runtime.state=="characters" then return true end
-            if runtime.state=="battle" then return inventoryOpen end
-            return runtime.state=="game" and (travelConfirm or maintenanceSession.open or inventoryOpen or mapOpen or tradeOpen or trainUpgradeOpen
-                or editMode or poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or dialogue~=nil)
+            if runtime.state=="battle" then return runtime.inventoryOpen end
+            return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
+                or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil)
         end,
         backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
         menuVisible=function()
-            return runtime.state=="game" and not travelConfirm and not travelTransition and not maintenanceSession.open and not exitPrompt
-                and not inventoryOpen and not mapOpen and not tradeOpen and not trainUpgradeOpen and not editMode
-                and not poseMenu and not ui.optionsOpen and not ui.radioOpen and not dialogue
+            return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
+                and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
+                and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue
         end,
         menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
         menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; Camera:endPan() end,
         primaryAction=function()
-            if dialogue then return "q","CLOSE" end
+            if runtime.dialogue then return "q","CLOSE" end
             local kind=ui.interaction and ui.interaction.kind
             if kind=="radio" then return "p","RADIO"
             elseif kind=="item" then return "e","PICK UP"
@@ -433,18 +412,18 @@ end
 function ui.resolveGameplayUpdateState(name)
     if name=="W" then return W elseif name=="ui" then return ui elseif name=="state" then return runtime.state
     elseif name=="saveData" then return runtime.saveData elseif name=="scene" then return runtime.scene elseif name=="player" then return runtime.player
-    elseif name=="npcActor" then return npcActor elseif name=="car" then return car elseif name=="battle" then return battle
+    elseif name=="npcActor" then return runtime.npcActor elseif name=="car" then return car elseif name=="battle" then return runtime.battle
     elseif name=="animationClock" then return animationClock elseif name=="cloudLayer" then return cloudLayer
-    elseif name=="walkingSoundTimer" then return walkingSoundTimer elseif name=="travelTransition" then return travelTransition
-    elseif name=="trainAnimationClock" then return trainAnimationClock elseif name=="actionTimer" then return actionTimer
-    elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionKind" then return actionKind
+    elseif name=="walkingSoundTimer" then return walkingSoundTimer elseif name=="travelTransition" then return runtime.travelTransition
+    elseif name=="trainAnimationClock" then return trainAnimationClock elseif name=="actionTimer" then return runtime.actionTimer
+    elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionKind" then return runtime.actionKind
     elseif name=="sceneryOffset" then return sceneryOffset elseif name=="landscapeOffset" then return landscapeOffset
-    elseif name=="holdPickupIndex" then return holdPickupIndex elseif name=="holdPickupTime" then return holdPickupTime
-    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="nearbyItem" then return nearbyItem
-    elseif name=="carTransition" then return carTransition elseif name=="inventoryOpen" then return inventoryOpen
-    elseif name=="mapOpen" then return mapOpen elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode
-    elseif name=="maintenanceSession" then return maintenanceSession elseif name=="playerPose" then return playerPose elseif name=="poseMenu" then return poseMenu
-    elseif name=="nearChest" then return nearChest elseif name=="nearMailbox" then return nearMailbox elseif name=="nearHouse" then return nearHouse
+    elseif name=="holdPickupIndex" then return runtime.holdPickupIndex elseif name=="holdPickupTime" then return runtime.holdPickupTime
+    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="nearbyItem" then return runtime.nearbyItem
+    elseif name=="carTransition" then return runtime.carTransition elseif name=="inventoryOpen" then return runtime.inventoryOpen
+    elseif name=="mapOpen" then return runtime.mapOpen elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode
+    elseif name=="maintenanceSession" then return maintenanceSession elseif name=="playerPose" then return runtime.playerPose elseif name=="poseMenu" then return runtime.poseMenu
+    elseif name=="nearChest" then return runtime.nearChest elseif name=="nearMailbox" then return nearMailbox elseif name=="nearHouse" then return nearHouse
     elseif name=="nearNPC" then return nearNPC elseif name=="nearPassenger" then return nearPassenger elseif name=="nearReturnTrain" then return nearReturnTrain
     elseif name=="nearFire" then return nearFire elseif name=="nearCarPrev" then return nearCarPrev elseif name=="nearCarNext" then return nearCarNext end
 end
@@ -470,14 +449,14 @@ end
 
 function ui.assignGameplayUpdate(name,value)
     if name=="state" then runtime.state=value elseif name=="animationClock" then animationClock=value
-    elseif name=="walkingSoundTimer" then walkingSoundTimer=value elseif name=="travelTransition" then travelTransition=value
-    elseif name=="trainAnimationClock" then trainAnimationClock=value elseif name=="actionTimer" then actionTimer=value
-    elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionKind" then actionKind=value
+    elseif name=="walkingSoundTimer" then walkingSoundTimer=value elseif name=="travelTransition" then runtime.travelTransition=value
+    elseif name=="trainAnimationClock" then trainAnimationClock=value elseif name=="actionTimer" then runtime.actionTimer=value
+    elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionKind" then runtime.actionKind=value
     elseif name=="sceneryOffset" then sceneryOffset=value elseif name=="landscapeOffset" then landscapeOffset=value
-    elseif name=="dialogue" then dialogue=value elseif name=="holdPickupIndex" then holdPickupIndex=value
-    elseif name=="holdPickupTime" then holdPickupTime=value elseif name=="nearbyItem" then nearbyItem=value
-    elseif name=="carTransition" then carTransition=value elseif name=="playerPose" then playerPose=value elseif name=="poseMenu" then poseMenu=value
-    elseif name=="nearChest" then nearChest=value elseif name=="nearMailbox" then nearMailbox=value elseif name=="nearHouse" then nearHouse=value
+    elseif name=="dialogue" then runtime.dialogue=value elseif name=="holdPickupIndex" then runtime.holdPickupIndex=value
+    elseif name=="holdPickupTime" then runtime.holdPickupTime=value elseif name=="nearbyItem" then runtime.nearbyItem=value
+    elseif name=="carTransition" then runtime.carTransition=value elseif name=="playerPose" then runtime.playerPose=value elseif name=="poseMenu" then runtime.poseMenu=value
+    elseif name=="nearChest" then runtime.nearChest=value elseif name=="nearMailbox" then nearMailbox=value elseif name=="nearHouse" then nearHouse=value
     elseif name=="nearNPC" then nearNPC=value elseif name=="nearPassenger" then nearPassenger=value elseif name=="nearReturnTrain" then nearReturnTrain=value
     elseif name=="nearFire" then nearFire=value elseif name=="nearCarPrev" then nearCarPrev=value elseif name=="nearCarNext" then nearCarNext=value
     else return false end
@@ -494,7 +473,7 @@ screens:register("intro",{update=function(dt)
 end})
 screens:register("slots",{update=function() return true end})
 screens:register("characters",{update=function() return true end})
-screens:register("battle",{update=function(dt) if battle then BattleController.update(battleContext(),dt) end; return true end})
+screens:register("battle",{update=function(dt) if runtime.battle then BattleController.update(battleContext(),dt) end; return true end})
 screens:register("event",{update=function() return true end})
 screens:register("ending",{update=function() return true end})
 screens:register("game",{update=function() return false end})
@@ -503,10 +482,10 @@ function App.update(dt) return Systems.gameplayUpdate.update(dt) end
 
 function ui.resolveScreenUI(name)
     if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui elseif name=="colors" then return colors
-    elseif name=="saveData" then return runtime.saveData elseif name=="exitPrompt" then return exitPrompt elseif name=="state" then return runtime.state
-    elseif name=="scenery" then return scenery elseif name=="characters" then return characters elseif name=="characterScroll" then return characterScroll
-    elseif name=="characterImages" then return characterImages elseif name=="mapScroll" then return mapScroll elseif name=="dialogue" then return dialogue
-    elseif name=="questOffer" then return questOffer elseif name=="tradeNPC" then return tradeNPC elseif name=="editedItem" then return editedItem
+    elseif name=="saveData" then return runtime.saveData elseif name=="exitPrompt" then return runtime.exitPrompt elseif name=="state" then return runtime.state
+    elseif name=="scenery" then return scenery elseif name=="characters" then return characters elseif name=="characterScroll" then return runtime.characterScroll
+    elseif name=="characterImages" then return characterImages elseif name=="mapScroll" then return runtime.mapScroll elseif name=="dialogue" then return runtime.dialogue
+    elseif name=="questOffer" then return runtime.questOffer elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="editedItem" then return runtime.editedItem
     elseif name=="randomEvent" then return randomEvent elseif name=="animationClock" then return animationClock elseif name=="npcImages" then return npcImages
     elseif name=="screens" then return screens elseif name=="session" then return session elseif name=="Systems" then return Systems
     elseif name=="Save" then return Save elseif name=="Util" then return Util elseif name=="Catalog" then return Catalog
@@ -517,8 +496,8 @@ function ui.resolveScreenUI(name)
 end
 
 function ui.assignScreenUI(name,value)
-    if name=="exitPrompt" then exitPrompt=value elseif name=="state" then runtime.state=value
-    elseif name=="characterScroll" then characterScroll=value elseif name=="mapScroll" then mapScroll=value
+    if name=="exitPrompt" then runtime.exitPrompt=value elseif name=="state" then runtime.state=value
+    elseif name=="characterScroll" then runtime.characterScroll=value elseif name=="mapScroll" then runtime.mapScroll=value
     else return false end
     return true
 end
@@ -528,15 +507,15 @@ Systems.screenUI=Systems.screenUI.install(ui.resolveScreenUI,ui.assignScreenUI)
 
 
 function ui.setInventoryState(name,value)
-    if name=="draggedSlot" then draggedSlot=value elseif name=="inventoryDragActive" then inventoryDragActive=value
-    elseif name=="giftOpen" then giftOpen=value elseif name=="giftSlot" then giftSlot=value
-    elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="lastClick" then lastInventoryClick=value
+    if name=="draggedSlot" then runtime.draggedSlot=value elseif name=="inventoryDragActive" then runtime.inventoryDragActive=value
+    elseif name=="giftOpen" then runtime.giftOpen=value elseif name=="giftSlot" then runtime.giftSlot=value
+    elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="lastClick" then lastInventoryClick=value
     elseif name=="lastClickTime" then lastInventoryClickTime=value end
 end
 
 function ui.inventoryContext()
-    return {data=runtime.saveData,activeChest=activeChest,chestOpen=chestOpen,inventoryOpen=inventoryOpen,draggedSlot=draggedSlot,inventoryDragActive=inventoryDragActive,
-        giftOpen=giftOpen,giftNPC=giftNPC,giftSlot=giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=nearNPC,nearPassenger=nearPassenger,
+    return {data=runtime.saveData,activeChest=runtime.activeChest,chestOpen=runtime.chestOpen,inventoryOpen=runtime.inventoryOpen,draggedSlot=runtime.draggedSlot,inventoryDragActive=runtime.inventoryDragActive,
+        giftOpen=runtime.giftOpen,giftNPC=runtime.giftNPC,giftSlot=runtime.giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=nearNPC,nearPassenger=nearPassenger,
         ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,mobileControls=mobileControls,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=Systems.inventoryActions.isWeapon,
         drawMenuFrame=Systems.screenUI.drawMenuFrame,button=Systems.screenUI.button,pointer=function() return screenToGame(pointerPosition()) end,value=Systems.inventoryActions.containerValue,set=ui.setInventoryState,
         battleMode=runtime.state=="battle",move=Systems.inventoryActions.moveBetweenSlots,quickTransfer=Systems.inventoryActions.quickTransfer,collectAmmo=Systems.inventoryActions.collectAmmo,drop=runtime.state=="battle" and function() return false end or Systems.inventoryActions.dropFromContainer,
@@ -552,17 +531,17 @@ function ui.drawItem(name,r) Systems.inventory.drawItem(ui.inventoryContext(),na
 
 function ui.battleUIContext()
     return {
-        W=W,H=H,battle=battle,battleZoom=battleZoom,scenery=scenery,colors=colors,mobileControls=mobileControls,
+        W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,scenery=scenery,colors=colors,mobileControls=mobileControls,
         characterImages=characterImages,npcImages=npcImages,mobImages=mobImages,
         characterWalkImages=characterWalkImages,npcWalkImages=npcWalkImages,
         mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,
         mobDeathImages=mobDeathImages,mobWalkImages=mobWalkImages,mobRangedImages=mobRangedImages,
         animationClock=animationClock,characterAnimations=characterAnimations,
-        saveData=runtime.saveData,inventoryOpen=inventoryOpen,ui=ui,
+        saveData=runtime.saveData,inventoryOpen=runtime.inventoryOpen,ui=ui,
         drawLandscape=Systems.worldRenderer.drawLandscape,drawGround=Systems.worldRenderer.drawGround,
         drawAnimatedCharacter=Systems.worldRenderer.drawAnimatedCharacter,button=Systems.screenUI.button,screenToGame=screenToGame,pointerPosition=pointerPosition,
-        setInventoryOpen=function(value) inventoryOpen=value end,
-        resetInventoryDrag=function() draggedSlot=nil; inventoryDragActive=false end,
+        setInventoryOpen=function(value) runtime.inventoryOpen=value end,
+        resetInventoryDrag=function() runtime.draggedSlot=nil; runtime.inventoryDragActive=false end,
         battleAttack=battleAttack,setBattlePrompt=setBattlePrompt,battleHeal=battleHeal,battleGuard=battleGuard,
         useBattleAbility=useBattleAbility,useBattlePotion=useBattlePotion,advanceBattleTurn=advanceBattleTurn,
         resolveBattleAttack=resolveBattleAttack,battleMoveTo=battleMoveTo
@@ -580,11 +559,11 @@ local function resolveWorldRenderer(name)
     elseif name=="colors" then return colors elseif name=="characterAnimations" then return characterAnimations
     elseif name=="characterImages" then return characterImages elseif name=="characterWalkImages" then return characterWalkImages
     elseif name=="characterActionImages" then return characterActionImages elseif name=="player" then return runtime.player
-    elseif name=="actionTimer" then return actionTimer elseif name=="actionHeldItem" then return actionHeldItem
-    elseif name=="actionKind" then return actionKind elseif name=="playerPose" then return playerPose
-    elseif name=="ui" then return ui elseif name=="editMode" then return editMode
-    elseif name=="editedItem" then return editedItem elseif name=="scene" then return runtime.scene
-    elseif name=="itemIdleImages" then return itemIdleImages elseif name=="npcActor" then return npcActor
+    elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionHeldItem" then return actionHeldItem
+    elseif name=="actionKind" then return runtime.actionKind elseif name=="playerPose" then return runtime.playerPose
+    elseif name=="ui" then return ui elseif name=="editMode" then return runtime.editMode
+    elseif name=="editedItem" then return runtime.editedItem elseif name=="scene" then return runtime.scene
+    elseif name=="itemIdleImages" then return itemIdleImages elseif name=="npcActor" then return runtime.npcActor
     elseif name=="npcImages" then return npcImages elseif name=="npcWalkImages" then return npcWalkImages
     elseif name=="familyImages" then return familyImages elseif name=="mobImages" then return mobImages
     elseif name=="mobIdleImages" then return mobIdleImages elseif name=="mobWalkImages" then return mobWalkImages
@@ -601,39 +580,39 @@ Systems.worldRenderer=Systems.worldRenderer.install(resolveWorldRenderer)
 
 
 local function beginCarTransition(targetIndex)
-    if carTransition or runtime.scene~="train" then return false end
+    if runtime.carTransition or runtime.scene~="train" then return false end
     local current=runtime.saveData.activeCar or 1
     targetIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {}),targetIndex))
     if targetIndex==current then return false end
     local left,right,top,bottom=trainFloorBounds()
-    carTransition={from=current,to=targetIndex,t=0,duration=.78,targetX=targetIndex>current and left or right,targetY=(top+bottom)/2}
-    runtime.player.moving=false; nearbyItem=nil; nearChest=nil; nearCarNext=false; nearCarPrev=false
+    runtime.carTransition={from=current,to=targetIndex,t=0,duration=.78,targetX=targetIndex>current and left or right,targetY=(top+bottom)/2}
+    runtime.player.moving=false; runtime.nearbyItem=nil; runtime.nearChest=nil; nearCarNext=false; nearCarPrev=false
     ui.playSfx("trainDoor")
     return true
 end
 
 local function moveEditedItem(dx,dy)
-    local item=editedItem and runtime.saveData.droppedItems[editedItem]; if not item then return end
+    local item=runtime.editedItem and runtime.saveData.droppedItems[runtime.editedItem]; if not item then return end
     local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,item.x+dx)); item.y=math.max(top,math.min(bottom,item.y+dy)); writeSave()
 end
 
 local function resolveGameplayHUD(name)
     if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui
     elseif name=="scene" then return runtime.scene elseif name=="saveData" then return runtime.saveData elseif name=="player" then return runtime.player
-    elseif name=="travelTransition" then return travelTransition elseif name=="carTransition" then return carTransition
+    elseif name=="travelTransition" then return runtime.travelTransition elseif name=="carTransition" then return runtime.carTransition
     elseif name=="cloudLayer" then return cloudLayer elseif name=="sceneryOffset" then return sceneryOffset
-    elseif name=="colors" then return colors elseif name=="inventoryOpen" then return inventoryOpen
-    elseif name=="mapOpen" then return mapOpen elseif name=="editMode" then return editMode
-    elseif name=="poseMenu" then return poseMenu elseif name=="trainUpgradeOpen" then return trainUpgradeOpen
-    elseif name=="tradeOpen" then return tradeOpen elseif name=="maintenanceSession" then return maintenanceSession
-    elseif name=="nearbyItem" then return nearbyItem elseif name=="nearPassenger" then return nearPassenger
+    elseif name=="colors" then return colors elseif name=="inventoryOpen" then return runtime.inventoryOpen
+    elseif name=="mapOpen" then return runtime.mapOpen elseif name=="editMode" then return runtime.editMode
+    elseif name=="poseMenu" then return runtime.poseMenu elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen
+    elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="maintenanceSession" then return maintenanceSession
+    elseif name=="nearbyItem" then return runtime.nearbyItem elseif name=="nearPassenger" then return nearPassenger
     elseif name=="nearCarNext" then return nearCarNext elseif name=="nearCarPrev" then return nearCarPrev
     elseif name=="nearNPC" then return nearNPC elseif name=="nearMailbox" then return nearMailbox
-    elseif name=="nearChest" then return nearChest elseif name=="nearHouse" then return nearHouse
+    elseif name=="nearChest" then return runtime.nearChest elseif name=="nearHouse" then return nearHouse
     elseif name=="nearReturnTrain" then return nearReturnTrain elseif name=="nearFire" then return nearFire
-    elseif name=="holdPickupIndex" then return holdPickupIndex elseif name=="holdPickupTime" then return holdPickupTime
-    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="inventoryDragActive" then return inventoryDragActive
-    elseif name=="draggedSlot" then return draggedSlot elseif name=="EngineUpgrades" then return EngineUpgrades
+    elseif name=="holdPickupIndex" then return runtime.holdPickupIndex elseif name=="holdPickupTime" then return runtime.holdPickupTime
+    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="inventoryDragActive" then return runtime.inventoryDragActive
+    elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="EngineUpgrades" then return EngineUpgrades
     elseif name=="mobileControls" then return mobileControls
     elseif name=="Clouds" then return Clouds elseif name=="Maintenance" then return Maintenance
     elseif name=="Util" then return Util elseif name=="button" then return Systems.screenUI.button
@@ -656,7 +635,7 @@ screens:register("characters",{draw=ui.drawCharacterSelect})
 screens:register("battle",{draw=ui.drawTacticalBattle})
 screens:register("event",{draw=ui.drawRandomEvent})
 screens:register("ending",{draw=Systems.screenUI.drawEnding})
-screens:register("game",{draw=function() if travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
+screens:register("game",{draw=function() if runtime.travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
 
 function App.draw()
     love.graphics.clear(0.025,0.02,0.025,1)
@@ -665,16 +644,16 @@ function App.draw()
     love.graphics.push()
     love.graphics.translate(offsetX,offsetY)
     love.graphics.scale(scaleX,scaleY)
-    if runtime.state=="game" and not travelConfirm and not maintenanceSession.open and not ui.mobileMenuOpen and Camera:isActive() then
+    if runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.mobileMenuOpen and Camera:isActive() then
         local focusX,focusY=(runtime.player and runtime.player.x or W/2),(runtime.player and runtime.player.y or H/2)
         Camera:apply(focusX,focusY)
     end
     screens:draw()
-    if exitPrompt then Systems.screenUI.drawExitPrompt() end
+    if runtime.exitPrompt then Systems.screenUI.drawExitPrompt() end
     love.graphics.pop()
     if mobileControls then mobileControls:draw(offsetX,offsetY,scaleX,scaleY) end
-    if travelTransition then
-        local t=travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
+    if runtime.travelTransition then
+        local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
         local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade)
         local windowWidth,windowHeight=love.graphics.getDimensions()
         love.graphics.setColor(0,0,0,alpha)
@@ -682,81 +661,62 @@ function App.draw()
     end
 end
 
-function ui.resolveGameplayInputState(name)
-    if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui
-    elseif name=="state" then return runtime.state elseif name=="saveData" then return runtime.saveData elseif name=="player" then return runtime.player
-    elseif name=="scene" then return runtime.scene elseif name=="selectedSlot" then return runtime.selectedSlot elseif name=="characters" then return characters
-    elseif name=="characterScroll" then return characterScroll elseif name=="dialogue" then return dialogue elseif name=="questOffer" then return questOffer
-    elseif name=="inventoryOpen" then return inventoryOpen elseif name=="chestOpen" then return chestOpen elseif name=="activeChest" then return activeChest
-    elseif name=="draggedSlot" then return draggedSlot elseif name=="inventoryDragActive" then return inventoryDragActive
-    elseif name=="giftOpen" then return giftOpen elseif name=="giftNPC" then return giftNPC elseif name=="giftSlot" then return giftSlot
-    elseif name=="poseMenu" then return poseMenu elseif name=="playerPose" then return playerPose
-    elseif name=="actionKind" then return actionKind elseif name=="actionTimer" then return actionTimer
-    elseif name=="tradeOpen" then return tradeOpen elseif name=="tradeNPC" then return tradeNPC
-    elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="maintenanceSession" then return maintenanceSession
-    elseif name=="editMode" then return editMode elseif name=="editedItem" then return editedItem elseif name=="editDragging" then return editDragging
-    elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll
-    elseif name=="travelConfirm" then return travelConfirm elseif name=="travelTransition" then return travelTransition
-    elseif name=="carTransition" then return carTransition elseif name=="battle" then return battle elseif name=="battleZoom" then return battleZoom
-    elseif name=="nearChest" then return nearChest elseif name=="nearbyItem" then return nearbyItem
-    elseif name=="holdPickupIndex" then return holdPickupIndex elseif name=="holdPickupTime" then return holdPickupTime
-    elseif name=="npcActor" then return npcActor elseif name=="exitPrompt" then return exitPrompt end
-end
-
-function ui.resolveGameplayInputServices(name)
-    if name=="Systems" then return Systems elseif name=="screens" then return screens elseif name=="session" then return session
-    elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="Util" then return Util
-    elseif name=="Save" then return Save elseif name=="EventUI" then return EventUI elseif name=="EngineUpgrades" then return EngineUpgrades
-    elseif name=="Maintenance" then return Maintenance elseif name=="Camera" then return Camera elseif name=="Viewport" then return Viewport
-    elseif name=="BattleRules" then return BattleRules elseif name=="Stops" then return Stops elseif name=="Settlements" then return Settlements
-    elseif name=="InteriorDoors" then return InteriorDoors elseif name=="scenery" then return scenery
-    elseif name=="writeSave" then return writeSave elseif name=="screenToGame" then return screenToGame elseif name=="pointerPosition" then return pointerPosition
-    elseif name=="isWeapon" then return Systems.inventoryActions.isWeapon elseif name=="isFurnitureItem" then return isFurnitureItem
-    elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="ownsTrainCar" then return Systems.screenUI.ownsTrainCar
-    elseif name=="moveEditedItem" then return moveEditedItem elseif name=="attackStopSludge" then return attackStopSludge
-    elseif name=="acceptQuest" then return Systems.journeyRules.acceptQuest elseif name=="attemptLeaveTrain" then return Systems.journeyRules.attemptLeaveTrain
-    elseif name=="travelCost" then return Systems.journeyRules.travelCost elseif name=="playTrainDepart" then return playTrainDepart
-    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="trainObjectBounds" then return trainObjectBounds elseif name=="newSave" then return Systems.sessionBootstrap.newSave
-    elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="resolveEventChoice" then return resolveEventChoice
-    elseif name=="enterStop" then return Systems.journeyRules.enterStop elseif name=="battleAttack" then return battleAttack
-    elseif name=="battleHeal" then return battleHeal elseif name=="battleGuard" then return battleGuard
-    elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="setBattlePrompt" then return setBattlePrompt
-    elseif name=="beginCarTransition" then return beginCarTransition elseif name=="talkToNPC" then return Systems.journeyRules.talkToNPC
-    elseif name=="ensureHouseItems" then return ensureHouseItems elseif name=="setupNPC" then return setupNPC
-    elseif name=="giveWeaponToNearby" then return Systems.inventoryActions.giveWeaponToNearby elseif name=="pickUpNearby" then return Systems.inventoryActions.pickUpNearby
-    elseif name=="addCoalToFire" then return Systems.inventoryActions.addCoalToFire elseif name=="requestExitPrompt" then return Systems.screenUI.requestExitPrompt
-    elseif name=="resolveExitPrompt" then return Systems.screenUI.resolveExitPrompt end
-end
-
-function ui.resolveGameplayInput(name)
-    local value=ui.resolveGameplayInputState(name)
-    if value~=nil then return value end
-    return ui.resolveGameplayInputServices(name)
-end
-
-
-function ui.assignGameplayInput(name,value)
-    if name=="state" then runtime.state=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value
-    elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="characterScroll" then characterScroll=value
-    elseif name=="dialogue" then dialogue=value elseif name=="questOffer" then questOffer=value
-    elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="chestOpen" then chestOpen=value elseif name=="activeChest" then activeChest=value
-    elseif name=="draggedSlot" then draggedSlot=value elseif name=="inventoryDragActive" then inventoryDragActive=value
-    elseif name=="giftOpen" then giftOpen=value elseif name=="giftSlot" then giftSlot=value
-    elseif name=="poseMenu" then poseMenu=value elseif name=="playerPose" then playerPose=value
-    elseif name=="actionKind" then actionKind=value elseif name=="actionTimer" then actionTimer=value
-    elseif name=="tradeOpen" then tradeOpen=value elseif name=="tradeNPC" then tradeNPC=value
-    elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="editMode" then editMode=value
-    elseif name=="editedItem" then editedItem=value elseif name=="editDragging" then editDragging=value
-    elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value
-    elseif name=="travelConfirm" then travelConfirm=value elseif name=="travelTransition" then travelTransition=value
-    elseif name=="battle" then battle=value elseif name=="battleZoom" then battleZoom=value
-    elseif name=="npcActor" then npcActor=value elseif name=="nearbyItem" then nearbyItem=value
-    elseif name=="holdPickupIndex" then holdPickupIndex=value elseif name=="holdPickupTime" then holdPickupTime=value
-    else return false end
-    return true
-end
-
-Systems.gameplayInput=Systems.gameplayInput.install(ui.resolveGameplayInput,ui.assignGameplayInput)
+Systems.gameplayInput=Systems.gameplayInput.new({
+    runtime=runtime,
+    width=W,
+    height=H,
+    ui=ui,
+    characters=characters,
+    maintenanceSession=maintenanceSession,
+    scenery=scenery,
+    systems=Systems,
+    inventory=Inventory,
+    catalog=Catalog,
+    util=Util,
+    save=Save,
+    eventUI=EventUI,
+    engineUpgrades=EngineUpgrades,
+    maintenance=Maintenance,
+    camera=Camera,
+    viewport=Viewport,
+    battleRules=BattleRules,
+    stops=Stops,
+    settlements=Settlements,
+    interiorDoors=InteriorDoors,
+    writeSave=writeSave,
+    screenToGame=screenToGame,
+    pointerPosition=pointerPosition,
+    isWeapon=Systems.inventoryActions.isWeapon,
+    isFurnitureItem=isFurnitureItem,
+    ensureStopLayout=ensureStopLayout,
+    ownsTrainCar=Systems.screenUI.ownsTrainCar,
+    moveEditedItem=moveEditedItem,
+    attackStopSludge=attackStopSludge,
+    acceptQuest=Systems.journeyRules.acceptQuest,
+    attemptLeaveTrain=Systems.journeyRules.attemptLeaveTrain,
+    travelCost=Systems.journeyRules.travelCost,
+    playTrainDepart=playTrainDepart,
+    trainFloorBounds=trainFloorBounds,
+    trainObjectBounds=trainObjectBounds,
+    newSave=Systems.sessionBootstrap.newSave,
+    enterGame=Systems.sessionBootstrap.enterGame,
+    resolveEventChoice=resolveEventChoice,
+    enterStop=Systems.journeyRules.enterStop,
+    battleAttack=battleAttack,
+    battleHeal=battleHeal,
+    battleGuard=battleGuard,
+    advanceBattleTurn=advanceBattleTurn,
+    setBattlePrompt=setBattlePrompt,
+    beginCarTransition=beginCarTransition,
+    talkToNPC=Systems.journeyRules.talkToNPC,
+    ensureHouseItems=ensureHouseItems,
+    setupNPC=setupNPC,
+    giveWeaponToNearby=Systems.inventoryActions.giveWeaponToNearby,
+    pickUpNearby=Systems.inventoryActions.pickUpNearby,
+    addCoalToFire=Systems.inventoryActions.addCoalToFire,
+    requestExitPrompt=Systems.screenUI.requestExitPrompt,
+    resolveExitPrompt=Systems.screenUI.resolveExitPrompt,
+})
 function App.mousepressed(x,y,button,istouch,...)
     if mobileControls and mobileControls:ignoreSyntheticMouse(istouch) then return end
     return Systems.gameplayInput.mousepressed(x,y,button,...)
@@ -790,11 +750,11 @@ end
 function App.installSmoke()
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
-        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return inventoryOpen elseif name=="mapOpen" then return mapOpen elseif name=="mapScroll" then return mapScroll elseif name=="tradeOpen" then return tradeOpen elseif name=="trainUpgradeOpen" then return trainUpgradeOpen elseif name=="poseMenu" then return poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return battle elseif name=="travelTransition" then return travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return actionTimer elseif name=="actionKind" then return actionKind elseif name=="travelConfirm" then return travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return dialogue elseif name=="editMode" then return editMode elseif name=="carTransition" then return carTransition
+        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
         elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return mobileControls elseif name=="Camera" then return Camera
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return advanceBattleTurn elseif name=="battleAttack" then return battleAttack elseif name=="resolveBattleAttack" then return resolveBattleAttack end
     end,__newindex=function(_,name,value)
-        if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then inventoryOpen=value elseif name=="mapOpen" then mapOpen=value elseif name=="mapScroll" then mapScroll=value elseif name=="tradeOpen" then tradeOpen=value elseif name=="trainUpgradeOpen" then trainUpgradeOpen=value elseif name=="poseMenu" then poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then battle=value elseif name=="travelTransition" then travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then actionTimer=value elseif name=="travelConfirm" then travelConfirm=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value elseif name=="carTransition" then carTransition=value end
+        if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
     end})
     SmokePlaythrough.install(smokeScope)
 end

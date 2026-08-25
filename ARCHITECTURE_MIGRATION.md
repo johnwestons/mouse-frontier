@@ -26,7 +26,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Save version | Entry-point constant passed through implicit resolvers | Owned by `game/save_schema.lua` | Complete |
 | Mobile inheritance | Mobile adapter wired directly in the former monolithic entry point | Adapter owned by `game/app.lua`; package stages the shared tree | Complete |
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
-| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap complete; input next |
+| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap and gameplay input complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session fields complete; overlays remain incremental |
 
 ## Execution sequence
@@ -43,8 +43,8 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 
 1. `game/runtime_state.lua` now owns authoritative access to screen, selected slot, save data, player, and scene while preserving `GameSession` save behavior and `ScreenManager` transitions.
 2. Session bootstrap now uses a validated explicit context and writes central fields through runtime state.
-3. Gameplay input follows using the context pattern established by bootstrap.
-4. Overlay, transition, interaction, and battle fields then move into runtime-state domains in focused changes rather than one high-risk rewrite.
+3. Gameplay input now uses a validated explicit context; it no longer receives string-resolved dependencies or writes application locals indirectly.
+4. Input-owned overlay, transition, interaction, and battle fields now live in runtime state. Remaining update, inventory, journey, screen, renderer, and HUD adapters move in focused changes rather than one high-risk rewrite.
 
 ## Definition of done for this migration wave
 
