@@ -230,29 +230,6 @@ local function battleHeal() BattleController.heal(battleContext()) end
 local function battleGuard() BattleController.guard(battleContext()) end
 local function useBattleAbility(kind) BattleController.ability(battleContext(),kind) end
 local function useBattlePotion(name) return BattleController.usePotion(battleContext(),name) end
-function ui.resolveInventoryActions(name)
-    if name=="saveData" then return runtime.saveData elseif name=="activeChest" then return runtime.activeChest elseif name=="chestOpen" then return runtime.chestOpen
-    elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="inventoryDragActive" then return runtime.inventoryDragActive
-    elseif name=="dialogue" then return runtime.dialogue elseif name=="player" then return runtime.player elseif name=="scene" then return runtime.scene
-    elseif name=="nearNPC" then return runtime.nearNPC elseif name=="nearPassenger" then return runtime.nearPassenger elseif name=="npcActor" then return runtime.npcActor
-    elseif name=="nearbyItem" then return runtime.nearbyItem elseif name=="giftOpen" then return runtime.giftOpen elseif name=="giftNPC" then return runtime.giftNPC
-    elseif name=="giftSlot" then return runtime.giftSlot elseif name=="inventoryOpen" then return runtime.inventoryOpen
-    elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionKind" then return runtime.actionKind elseif name=="actionTimer" then return runtime.actionTimer
-    elseif name=="Inventory" then return Inventory elseif name=="Catalog" then return Catalog elseif name=="Util" then return Util
-    elseif name=="writeSave" then return writeSave elseif name=="battleContext" then return battleContext
-    elseif name=="BattleController" then return BattleController elseif name=="useBattlePotion" then return useBattlePotion end
-end
-
-function ui.assignInventoryActions(name,value)
-    if name=="activeChest" then runtime.activeChest=value elseif name=="chestOpen" then runtime.chestOpen=value
-    elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="inventoryDragActive" then runtime.inventoryDragActive=value
-    elseif name=="dialogue" then runtime.dialogue=value elseif name=="nearbyItem" then runtime.nearbyItem=value
-    elseif name=="giftOpen" then runtime.giftOpen=value elseif name=="giftNPC" then runtime.giftNPC=value elseif name=="giftSlot" then runtime.giftSlot=value
-    elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value
-    elseif name=="actionKind" then runtime.actionKind=value elseif name=="actionTimer" then runtime.actionTimer=value else return false end
-    return true
-end
-
 function ui.resolveJourneyRules(name)
     if name=="saveData" then return runtime.saveData elseif name=="dialogue" then return runtime.dialogue elseif name=="questOffer" then return runtime.questOffer
     elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="car" then return car
@@ -272,7 +249,16 @@ function ui.assignJourneyRules(name,value)
     return true
 end
 
-Systems.inventoryActions=Systems.inventoryActions.install(ui.resolveInventoryActions,ui.assignInventoryActions)
+Systems.inventoryActions=Systems.inventoryActions.new({
+    runtime=runtime,
+    inventory=Inventory,
+    catalog=Catalog,
+    util=Util,
+    battleController=BattleController,
+    writeSave=writeSave,
+    battleContext=battleContext,
+    useBattlePotion=useBattlePotion,
+})
 Systems.journeyRules=Systems.journeyRules.install(ui.resolveJourneyRules,ui.assignJourneyRules)
 
 function ui.playSfx(kind)
