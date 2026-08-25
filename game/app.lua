@@ -433,29 +433,34 @@ screens:register("game",{update=function() return false end})
 
 function App.update(dt) return Systems.gameplayUpdate.update(dt) end
 
-function ui.resolveScreenUI(name)
-    if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui elseif name=="colors" then return colors
-    elseif name=="saveData" then return runtime.saveData elseif name=="exitPrompt" then return runtime.exitPrompt elseif name=="state" then return runtime.state
-    elseif name=="scenery" then return scenery elseif name=="characters" then return characters elseif name=="characterScroll" then return runtime.characterScroll
-    elseif name=="characterImages" then return characterImages elseif name=="mapScroll" then return runtime.mapScroll elseif name=="dialogue" then return runtime.dialogue
-    elseif name=="questOffer" then return runtime.questOffer elseif name=="tradeNPC" then return runtime.tradeNPC elseif name=="editedItem" then return runtime.editedItem
-    elseif name=="randomEvent" then return runtime.randomEvent elseif name=="animationClock" then return runtime.animationClock elseif name=="npcImages" then return npcImages
-    elseif name=="screens" then return screens elseif name=="session" then return session elseif name=="Systems" then return Systems
-    elseif name=="Save" then return Save elseif name=="Util" then return Util elseif name=="Catalog" then return Catalog
-    elseif name=="Inventory" then return Inventory elseif name=="EventUI" then return EventUI elseif name=="Events" then return Events
-    elseif name=="EngineUpgrades" then return EngineUpgrades elseif name=="writeSave" then return writeSave
-    elseif name=="mobileControls" then return mobileControls
-    elseif name=="screenToGame" then return screenToGame elseif name=="ensureStopLayout" then return ensureStopLayout end
-end
-
-function ui.assignScreenUI(name,value)
-    if name=="exitPrompt" then runtime.exitPrompt=value elseif name=="state" then runtime.state=value
-    elseif name=="characterScroll" then runtime.characterScroll=value elseif name=="mapScroll" then runtime.mapScroll=value
-    else return false end
-    return true
-end
-
-Systems.screenUI=Systems.screenUI.install(ui.resolveScreenUI,ui.assignScreenUI)
+Systems.screenUI=Systems.screenUI.new({
+    runtime=runtime,
+    width=W,
+    height=H,
+    ui=ui,
+    colors=colors,
+    scenery=scenery,
+    characters=characters,
+    characterImages=characterImages,
+    npcImages=npcImages,
+    save=Save,
+    util=Util,
+    catalog=Catalog,
+    inventory=Inventory,
+    eventUI=EventUI,
+    events=Events,
+    engineUpgrades=EngineUpgrades,
+    writeSave=writeSave,
+    screenToGame=screenToGame,
+    ensureStopLayout=ensureStopLayout,
+    mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end,
+    drawLandscape=function(...) return Systems.worldRenderer.drawLandscape(...) end,
+    drawTracks=function(...) return Systems.worldRenderer.drawTracks(...) end,
+    drawLocomotive=function(...) return Systems.worldRenderer.drawLocomotive(...) end,
+    drawTrainCar=function(...) return Systems.worldRenderer.drawTrainCar(...) end,
+    isWeapon=Systems.inventoryActions.isWeapon,
+    travelCost=Systems.journeyRules.travelCost,
+})
 
 
 
