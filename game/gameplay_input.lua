@@ -19,7 +19,6 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
   local Save=required(context,"save","table")
-  local EventUI=required(context,"eventUI","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local Maintenance=required(context,"maintenance","table")
   local Camera=required(context,"camera","table")
@@ -50,7 +49,8 @@ local function new(context)
   local trainObjectBounds=required(context,"trainObjectBounds","function")
   local newSave=required(context,"newSave","function")
   local enterGame=required(context,"enterGame","function")
-  local resolveEventChoice=required(context,"resolveEventChoice","function")
+  local chooseEvent=required(context,"chooseEvent","function")
+  local handleEventClick=required(context,"handleEventClick","function")
   local enterStop=required(context,"enterStop","function")
   local handleBattleMouse=required(context,"handleBattleMouse","function")
   local battleAttack=required(context,"battleAttack","function")
@@ -252,7 +252,7 @@ local function new(context)
       end
       if button==2 and runtime.state=="battle" then ui.handleBattleMousePressed(x,y,true); return end
       if button~=1 then return end
-      if runtime.state=="event" then local choice=EventUI.hit(x,y,ui.eventChoices,Util.pointIn); if choice then resolveEventChoice(choice) end; return end
+      if runtime.state=="event" then handleEventClick(x,y); return end
       if runtime.state=="ending" then if Util.pointIn(x,y,ui.endingButton) then writeSave(); runtime.state="slots" end; return end
       if runtime.travelConfirm then
           if Util.pointIn(x,y,ui.travelNo) then runtime.travelConfirm=false; return end
@@ -320,7 +320,7 @@ local function new(context)
       end
       if runtime.tradeOpen then if key=="escape" or key=="q" then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave() end; return end
       if runtime.state=="event" then
-          local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then resolveEventChoice(choice) end
+          local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then chooseEvent(choice) end
           return
       end
       if runtime.state=="ending" then if key=="return" or key=="space" then writeSave(); runtime.state="slots" end; return end

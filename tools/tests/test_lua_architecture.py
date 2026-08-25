@@ -43,6 +43,9 @@ class LuaArchitectureTests(unittest.TestCase):
         world_scene = (ROOT / "game" / "world_scene.lua").read_text(encoding="utf-8")
         audio_runtime = (ROOT / "game" / "audio_runtime.lua").read_text(encoding="utf-8")
         inventory_presenter = (ROOT / "game" / "inventory_presenter.lua").read_text(encoding="utf-8")
+        event_runtime = (ROOT / "game" / "event_runtime.lua").read_text(encoding="utf-8")
+        journey_rules = (ROOT / "game" / "journey_rules.lua").read_text(encoding="utf-8")
+        screen_ui = (ROOT / "game" / "screen_ui.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -146,6 +149,20 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("Systems.inventory.handle", gameplay_input)
         self.assertIn("handleInventoryClick=Systems.inventoryPresenter.handleClick", app)
         self.assertIn("handleInventoryRelease=Systems.inventoryPresenter.handleRelease", app)
+        self.assertIn('eventRuntime = require("game.event_runtime")', systems)
+        self.assertIn("return {new=new}", event_runtime)
+        self.assertNotIn("setfenv", event_runtime)
+        self.assertNotIn("dependency resolver", event_runtime)
+        self.assertIn("Systems.eventRuntime=Systems.eventRuntime.new({", app)
+        self.assertNotIn("local function resolveEventChoice", app)
+        self.assertNotIn("EventUI.hit", gameplay_input)
+        self.assertNotIn('required(context,"eventUI"', gameplay_input)
+        self.assertNotIn("Events.required", journey_rules)
+        self.assertNotIn("Events.random", journey_rules)
+        self.assertNotIn("Events.canChoose", screen_ui)
+        self.assertIn("chooseEvent=Systems.eventRuntime.choose", app)
+        self.assertIn("handleEventClick=Systems.eventRuntime.handleClick", app)
+        self.assertIn("canChooseEvent=Systems.eventRuntime.canChoose", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

@@ -16,11 +16,12 @@ local function new(context)
   local Passengers=required(context,"passengers","table")
   local Util=required(context,"util","table")
   local House=required(context,"house","table")
-  local Events=required(context,"events","table")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
   local setupNPC=required(context,"setupNPC","function")
   local writeSave=required(context,"writeSave","function")
   local beginEncounter=required(context,"beginEncounter","function")
+  local beginRequiredEvent=required(context,"beginRequiredEvent","function")
+  local beginRandomEvent=required(context,"beginRandomEvent","function")
 
   local function travelCost()
       local leg=math.max(0,(runtime.saveData.location or 1)-1)
@@ -146,8 +147,7 @@ local function new(context)
 
   local function attemptLeaveTrain()
       local key=tostring(runtime.saveData.location); local encounter=runtime.saveData.encounters[key]
-      local requiredEvent=not runtime.saveData.events[key] and Events.required(runtime.saveData,runtime.saveData.location)
-      if requiredEvent then runtime.randomEvent=requiredEvent; runtime.state="event"; return end
+      if beginRequiredEvent(runtime.saveData.location) then return end
       if not encounter then
           -- Battles should be the primary stop interruption; trail events remain less common.
           -- Story and mystery chapters are checked above; ordinary stops still
@@ -167,7 +167,7 @@ local function new(context)
       end
       if encounter.hasMob and not encounter.resolved and (encounter.mobFile or encounter.mobFiles) then beginEncounter(encounter)
       elseif not encounter.hasMob and not runtime.saveData.events[tostring(runtime.saveData.location)] then
-          runtime.randomEvent=Events.random(runtime.saveData); runtime.state="event"
+          beginRandomEvent()
       else enterStop() end
   end
 

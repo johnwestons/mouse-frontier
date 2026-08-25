@@ -21,7 +21,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Inventory=required(context,"inventory","table")
   local EventUI=required(context,"eventUI","table")
-  local Events=required(context,"events","table")
+  local canChooseEvent=required(context,"canChooseEvent","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
@@ -297,7 +297,7 @@ local function new(context)
 
   function ui.drawRandomEvent()
       drawLandscape(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
-      ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},function(choice) return Events.canChoose(runtime.saveData,choice) end)
+      ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},canChooseEvent)
   end
 
   local function ownsTrainCar(id) for _,owned in ipairs(runtime.saveData.trainCars or {}) do if owned==id then return true end end return false end

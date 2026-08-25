@@ -5,6 +5,7 @@ return {
     audioRuntime = require("game.audio_runtime"),
     battleRuntime = require("game.battle_runtime"),
     battleUI = require("game.battle_ui"),
+    eventRuntime = require("game.event_runtime"),
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),
     gameplayUpdate = require("game.gameplay_update"),

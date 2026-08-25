@@ -28,7 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat, world-scene, audio, and inventory-presentation behavior split across `game/app.lua` | `game/app.lua` wires dedicated battle, world-scene, audio, and inventory-presentation services | Battle, world-scene, audio, and inventory-presentation orchestration extracted; further domain extraction is incremental |
+| Composition root | Combat, world-scene, audio, inventory-presentation, and event behavior split across `game/app.lua` | `game/app.lua` wires dedicated battle, world-scene, audio, inventory-presentation, and event services | Battle, world-scene, audio, inventory-presentation, and event orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -57,6 +57,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 13. World-scene orchestration now lives behind a validated service. Stop and house layout, NPC restoration, dropped-item location rules, sludge state/combat, chicken flocks, and mice share one owner; save bootstrap resets service-owned encounter state while update, rendering, journey, input, and smoke paths consume focused operations.
 14. Audio orchestration now lives behind a validated runtime service. Audio initialization and shutdown, scene-aware music categories, sound effects, weapon sound mapping, train departure playback, radio resets, track controls, mute/pause state, and HUD status share one owner; input and HUD no longer access the raw audio engine.
 15. Inventory presentation now lives behind a validated presenter service. Mutable click timing, UI context construction, desktop/mobile slot presentation, battle restrictions, item drawing, and click/release routing share one owner; application and gameplay input no longer build or consume the raw inventory UI context.
+16. Trail-event orchestration now lives behind a validated runtime service. Required and random event presentation, choice affordability, pointer hit routing, consequence resolution, battle handoff, stop entry, and result dialogue share one owner; journey, screen, input, and smoke paths consume focused event operations instead of the raw event model.
 
 ## Definition of done for this migration wave
 
