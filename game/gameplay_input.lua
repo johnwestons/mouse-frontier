@@ -65,6 +65,8 @@ local function new(context)
   local giveWeaponToNearby=required(context,"giveWeaponToNearby","function")
   local pickUpNearby=required(context,"pickUpNearby","function")
   local addCoalToFire=required(context,"addCoalToFire","function")
+  local handleInventoryClick=required(context,"handleInventoryClick","function")
+  local handleInventoryRelease=required(context,"handleInventoryRelease","function")
   local requestExitPrompt=required(context,"requestExitPrompt","function")
   local resolveExitPrompt=required(context,"resolveExitPrompt","function")
 
@@ -79,11 +81,6 @@ local function new(context)
           runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker="Gift Accepted",text=Util.titleFromFile(runtime.giftNPC).." accepted the gift of "..Util.titleFromFile(name)..".",timer=2}
       else runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC),text="I don't need that right now.",timer=2} end
       runtime.giftOpen=false; runtime.inventoryOpen=false; runtime.giftSlot=nil; writeSave()
-  end
-
-  function ui.handleInventoryClick(x,y)
-      local ctx=ui.inventoryContext(); ctx.offerGift=ui.offerGift
-      return Systems.inventory.handleClick(ctx,x,y)
   end
 
   function ui.handlePoseClick(x,y)
@@ -196,7 +193,7 @@ local function new(context)
       end
       if ui.handleRadioMousePressed(x,y) then return true end
       if runtime.inventoryOpen then
-          if Util.pointIn(x,y,ui.backpack) then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave() else ui.handleInventoryClick(x,y) end
+          if Util.pointIn(x,y,ui.backpack) then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave() else handleInventoryClick(x,y,ui.offerGift) end
           return true
       end
       if runtime.tradeOpen then ui.handleTradeClick(x,y); return true end
@@ -295,7 +292,7 @@ local function new(context)
       x,y=screenToGame(x,y)
       if button==1 and ui.editSliderDrag then ui.updateEditColorSlider(x); ui.editSliderDrag=nil; writeSave(); return end
       if button==1 and runtime.editDragging then runtime.editDragging=false; writeSave() end
-      if runtime.state=="game" or (runtime.state=="battle" and runtime.inventoryOpen) then Systems.inventory.handleRelease(ui.inventoryContext(),x,y,button) end
+      if runtime.state=="game" or (runtime.state=="battle" and runtime.inventoryOpen) then handleInventoryRelease(x,y,button) end
   end
 
   local function wheelmoved(_,y)

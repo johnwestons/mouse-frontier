@@ -12,6 +12,7 @@ return {
     intro = require("game.intro_cinematic"),
     inventory = require("game.inventory_ui"),
     inventoryActions = require("game.inventory_actions"),
+    inventoryPresenter = require("game.inventory_presenter"),
     journeyRules = require("game.journey_rules"),
     screens = require("game.screen_manager"),
     screenUI = require("game.screen_ui"),

@@ -194,7 +194,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     if battle.intro then return "handled" end
     if ctx.inventoryOpen then
         if Util.pointIn(x,y,ui.battleInventoryClose) then ctx.setInventoryOpen(false); ctx.resetInventoryDrag()
-        else ui.handleInventoryClick(x,y) end
+        else ctx.handleInventoryClick(x,y) end
         return "handled"
     end
     if Util.pointIn(x,y,ui.battleLogUp) then ui.playSfx("menu"); battle.logScroll=math.min(math.max(0,#(battle.log or {})-1),(battle.logScroll or 0)+1); return "handled" end

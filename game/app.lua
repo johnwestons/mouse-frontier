@@ -60,7 +60,6 @@ local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {},
 local itemIdleImages = {}
 local characterAnimations = {}
 local HOLD_PICKUP_SECONDS = Config.holdPickupSeconds
-local lastInventoryClick, lastInventoryClickTime = nil, 0
 local maintenanceSession = Maintenance.new()
 local mobileControls
 
@@ -199,6 +198,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     screenToGame=screenToGame,
     pointerPosition=pointerPosition,
     enterStop=function(...) return Systems.journeyRules.enterStop(...) end,
+    handleInventoryClick=function(x,y) return Systems.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
 })
 
 local function resolveEventChoice(index)
@@ -392,30 +392,28 @@ Systems.screenUI=Systems.screenUI.new({
     travelCost=Systems.journeyRules.travelCost,
 })
 
-
-
-function ui.setInventoryState(name,value)
-    if name=="draggedSlot" then runtime.draggedSlot=value elseif name=="inventoryDragActive" then runtime.inventoryDragActive=value
-    elseif name=="giftOpen" then runtime.giftOpen=value elseif name=="giftSlot" then runtime.giftSlot=value
-    elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="lastClick" then lastInventoryClick=value
-    elseif name=="lastClickTime" then lastInventoryClickTime=value end
-end
-
-function ui.inventoryContext()
-    return {data=runtime.saveData,activeChest=runtime.activeChest,chestOpen=runtime.chestOpen,inventoryOpen=runtime.inventoryOpen,draggedSlot=runtime.draggedSlot,inventoryDragActive=runtime.inventoryDragActive,
-        giftOpen=runtime.giftOpen,giftNPC=runtime.giftNPC,giftSlot=runtime.giftSlot,lastClick=lastInventoryClick,lastClickTime=lastInventoryClickTime,nearNPC=runtime.nearNPC,nearPassenger=runtime.nearPassenger,
-        ui=ui,Inventory=Inventory,Catalog=Catalog,colors=colors,mobileControls=mobileControls,pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=Systems.inventoryActions.isWeapon,
-        drawMenuFrame=Systems.screenUI.drawMenuFrame,button=Systems.screenUI.button,pointer=function() return screenToGame(pointerPosition()) end,value=Systems.inventoryActions.containerValue,set=ui.setInventoryState,
-        battleMode=runtime.state=="battle",move=Systems.inventoryActions.moveBetweenSlots,quickTransfer=Systems.inventoryActions.quickTransfer,collectAmmo=Systems.inventoryActions.collectAmmo,drop=runtime.state=="battle" and function() return false end or Systems.inventoryActions.dropFromContainer,
-        consume=runtime.state=="battle" and Systems.inventoryActions.consumeBattleSelected or Systems.inventoryActions.consumeSelected}
-end
-
-function ui.drawInventory() Systems.inventory.draw(ui.inventoryContext()) end
-function ui.drawChestInventory() Systems.inventory.drawChest(ui.inventoryContext()) end
-function ui.drawItem(name,r) Systems.inventory.drawItem(ui.inventoryContext(),name,r) end
-
-
-
+Systems.inventoryPresenter=Systems.inventoryPresenter.new({
+    runtime=runtime,
+    ui=ui,
+    inventoryUI=Systems.inventory,
+    inventory=Inventory,
+    catalog=Catalog,
+    colors=colors,
+    getMobileControls=function() return mobileControls end,
+    pointIn=Util.pointIn,
+    title=Util.titleFromFile,
+    isWeapon=Systems.inventoryActions.isWeapon,
+    drawMenuFrame=Systems.screenUI.drawMenuFrame,
+    button=Systems.screenUI.button,
+    pointer=function() return screenToGame(pointerPosition()) end,
+    value=Systems.inventoryActions.containerValue,
+    move=Systems.inventoryActions.moveBetweenSlots,
+    quickTransfer=Systems.inventoryActions.quickTransfer,
+    collectAmmo=Systems.inventoryActions.collectAmmo,
+    drop=Systems.inventoryActions.dropFromContainer,
+    consume=Systems.inventoryActions.consumeSelected,
+    consumeBattle=Systems.inventoryActions.consumeBattleSelected,
+})
 
 Systems.worldRenderer=Systems.worldRenderer.new({
     runtime=runtime,
@@ -596,6 +594,8 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     giveWeaponToNearby=Systems.inventoryActions.giveWeaponToNearby,
     pickUpNearby=Systems.inventoryActions.pickUpNearby,
     addCoalToFire=Systems.inventoryActions.addCoalToFire,
+    handleInventoryClick=Systems.inventoryPresenter.handleClick,
+    handleInventoryRelease=Systems.inventoryPresenter.handleRelease,
     requestExitPrompt=Systems.screenUI.requestExitPrompt,
     resolveExitPrompt=Systems.screenUI.resolveExitPrompt,
 })

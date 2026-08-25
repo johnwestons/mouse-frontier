@@ -38,6 +38,7 @@ local function new(context)
   local screenToGame=required(context,"screenToGame","function")
   local pointerPosition=required(context,"pointerPosition","function")
   local enterStop=required(context,"enterStop","function")
+  local handleInventoryClick=required(context,"handleInventoryClick","function")
 
   local function controllerContext()
       return {
@@ -96,6 +97,7 @@ local function new(context)
           drawAnimatedCharacter=renderer.drawAnimatedCharacter,button=screenUI.button,screenToGame=screenToGame,pointerPosition=pointerPosition,
           setInventoryOpen=function(value) runtime.inventoryOpen=value end,
           resetInventoryDrag=function() runtime.draggedSlot=nil; runtime.inventoryDragActive=false end,
+          handleInventoryClick=handleInventoryClick,
           battleAttack=attack,setBattlePrompt=setPrompt,battleHeal=heal,battleGuard=guard,
           useBattleAbility=useAbility,useBattlePotion=usePotion,advanceBattleTurn=advanceTurn,
           resolveBattleAttack=resolveAttack,battleMoveTo=moveTo,

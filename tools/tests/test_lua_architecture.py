@@ -42,6 +42,7 @@ class LuaArchitectureTests(unittest.TestCase):
         battle_runtime = (ROOT / "game" / "battle_runtime.lua").read_text(encoding="utf-8")
         world_scene = (ROOT / "game" / "world_scene.lua").read_text(encoding="utf-8")
         audio_runtime = (ROOT / "game" / "audio_runtime.lua").read_text(encoding="utf-8")
+        inventory_presenter = (ROOT / "game" / "inventory_presenter.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -133,6 +134,18 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("ui.audio", gameplay_hud)
         self.assertIn("updateAudio=Systems.audioRuntime.update", app)
         self.assertIn("getAudioStatus=Systems.audioRuntime.status", app)
+        self.assertIn('inventoryPresenter = require("game.inventory_presenter")', systems)
+        self.assertIn("return {new=new}", inventory_presenter)
+        self.assertNotIn("setfenv", inventory_presenter)
+        self.assertNotIn("dependency resolver", inventory_presenter)
+        self.assertIn("Systems.inventoryPresenter=Systems.inventoryPresenter.new({", app)
+        self.assertNotIn("function ui.setInventoryState", app)
+        self.assertNotIn("function ui.inventoryContext", app)
+        self.assertNotIn("function ui.drawInventory", app)
+        self.assertNotIn("ui.inventoryContext", gameplay_input)
+        self.assertNotIn("Systems.inventory.handle", gameplay_input)
+        self.assertIn("handleInventoryClick=Systems.inventoryPresenter.handleClick", app)
+        self.assertIn("handleInventoryRelease=Systems.inventoryPresenter.handleRelease", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
