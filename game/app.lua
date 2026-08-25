@@ -67,21 +67,6 @@ local mobileControls
 -- Rolling-stock layout: the car sits farther right to leave room for the
 -- enlarged locomotive while retaining one shared rail/coupler baseline.
 local car = Config.trainCar
-local function activeTrainCarImage()
-    local image=scenery and scenery.trainCarImages and scenery.trainCarImages[runtime.saveData and runtime.saveData.trainCars and runtime.saveData.trainCars[runtime.saveData.activeCar or 1] or "living-car"]
-    return image
-end
-local function trainFloorBounds()
-    return Train.characterBounds(car,activeTrainCarImage(),30)
-end
-local function trainObjectBounds()
-    -- Editor placement is intentionally unconstrained: objects may be arranged
-    -- anywhere in the visible game canvas, including the roof/track margins.
-    return 0, W, 0, H
-end
-local function clampToTrainFloor(x,y)
-    return Train.clampCharacterToFloor(car,activeTrainCarImage(),x,y,30)
-end
 local colors = Config.colors
 
 
@@ -121,6 +106,17 @@ Systems.audioRuntime=Systems.audioRuntime.new({
     audio=Audio,
 })
 
+Systems.trainCarRuntime=Systems.trainCarRuntime.new({
+    runtime=runtime,
+    ui=ui,
+    scenery=scenery,
+    car=car,
+    train=Train,
+    width=W,
+    height=H,
+    writeSave=writeSave,
+})
+
 Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     saveSchema=SaveSchema,
     characters=characters,
@@ -139,9 +135,9 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     passengers=Passengers,
     events=Events,
     settlements=Settlements,
-    trainObjectBounds=trainObjectBounds,
-    trainFloorBounds=trainFloorBounds,
-    clampToTrainFloor=clampToTrainFloor,
+    trainObjectBounds=Systems.trainCarRuntime.objectBounds,
+    trainFloorBounds=Systems.trainCarRuntime.floorBounds,
+    clampToTrainFloor=Systems.trainCarRuntime.clampToFloor,
     isFurnitureItem=isFurnitureItem,
     resetStopSludges=Systems.worldScene.resetStopSludges,
 })
@@ -344,10 +340,11 @@ function App.load()
         updateAudio=Systems.audioRuntime.update,
         ensureStopLayout=Systems.worldScene.ensureStopLayout,
         updateWorldScene=Systems.worldScene.update,
-        clampToTrainFloor=clampToTrainFloor,
+        clampToTrainFloor=Systems.trainCarRuntime.clampToFloor,
         itemIsHere=Systems.worldScene.itemIsHere,
         setupNPC=Systems.worldScene.setupNPC,
-        trainFloorBounds=trainFloorBounds,
+        trainFloorBounds=Systems.trainCarRuntime.floorBounds,
+        updateCarTransition=Systems.trainCarRuntime.updateTransition,
         writeSave=writeSave,
     })
 end
@@ -454,23 +451,6 @@ Systems.worldRenderer=Systems.worldRenderer.new({
 })
 
 
-local function beginCarTransition(targetIndex)
-    if runtime.carTransition or runtime.scene~="train" then return false end
-    local current=runtime.saveData.activeCar or 1
-    targetIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {}),targetIndex))
-    if targetIndex==current then return false end
-    local left,right,top,bottom=trainFloorBounds()
-    runtime.carTransition={from=current,to=targetIndex,t=0,duration=.78,targetX=targetIndex>current and left or right,targetY=(top+bottom)/2}
-    runtime.player.moving=false; runtime.nearbyItem=nil; runtime.nearChest=nil; runtime.nearCarNext=false; runtime.nearCarPrev=false
-    ui.playSfx("trainDoor")
-    return true
-end
-
-local function moveEditedItem(dx,dy)
-    local item=runtime.editedItem and runtime.saveData.droppedItems[runtime.editedItem]; if not item then return end
-    local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,item.x+dx)); item.y=math.max(top,math.min(bottom,item.y+dy)); writeSave()
-end
-
 Systems.gameplayHUD=Systems.gameplayHUD.new({
     runtime=runtime,
     width=W,
@@ -565,7 +545,7 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     isFurnitureItem=isFurnitureItem,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
     ownsTrainCar=Systems.screenUI.ownsTrainCar,
-    moveEditedItem=moveEditedItem,
+    moveEditedItem=Systems.trainCarRuntime.moveEditedItem,
     attackStopSludge=Systems.worldScene.attackStopSludge,
     acceptQuest=Systems.journeyRules.acceptQuest,
     attemptLeaveTrain=Systems.journeyRules.attemptLeaveTrain,
@@ -576,8 +556,8 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     audioTogglePause=Systems.audioRuntime.togglePause,
     audioNextTrack=Systems.audioRuntime.nextTrack,
     audioToggleMute=Systems.audioRuntime.toggleMute,
-    trainFloorBounds=trainFloorBounds,
-    trainObjectBounds=trainObjectBounds,
+    enterTrain=Systems.trainCarRuntime.enterTrain,
+    placeEditedItem=Systems.trainCarRuntime.placeEditedItem,
     newSave=Systems.sessionBootstrap.newSave,
     enterGame=Systems.sessionBootstrap.enterGame,
     chooseEvent=Systems.eventRuntime.choose,
@@ -589,7 +569,7 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     battleGuard=Systems.battleRuntime.guard,
     advanceBattleTurn=Systems.battleRuntime.advanceTurn,
     setBattlePrompt=Systems.battleRuntime.setPrompt,
-    beginCarTransition=beginCarTransition,
+    beginCarTransition=Systems.trainCarRuntime.beginTransition,
     talkToNPC=Systems.journeyRules.talkToNPC,
     ensureHouseItems=Systems.worldScene.ensureHouseItems,
     setupNPC=Systems.worldScene.setupNPC,

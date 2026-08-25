@@ -19,6 +19,7 @@ return {
     screenUI = require("game.screen_ui"),
     session = require("game.game_session"),
     sessionBootstrap = require("game.session_bootstrap"),
+    trainCarRuntime = require("game.train_car_runtime"),
     worldScene = require("game.world_scene"),
     worldRenderer = require("game.world_renderer"),
 }

@@ -24,6 +24,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             maintenanceTargets=Maintenance.targetCount(),maintenanceProgress=Maintenance.progressCount(maintenanceSession),
             maintenanceCursor=maintenanceSession.cursorActive,maintenanceCompleted=maintenanceSession.completed,
             battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
+            activeCar=saveData and saveData.activeCar,carTransitioning=carTransition~=nil,
             sessionSynchronized=session and session.screen==state and session.scene==scene and session.saveData==saveData and session.player==player and session.selectedSlot==selectedSlot,
             screenManagerSynchronized=screens and screens.current==state and screens.current==session.screen,
             runtimeSynchronized=runtime and runtime:isSynchronized(screens),
@@ -71,6 +72,13 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             {name="scroll_map_key",action=function() local before=mapScroll; love.keypressed("down"); return {before=before,after=mapScroll} end,
                 check=function(_,_,_,result) return result.after==result.before+1 end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
+            {name="begin_train_car_transition",action=function()
+                state="game"; scene="train"; saveData.scene=scene; saveData.trainCars={"living-car","sleeper"}; saveData.activeCar=1
+                ui.interaction={kind="carNext"}; love.keypressed("q"); return carTransition~=nil
+            end,expect={state="game",scene="train",activeCar=1,carTransitioning=true}},
+            {name="complete_train_car_transition",action=function() return true end,
+                expect={activeCar=2,carTransitioning=false},timeout=4,
+                after=function() saveData.trainCars={"living-car"}; saveData.activeCar=1; ui.interaction=nil end},
             {name="open_maintenance",action=function()
                 state="game"; scene="train"; saveData.scene=scene; Maintenance.open(maintenanceSession,saveData)
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCaptureRequested=true end

@@ -45,8 +45,8 @@ local function new(context)
   local audioTogglePause=required(context,"audioTogglePause","function")
   local audioNextTrack=required(context,"audioNextTrack","function")
   local audioToggleMute=required(context,"audioToggleMute","function")
-  local trainFloorBounds=required(context,"trainFloorBounds","function")
-  local trainObjectBounds=required(context,"trainObjectBounds","function")
+  local enterTrain=required(context,"enterTrain","function")
+  local placeEditedItem=required(context,"placeEditedItem","function")
   local newSave=required(context,"newSave","function")
   local enterGame=required(context,"enterGame","function")
   local chooseEvent=required(context,"chooseEvent","function")
@@ -227,7 +227,7 @@ local function new(context)
       if runtime.dialogue then runtime.dialogue=nil; return true end
       if Util.pointIn(x,y,ui.leaveTrain) then ui.mobileMenuOpen=false; attemptLeaveTrain(); return true end
       if Util.pointIn(x,y,ui.travel) and runtime.saveData.location<50 and runtime.saveData.resources.food>0 and runtime.saveData.resources.water>0 and runtime.saveData.resources.coal>0 then ui.mobileMenuOpen=false; runtime.travelConfirm=true; return true end
-      if Util.pointIn(x,y,ui.returnDoor) then local left,right,top,bottom=trainFloorBounds(); runtime.scene="train"; runtime.npcActor=nil; runtime.player.x,runtime.player.y=right,(top+bottom)/2; writeSave(); return true end
+      if Util.pointIn(x,y,ui.returnDoor) then enterTrain(false); return true end
       if Util.pointIn(x,y,ui.pickup) then pickUpNearby(); return true end
       return false
   end
@@ -283,7 +283,7 @@ local function new(context)
       if runtime.state=="game" and maintenanceSession.open then maintenanceSession.mouseX,maintenanceSession.mouseY=x,y; return end
       if runtime.state=="game" and runtime.editMode and ui.editSliderDrag then ui.updateEditColorSlider(x); return end
       if runtime.state=="game" and runtime.editMode and runtime.editDragging and runtime.editedItem then
-              local item=runtime.saveData.droppedItems[runtime.editedItem]; if item then local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,x)); item.y=math.max(top,math.min(bottom,y)) end
+              placeEditedItem(x,y)
       end
   end
 
@@ -363,7 +363,7 @@ local function new(context)
           ui.playSfx("doors"); ensureStopLayout(); runtime.scene="stop"; runtime.saveData.activeHouseDoor=nil
           local x,y=Settlements.doorPoint(runtime.saveData.location,runtime.saveData.lastStopDoor); runtime.player.x,runtime.player.y=Settlements.clamp(x,y,runtime.saveData.location); setupNPC(); writeSave()
       elseif action=="returnTrain" then
-          ui.playSfx("trainDoor"); local left,right,top,bottom=trainFloorBounds(); runtime.scene="train"; runtime.npcActor=nil; runtime.player.x,runtime.player.y=right,(top+bottom)/2; writeSave()
+          enterTrain(true)
       elseif action=="give" then giveWeaponToNearby()
       elseif action=="holdPickup" then runtime.holdPickupIndex=arg; runtime.holdPickupTime=0
       elseif action=="pickup" then runtime.nearbyItem=arg; pickUpNearby()

@@ -39,6 +39,7 @@ local function new(context)
   local itemIsHere=required(context,"itemIsHere","function")
   local setupNPC=required(context,"setupNPC","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
+  local updateCarTransition=required(context,"updateCarTransition","function")
   local writeSave=required(context,"writeSave","function")
 
   local function movementAxis(a, b) return (love.keyboard.isDown(b) and 1 or 0) - (love.keyboard.isDown(a) and 1 or 0) end
@@ -136,17 +137,7 @@ local function new(context)
           runtime.sceneryOffset=(runtime.sceneryOffset+sceneryDistance)%W
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
       end
-      if runtime.carTransition then
-          local transition=runtime.carTransition
-          transition.t=math.min(transition.duration,transition.t+dt)
-          runtime.player.moving=false
-          if transition.t>=transition.duration then
-              runtime.saveData.activeCar=transition.to
-              runtime.player.x,runtime.player.y=transition.targetX,transition.targetY
-              runtime.carTransition=nil; writeSave()
-          end
-          return
-      end
+      if updateCarTransition(dt) then return end
       Maintenance.update(maintenanceSession,dt)
       if maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen then return end
       local dx=movementAxis("a","d")+movementAxis("left","right")

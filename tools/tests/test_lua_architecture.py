@@ -46,6 +46,7 @@ class LuaArchitectureTests(unittest.TestCase):
         event_runtime = (ROOT / "game" / "event_runtime.lua").read_text(encoding="utf-8")
         journey_rules = (ROOT / "game" / "journey_rules.lua").read_text(encoding="utf-8")
         screen_ui = (ROOT / "game" / "screen_ui.lua").read_text(encoding="utf-8")
+        train_car_runtime = (ROOT / "game" / "train_car_runtime.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -163,6 +164,20 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("chooseEvent=Systems.eventRuntime.choose", app)
         self.assertIn("handleEventClick=Systems.eventRuntime.handleClick", app)
         self.assertIn("canChooseEvent=Systems.eventRuntime.canChoose", app)
+        self.assertIn('trainCarRuntime = require("game.train_car_runtime")', systems)
+        self.assertIn("return {new=new}", train_car_runtime)
+        self.assertNotIn("setfenv", train_car_runtime)
+        self.assertNotIn("dependency resolver", train_car_runtime)
+        self.assertIn("Systems.trainCarRuntime=Systems.trainCarRuntime.new({", app)
+        self.assertNotIn("local function activeTrainCarImage", app)
+        self.assertNotIn("local function trainFloorBounds", app)
+        self.assertNotIn("local function trainObjectBounds", app)
+        self.assertNotIn("local function clampToTrainFloor", app)
+        self.assertNotIn("local function beginCarTransition", app)
+        self.assertNotIn('required(context,"trainFloorBounds"', gameplay_input)
+        self.assertNotIn('required(context,"trainObjectBounds"', gameplay_input)
+        self.assertIn("updateCarTransition=Systems.trainCarRuntime.updateTransition", app)
+        self.assertIn("beginCarTransition=Systems.trainCarRuntime.beginTransition", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
