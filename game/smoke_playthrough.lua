@@ -178,11 +178,66 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             {name="retreat_battle_key",action=function() love.keypressed("r"); return "r" end,expect={state="game",scene="train",battleActive=false}},
             fixtureStep("ending"),
             {name="game_session_synchronized",action=function() return true end,expect={sessionSynchronized=true,screenManagerSynchronized=true}},
+            {name="save_schema_migrates_legacy_copy",action=function()
+                local legacy={version=1,character=character,location=7,resources={food=3},inventory={},equipment={},droppedItems={}}
+                local migrated,metadata=SaveSchema.migrate(legacy)
+                local valid=SaveSchema.validate(migrated)
+                return {originalVersion=legacy.version,version=migrated and migrated.version,steps=metadata and metadata.steps,
+                    food=migrated and migrated.resources.food,oil=migrated and migrated.resources.oil,
+                    visited=migrated and migrated.visitedStops[7],valid=valid}
+            end,check=function(_,_,_,result)
+                return result.originalVersion==1 and result.version==CURRENT_SAVE_VERSION and
+                    result.steps==CURRENT_SAVE_VERSION-1 and result.food==3 and result.oil==10 and result.visited and result.valid
+            end},
+            {name="save_schema_rejects_invalid_data",action=function()
+                local future,futureError=SaveSchema.migrate({version=CURRENT_SAVE_VERSION+1})
+                local corrupt,corruptError=SaveSchema.migrate({version=CURRENT_SAVE_VERSION,resources="broken"})
+                local cyclic={version=CURRENT_SAVE_VERSION}; cyclic.self=cyclic
+                local copied,cycleError=SaveSchema.migrate(cyclic)
+                return {future=future,futureError=futureError,corrupt=corrupt,corruptError=corruptError,
+                    copied=copied,cycleError=cycleError}
+            end,check=function(_,_,_,result)
+                return result.future==nil and result.futureError~=nil and result.corrupt==nil and result.corruptError~=nil and
+                    result.copied==nil and result.cycleError~=nil
+            end},
+            {name="save_read_upgrades_legacy_slot",action=function()
+                Save.remove(99)
+                local path=Save.path(99)
+                local raw="return {version=1,character="..string.format("%q",character)..",location=12,resources={food=4},inventory={},equipment={},droppedItems={}}"
+                love.filesystem.createDirectory("saves")
+                love.filesystem.write(path,raw)
+                local loaded=Save.read(99)
+                local primary=love.filesystem.read(path)
+                local backup=love.filesystem.read(path..".bak")
+                Save.remove(99)
+                return {version=loaded and loaded.version,location=loaded and loaded.location,food=loaded and loaded.resources.food,
+                    primaryCurrent=primary and primary:find('%["version"%] = '..CURRENT_SAVE_VERSION)~=nil,
+                    backupLegacy=backup==raw}
+            end,check=function(_,_,_,result)
+                return result.version==CURRENT_SAVE_VERSION and result.location==12 and result.food==4 and
+                    result.primaryCurrent and result.backupLegacy
+            end},
             {name="save_round_trip",action=function()
                 local payload={version=CURRENT_SAVE_VERSION,location=17,nested={value="smoke-save"}}
                 local wrote=Save.write(99,payload); local loaded=Save.read(99); Save.remove(99)
                 return {wrote=wrote,location=loaded and loaded.location,nested=loaded and loaded.nested and loaded.nested.value}
             end,check=function(_,_,_,result) return result.wrote and result.location==17 and result.nested=="smoke-save" end},
+            {name="save_recovers_corrupt_primary",action=function()
+                Save.remove(99)
+                local wrote=Save.write(99,{version=CURRENT_SAVE_VERSION,location=23,nested={value="known-good"}})
+                local path=Save.path(99)
+                local good=love.filesystem.read(path)
+                love.filesystem.write(path..".bak",good)
+                love.filesystem.write(path,"return {version=25, resources='broken'}")
+                local recovered=Save.read(99)
+                local primary=love.filesystem.read(path)
+                local backup=love.filesystem.read(path..".bak")
+                Save.remove(99)
+                return {wrote=wrote,location=recovered and recovered.location,nested=recovered and recovered.nested and recovered.nested.value,
+                    primaryGood=primary and primary:find("known%-good")~=nil,backupGood=backup and backup:find("known%-good")~=nil}
+            end,check=function(_,_,_,result)
+                return result.wrote and result.location==23 and result.nested=="known-good" and result.primaryGood and result.backupGood
+            end},
             {name="asset_contract",action=function() return Assets.assetFailureSummary() end,expect={assetFailures=0}}
         }
         if mobileControls and mobileControls:isEnabled() then

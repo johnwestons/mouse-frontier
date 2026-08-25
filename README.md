@@ -68,7 +68,7 @@ Android controls, installation, update flow, and device verification are documen
 - `assets/sprites/train/` — generated locomotive and train-car artwork
 - `backgroundReferences/` — landscape references; the prototype currently scrolls the desert landscape
 
-LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder.
+LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder. Older saves are upgraded sequentially to the current schema on load, with the original retained as a backup; invalid primary files recover from a validated temporary file or backup when available.
 
 ## Automated smoke playthrough
 

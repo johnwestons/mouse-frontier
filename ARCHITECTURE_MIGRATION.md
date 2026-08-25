@@ -23,7 +23,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | LÖVE entry point | Gameplay composition and callbacks in `main.lua` | Thin callbacks delegating to `game/app.lua` | Complete |
 | Application systems | Dense inline require table | Named composition manifest in `game/systems.lua` | Complete |
 | Runtime configuration | Window, canvas, timing, layout, and palette literals split across entry files | Shared `game/config.lua` | Complete |
-| Save version | Entry-point constant passed through implicit resolvers | Owned by `game/save_schema.lua` | Complete |
+| Save version | Entry-point constant passed through implicit resolvers | Owned by `game/save_schema.lua`, with sequential legacy upgrades and strict validation | Complete |
 | Mobile inheritance | Mobile adapter wired directly in the former monolithic entry point | Adapter owned by `game/app.lua`; package stages the shared tree | Complete |
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap and gameplay input complete |
@@ -45,6 +45,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 2. Session bootstrap now uses a validated explicit context and writes central fields through runtime state.
 3. Gameplay input now uses a validated explicit context; it no longer receives string-resolved dependencies or writes application locals indirectly.
 4. Input-owned overlay, transition, interaction, and battle fields now live in runtime state. Remaining update, inventory, journey, screen, renderer, and HUD adapters move in focused changes rather than one high-risk rewrite.
+5. Save loading and writing now pass through a non-mutating version 1-to-25 migration boundary. Future, cyclic, and structurally corrupt payloads are rejected; legacy slots are rewritten with their original file retained as a backup; corrupt primaries recover without destroying the known-good backup.
 
 ## Definition of done for this migration wave
 
@@ -52,7 +53,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/app.lua` is the only application composition root.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 33-check smoke run and full route to stop 50 pass.
+- The 37-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -61,7 +62,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 33 checkpoints.
+- The normal autonomous smoke playthrough passed all 37 checkpoints, including legacy migration, invalid-save rejection, and backup recovery.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 37 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 41 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

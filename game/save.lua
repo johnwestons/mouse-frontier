@@ -1,4 +1,5 @@
 local Save = {}
+local SaveSchema = require("game.save_schema")
 local pending = {}
 local debounceSeconds = .20
 
@@ -22,22 +23,34 @@ local function loadValidated(path)
     if not love.filesystem.getInfo(path) then return nil,"missing" end
     local chunk,errorMessage=love.filesystem.load(path)
     if not chunk then return nil,errorMessage end
+    if setfenv then setfenv(chunk,{}) end
     local ok,data=pcall(chunk)
     if not ok then return nil,data end
     if type(data)~="table" then return nil,"save did not return a table" end
-    return data
+    local migrated,migration=SaveSchema.migrate(data)
+    if not migrated then return nil,migration end
+    return migrated,nil,migration
 end
 
 function Save.read(slot)
     local path=Save.path(slot)
-    local data,errorMessage=loadValidated(path)
-    if data then return data end
+    local data,errorMessage,migration=loadValidated(path)
+    if data then
+        if migration and migration.rewriteRequired then
+            print("[SAVE] Upgraded "..path.." from version "..migration.fromVersion.." to "..migration.toVersion)
+            Save.write(slot,data)
+        end
+        return data
+    end
     -- A crash can interrupt the final copy. Prefer the already validated
     -- temporary file, then the previous known-good backup.
     for _,recoveryPath in ipairs({path..".tmp",path..".bak"}) do
         local recovered=loadValidated(recoveryPath)
         if recovered then
             print("[SAVE] Recovered "..path.." from "..recoveryPath)
+            -- Do not let Save.write replace the known-good backup with the
+            -- corrupt primary that made recovery necessary.
+            love.filesystem.remove(path)
             Save.write(slot,recovered)
             return recovered
         end
@@ -48,9 +61,11 @@ end
 
 function Save.write(slot,data)
     if not slot or type(data)~="table" then return false end
+    local prepared,schemaError=SaveSchema.migrate(data)
+    if not prepared then print("[SAVE] Schema rejected write: "..tostring(schemaError)); return false end
     love.filesystem.createDirectory("saves")
     local path,temporaryPath,backupPath=Save.path(slot),Save.path(slot)..".tmp",Save.path(slot)..".bak"
-    local payload="return "..serialize(data)
+    local payload="return "..serialize(prepared)
     local ok,errorMessage=love.filesystem.write(temporaryPath,payload)
     if not ok then print("[SAVE] Write failed: "..tostring(errorMessage)); return false end
     local chunk,loadError=love.filesystem.load(temporaryPath)

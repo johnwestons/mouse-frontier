@@ -67,9 +67,11 @@ local function new(context)
 
   local function enterGame(data)
       if type(data)~="table" then return false end
+      local migrated,migrationError=SaveSchema.migrate(data)
+      if not migrated then return false,migrationError end
+      data=migrated
       Maintenance.close(maintenanceSession)
       ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
-      SaveSchema.stamp(data)
       data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
       data.resources=type(data.resources)=="table" and data.resources or {}
       for _,name in ipairs({"food","water","coal"}) do data.resources[name]=math.max(0,tonumber(data.resources[name]) or 0) end
