@@ -120,30 +120,35 @@ local function isFurnitureItem(name)
     return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
 end
 
-function ui.resolveSessionBootstrap(name)
-    if name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="characters" then return characters
-    elseif name=="characterImages" then return characterImages elseif name=="npcImages" then return npcImages
-    elseif name=="saveData" then return runtime.saveData elseif name=="player" then return runtime.player elseif name=="scene" then return runtime.scene
-    elseif name=="car" then return car elseif name=="ui" then return ui elseif name=="maintenanceSession" then return maintenanceSession
-    elseif name=="session" then return session elseif name=="screens" then return screens
-    elseif name=="Roster" then return Roster elseif name=="House" then return House elseif name=="Catalog" then return Catalog
-    elseif name=="Maintenance" then return Maintenance elseif name=="EngineUpgrades" then return EngineUpgrades
-    elseif name=="Passengers" then return Passengers elseif name=="Events" then return Events elseif name=="StopSludges" then return StopSludges
-    elseif name=="Settlements" then return Settlements elseif name=="trainObjectBounds" then return trainObjectBounds
-    elseif name=="trainFloorBounds" then return trainFloorBounds elseif name=="clampToTrainFloor" then return clampToTrainFloor
-    elseif name=="isFurnitureItem" then return isFurnitureItem end
-end
-
-function ui.assignSessionBootstrap(name,value)
-    if name=="saveData" then runtime.saveData=value elseif name=="stopSludges" then stopSludges=value elseif name=="player" then runtime.player=value
-    elseif name=="scene" then runtime.scene=value elseif name=="state" then runtime.state=value elseif name=="inventoryOpen" then inventoryOpen=value
-    elseif name=="mapOpen" then mapOpen=value elseif name=="dialogue" then dialogue=value elseif name=="editMode" then editMode=value
-    elseif name=="chestOpen" then chestOpen=value elseif name=="activeChest" then activeChest=value elseif name=="carTransition" then carTransition=value
-    else return false end
-    return true
-end
-
-Systems.sessionBootstrap=Systems.sessionBootstrap.install(ui.resolveSessionBootstrap,ui.assignSessionBootstrap)
+Systems.sessionBootstrap=Systems.sessionBootstrap.new({
+    saveSchema=SaveSchema,
+    characters=characters,
+    characterImages=characterImages,
+    npcImages=npcImages,
+    car=car,
+    ui=ui,
+    maintenanceSession=maintenanceSession,
+    runtime=runtime,
+    filesystem=love.filesystem,
+    roster=Roster,
+    house=House,
+    catalog=Catalog,
+    maintenance=Maintenance,
+    engineUpgrades=EngineUpgrades,
+    passengers=Passengers,
+    events=Events,
+    stopSludges=StopSludges,
+    settlements=Settlements,
+    trainObjectBounds=trainObjectBounds,
+    trainFloorBounds=trainFloorBounds,
+    clampToTrainFloor=clampToTrainFloor,
+    isFurnitureItem=isFurnitureItem,
+    setStopSludges=function(value) stopSludges=value end,
+    resetTransientState=function()
+        inventoryOpen,mapOpen,dialogue,editMode=false,false,nil,false
+        chestOpen,activeChest,carTransition=false,nil,nil
+    end,
+})
 
 
 

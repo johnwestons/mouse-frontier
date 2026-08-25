@@ -1,21 +1,40 @@
-local function install(resolve,assign)
-  assert(type(resolve)=="function","session bootstrap requires a dependency resolver")
-  assert(type(assign)=="function","session bootstrap requires a dependency writer")
-  local env=setmetatable({}, {
-    __index=function(_,key)
-      local value=resolve(key)
-      if value~=nil then return value end
-      return _G[key]
-    end,
-    __newindex=function(_,key,value)
-      if not assign(key,value) then error("session bootstrap cannot assign "..tostring(key),2) end
-    end
-  })
-  setfenv(install,env)
+local function required(context, name, expectedType)
+  local value=context[name]
+  assert(value~=nil,"session bootstrap requires "..name)
+  if expectedType then assert(type(value)==expectedType,"session bootstrap "..name.." must be a "..expectedType) end
+  return value
+end
+
+local function new(context)
+  assert(type(context)=="table","session bootstrap requires an explicit context")
+  local SaveSchema=required(context,"saveSchema","table")
+  local characters=required(context,"characters","table")
+  local characterImages=required(context,"characterImages","table")
+  local npcImages=required(context,"npcImages","table")
+  local car=required(context,"car","table")
+  local ui=required(context,"ui","table")
+  local maintenanceSession=required(context,"maintenanceSession","table")
+  local runtime=required(context,"runtime","table")
+  local filesystem=required(context,"filesystem","table")
+  local Roster=required(context,"roster","table")
+  local House=required(context,"house","table")
+  local Catalog=required(context,"catalog","table")
+  local Maintenance=required(context,"maintenance","table")
+  local EngineUpgrades=required(context,"engineUpgrades","table")
+  local Passengers=required(context,"passengers","table")
+  local Events=required(context,"events","table")
+  local StopSludges=required(context,"stopSludges","table")
+  local Settlements=required(context,"settlements","table")
+  local trainObjectBounds=required(context,"trainObjectBounds","function")
+  local trainFloorBounds=required(context,"trainFloorBounds","function")
+  local clampToTrainFloor=required(context,"clampToTrainFloor","function")
+  local isFurnitureItem=required(context,"isFurnitureItem","function")
+  local setStopSludges=required(context,"setStopSludges","function")
+  local resetTransientState=required(context,"resetTransientState","function")
 
   local function newSave(character)
       local npcRoster, seen = {}, {}
-      for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS")) do
+      for _, file in ipairs(filesystem.getDirectoryItems("assets/sprites/NPCS")) do
           if Roster.isNpcCandidate(file) then npcRoster[#npcRoster + 1], seen[file] = file, true end
       end
       for _, file in ipairs(characters) do
@@ -27,7 +46,7 @@ local function install(resolve,assign)
       worldItems[#worldItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
       worldItems[#worldItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
       local result={
-          version = CURRENT_SAVE_VERSION, character = character, location = 1, scene = "train", stopped = true,
+          version = SaveSchema.CURRENT_VERSION, character = character, location = 1, scene = "train", stopped = true,
           npcRoster = npcRoster, currentNPC = npcRoster[1],
           resources = {food = 10, water = 10, coal = 10, oil = 10},
           health = 20, maxHealth = 20, stats={level=1,xp=0,nextXP=10},
@@ -51,7 +70,7 @@ local function install(resolve,assign)
       if type(data)~="table" then return false end
       Maintenance.close(maintenanceSession)
       ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
-      data.version = CURRENT_SAVE_VERSION
+      SaveSchema.stamp(data)
       data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
       data.resources=type(data.resources)=="table" and data.resources or {}
       for _,name in ipairs({"food","water","coal"}) do data.resources[name]=math.max(0,tonumber(data.resources[name]) or 0) end
@@ -181,23 +200,19 @@ local function install(resolve,assign)
       local currentNpcAllowed=false
       for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
       if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
-      saveData = session:setSaveData(data)
-      stopSludges = StopSludges.new()
+      setStopSludges(StopSludges.new())
       local image = characterImages[data.character]
       local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
       if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end
       if data.scene=="stop" then restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
-      player = session:setPlayer({x = restoredX, y = restoredY, speed = 185,
-          image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1})
-      local targetScreen=session:activate(data,player)
-      screens:transition(targetScreen)
-      scene = session.scene
-      state, inventoryOpen, mapOpen, dialogue, editMode, chestOpen, activeChest = session.screen, false, false, nil, false, false, nil
-      carTransition=nil
+      local activePlayer={x = restoredX, y = restoredY, speed = 185,
+          image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1}
+      runtime:activate(data,activePlayer)
+      resetTransientState()
       return true
   end
 
   return {newSave=newSave,enterGame=enterGame}
 end
 
-return {install=install}
+return {new=new}

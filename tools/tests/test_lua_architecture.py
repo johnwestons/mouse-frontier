@@ -30,6 +30,7 @@ class LuaArchitectureTests(unittest.TestCase):
         schema = (ROOT / "game" / "save_schema.lua").read_text(encoding="utf-8")
         config = (ROOT / "game" / "config.lua").read_text(encoding="utf-8")
         runtime = (ROOT / "game" / "runtime_state.lua").read_text(encoding="utf-8")
+        bootstrap = (ROOT / "game" / "session_bootstrap.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -46,6 +47,10 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("game.gameplay_input", systems)
         self.assertIn("function RuntimeState:syncForSave", runtime)
         self.assertIn("function RuntimeState:isSynchronized", runtime)
+        self.assertIn("return {new=new}", bootstrap)
+        self.assertNotIn("setfenv", bootstrap)
+        self.assertNotIn("dependency resolver", bootstrap)
+        self.assertIn("Systems.sessionBootstrap=Systems.sessionBootstrap.new({", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
