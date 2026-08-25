@@ -54,7 +54,6 @@ local runtime = RuntimeState.new({
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
 local scenery, backgroundImages, ui = {}, {}, {}
 local cloudLayer
-local stopSludges = StopSludges.new()
 local characterWalkImages, npcWalkImages = {}, {}
 local characterActionImages, mobAttackImages, mobIdleImages, mobHitImages = {}, {}, {}, {}
 local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {}, {}
@@ -98,6 +97,24 @@ local function isFurnitureItem(name)
     return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
 end
 
+Systems.worldScene=Systems.worldScene.new({
+    runtime=runtime,
+    ui=ui,
+    scenery=scenery,
+    catalog=Catalog,
+    util=Util,
+    house=House,
+    stops=Stops,
+    family=Family,
+    settlements=Settlements,
+    wildlife=Wildlife,
+    mice=Mice,
+    stopSludges=StopSludges,
+    getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
+    isFurnitureItem=isFurnitureItem,
+    writeSave=writeSave,
+})
+
 Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     saveSchema=SaveSchema,
     characters=characters,
@@ -115,13 +132,12 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     engineUpgrades=EngineUpgrades,
     passengers=Passengers,
     events=Events,
-    stopSludges=StopSludges,
     settlements=Settlements,
     trainObjectBounds=trainObjectBounds,
     trainFloorBounds=trainFloorBounds,
     clampToTrainFloor=clampToTrainFloor,
     isFurnitureItem=isFurnitureItem,
-    setStopSludges=function(value) stopSludges=value end,
+    resetStopSludges=Systems.worldScene.resetStopSludges,
 })
 
 
@@ -143,59 +159,6 @@ local function pointerPosition()
     return x,y
 end
 
-
-local function updateStopSludges(dt)
-    if runtime.scene~="stop" or not runtime.saveData or not runtime.player then return end
-    StopSludges.update(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=runtime.animationClock,
-        clamp=function(x,y) return Settlements.clamp(x,y,runtime.saveData.location) end,
-        dropCoal=function(x,y)
-            runtime.saveData.droppedItems[#runtime.saveData.droppedItems+1]={name="coal-chunk",x=x,y=y,scene="stop",location=runtime.saveData.location,droppedByPlayer=false}
-            writeSave()
-        end},dt)
-end
-
-local function attackStopSludge(x,y)
-    if runtime.scene~="stop" or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen or runtime.trainUpgradeOpen or runtime.poseMenu or ui.optionsOpen then return false end
-    return StopSludges.attack(stopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=Systems.inventoryActions.isWeapon,clock=runtime.animationClock,
-        onAction=function(weapon) runtime.actionHeldItem=weapon; runtime.actionKind="melee"; runtime.actionTimer=.42 end,
-        playSfx=function(kind) ui.playSfx(kind) end})
-end
-
-
-local function itemIsHere(item)
-    if item.scene ~= runtime.scene then return false end
-    if runtime.scene == "train" then return (item.carIndex or 1)==(runtime.saveData.activeCar or 1) end
-    if runtime.scene == "house" then return item.location == runtime.saveData.location and (item.houseDoor or 1)==(runtime.saveData.activeHouseDoor or 1) end
-    return item.location == runtime.saveData.location
-end
-
-
-local function ensureHouseItems() House.ensure(runtime.saveData,Catalog,isFurnitureItem) end
-
-
-local function ensureStopLayout() return Stops.ensure(runtime.saveData,Catalog,runtime.scene) end
-
-
-local function setupNPC()
-    if runtime.scene == "train" then runtime.npcActor = nil; return end
-    local layout=ensureStopLayout()
-    runtime.saveData.currentNPC=(runtime.scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
-    local key = Util.sceneKey(runtime.scene,runtime.saveData.location)..(runtime.scene=="house" and (":"..tostring(runtime.saveData.activeHouseDoor or 1)) or "")
-    local saved = runtime.saveData.npcStates[key]
-    local defaults = runtime.scene == "house" and {x=650,y=410} or {x=math.max(330,math.min(790,(layout.houseX or 520)+135)),y=430}
-    saved = saved or {x=defaults.x,y=defaults.y,homeX=defaults.x,homeY=defaults.y,wait=1.5}
-    saved.weapon=saved.weapon or layout.npcWeapon
-    if runtime.scene=="house" then
-        saved.x,saved.y=Util.clampHouseFloor(saved.x,saved.y)
-        saved.homeX,saved.homeY=Util.clampHouseFloor(saved.homeX,saved.homeY)
-    elseif runtime.scene=="stop" then
-        saved.x,saved.y=Settlements.clamp(saved.x,saved.y,runtime.saveData.location)
-        saved.homeX,saved.homeY=Settlements.clamp(saved.homeX,saved.homeY,runtime.saveData.location)
-    end
-    runtime.saveData.npcStates[key] = saved
-    runtime.npcActor = saved
-    Family.ensure(runtime.npcActor,runtime.saveData.currentNPC)
-end
 
 Systems.battleRuntime=Systems.battleRuntime.new({
     runtime=runtime,
@@ -262,8 +225,8 @@ Systems.journeyRules=Systems.journeyRules.new({
     util=Util,
     house=House,
     events=Events,
-    ensureStopLayout=ensureStopLayout,
-    setupNPC=setupNPC,
+    ensureStopLayout=Systems.worldScene.ensureStopLayout,
+    setupNPC=Systems.worldScene.setupNPC,
     writeSave=writeSave,
     beginEncounter=Systems.battleRuntime.beginEncounter,
 })
@@ -293,32 +256,6 @@ end
 
 function ui.updateMusic()
     if runtime.saveData and ui.audio then ui.audio:update(runtime.saveData.audio,ui.musicCategory()) end
-end
-
-function ui.updateChickens(dt)
-    if runtime.scene~="stop" or not runtime.saveData then return end
-    local stopLayout=ensureStopLayout()
-    Wildlife.spawn(stopLayout,runtime.saveData.location,Settlements)
-    Wildlife.update(stopLayout.wildlife,dt,runtime.saveData.location,Settlements)
-end
-
-function ui.updateMice(dt)
-    if runtime.scene~="stop" or not runtime.saveData then return end
-    local stopLayout=ensureStopLayout()
-    Mice.spawn(stopLayout,runtime.saveData.location,Settlements)
-    Mice.update(stopLayout.mice,dt,runtime.saveData.location,Settlements)
-end
-
-function ui.drawChickens(layout)
-    if not layout or runtime.scene~="stop" then return end
-    Wildlife.spawn(layout,runtime.saveData.location,Settlements)
-    Wildlife.draw(layout.wildlife,scenery.stopWildlife,runtime.animationClock)
-end
-
-function ui.drawMice(layout)
-    if not layout or runtime.scene~="stop" then return end
-    Mice.spawn(layout,runtime.saveData.location,Settlements)
-    Mice.draw(layout.mice,scenery.stopWildlife,runtime.animationClock)
 end
 
 function App.load()
@@ -422,11 +359,11 @@ function App.load()
         util=Util,
         passengers=Passengers,
         screenToGame=screenToGame,
-        ensureStopLayout=ensureStopLayout,
-        updateStopSludges=updateStopSludges,
+        ensureStopLayout=Systems.worldScene.ensureStopLayout,
+        updateWorldScene=Systems.worldScene.update,
         clampToTrainFloor=clampToTrainFloor,
-        itemIsHere=itemIsHere,
-        setupNPC=setupNPC,
+        itemIsHere=Systems.worldScene.itemIsHere,
+        setupNPC=Systems.worldScene.setupNPC,
         trainFloorBounds=trainFloorBounds,
         writeSave=writeSave,
     })
@@ -464,7 +401,7 @@ Systems.screenUI=Systems.screenUI.new({
     engineUpgrades=EngineUpgrades,
     writeSave=writeSave,
     screenToGame=screenToGame,
-    ensureStopLayout=ensureStopLayout,
+    ensureStopLayout=Systems.worldScene.ensureStopLayout,
     mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end,
     drawLandscape=function(...) return Systems.worldRenderer.drawLandscape(...) end,
     drawTracks=function(...) return Systems.worldRenderer.drawTracks(...) end,
@@ -520,8 +457,8 @@ Systems.worldRenderer=Systems.worldRenderer.new({
     mobWalkImages=mobWalkImages,
     mobHitImages=mobHitImages,
     mobDeathImages=mobDeathImages,
-    getStopSludges=function() return stopSludges end,
-    stopSludgesService=StopSludges,
+    drawStopSludges=Systems.worldScene.drawStopSludges,
+    drawWildlife=Systems.worldScene.drawWildlife,
     train=Train,
     characterAnimation=CharacterAnimation,
     catalog=Catalog,
@@ -530,9 +467,9 @@ Systems.worldRenderer=Systems.worldRenderer.new({
     stops=Stops,
     util=Util,
     ui=ui,
-    itemIsHere=itemIsHere,
+    itemIsHere=Systems.worldScene.itemIsHere,
     pendingMailHere=Systems.journeyRules.pendingMailHere,
-    ensureStopLayout=ensureStopLayout,
+    ensureStopLayout=Systems.worldScene.ensureStopLayout,
 })
 
 
@@ -645,10 +582,10 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     pointerPosition=pointerPosition,
     isWeapon=Systems.inventoryActions.isWeapon,
     isFurnitureItem=isFurnitureItem,
-    ensureStopLayout=ensureStopLayout,
+    ensureStopLayout=Systems.worldScene.ensureStopLayout,
     ownsTrainCar=Systems.screenUI.ownsTrainCar,
     moveEditedItem=moveEditedItem,
-    attackStopSludge=attackStopSludge,
+    attackStopSludge=Systems.worldScene.attackStopSludge,
     acceptQuest=Systems.journeyRules.acceptQuest,
     attemptLeaveTrain=Systems.journeyRules.attemptLeaveTrain,
     travelCost=Systems.journeyRules.travelCost,
@@ -667,8 +604,8 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     setBattlePrompt=Systems.battleRuntime.setPrompt,
     beginCarTransition=beginCarTransition,
     talkToNPC=Systems.journeyRules.talkToNPC,
-    ensureHouseItems=ensureHouseItems,
-    setupNPC=setupNPC,
+    ensureHouseItems=Systems.worldScene.ensureHouseItems,
+    setupNPC=Systems.worldScene.setupNPC,
     giveWeaponToNearby=Systems.inventoryActions.giveWeaponToNearby,
     pickUpNearby=Systems.inventoryActions.pickUpNearby,
     addCoalToFire=Systems.inventoryActions.addCoalToFire,
@@ -710,7 +647,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
         elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return mobileControls elseif name=="Camera" then return Camera
-        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return ensureStopLayout elseif name=="setupNPC" then return setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
+        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return resolveEventChoice elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
     end})

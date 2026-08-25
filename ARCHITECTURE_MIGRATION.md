@@ -28,7 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat context, commands, UI wiring, and transitions split across `game/app.lua` | `game/app.lua` wires a dedicated battle runtime facade | Battle orchestration extracted; further domain extraction is incremental |
+| Composition root | Combat and world-scene behavior split across `game/app.lua` | `game/app.lua` wires dedicated battle and world-scene services | Battle and world-scene orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -54,6 +54,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 10. World rendering now uses a validated explicit context. Landscape, train, character, NPC, passenger, stop, house, item, wildlife, and sludge drawing read current session state through runtime ownership, with declared getters only for startup animations and save-restored sludge collections that can be replaced at runtime.
 11. Gameplay HUD now uses a validated explicit context. World composition, travel and car transitions, resources, mobile and desktop menus, interaction prompts, inventory overlays, audio controls, radio, trade, upgrades, and maintenance read current application state through declared runtime and service boundaries. This completes the production resolver-adapter migration.
 12. Battle orchestration now lives behind a validated runtime facade. Encounter startup, controller context, battle commands, tactical UI context, mouse-result transitions, and per-frame battle updates share one service; inventory and input consume focused battle operations instead of rebuilding controller access in the composition root.
+13. World-scene orchestration now lives behind a validated service. Stop and house layout, NPC restoration, dropped-item location rules, sludge state/combat, chicken flocks, and mice share one owner; save bootstrap resets service-owned encounter state while update, rendering, journey, input, and smoke paths consume focused operations.
 
 ## Definition of done for this migration wave
 

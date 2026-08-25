@@ -40,6 +40,7 @@ class LuaArchitectureTests(unittest.TestCase):
         world_renderer = (ROOT / "game" / "world_renderer.lua").read_text(encoding="utf-8")
         gameplay_hud = (ROOT / "game" / "gameplay_hud.lua").read_text(encoding="utf-8")
         battle_runtime = (ROOT / "game" / "battle_runtime.lua").read_text(encoding="utf-8")
+        world_scene = (ROOT / "game" / "world_scene.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -109,6 +110,16 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("local function battleContext", app)
         self.assertNotIn("function ui.battleUIContext", app)
         self.assertIn("useBattleHealingItem=Systems.battleRuntime.useHealingItem", app)
+        self.assertIn('worldScene = require("game.world_scene")', systems)
+        self.assertIn("return {new=new}", world_scene)
+        self.assertNotIn("setfenv", world_scene)
+        self.assertNotIn("dependency resolver", world_scene)
+        self.assertIn("Systems.worldScene=Systems.worldScene.new({", app)
+        self.assertNotIn("local function setupNPC", app)
+        self.assertNotIn("local function updateStopSludges", app)
+        self.assertNotIn("function ui.updateChickens", app)
+        self.assertIn("resetStopSludges=Systems.worldScene.resetStopSludges", app)
+        self.assertIn("updateWorldScene=Systems.worldScene.update", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

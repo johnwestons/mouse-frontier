@@ -23,13 +23,12 @@ local function new(context)
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local Passengers=required(context,"passengers","table")
   local Events=required(context,"events","table")
-  local StopSludges=required(context,"stopSludges","table")
   local Settlements=required(context,"settlements","table")
   local trainObjectBounds=required(context,"trainObjectBounds","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
-  local setStopSludges=required(context,"setStopSludges","function")
+  local resetStopSludges=required(context,"resetStopSludges","function")
 
   local function newSave(character)
       local npcRoster, seen = {}, {}
@@ -201,7 +200,7 @@ local function new(context)
       local currentNpcAllowed=false
       for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
       if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
-      setStopSludges(StopSludges.new())
+      resetStopSludges()
       local image = characterImages[data.character]
       local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
       if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end

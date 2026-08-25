@@ -33,7 +33,7 @@ local function new(context)
   local Passengers=required(context,"passengers","table")
   local screenToGame=required(context,"screenToGame","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
-  local updateStopSludges=required(context,"updateStopSludges","function")
+  local updateWorldScene=required(context,"updateWorldScene","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local itemIsHere=required(context,"itemIsHere","function")
   local setupNPC=required(context,"setupNPC","function")
@@ -78,9 +78,7 @@ local function new(context)
       runtime.actionTimer=math.max(0,runtime.actionTimer-dt)
       if runtime.actionTimer<=0 then runtime.actionHeldItem=nil; runtime.actionKind=nil end
       if screens:update(dt) then return end
-      updateStopSludges(dt)
-      ui.updateChickens(dt)
-      ui.updateMice(dt)
+      updateWorldScene(dt)
       if runtime.travelTransition then
           local transition=runtime.travelTransition
           transition.t=transition.t+dt

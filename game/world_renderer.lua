@@ -27,8 +27,8 @@ local function new(context)
   local mobWalkImages=required(context,"mobWalkImages","table")
   local mobHitImages=required(context,"mobHitImages","table")
   local mobDeathImages=required(context,"mobDeathImages","table")
-  local getStopSludges=required(context,"getStopSludges","function")
-  local StopSludges=required(context,"stopSludgesService","table")
+  local drawStopSludges=required(context,"drawStopSludges","function")
+  local drawWildlife=required(context,"drawWildlife","function")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Catalog=required(context,"catalog","table")
@@ -254,13 +254,13 @@ local function new(context)
           love.graphics.setColor(colors.cream)
           love.graphics.printf("Q",trainX-12,trainY-5,24,"center",0,.7,.7)
           drawDroppedItems()
-          StopSludges.draw(getStopSludges(),{data=runtime.saveData,location=runtime.saveData.location,clock=runtime.animationClock,images={
+          drawStopSludges({
               idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
               walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
               hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
               death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-          }})
-          ui.drawChickens(ensureStopLayout()); ui.drawMice(ensureStopLayout())
+          })
+          drawWildlife(ensureStopLayout())
           drawNPC(); drawPlayer(); return
       end
       drawGround()
@@ -289,13 +289,13 @@ local function new(context)
       if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
       love.graphics.setColor(1,.78,.12,.72); love.graphics.circle("line",145,425+math.sin(runtime.animationClock*3)*2,11); love.graphics.setColor(colors.cream); love.graphics.printf("Q",133,421,24,"center",0,.7,.7)
       drawDroppedItems()
-      StopSludges.draw(getStopSludges(),{data=runtime.saveData,location=runtime.saveData.location,clock=runtime.animationClock,images={
+      drawStopSludges({
           idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
           walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
           hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
           death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-      }})
-      ui.drawChickens(layout); ui.drawMice(layout)
+      })
+      drawWildlife(layout)
       drawNPC(); drawPlayer()
   end
 
