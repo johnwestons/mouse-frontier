@@ -562,33 +562,33 @@ local function moveEditedItem(dx,dy)
     local left,right,top,bottom=trainObjectBounds(); item.x=math.max(left,math.min(right,item.x+dx)); item.y=math.max(top,math.min(bottom,item.y+dy)); writeSave()
 end
 
-local function resolveGameplayHUD(name)
-    if name=="W" then return W elseif name=="H" then return H elseif name=="ui" then return ui
-    elseif name=="scene" then return runtime.scene elseif name=="saveData" then return runtime.saveData elseif name=="player" then return runtime.player
-    elseif name=="travelTransition" then return runtime.travelTransition elseif name=="carTransition" then return runtime.carTransition
-    elseif name=="cloudLayer" then return cloudLayer elseif name=="sceneryOffset" then return runtime.sceneryOffset
-    elseif name=="colors" then return colors elseif name=="inventoryOpen" then return runtime.inventoryOpen
-    elseif name=="mapOpen" then return runtime.mapOpen elseif name=="editMode" then return runtime.editMode
-    elseif name=="poseMenu" then return runtime.poseMenu elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen
-    elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="maintenanceSession" then return maintenanceSession
-    elseif name=="nearbyItem" then return runtime.nearbyItem elseif name=="nearPassenger" then return runtime.nearPassenger
-    elseif name=="nearCarNext" then return runtime.nearCarNext elseif name=="nearCarPrev" then return runtime.nearCarPrev
-    elseif name=="nearNPC" then return runtime.nearNPC elseif name=="nearMailbox" then return runtime.nearMailbox
-    elseif name=="nearChest" then return runtime.nearChest elseif name=="nearHouse" then return runtime.nearHouse
-    elseif name=="nearReturnTrain" then return runtime.nearReturnTrain elseif name=="nearFire" then return runtime.nearFire
-    elseif name=="holdPickupIndex" then return runtime.holdPickupIndex elseif name=="holdPickupTime" then return runtime.holdPickupTime
-    elseif name=="HOLD_PICKUP_SECONDS" then return HOLD_PICKUP_SECONDS elseif name=="inventoryDragActive" then return runtime.inventoryDragActive
-    elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="EngineUpgrades" then return EngineUpgrades
-    elseif name=="mobileControls" then return mobileControls
-    elseif name=="Clouds" then return Clouds elseif name=="Maintenance" then return Maintenance
-    elseif name=="Util" then return Util elseif name=="button" then return Systems.screenUI.button
-    elseif name=="drawMenuFrame" then return Systems.screenUI.drawMenuFrame elseif name=="drawTrade" then return Systems.screenUI.drawTrade
-    elseif name=="isFurnitureItem" then return isFurnitureItem elseif name=="containerValue" then return Systems.inventoryActions.containerValue
-    elseif name=="screenToGame" then return screenToGame elseif name=="pointerPosition" then return pointerPosition elseif name=="drawLandscape" then return Systems.worldRenderer.drawLandscape
-    elseif name=="drawTracks" then return Systems.worldRenderer.drawTracks elseif name=="drawTrainView" then return Systems.worldRenderer.drawTrainView
-    elseif name=="drawHouse" then return Systems.worldRenderer.drawHouse elseif name=="drawStop" then return Systems.worldRenderer.drawStop end
-end
-Systems.gameplayHUD=Systems.gameplayHUD.install(resolveGameplayHUD)
+Systems.gameplayHUD=Systems.gameplayHUD.new({
+    runtime=runtime,
+    width=W,
+    height=H,
+    ui=ui,
+    colors=colors,
+    maintenanceSession=maintenanceSession,
+    holdPickupSeconds=HOLD_PICKUP_SECONDS,
+    getCloudLayer=function() return cloudLayer end,
+    getMobileControls=function() return mobileControls end,
+    engineUpgrades=EngineUpgrades,
+    clouds=Clouds,
+    maintenance=Maintenance,
+    util=Util,
+    button=Systems.screenUI.button,
+    drawMenuFrame=Systems.screenUI.drawMenuFrame,
+    drawTrade=Systems.screenUI.drawTrade,
+    isFurnitureItem=isFurnitureItem,
+    containerValue=Systems.inventoryActions.containerValue,
+    screenToGame=screenToGame,
+    pointerPosition=pointerPosition,
+    drawLandscape=Systems.worldRenderer.drawLandscape,
+    drawTracks=Systems.worldRenderer.drawTracks,
+    drawTrainView=Systems.worldRenderer.drawTrainView,
+    drawHouse=Systems.worldRenderer.drawHouse,
+    drawStop=Systems.worldRenderer.drawStop,
+})
 
 
 

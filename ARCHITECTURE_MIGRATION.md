@@ -26,8 +26,8 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Save version | Entry-point constant passed through implicit resolvers | Owned by `game/save_schema.lua`, with sequential legacy upgrades and strict validation | Complete |
 | Mobile inheritance | Mobile adapter wired directly in the former monolithic entry point | Adapter owned by `game/app.lua`; package stages the shared tree | Complete |
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
-| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | Session bootstrap, gameplay input/update, inventory actions, journey rules, screen UI, and world renderer complete |
-| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, and renderer-consumed fields complete; the remaining HUD adapter is incremental |
+| Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
+| Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
 
 ## Execution sequence
 
@@ -51,6 +51,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 8. Journey rules now use a validated explicit context. Travel costs, passenger contributions, quests, stop entry, encounters, and event routing mutate authoritative runtime/session state directly, including runtime ownership of the active random event.
 9. Screen UI now uses a validated explicit context. Menu, slot, character, map, dialogue, event, workshop, editor, and ending screens read/write runtime state directly; mobile and renderer ordering is handled through declared callbacks rather than a global resolver.
 10. World rendering now uses a validated explicit context. Landscape, train, character, NPC, passenger, stop, house, item, wildlife, and sludge drawing read current session state through runtime ownership, with declared getters only for startup animations and save-restored sludge collections that can be replaced at runtime.
+11. Gameplay HUD now uses a validated explicit context. World composition, travel and car transitions, resources, mobile and desktop menus, interaction prompts, inventory overlays, audio controls, radio, trade, upgrades, and maintenance read current application state through declared runtime and service boundaries. This completes the production resolver-adapter migration.
 
 ## Definition of done for this migration wave
 
