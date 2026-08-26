@@ -164,6 +164,11 @@ local function install(context)
                         and result.tierCounts.hard==20 and result.hardEnd.maxHP==34 and result.hardEnd.armor==5
                         and result.groupHardReward.xp>result.singleHardReward.xp and result.bossHardReward.xp>result.groupHardReward.xp
                 end},
+            {name="global_camera_input",action=presentationRuntime.cameraAudit,
+                check=function(_,_,_,result)
+                    return result.inverse and result.bounded and result.isolated and result.restored
+                        and result.minZoom==1 and result.maxZoom==2.25 and result.curve=="global-camera-v1"
+                end},
             {name="tactical_grid_expansion",action=battleGridAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="battle-grid-v1" and result.columns==10 and result.rows==6
@@ -284,17 +289,28 @@ local function install(context)
                 presentationRuntime.setZoom(2)
                 local baseX,baseY=presentationRuntime.viewportToGame(100,100)
                 local worldX,worldY=presentationRuntime.screenToGame(100,100)
+                local worldSurface=presentationRuntime.getSurface()
                 ui.radioOpen=true
+                presentationRuntime.setZoom(1.6)
                 local radioX,radioY=presentationRuntime.screenToGame(100,100)
+                local radioSurface=presentationRuntime.getSurface()
                 ui.radioOpen=false; maintenanceSession.open=true
+                presentationRuntime.setZoom(1.4)
                 local maintenanceX,maintenanceY=presentationRuntime.screenToGame(100,100)
-                maintenanceSession.open=false; presentationRuntime.setZoom(1)
+                local maintenanceSurface=presentationRuntime.getSurface()
+                maintenanceSession.open=false
+                local restored=presentationRuntime.getZoom()==2
+                presentationRuntime.resetCamera(true)
                 return {
                     worldShifted=math.abs(worldX-baseX)>.01 or math.abs(worldY-baseY)>.01,
-                    radioAligned=math.abs(radioX-baseX)<.01 and math.abs(radioY-baseY)<.01,
-                    maintenanceAligned=math.abs(maintenanceX-baseX)<.01 and math.abs(maintenanceY-baseY)<.01,
+                    radioShifted=math.abs(radioX-baseX)>.01 or math.abs(radioY-baseY)>.01,
+                    maintenanceShifted=math.abs(maintenanceX-baseX)>.01 or math.abs(maintenanceY-baseY)>.01,
+                    scoped=worldSurface~=radioSurface and radioSurface~=maintenanceSurface,
+                    restored=restored,
                 }
-            end,check=function(_,_,_,result) return result.worldShifted and result.radioAligned and result.maintenanceAligned end},
+            end,check=function(_,_,_,result)
+                return result.worldShifted and result.radioShifted and result.maintenanceShifted and result.scoped and result.restored
+            end},
             {name="open_inventory_key",action=function() love.keypressed("i"); return game.inventoryOpen end,expect={inventoryOpen=true}},
             {name="close_inventory_key",action=function() love.keypressed("i"); return "closed" end,expect={inventoryOpen=false}},
             {name="open_map_key",action=function() love.keypressed("m"); return game.mapOpen end,expect={mapOpen=true}},
@@ -529,9 +545,23 @@ local function install(context)
                     love.touchmoved("smoke-pinch-d",420,350,-220,0)
                     local clamped=presentationRuntime.getZoom()
                     love.touchreleased("smoke-pinch-d",420,350); love.touchreleased("smoke-pinch-c",400,350)
-                    return {zoomed=zoomed,clamped=clamped,clean=clean}
+                    game.inventoryOpen=true; presentationRuntime.setZoom(1)
+                    love.touchpressed("smoke-pinch-overlay-a",400,350); love.touchpressed("smoke-pinch-overlay-b",560,350)
+                    love.touchmoved("smoke-pinch-overlay-b",640,350,80,0)
+                    local overlayZoom=presentationRuntime.getZoom()
+                    love.touchreleased("smoke-pinch-overlay-b",640,350); love.touchreleased("smoke-pinch-overlay-a",400,350)
+                    local beforePanX,beforePanY=presentationRuntime.screenToGame(480,360)
+                    love.touchpressed("smoke-pan-overlay-a",400,350); love.touchpressed("smoke-pan-overlay-b",560,350)
+                    love.touchmoved("smoke-pan-overlay-a",440,350,40,0); love.touchmoved("smoke-pan-overlay-b",600,350,40,0)
+                    local afterPanX,afterPanY=presentationRuntime.screenToGame(480,360)
+                    love.touchreleased("smoke-pan-overlay-b",600,350); love.touchreleased("smoke-pan-overlay-a",440,350)
+                    local panned=math.abs(afterPanX-beforePanX)>.01 or math.abs(afterPanY-beforePanY)>.01
+                    local finalClean=mobileControls.pinch==nil and next(mobileControls.touches)==nil
+                    game.inventoryOpen=false; presentationRuntime.resetCamera(true)
+                    return {zoomed=zoomed,clamped=clamped,clean=clean,overlayZoom=overlayZoom,panned=panned,finalClean=finalClean}
                 end,check=function(_,_,_,result)
                     return result.zoomed>1.45 and result.zoomed<1.55 and result.clamped==1 and result.clean
+                        and result.overlayZoom>1.45 and result.overlayZoom<1.55 and result.panned and result.finalClean
                 end},
             }
             for _,step in ipairs(mobileSteps) do steps[#steps+1]=step end

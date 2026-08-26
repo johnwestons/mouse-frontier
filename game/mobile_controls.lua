@@ -29,6 +29,10 @@ function MobileControls.new(options)
     self.secondaryAction=options.secondaryAction or function() return nil end
     self.getZoom=options.getZoom or function() return 1 end
     self.setZoom=options.setZoom or function() end
+    self.beginCameraPan=options.beginCameraPan or function() end
+    self.moveCameraPan=options.moveCameraPan or function() end
+    self.endCameraPan=options.endCameraPan or function() end
+    self.cameraGesturesActive=options.cameraGesturesActive or function() return true end
     self.backVisible=options.backVisible or function() return false end
     self.backLabel=options.backLabel or function() return "BACK" end
     self.menuVisible=options.menuVisible or function() return false end
@@ -98,6 +102,23 @@ function MobileControls:pointer(fallbackX,fallbackY)
     return fallbackX,fallbackY
 end
 
+function MobileControls:_registerCanvasPointer(id,x,y)
+    self.touches[id]={kind="canvasPointer",x=x,y=y,startX=x,startY=y}
+    if not self.cameraGesturesActive() then return true end
+    local firstId,first
+    for otherId,other in pairs(self.touches) do
+        if otherId~=id and other.kind=="canvasPointer" then firstId,first=otherId,other; break end
+    end
+    if first then
+        local midX,midY=(first.x+x)/2,(first.y+y)/2
+        self.pinch={first=firstId,second=id,startDistance=math.max(1,distance(first.x,first.y,x,y)),
+            startZoom=self.getZoom(),midX=midX,midY=midY}
+        first.pinching=true; self.touches[id].pinching=true
+        self.beginCameraPan(midX,midY)
+    end
+    return true
+end
+
 function MobileControls:touchpressed(id,x,y)
     if not self.enabled then return false end
     self:_updateCornerLayout()
@@ -125,23 +146,11 @@ function MobileControls:touchpressed(id,x,y)
         if secondaryKey and distance(gx,gy,self.secondary.x,self.secondary.y)<=self.secondary.radius*1.2 then
             self.touches[id]={kind="key",key=secondaryKey}; self.pressKey(secondaryKey); return true
         end
-        -- World taps are deferred until release. This leaves a short first
-        -- touch available to become a two-finger pinch without also attacking
-        -- or interacting with the world underneath the gesture.
-        self.touches[id]={kind="worldPointer",x=x,y=y,startX=x,startY=y}
-        local firstId,first
-        for otherId,other in pairs(self.touches) do
-            if otherId~=id and other.kind=="worldPointer" then firstId,first=otherId,other; break end
-        end
-        if first then
-            self.pinch={first=firstId,second=id,startDistance=math.max(1,distance(first.x,first.y,x,y)),startZoom=self.getZoom()}
-            first.pinching=true; self.touches[id].pinching=true
-        end
-        return true
+        -- Canvas taps are deferred until release. This leaves the first touch
+        -- available to become a camera gesture without activating the surface.
+        return self:_registerCanvasPointer(id,x,y)
     end
-    self.touches[id]={kind="pointer",x=x,y=y}
-    self.pressPointer(x,y,1)
-    return true
+    return self:_registerCanvasPointer(id,x,y)
 end
 
 function MobileControls:touchmoved(id,x,y,dx,dy)
@@ -152,18 +161,20 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
     if touch.kind=="joystick" then
         local gx,gy=self.toGame(x,y)
         self:_updateJoystick(gx,gy)
-    elseif touch.kind=="worldPointer" then
+    elseif touch.kind=="canvasPointer" then
         touch.x,touch.y=x,y
         if self.pinch then
             local a,b=self.touches[self.pinch.first],self.touches[self.pinch.second]
-            if a and b then self.setZoom(self.pinch.startZoom*distance(a.x,a.y,b.x,b.y)/self.pinch.startDistance) end
+            if a and b then
+                local midX,midY=(a.x+b.x)/2,(a.y+b.y)/2
+                self.setZoom(self.pinch.startZoom*distance(a.x,a.y,b.x,b.y)/self.pinch.startDistance,midX,midY)
+                self.moveCameraPan(midX,midY)
+                self.pinch.midX,self.pinch.midY=midX,midY
+            end
         elseif not touch.pinching and distance(touch.startX,touch.startY,x,y)>14 then
             if not touch.pressed then self.pressPointer(touch.startX,touch.startY,1); touch.pressed=true end
             self.movePointer(x,y,dx or 0,dy or 0)
         end
-    elseif touch.kind=="pointer" then
-        self.movePointer(x,y,dx or 0,dy or 0)
-        touch.x,touch.y=x,y
     end
     return true
 end
@@ -176,14 +187,15 @@ function MobileControls:touchreleased(id,x,y)
     if touch.kind=="joystick" then
         if self.joystickTouch==id then self.joystickTouch=nil; self.axisX,self.axisY=0,0 end
     elseif touch.kind=="key" then self.releaseKey(touch.key)
-    elseif touch.kind=="worldPointer" then
+    elseif touch.kind=="canvasPointer" then
         if touch.pressed then self.releasePointer(x,y,1)
         elseif not touch.pinching then self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
-    elseif touch.kind=="pointer" then self.releasePointer(x,y,1) end
+    end
     self.touches[id]=nil
     if self.pinch and (self.pinch.first==id or self.pinch.second==id) then
         local otherId=self.pinch.first==id and self.pinch.second or self.pinch.first
         if self.touches[otherId] then self.touches[otherId].pinching=true end
+        self.endCameraPan()
         self.pinch=nil
     end
     return true
@@ -194,6 +206,7 @@ function MobileControls:cancelAll()
     self.touches={}
     self.joystickTouch=nil
     self.pinch=nil
+    self.endCameraPan()
     self.axisX,self.axisY=0,0
 end
 

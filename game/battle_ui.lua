@@ -10,7 +10,7 @@ local function boardToScreen(ctx,q,r)
 end
 
 function BattleUI.screenToBoardSpace(ctx,x,y)
-    return Grid.screenToBoardSpace(ctx.battle,ctx.battleZoom,x,y)
+    return Grid.screenToBoardSpace(ctx.battle,1,x,y)
 end
 
 function BattleUI.draw(ctx)
@@ -31,8 +31,6 @@ function BattleUI.draw(ctx)
     love.graphics.setColor(colors.brass); love.graphics.printf("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),260,98,440,"center",0,.58,.58)
     local active=BattleRules.selectedUnit(battle)
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
-    local zoom=ctx.battleZoom or 1
-    love.graphics.push(); love.graphics.translate(Grid.ORIGIN_X,Grid.ORIGIN_Y); love.graphics.scale(zoom,zoom); love.graphics.translate(-Grid.ORIGIN_X,-Grid.ORIGIN_Y)
     if terrainAtlas then
         local reachableSpaces=active and active.team=="ally" and BattleRules.reachable(battle,active,active.move) or {}
         for depth=1,Grid.COLS+Grid.ROWS do for q=0,Grid.COLS do local r=depth-q; if BattleRules.isBoardSpace(battle,q,r) then
@@ -121,7 +119,6 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
-    love.graphics.pop()
     love.graphics.setColor(.08,.055,.04,.92); love.graphics.rectangle("fill",185,488,590,82,8,8)
     love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",205,497,0,.72,.72)
     local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset

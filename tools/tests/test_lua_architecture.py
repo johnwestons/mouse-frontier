@@ -338,7 +338,10 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("BattleGrid.generateObstacles", battle_controller)
         self.assertIn("BattleRules.canMove", battle_controller)
         self.assertIn("BattleRules.lineOfSight", battle_controller)
-        self.assertIn("love.graphics.scale(zoom,zoom)", battle_ui)
+        self.assertNotIn("battleZoom", battle_ui)
+        self.assertIn("Camera:setScope(surface())", presentation_runtime)
+        self.assertIn("Camera:setZoomAt", presentation_runtime)
+        self.assertIn('name="global_camera_input"', smoke_playthrough)
         self.assertIn("scenery.battleObstacles", battle_ui)
         self.assertIn('name="tactical_grid_expansion"', smoke_playthrough)
         for asset in ("battle-obstacles-v1.png", "wasteland-tiles-v4.png", "forest-tiles-v3.png", "town-ruins-tiles-v3.png", "mountain-tiles-v3.png"):

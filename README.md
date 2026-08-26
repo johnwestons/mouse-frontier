@@ -24,6 +24,8 @@ Android controls, installation, update flow, and device verification are documen
 - Click one of the three save slots, then choose a main character.
 - Existing slots offer **Continue**, **New** (overwrite), and **Delete** controls.
 - Move with **WASD** or the **arrow keys**.
+- Use the mouse wheel or **+ / -** to zoom any gameplay scene, battle, menu, or overlay. Middle-drag to pan, **Alt + arrow keys** to nudge the view, and **0** to reset the current view. Hold **Shift** while using the wheel on the journey map or character list to scroll that interface instead.
+- On Android, pinch anywhere outside the fixed thumb controls to zoom and use a two-finger drag to pan. Camera views are remembered separately for worlds and interfaces, while the edge controls remain fixed and reachable.
 - Use the travel control to preview the next leg's food, water, and coal cost. Costs rise at clear journey milestones, with terrain, passengers, engine upgrades, traits, and maintenance modifying the total.
 - Open the backpack with its top-right button or press **I**.
 - Click an item and then another slot to rearrange it.

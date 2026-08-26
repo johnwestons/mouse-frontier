@@ -66,7 +66,6 @@ local function new(context)
 
   local function beginEncounter(encounter)
       runtime.battle=BattleController.begin(controllerContext(),encounter)
-      runtime.battleZoom=1
       runtime.state="battle"
       runtime.inventoryOpen=false
       runtime.mapOpen=false
@@ -98,7 +97,7 @@ local function new(context)
       local renderer=getWorldRenderer()
       local screenUI=getScreenUI()
       return {
-          W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,battleGrid=BattleGrid,scenery=scenery,colors=colors,mobileEnabled=mobileEnabled(),
+          W=W,H=H,battle=runtime.battle,battleGrid=BattleGrid,scenery=scenery,colors=colors,mobileEnabled=mobileEnabled(),
           characterImages=characterImages,npcImages=npcImages,mobImages=mobImages,
           characterWalkImages=characterWalkImages,npcWalkImages=npcWalkImages,
           mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,

@@ -85,7 +85,7 @@ function Battle.begin(c,encounter)
     c.battle={encounter=encounter,units=units,tiles=tiles,tileVariants=vars,obstacles=obstacles,biome=((d.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},objective=objective,message="Move between highlighted terrain pieces, or choose an attack.",log={"OBJECTIVE: "..objective,"Battle begins."},logScroll=0,terrainSeed=d.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
     for name in pairs(d.nextBattlePotions or {}) do applyPotionToPlayer(c,units[1],name) end
     d.nextBattlePotions={}; c.writeSave()
-    c.battleZoom=1; c.writeSave(); return c.battle
+    c.writeSave(); return c.battle
 end
 
 function Battle.advance(c)

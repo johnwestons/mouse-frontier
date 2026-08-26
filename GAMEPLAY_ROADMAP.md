@@ -35,7 +35,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Improve enemy AI, ally ability use, battle objectives, status effects, and boss encounters.
 - Ensure later-stop allied NPCs receive progression-appropriate weapons.
 
-## 5. Global camera and input
+## 5. Global camera and input — Complete
 
 - Make zoom and pan work consistently in every scene and interface where it is useful.
 - Define deliberate camera behavior for menus and overlays rather than silently disabling controls.

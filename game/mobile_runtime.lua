@@ -16,6 +16,8 @@ local function new(context)
   local viewportToGame=required(context,"viewportToGame","function")
   local getCameraZoom=required(context,"getCameraZoom","function")
   local setCameraZoom=required(context,"setCameraZoom","function")
+  local beginCameraPan=required(context,"beginCameraPan","function")
+  local moveCameraPan=required(context,"moveCameraPan","function")
   local endCameraPan=required(context,"endCameraPan","function")
   local getGameplayInput=required(context,"getGameplayInput","function")
   local controls
@@ -76,6 +78,10 @@ local function new(context)
           gameplayActive=gameplayActive,
           getZoom=getCameraZoom,
           setZoom=setCameraZoom,
+          beginCameraPan=beginCameraPan,
+          moveCameraPan=moveCameraPan,
+          endCameraPan=endCameraPan,
+          cameraGesturesActive=function() return runtime.state~="intro" end,
           backVisible=backVisible,
           backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
           menuVisible=menuVisible,

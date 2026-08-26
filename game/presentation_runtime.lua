@@ -19,16 +19,31 @@ local function new(context)
   local drawExitPrompt=required(context,"drawExitPrompt","function")
   local drawMobileControls=required(context,"drawMobileControls","function")
 
-  local function focus()
-      return runtime.player and runtime.player.x or W/2,runtime.player and runtime.player.y or H/2
+  Camera:configure(W,H)
+
+  local function surface()
+      if runtime.state~="game" then
+          return runtime.state..(runtime.state=="battle" and runtime.inventoryOpen and ":inventory" or "")
+      end
+      local overlay=runtime.exitPrompt and "exit" or runtime.firstAid and "first-aid" or runtime.travelConfirm and "travel"
+          or maintenanceSession.open and "maintenance" or ui.radioOpen and "radio" or runtime.inventoryOpen and "inventory"
+          or runtime.mapOpen and "map" or runtime.tradeOpen and "trade" or runtime.trainUpgradeOpen and "upgrades"
+          or runtime.editMode and "editor" or runtime.poseMenu and "pose" or ui.optionsOpen and "options"
+          or ui.mobileMenuOpen and "mobile-menu" or runtime.dialogue and "dialogue" or runtime.scene or "world"
+      return "game:"..overlay
   end
 
-  -- The camera must be disabled for overlays that are drawn and hit-tested in
-  -- virtual screen space. Keeping this predicate here prevents rendering and
-  -- pointer conversion from drifting apart as more overlays are added.
-  local function worldCameraActive()
-      return runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open
-          and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and Camera:isActive()
+  local function activateSurface()
+      Camera:setScope(surface())
+  end
+
+  local function focus()
+      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not runtime.firstAid and not runtime.travelConfirm
+          and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen
+          and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode and not runtime.poseMenu
+          and not ui.optionsOpen and not ui.mobileMenuOpen and not runtime.dialogue
+      if worldSurface and runtime.player then return runtime.player.x,runtime.player.y end
+      return W/2,H/2
   end
 
   local function viewportToGame(x,y)
@@ -36,8 +51,9 @@ local function new(context)
   end
 
   local function screenToGame(x,y)
+      activateSurface()
       x,y=viewportToGame(x,y)
-      if worldCameraActive() then
+      if Camera:isActive() then
           local focusX,focusY=focus()
           x,y=Camera:toWorld(x,y,focusX,focusY)
       end
@@ -64,10 +80,11 @@ local function new(context)
       end
 
       local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
+      activateSurface()
       love.graphics.push()
       love.graphics.translate(offsetX,offsetY)
       love.graphics.scale(scaleX,scaleY)
-      if worldCameraActive() then
+      if Camera:isActive() then
           local focusX,focusY=focus()
           Camera:apply(focusX,focusY)
       end
@@ -80,15 +97,32 @@ local function new(context)
   end
 
   local function isPanning() return Camera.panning end
-  local function beginPan(x,y) return Camera:beginPan(x,y) end
+  local function beginPan(x,y) activateSurface(); return Camera:beginPan(x,y) end
   local function movePan(x,y)
       local _,_,viewportScale=Viewport.transform(W,H)
       return Camera:movePan(x,y,viewportScale)
   end
   local function endPan() return Camera:endPan() end
-  local function wheel(delta) return Camera:wheel(delta) end
-  local function getZoom() return Camera.zoom end
-  local function setZoom(value) return Camera:setZoom(value) end
+  local function wheel(delta,x,y)
+      activateSurface()
+      if x and y then x,y=viewportToGame(x,y) else x,y=W/2,H/2 end
+      local focusX,focusY=focus()
+      return Camera:wheel(delta,x,y,focusX,focusY)
+  end
+  local function getZoom() activateSurface(); return Camera.zoom end
+  local function setZoom(value,x,y)
+      activateSurface()
+      if x and y then
+          x,y=viewportToGame(x,y)
+          local focusX,focusY=focus()
+          return Camera:setZoomAt(value,x,y,focusX,focusY)
+      end
+      return Camera:setZoom(value)
+  end
+  local function resetCamera(all) activateSurface(); if all then Camera:resetAll() else Camera:reset() end end
+  local function panCamera(dx,dy) activateSurface(); return Camera:panBy(dx,dy) end
+  local function cameraAudit() return Camera:audit() end
+  local function getSurface() activateSurface(); return Camera.scope end
 
   return {
       draw=draw,
@@ -101,6 +135,10 @@ local function new(context)
       wheel=wheel,
       getZoom=getZoom,
       setZoom=setZoom,
+      resetCamera=resetCamera,
+      panCamera=panCamera,
+      cameraAudit=cameraAudit,
+      getSurface=getSurface,
   }
 end
 

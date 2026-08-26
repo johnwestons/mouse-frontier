@@ -59,6 +59,7 @@ local function new(context)
     runtime=runtime,ui=ui,maintenanceSession=maintenanceSession,mobileControls=MobileControls,width=W,height=H,
     viewportToGame=presentationRuntime.viewportToGame,getCameraZoom=presentationRuntime.getZoom,
     setCameraZoom=presentationRuntime.setZoom,endCameraPan=presentationRuntime.endPan,
+    beginCameraPan=presentationRuntime.beginPan,moveCameraPan=presentationRuntime.movePan,
     getGameplayInput=getGameplayInput,
   })
 

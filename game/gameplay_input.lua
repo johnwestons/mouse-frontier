@@ -26,12 +26,13 @@ local function new(context)
   local InteriorDoors=required(context,"interiorDoors","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
-  local viewportToGame=required(context,"viewportToGame","function")
   local cameraPanning=required(context,"cameraPanning","function")
   local beginCameraPan=required(context,"beginCameraPan","function")
   local moveCameraPan=required(context,"moveCameraPan","function")
   local endCameraPan=required(context,"endCameraPan","function")
   local zoomCamera=required(context,"zoomCamera","function")
+  local resetCamera=required(context,"resetCamera","function")
+  local panCamera=required(context,"panCamera","function")
   local pointerPosition=required(context,"pointerPosition","function")
   local isWeapon=required(context,"isWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
@@ -271,6 +272,7 @@ local function new(context)
 
   local function mousepressed(x,y,button)
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
+      if button==3 then beginCameraPan(x,y); return end
       if runtime.exitPrompt then
           if button==1 then
               x,y=screenToGame(x,y)
@@ -286,7 +288,6 @@ local function new(context)
           end
           return
       end
-      if button==3 and runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not runtime.editMode then beginCameraPan(x,y); return end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and runtime.carTransition then return end
       if button==2 and runtime.state=="game" and not maintenanceSession.open and not runtime.editMode and not runtime.mapOpen and not runtime.tradeOpen and not runtime.inventoryOpen and not runtime.dialogue and not runtime.travelConfirm and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen then
@@ -344,19 +345,21 @@ local function new(context)
   end
 
   local function wheelmoved(_,y)
+      local mouseX,mouseY=pointerPosition()
+      local shifted=love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lshift","rshift")
       if runtime.state=="battle" and runtime.battle then
-          local mouseX,mouseY=pointerPosition()
-          local mx,my=viewportToGame(mouseX,mouseY)
+          local mx,my=screenToGame(mouseX,mouseY)
           if mx>=185 and mx<=775 and my>=488 and my<=570 then
               runtime.battle.logScroll=math.max(0,math.min(math.max(0,#(runtime.battle.log or {})-1),(runtime.battle.logScroll or 0)+(y>0 and 1 or -1)))
-          elseif mx>=25 and mx<=935 and my>=55 and my<480 then
-              runtime.battleZoom=math.max(.75,math.min(1.35,runtime.battleZoom+y*.08))
+              return
           end
-      elseif runtime.state=="game" and runtime.mapOpen then runtime.mapScroll=math.max(0,runtime.mapScroll-(y>0 and 1 or -1))
-      elseif runtime.state=="characters" then runtime.characterScroll=math.max(0,runtime.characterScroll-(y>0 and 1 or -1))
-      elseif runtime.state=="game" and not maintenanceSession.open and not runtime.inventoryOpen and not runtime.editMode and not ui.radioOpen then
-          zoomCamera(y)
       end
+      if shifted and runtime.state=="game" and runtime.mapOpen then
+          runtime.mapScroll=math.max(0,runtime.mapScroll-(y>0 and 1 or -1)); return
+      elseif shifted and runtime.state=="characters" then
+          runtime.characterScroll=math.max(0,runtime.characterScroll-(y>0 and 1 or -1)); return
+      end
+      if runtime.state~="intro" then zoomCamera(y,mouseX,mouseY) end
   end
 
   local function keypressedGlobal(key)
@@ -433,6 +436,13 @@ local function new(context)
 
   local function keypressed(key)
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
+      if key=="=" or key=="+" or key=="kp+" then zoomCamera(1); return end
+      if key=="-" or key=="kp-" then zoomCamera(-1); return end
+      if key=="0" or key=="kp0" then resetCamera(false); return end
+      if love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lalt","ralt") then
+          if key=="left" then panCamera(48,0); return elseif key=="right" then panCamera(-48,0); return
+          elseif key=="up" then panCamera(0,48); return elseif key=="down" then panCamera(0,-48); return end
+      end
       if runtime.exitPrompt then
           if key=="return" or key=="y" then resolveExitPrompt("yes")
           elseif key=="escape" or key=="n" then resolveExitPrompt("no") end

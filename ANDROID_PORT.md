@@ -22,6 +22,7 @@ The generated installable file is:
 - The large lower-right button changes with context: Use, Pick Up, Talk, Enter, Exit, Board, Door, Coal, or Radio.
 - A Give button appears beside NPCs and passengers.
 - Menus, inventory, the map, travel prompts, events, and battles use direct touch.
+- Pinch zoom and two-finger pan use the shared camera in gameplay, battles, menus, and overlays; fixed thumb, back, and menu controls remain anchored to the phone edges.
 - Android Back behaves like Escape: close an overlay or request a return to the title screen.
 - Losing focus releases held touches and flushes pending save data.
 

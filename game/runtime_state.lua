@@ -11,7 +11,6 @@ local SESSION_FIELDS = {
 local TRANSIENT_DEFAULTS = {
     animationClock = 0,
     actionTimer = 0,
-    battleZoom = 1,
     characterScroll = 0,
     chestOpen = false,
     editDragging = false,
