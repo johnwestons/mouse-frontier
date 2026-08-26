@@ -29,6 +29,7 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ANIMATION_ROOT = ROOT / "assets" / "sprites" / "character-animations"
 DEFAULT_OUTPUT_ROOT = ROOT / "output" / "sprite-doctor"
+DEFAULT_WEAPON_ANCHOR_OVERRIDES = ROOT / "tools" / "weapon_attachment_overrides.json"
 
 FRAME_SIZE = 512
 TARGET_EXTENT = 385
@@ -105,6 +106,24 @@ class FrameMetrics:
     halo_spread: int = 0
     detached_fragment_pixels: int = 0
     detached_fragment_boxes: list[tuple[int, int, int, int]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class HandAnchor:
+    frame: int
+    x: float
+    y: float
+    side: int
+    confidence: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "frame": self.frame,
+            "x": round(self.x, 4),
+            "y": round(self.y, 4),
+            "side": self.side,
+            "confidence": round(self.confidence, 3),
+        }
 
 
 @dataclass
@@ -286,6 +305,77 @@ def measure_frame(frame: Image.Image, index: int) -> FrameMetrics:
         halo_spread=spread,
         detached_fragment_pixels=detached_pixels,
         detached_fragment_boxes=detached_boxes,
+    )
+
+
+def detect_hand_anchor(frame: Image.Image, index: int) -> HandAnchor:
+    """Estimate the weapon hand from the outer arm in an attack pose.
+
+    Coordinates are normalized to the action cell so the exported list remains
+    valid if runtime sheets are rescaled without changing their composition.
+    """
+    alpha = np.asarray(frame.convert("RGBA").getchannel("A")) > ALPHA_THRESHOLD
+    points = np.argwhere(alpha)
+    if not len(points):
+        return HandAnchor(index, 0.28, 0.46, -1, 0.0)
+    min_y, min_x = points.min(axis=0)
+    max_y, max_x = points.max(axis=0)
+    visible_w = max(1, int(max_x - min_x + 1))
+    visible_h = max(1, int(max_y - min_y + 1))
+    band_top = max(0, round(min_y + visible_h * 0.30))
+    band_bottom = min(frame.height, round(min_y + visible_h * 0.61))
+    torso_top = max(0, round(min_y + visible_h * 0.58))
+    torso_bottom = min(frame.height, round(min_y + visible_h * 0.88))
+    band_points = np.argwhere(alpha[band_top:band_bottom])
+    torso_points = np.argwhere(alpha[torso_top:torso_bottom])
+    if not len(band_points):
+        return HandAnchor(
+            index, (min_x + visible_w * 0.18) / frame.width,
+            (min_y + visible_h * 0.46) / frame.height, -1, 0.2,
+        )
+
+    band_x = band_points[:, 1]
+    # Percentile edges ignore tiny detached flecks and decorative wisps. Those
+    # otherwise look like a fully extended arm and place a weapon in empty air.
+    band_min = float(np.percentile(band_x, 1))
+    band_max = float(np.percentile(band_x, 99))
+    if len(torso_points):
+        torso_x = torso_points[:, 1]
+        torso_center = (float(np.percentile(torso_x, 5)) + float(np.percentile(torso_x, 95))) / 2
+    else:
+        torso_center = (float(min_x) + float(max_x)) / 2
+    left_extension = torso_center - band_min
+    right_extension = band_max - torso_center
+    side = -1 if left_extension >= right_extension else 1
+    edge = band_min if side < 0 else band_max
+    reach = max(9, round(visible_w * 0.16))
+    absolute_y = band_points[:, 0] + band_top
+    near_edge = (
+        (band_x >= band_min) & (band_x <= edge + reach)
+        if side < 0 else
+        (band_x <= band_max) & (band_x >= edge - reach)
+    )
+    candidates_x = band_x[near_edge]
+    candidates_y = absolute_y[near_edge]
+    if not len(candidates_x):
+        hand_x = edge - side * reach * 0.45
+        hand_y = (band_top + band_bottom) / 2
+        confidence = 0.25
+    else:
+        # Weight the outer pixels more heavily so a thick sleeve does not pull
+        # the marker back toward the torso and leave the grip floating.
+        distance = np.abs(candidates_x.astype(np.float64) - torso_center)
+        weights = np.square(distance + 1)
+        hand_x = float(np.average(candidates_x, weights=weights))
+        hand_y = float(np.average(candidates_y, weights=weights))
+        asymmetry = abs(left_extension - right_extension) / max(1.0, visible_w)
+        confidence = min(0.96, 0.55 + asymmetry * 1.8 + min(0.16, len(candidates_x) / 2000))
+    return HandAnchor(
+        index,
+        max(0.0, min(1.0, hand_x / frame.width)),
+        max(0.0, min(1.0, hand_y / frame.height)),
+        side,
+        confidence,
     )
 
 
@@ -656,6 +746,31 @@ class SpriteDoctor:
             return None
         with Image.open(path) as opened:
             return opened.copy()
+
+    def weapon_anchors(
+        self,
+        characters: Sequence[str] | None = None,
+    ) -> dict[str, dict[str, list[HandAnchor]]]:
+        names = list(characters or self.character_names())
+        unknown = sorted(set(names) - set(self.character_names()))
+        if unknown:
+            raise ValueError(f"unknown character(s): {', '.join(unknown)}")
+        result: dict[str, dict[str, list[HandAnchor]]] = {}
+        for character in names:
+            actions: dict[str, list[HandAnchor]] = {}
+            for action in ("melee", "ranged"):
+                image = self.load_sheet(character, action)
+                if image is None:
+                    continue
+                expected = self.expected_frame_count(character, action)
+                actual = inferred_square_frame_count(image) or expected
+                frames = split_evenly(image.convert("RGBA"), actual)
+                actions[action] = [
+                    detect_hand_anchor(frame, index + 1)
+                    for index, frame in enumerate(frames)
+                ]
+            result[character] = actions
+        return result
 
     def inspect_sheet(
         self,
@@ -1096,6 +1211,50 @@ def render_contact_sheet(
     contact.convert("RGB").save(destination, quality=94)
 
 
+def render_weapon_anchor_sheet(
+    doctor: SpriteDoctor,
+    character: str,
+    anchors: Mapping[str, Sequence[HandAnchor]],
+    destination: Path,
+) -> None:
+    scale = 0.34
+    cell = round(FRAME_SIZE * scale)
+    label_width = 105
+    width = label_width + cell * 3 + 20
+    height = 44 + (cell + 34) * 2
+    contact = Image.new("RGBA", (width, height), (18, 20, 24, 255))
+    draw = ImageDraw.Draw(contact)
+    draw.text((12, 12), f"{character} - weapon hand anchors", fill=(242, 226, 181, 255))
+    for row, action in enumerate(("melee", "ranged")):
+        top = 40 + row * (cell + 34)
+        draw.text((12, top + 8), action.upper(), fill=(225, 225, 225, 255))
+        image = doctor.load_sheet(character, action)
+        if image is None:
+            draw.text((12, top + 28), "MISSING", fill=(255, 105, 105, 255))
+            continue
+        action_anchors = list(anchors.get(action, ()))
+        frames = split_evenly(image.convert("RGBA"), len(action_anchors) or 3)
+        for index, (frame, anchor) in enumerate(zip(frames, action_anchors)):
+            left = label_width + index * cell
+            background = checkerboard((cell, cell))
+            background.alpha_composite(frame.resize((cell, cell), Image.Resampling.NEAREST))
+            contact.alpha_composite(background, (left, top))
+            hand_x = left + round(anchor.x * cell)
+            hand_y = top + round(anchor.y * cell)
+            color = (255, 205, 65, 255)
+            draw.ellipse((hand_x - 6, hand_y - 6, hand_x + 6, hand_y + 6), outline=color, width=2)
+            draw.line((hand_x - 9, hand_y, hand_x + 9, hand_y), fill=color, width=2)
+            draw.line((hand_x, hand_y - 9, hand_x, hand_y + 9), fill=color, width=2)
+            draw.line((hand_x, hand_y, hand_x + anchor.side * 24, hand_y), fill=(80, 220, 245, 255), width=3)
+            draw.text(
+                (left + 4, top + cell + 4),
+                f"F{index + 1}  {anchor.x:.3f},{anchor.y:.3f}  {anchor.confidence:.0%}",
+                fill=(195, 195, 195, 255),
+            )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    contact.convert("RGB").save(destination, quality=94)
+
+
 def encode_png(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
     image.convert("RGBA").save(buffer, format="PNG", optimize=True)
@@ -1124,6 +1283,80 @@ def save_png_atomic(image: Image.Image, destination: Path) -> None:
 def write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
+
+
+def encode_weapon_anchors_lua(anchors: Mapping[str, Mapping[str, Sequence[HandAnchor]]]) -> str:
+    output = [
+        "-- Generated by tools/character_sprite_doctor.py weapon-anchors.",
+        "-- Coordinates are normalized within each 512x512 attack frame.",
+        "return {",
+    ]
+    for character in sorted(anchors):
+        output.append(f'  ["{character}.png"]={{')
+        for action in ("melee", "ranged"):
+            values = anchors[character].get(action, ())
+            encoded = ",".join(
+                "{x=%.4f,y=%.4f,side=%d,confidence=%.3f}" %
+                (anchor.x, anchor.y, anchor.side, anchor.confidence)
+                for anchor in values
+            )
+            output.append(f"    {action}={{{encoded}}},")
+        output.append("  },")
+    output.append("}")
+    return "\n".join(output) + "\n"
+
+
+def weapon_anchor_report(
+    anchors: Mapping[str, Mapping[str, Sequence[HandAnchor]]],
+) -> dict[str, object]:
+    values = [anchor for actions in anchors.values() for frames in actions.values() for anchor in frames]
+    low_confidence = sum(anchor.confidence < 0.55 for anchor in values)
+    return {
+        "version": 1,
+        "characters": {
+            character: {
+                action: [anchor.to_dict() for anchor in frames]
+                for action, frames in actions.items()
+            }
+            for character, actions in sorted(anchors.items())
+        },
+        "summary": {
+            "character_count": len(anchors),
+            "anchor_count": len(values),
+            "low_confidence": low_confidence,
+        },
+    }
+
+
+def apply_weapon_anchor_overrides(
+    anchors: dict[str, dict[str, list[HandAnchor]]],
+    path: Path,
+) -> int:
+    if not path.exists():
+        return 0
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("weapon attachment overrides must contain a JSON object")
+    applied = 0
+    for character, actions in value.items():
+        if character not in anchors or not isinstance(actions, dict):
+            raise ValueError(f"unknown character in weapon attachment overrides: {character}")
+        for action, frames in actions.items():
+            if action not in {"melee", "ranged"} or not isinstance(frames, list):
+                raise ValueError(f"invalid weapon attachment override action: {character}/{action}")
+            for item in frames:
+                if not isinstance(item, dict):
+                    raise ValueError(f"invalid weapon attachment override: {character}/{action}")
+                frame = int(item.get("frame", 0))
+                if frame < 1 or frame > len(anchors[character][action]):
+                    raise ValueError(f"invalid weapon attachment frame: {character}/{action}/{frame}")
+                x, y = float(item["x"]), float(item["y"])
+                side = int(item.get("side", anchors[character][action][frame - 1].side))
+                if not 0 <= x <= 1 or not 0 <= y <= 1 or side not in {-1, 1}:
+                    raise ValueError(f"weapon attachment override is out of range: {character}/{action}/{frame}")
+                anchors[character][action][frame - 1] = HandAnchor(frame, x, y, side, 1.0)
+                applied += 1
+    return applied
 
 
 def emit_audit(result: AuditResult) -> None:
@@ -1351,6 +1584,45 @@ def command_import_action(args: argparse.Namespace) -> int:
     return 1 if result.counts["error"] else 0
 
 
+def command_weapon_anchors(args: argparse.Namespace) -> int:
+    doctor = SpriteDoctor(ROOT)
+    names = list(args.characters) or doctor.character_names()
+    anchors = doctor.weapon_anchors(names)
+    override_path = Path(getattr(args, "overrides", DEFAULT_WEAPON_ANCHOR_OVERRIDES)).resolve()
+    applied_overrides = apply_weapon_anchor_overrides(anchors, override_path)
+    encoded = encode_weapon_anchors_lua(anchors)
+    destination = Path(args.output).resolve()
+    report = weapon_anchor_report(anchors)
+    if args.check:
+        current = destination.read_text(encoding="utf-8") if destination.exists() else ""
+        if current != encoded:
+            print(f"Weapon attachment list is stale: {destination}")
+            return 1
+        print(f"Weapon attachment list is current: {destination}")
+    else:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(encoded, encoding="utf-8")
+        print(f"Weapon attachment list: {destination}")
+    if args.report:
+        write_json(Path(args.report), report)
+        print(f"Weapon attachment report: {Path(args.report).resolve()}")
+    if args.contact_sheets:
+        contact_root = Path(args.contact_sheets)
+        for character in names:
+            render_weapon_anchor_sheet(
+                doctor, character, anchors[character], contact_root / f"{character}.png"
+            )
+        print(f"Weapon anchor contact sheets: {contact_root.resolve()}")
+    summary = report["summary"]
+    assert isinstance(summary, dict)
+    print(
+        f"Detected {summary['anchor_count']} hand point(s) for "
+        f"{summary['character_count']} character(s); {summary['low_confidence']} need visual review; "
+        f"{applied_overrides} authored override(s) applied"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Audit, repair, and import Mouse Frontier character sprite sheets."
@@ -1402,6 +1674,24 @@ def build_parser() -> argparse.ArgumentParser:
     action.add_argument("--report")
     action.add_argument("--output-root", default=str(DEFAULT_OUTPUT_ROOT))
     action.set_defaults(func=command_import_action)
+
+    anchors = subparsers.add_parser(
+        "weapon-anchors",
+        help="detect melee/ranged hand points and generate the runtime attachment list",
+    )
+    anchors.add_argument("characters", nargs="*", help="character directories; defaults to every character")
+    anchors.add_argument(
+        "--output", default=str(ROOT / "game" / "weapon_attachment_points.lua"),
+        help="generated Lua attachment list",
+    )
+    anchors.add_argument("--report", help="optional JSON report with confidence values")
+    anchors.add_argument(
+        "--overrides", default=str(DEFAULT_WEAPON_ANCHOR_OVERRIDES),
+        help="JSON file containing reviewed per-frame corrections",
+    )
+    anchors.add_argument("--contact-sheets", metavar="DIR", help="render hand-point review sheets")
+    anchors.add_argument("--check", action="store_true", help="fail when the generated list is out of date")
+    anchors.set_defaults(func=command_weapon_anchors)
     return parser
 
 

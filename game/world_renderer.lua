@@ -1,3 +1,5 @@
+local WeaponAttachment = require("game.weapon_attachment")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"world renderer requires "..name)
@@ -121,7 +123,15 @@ local function new(context)
               love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7)
               local actionPhase=runtime.actionTimer>0 and math.max(0,.35-runtime.actionTimer) or runtime.animationClock
               drawAnimatedCharacter(runtime.saveData.character,action,runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,actionPhase)
-              if runtime.actionTimer>0 and runtime.actionHeldItem then ui.drawItem(runtime.actionHeldItem,{x=runtime.player.x+(runtime.player.facing==1 and 12 or -42),y=runtime.player.y-22,w=32,h=32}) end
+              if runtime.actionTimer>0 and runtime.actionHeldItem then
+                  local combat=Catalog.weaponCombat[runtime.actionHeldItem]
+                  local attached=combat and (action=="melee" or action=="ranged") and WeaponAttachment.draw(
+                      getCharacterAnimations(),runtime.saveData.character,runtime.actionHeldItem,
+                      WeaponAttachment.itemSprite(ui,runtime.actionHeldItem),runtime.player.x,runtime.player.y+34,
+                      82,104,runtime.player.facing,actionPhase,action,combat
+                  )
+                  if not attached then ui.drawItem(runtime.actionHeldItem,{x=runtime.player.x+(runtime.player.facing==1 and 12 or -42),y=runtime.player.y-22,w=32,h=32}) end
+              end
               return
           end
       end

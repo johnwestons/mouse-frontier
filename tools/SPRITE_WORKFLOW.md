@@ -91,6 +91,63 @@ python tools/character_sprite_doctor.py import-action CHARACTER melee path/to/me
 
 Use `--source-frames N` when the source panel count is not the action’s final frame count. Green-screen removal only follows green pixels connected to the image edge, which protects green costume details.
 
+## Weapon attachment points
+
+The doctor can estimate the character's weapon hand in every melee and ranged frame and generate the attachment list used by the game:
+
+```powershell
+python tools/character_sprite_doctor.py weapon-anchors
+```
+
+The default output is `game/weapon_attachment_points.lua`. Commit that generated file whenever attack sprites change so desktop and mobile builds use the same hand placement. The export is deterministic: characters are sorted, melee precedes ranged, and normalized coordinates and confidence values use fixed precision.
+
+For a visual review and a machine-readable report, run:
+
+```powershell
+python tools/character_sprite_doctor.py weapon-anchors --contact-sheets output/sprite-doctor/weapon-anchors --report output/sprite-doctor/weapon-anchors.json
+```
+
+Each contact sheet draws a yellow crosshair on the detected hand and a cyan line toward the side where the weapon should extend. The JSON report lists every normalized `x`/`y` point, `side` (`-1` left or `1` right), and confidence score. Detection is silhouette-based, so visually inspect unusual poses and every low-confidence marker before treating it as final art direction.
+
+If a reviewed marker needs correction, record only that frame in `tools/weapon_attachment_overrides.json` instead of editing generated Lua. For example:
+
+```json
+{
+  "scout-mouse": {
+    "melee": [
+      {"frame": 2, "x": 0.625, "y": 0.375, "side": -1}
+    ]
+  }
+}
+```
+
+The next generation or check applies the correction with full confidence. The doctor rejects unknown characters, actions, frame numbers, out-of-cell coordinates, and invalid sides. Use `--overrides path/to/reviewed.json` only when validating an alternate correction set.
+
+To update only named characters, put their directory names after the command:
+
+```powershell
+python tools/character_sprite_doctor.py weapon-anchors scout-mouse mechanic-mouse
+```
+
+Because a partial run replaces the output with only those named characters, use the no-name form before committing the complete runtime list. To verify that the committed list still matches all attack sprites without rewriting it:
+
+```powershell
+python tools/character_sprite_doctor.py weapon-anchors --check
+```
+
+The check exits unsuccessfully when `game/weapon_attachment_points.lua` is missing or stale, making it suitable for automated verification. Runtime attachment data has this stable shape:
+
+```lua
+points["scout-mouse.png"].melee[1] = {
+  x = 0.7421,
+  y = 0.4813,
+  side = 1,
+  confidence = 0.912,
+}
+```
+
+Coordinates are normalized within the character's 512×512 action cell, so placement remains correct when the animation is scaled for battle or world rendering.
+
 ## What the doctor detects
 
 - wrong sheet dimensions or frame counts;
@@ -114,4 +171,4 @@ Run the focused test suite after changing the tool:
 python -m unittest tools.tests.test_character_sprite_doctor -v
 ```
 
-The tests cover crop/scale repair, alpha residue and detached fragments, source-backed missing-sheet recovery, modern versus legacy walk counts, guarded identity swaps, and backup-before-replace behavior.
+The tests cover crop/scale repair, alpha residue and detached fragments, source-backed missing-sheet recovery, modern versus legacy walk counts, guarded identity swaps, backup-before-replace behavior, hand-marker detection, detached-fleck rejection, reviewed anchor overrides, deterministic Lua export, and stale attachment-list checks.

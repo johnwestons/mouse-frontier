@@ -53,6 +53,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 
 ## 8. World interaction and visual polish
 
+- **Complete:** Attach melee and ranged weapons to per-character, per-frame hand points in battle and world attacks. Sprite Doctor generates, reviews, validates, and permits authored corrections to the shared desktop/mobile attachment list.
 - Redesign sludge creatures with mouse ears instead of antennae while preserving their established silhouette and animation contract.
 - Add a clearly clickable `EXIT HOME` button inside every home on desktop and mobile.
 - Continue expanding settlement activities, environmental hazards, wildlife, and repeat protection.

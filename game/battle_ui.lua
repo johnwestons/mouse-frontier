@@ -96,8 +96,10 @@ function BattleUI.draw(ctx)
         local attachedWeapon=false
         local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase)
         if not animated and img then local s=math.min(76/img:getWidth(),96/img:getHeight()); if battle.lastTarget==u.id and battle.hitFlash>0 then love.graphics.setColor(1,.3,.25) else love.graphics.setColor(1,1,1) end; love.graphics.draw(img,x,y+10+bob,0,s*facing,s,img:getWidth()/2,img:getHeight()) end
-        if animated and u.team=="ally" and action=="ranged" and (u.actionTimer or 0)>0 and WeaponAttachment.isFirearm(Catalog,u.actionItem) then
-            attachedWeapon=WeaponAttachment.draw(characterAnimations,u.file,u.actionItem,ui.propImages[u.actionItem],x,y+20,76,96,facing,actionPhase)
+        if animated and u.team=="ally" and (action=="melee" or action=="ranged") and (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" then
+            local combat=Catalog.weaponCombat[u.actionItem] or {}
+            local sprite=WeaponAttachment.itemSprite(ui,u.actionItem)
+            attachedWeapon=WeaponAttachment.draw(characterAnimations,u.file,u.actionItem,sprite,x,y+20,76,96,facing,actionPhase,action,combat)
         end
         if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" and not attachedWeapon then
             local combat=Catalog.weaponCombat[u.actionItem] or {}; local progress=1-math.min(1,(u.actionTimer or 0)/(u.team=="enemy" and .68 or .45)); local reach=math.sin(progress*math.pi)

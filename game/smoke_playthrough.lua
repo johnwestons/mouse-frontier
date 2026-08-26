@@ -442,11 +442,13 @@ local function install(context)
             end,check=function(_,_,snapshot,result)
                 return result and result.opened and result.closed and snapshot.state=="battle" and snapshot.battleActive
             end},
-            {name="render_firearm_attachments",action=function()
+            {name="render_weapon_hand_attachments",action=function()
                 local unit=game.battle and game.battle.units and game.battle.units[1]
                 if not unit then return false end
                 unit.action="ranged"; unit.actionTimer=.44; unit.actionItem="frontier-9mm-service-pistol"; ui.smokeDraw()
                 unit.actionItem="frontier-22-lever-rifle"; unit.actionTimer=.22; ui.smokeDraw()
+                unit.action="melee"; unit.actionItem="frontier-executioner-axe"; unit.actionTimer=.44; ui.smokeDraw()
+                unit.actionItem="wasteland-partisan"; unit.actionTimer=.22; ui.smokeDraw()
                 unit.action=nil; unit.actionItem=nil; unit.actionTimer=0
                 return true
             end,check=function(_,_,_,result) return result==true end},

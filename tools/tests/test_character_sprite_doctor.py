@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from PIL import Image, ImageDraw
 
@@ -15,12 +19,18 @@ if str(TOOLS) not in sys.path:
 from character_sprite_doctor import (  # noqa: E402
     ACTION_SPECS,
     FRAME_SIZE,
+    HandAnchor,
     SpriteDoctor,
+    apply_weapon_anchor_overrides,
     assemble_strip,
+    command_weapon_anchors,
+    detect_hand_anchor,
+    encode_weapon_anchors_lua,
     measure_frame,
     remove_edge_neutral_backdrop,
     remove_edge_green,
     save_repair_plan,
+    weapon_anchor_report,
 )
 
 
@@ -230,6 +240,101 @@ class SpriteDoctorTests(unittest.TestCase):
         self.assertNotEqual(original, target.read_bytes())
         repaired = doctor.audit(["backup-mouse"])
         self.assertFalse(any(issue.action == "ranged" and issue.severity == "error" for issue in repaired.issues))
+
+    def test_hand_anchor_follows_the_extended_attack_arm(self) -> None:
+        right_attack = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
+        right_draw = ImageDraw.Draw(right_attack)
+        right_draw.rectangle((190, 120, 320, 459), fill=(120, 75, 45, 255))
+        right_draw.rectangle((300, 225, 445, 275), fill=(185, 120, 75, 255))
+
+        right = detect_hand_anchor(right_attack, 2)
+        self.assertEqual(2, right.frame)
+        self.assertEqual(1, right.side)
+        self.assertGreater(right.x, 0.76)
+        self.assertAlmostEqual(0.49, right.y, delta=0.08)
+        self.assertGreater(right.confidence, 0.8)
+
+        left_attack = right_attack.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        left = detect_hand_anchor(left_attack, 3)
+        self.assertEqual(-1, left.side)
+        self.assertLess(left.x, 0.24)
+        self.assertAlmostEqual(right.y, left.y, delta=0.01)
+
+    def test_empty_attack_frame_gets_reviewable_fallback_anchor(self) -> None:
+        empty = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
+        anchor = detect_hand_anchor(empty, 1)
+        self.assertEqual(HandAnchor(1, 0.28, 0.46, -1, 0.0), anchor)
+
+    def test_detached_fleck_does_not_pull_anchor_away_from_attack_hand(self) -> None:
+        attack = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(attack)
+        draw.rectangle((190, 120, 320, 459), fill=(110, 70, 40, 255))
+        draw.rectangle((65, 225, 200, 275), fill=(180, 115, 70, 255))
+        # A detached muzzle flash, spark, or generation fleck must not be
+        # mistaken for the opposite-side hand merely because it is outermost.
+        draw.rectangle((490, 240, 492, 242), fill=(255, 225, 90, 255))
+
+        anchor = detect_hand_anchor(attack, 1)
+        self.assertEqual(-1, anchor.side)
+        self.assertLess(anchor.x, 0.24)
+        self.assertAlmostEqual(0.49, anchor.y, delta=0.08)
+
+    def test_weapon_anchor_export_is_sorted_stable_and_reports_confidence(self) -> None:
+        anchors = {
+            "zeta-mouse": {
+                "ranged": [HandAnchor(1, 0.123456, 0.654321, -1, 0.5)],
+            },
+            "alpha-mouse": {
+                "melee": [HandAnchor(1, 0.75, 0.25, 1, 0.8754)],
+            },
+        }
+        encoded = encode_weapon_anchors_lua(anchors)
+        self.assertLess(encoded.index('["alpha-mouse.png"]'), encoded.index('["zeta-mouse.png"]'))
+        self.assertIn("melee={{x=0.7500,y=0.2500,side=1,confidence=0.875}}", encoded)
+        self.assertIn("ranged={{x=0.1235,y=0.6543,side=-1,confidence=0.500}}", encoded)
+        self.assertTrue(encoded.endswith("}\n"))
+
+        report = weapon_anchor_report(anchors)
+        self.assertEqual(2, report["summary"]["character_count"])
+        self.assertEqual(2, report["summary"]["anchor_count"])
+        self.assertEqual(1, report["summary"]["low_confidence"])
+
+    def test_reviewed_weapon_anchor_override_replaces_only_named_frame(self) -> None:
+        anchors = {
+            "review-mouse": {
+                "melee": [
+                    HandAnchor(1, 0.2, 0.4, -1, 0.6),
+                    HandAnchor(2, 0.8, 0.4, 1, 0.7),
+                ],
+            },
+        }
+        override_path = self.root / "weapon-overrides.json"
+        override_path.write_text(
+            '{"review-mouse":{"melee":[{"frame":2,"x":0.625,"y":0.375,"side":-1}]}}',
+            encoding="utf-8",
+        )
+
+        self.assertEqual(1, apply_weapon_anchor_overrides(anchors, override_path))
+        self.assertEqual(HandAnchor(1, 0.2, 0.4, -1, 0.6), anchors["review-mouse"]["melee"][0])
+        self.assertEqual(HandAnchor(2, 0.625, 0.375, -1, 1.0), anchors["review-mouse"]["melee"][1])
+
+    def test_weapon_anchor_check_detects_stale_runtime_data(self) -> None:
+        self.add_character("anchor-mouse", (165, 95, 55, 255))
+        destination = self.root / "game" / "weapon_attachment_points.lua"
+        arguments = SimpleNamespace(
+            characters=["anchor-mouse"],
+            output=str(destination),
+            report=None,
+            contact_sheets=None,
+            check=False,
+            overrides=str(self.root / "missing-overrides.json"),
+        )
+        with patch("character_sprite_doctor.ROOT", self.root), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, command_weapon_anchors(arguments))
+            arguments.check = True
+            self.assertEqual(0, command_weapon_anchors(arguments))
+            destination.write_text("-- stale\n", encoding="utf-8")
+            self.assertEqual(1, command_weapon_anchors(arguments))
 
 
 if __name__ == "__main__":
