@@ -803,10 +803,13 @@ class LuaArchitectureTests(unittest.TestCase):
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
+        apk_builder = (ROOT / "tools" / "build_android_apk.ps1").read_text(encoding="utf-8")
         self.assertIn('ROOT / "main.lua"', builder)
         self.assertIn('ROOT / "conf.lua"', builder)
         self.assertIn('(ROOT / "game").rglob("*.lua")', builder)
         self.assertFalse(list((ROOT / "mobile").rglob("*.lua")), "mobile must not contain a copied Lua gameplay tree")
+        self.assertIn("build_file_index.txt", apk_builder)
+        self.assertIn("Invalidating native cache tied to a previous temporary build drive", apk_builder)
 
 
 if __name__ == "__main__":

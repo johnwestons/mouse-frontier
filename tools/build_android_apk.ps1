@@ -177,6 +177,28 @@ public class GameActivity extends SDLActivity {
         [System.IO.File]::WriteAllText($appBuildPath,$appBuild,[System.Text.UTF8Encoding]::new($false))
     }
 
+    # Gradle's native cache stores absolute paths to the temporary SUBST drive.
+    # Another Android project can occupy that letter between builds, so discard
+    # only this checkout's generated CXX metadata when the drive has changed.
+    $nativeCacheRoot = Join-Path $loveAndroidRoot 'love\build\.cxx'
+    if (Test-Path -LiteralPath $nativeCacheRoot) {
+        $expectedAndroidMk = Join-Path $buildLoveAndroidRoot 'love\src\jni\Android.mk'
+        $cachedBuildFiles = @(Get-ChildItem -LiteralPath $nativeCacheRoot -Recurse -Filter 'build_file_index.txt' -File -ErrorAction SilentlyContinue)
+        $staleNativeCache = $cachedBuildFiles | Where-Object {
+            $recordedBuildFiles = @(Get-Content -LiteralPath $_.FullName -ErrorAction SilentlyContinue)
+            $recordedBuildFiles.Count -gt 0 -and $recordedBuildFiles -notcontains $expectedAndroidMk
+        } | Select-Object -First 1
+        if ($staleNativeCache) {
+            $resolvedNativeCache = [System.IO.Path]::GetFullPath($nativeCacheRoot)
+            $resolvedLoveRoot = [System.IO.Path]::GetFullPath($loveAndroidRoot).TrimEnd('\') + '\'
+            if (-not $resolvedNativeCache.StartsWith($resolvedLoveRoot,[System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to clear native cache outside the Android checkout: $resolvedNativeCache"
+            }
+            Write-Output 'Invalidating native cache tied to a previous temporary build drive...'
+            Remove-Item -LiteralPath $resolvedNativeCache -Recurse -Force
+        }
+    }
+
     Write-Output 'Building the installable Android APK...'
     # Clean only the app packaging outputs. This avoids stale ZIP alignment gaps
     # when game.love changes while preserving the expensive native engine cache.
