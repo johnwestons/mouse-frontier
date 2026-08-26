@@ -74,16 +74,19 @@ Systems.screenFlow=Systems.screenFlow.new({
 })
 Systems.screenFlow.install()
 
-Systems.persistenceRuntime=Systems.persistenceRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    session=session,
-    save=Save,
-    maintenance=Maintenance,
-    maintenanceSession=maintenanceSession,
-    focusMobile=function(...) return Systems.mobileRuntime.focus(...) end,
-    shutdownAudio=function(...) return Systems.audioRuntime.shutdown(...) end,
+local platform=Systems.platformComposition.new({
+    persistenceRuntimeFactory=Systems.persistenceRuntime,audioRuntimeFactory=Systems.audioRuntime,
+    trainCarRuntimeFactory=Systems.trainCarRuntime,presentationRuntimeFactory=Systems.presentationRuntime,
+    mobileRuntimeFactory=Systems.mobileRuntime,runtime=runtime,ui=ui,session=session,save=Save,
+    maintenance=Maintenance,maintenanceSession=maintenanceSession,catalog=Catalog,audio=Audio,
+    scenery=scenery,car=car,train=Train,width=W,height=H,screens=screens,viewport=Viewport,camera=Camera,
+    engineUpgrades=EngineUpgrades,mobileControls=MobileControls,
+    drawExitPrompt=function(...) return Systems.screenUI.drawExitPrompt(...) end,
+    getGameplayInput=function() return Systems.gameplayInput end,
 })
+Systems.persistenceRuntime,Systems.audioRuntime=platform.persistenceRuntime,platform.audioRuntime
+Systems.trainCarRuntime,Systems.presentationRuntime=platform.trainCarRuntime,platform.presentationRuntime
+Systems.mobileRuntime=platform.mobileRuntime
 
 Systems.worldScene=Systems.worldScene.new({
     runtime=runtime,
@@ -101,52 +104,6 @@ Systems.worldScene=Systems.worldScene.new({
     getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
     isFurnitureItem=content.isFurnitureItem,
     writeSave=Systems.persistenceRuntime.schedule,
-})
-
-Systems.audioRuntime=Systems.audioRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    catalog=Catalog,
-    audio=Audio,
-})
-
-Systems.trainCarRuntime=Systems.trainCarRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    scenery=scenery,
-    car=car,
-    train=Train,
-    width=W,
-    height=H,
-    writeSave=Systems.persistenceRuntime.schedule,
-})
-
-Systems.presentationRuntime=Systems.presentationRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    screens=screens,
-    maintenanceSession=maintenanceSession,
-    viewport=Viewport,
-    camera=Camera,
-    engineUpgrades=EngineUpgrades,
-    width=W,
-    height=H,
-    drawExitPrompt=function(...) return Systems.screenUI.drawExitPrompt(...) end,
-    drawMobileControls=function(...) return Systems.mobileRuntime.draw(...) end,
-})
-
-Systems.mobileRuntime=Systems.mobileRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    maintenanceSession=maintenanceSession,
-    mobileControls=MobileControls,
-    width=W,
-    height=H,
-    viewportToGame=Systems.presentationRuntime.viewportToGame,
-    getCameraZoom=Systems.presentationRuntime.getZoom,
-    setCameraZoom=Systems.presentationRuntime.setZoom,
-    endCameraPan=Systems.presentationRuntime.endPan,
-    getGameplayInput=function() return Systems.gameplayInput end,
 })
 
 Systems.sessionBootstrap=Systems.sessionBootstrap.new({
@@ -346,7 +303,7 @@ function App.installSmoke()
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
         startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
-        contentRegistry=content,viewComposition=views,adventureComposition=adventure,
+        contentRegistry=content,viewComposition=views,adventureComposition=adventure,platformComposition=platform,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,
