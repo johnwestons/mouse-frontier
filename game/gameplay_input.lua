@@ -80,6 +80,7 @@ local function new(context)
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
   local chooseFinale=required(context,"chooseFinale","function")
+  local completeStopActivity=required(context,"completeStopActivity","function")
 
   local function startTravel()
       local status=travelStatus()
@@ -434,6 +435,7 @@ local function new(context)
           runtime.saveData.lastStopDoor=arg; runtime.saveData.activeHouseDoor=arg; ui.playSfx("doors"); runtime.scene="house"
           local homeLayout=Stops.ensureDoor(runtime.saveData,Catalog,arg); ensureHouseItems(); runtime.player.x,runtime.player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
       elseif action=="exitHouse" then exitHouse()
+      elseif action=="stopActivity" then completeStopActivity()
       elseif action=="returnTrain" then
           enterTrain(true)
       elseif action=="give" then giveWeaponToNearby()

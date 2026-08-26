@@ -19,10 +19,13 @@ local function new(context)
   local Wildlife=required(context,"wildlife","table")
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
+  local StopActivities=required(context,"stopActivities","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
   local getIsWeapon=required(context,"getIsWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local writeSave=required(context,"writeSave","function")
   local activeStopSludges=StopSludges.new()
+  local activityMessage,activityMessageTimer=nil,0
 
   local function isWeapon(name)
       local check=getIsWeapon()
@@ -32,10 +35,13 @@ local function new(context)
 
   local function resetStopSludges()
       activeStopSludges=StopSludges.new()
+      activityMessage,activityMessageTimer=nil,0
   end
 
   local function ensureStopLayout()
-      return Stops.ensure(runtime.saveData,Catalog,runtime.scene)
+      local layout=Stops.ensure(runtime.saveData,Catalog,runtime.scene)
+      StopActivities.ensure(runtime.saveData,layout,runtime.saveData.location,Settlements)
+      return layout
   end
 
   local function ensureHouseItems()
@@ -91,14 +97,43 @@ local function new(context)
       if runtime.scene~="stop" or not runtime.saveData then return end
       local layout=ensureStopLayout()
       Wildlife.spawn(layout,runtime.saveData.location,Settlements)
-      Wildlife.update(layout.wildlife,dt,runtime.saveData.location,Settlements)
+      local ecology={player=runtime.player,feed=StopActivities.feedPoint(layout)}
+      Wildlife.update(layout.wildlife,dt,runtime.saveData.location,Settlements,ecology)
       Mice.spawn(layout,runtime.saveData.location,Settlements)
-      Mice.update(layout.mice,dt,runtime.saveData.location,Settlements)
+      Mice.update(layout.mice,dt,runtime.saveData.location,Settlements,ecology)
+  end
+
+  local function updateStopActivity(dt)
+      activityMessageTimer=math.max(0,activityMessageTimer-dt)
+      if runtime.scene~="stop" or not runtime.saveData or not runtime.player then runtime.stopHazardSlow=1; return end
+      local slow,event=StopActivities.update(runtime.saveData,ensureStopLayout(),runtime.player)
+      runtime.stopHazardSlow=slow or 1
+      if event then activityMessage=event.message; activityMessageTimer=2.6; writeSave() end
   end
 
   local function update(dt)
+      updateStopActivity(dt)
       updateStopSludges(dt)
       updateWildlife(dt)
+  end
+
+  local function currentStopActivity()
+      if runtime.scene~="stop" or not runtime.saveData then return nil end
+      return ensureStopLayout().worldActivity
+  end
+
+  local function completeStopActivity()
+      if runtime.scene~="stop" or not runtime.player then return false end
+      local layout=ensureStopLayout(); local activity=layout.worldActivity
+      if not StopActivities.near(activity,runtime.player.x,runtime.player.y) then return false end
+      local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression)
+      activityMessage=result.message; activityMessageTimer=3.2
+      if result.completed then runtime.stopHazardSlow=1 end
+      writeSave(); return result
+  end
+
+  local function drawStopActivity()
+      if runtime.scene=="stop" then StopActivities.draw(ensureStopLayout(),runtime.animationClock,activityMessage,activityMessageTimer) end
   end
 
   local function drawStopSludges(images)
@@ -122,6 +157,9 @@ local function new(context)
       update=update,
       attackStopSludge=attackStopSludge,
       drawStopSludges=drawStopSludges,
+      drawStopActivity=drawStopActivity,
+      currentStopActivity=currentStopActivity,
+      completeStopActivity=completeStopActivity,
       drawWildlife=drawWildlife,
   }
 end

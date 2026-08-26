@@ -126,6 +126,7 @@ local function new(context)
               elseif nearbyFurniture then contextText,contextScale="HOLD PICK UP FOR FURNITURE",.68
               elseif runtime.nearHouse then contextText,contextScale="TAP ENTER",.78
               elseif ui.interaction and ui.interaction.kind=="houseExit" then contextText,contextScale="TAP EXIT",.78
+              elseif ui.interaction and ui.interaction.kind=="stopActivity" then contextText,contextScale="TAP HELP  •  "..(ui.interaction.label or "COMMUNITY TASK"),.62
               elseif runtime.nearReturnTrain then contextText,contextScale="TAP BOARD",.78
               elseif runtime.nearFire then contextText,contextScale="TAP COAL",.78 end
           elseif ui.nearRadio then contextText,contextScale="P  OPEN RADIO",.72
@@ -138,6 +139,7 @@ local function new(context)
           elseif nearbyFurniture then contextText,contextScale="HOLD E  PICK UP FURNITURE",.72
           elseif runtime.nearHouse then contextText,contextScale="Q  ENTER HOME",.78
           elseif ui.interaction and ui.interaction.kind=="houseExit" then contextText,contextScale="Q  LEAVE HOME",.78
+          elseif ui.interaction and ui.interaction.kind=="stopActivity" then contextText,contextScale="Q  HELP  •  "..(ui.interaction.label or "COMMUNITY TASK"),.62
           elseif runtime.nearReturnTrain then contextText,contextScale="Q  BOARD TRAIN",.78
           elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78 end
       end

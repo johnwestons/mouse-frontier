@@ -39,6 +39,7 @@ local function new(context)
   local updateAudio=required(context,"updateAudio","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
   local updateWorldScene=required(context,"updateWorldScene","function")
+  local currentStopActivity=required(context,"currentStopActivity","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local itemIsHere=required(context,"itemIsHere","function")
   local setupNPC=required(context,"setupNPC","function")
@@ -55,11 +56,13 @@ local function new(context)
       local selected=interactionRouter.select({data=runtime.saveData,scene=runtime.scene,player=runtime.player,npc=runtime.npcActor,car=car,mouseX=mx,mouseY=my,
           itemIsHere=itemIsHere,storageCapacities=Catalog.storageCapacities,nearTrain=Settlements.nearTrain,trainPoint=Settlements.trainPoint,
           nearDoor=Settlements.nearDoor,doorPoint=Settlements.doorPoint,hasSettlements=scenery.settlements~=nil,layout=ensureStopLayout,
-          interiorPoint=InteriorDoors.point,nearInteriorDoor=InteriorDoors.near,interiorFiles=scenery.interiorFiles,choose=Interactions.select})
+          interiorPoint=InteriorDoors.point,nearInteriorDoor=InteriorDoors.near,interiorFiles=scenery.interiorFiles,
+          stopActivity=currentStopActivity(),choose=Interactions.select})
       local flags=interactionRouter.flags(selected)
       ui.interaction=flags.interaction; runtime.nearbyItem=flags.nearbyItem; runtime.nearChest=flags.nearChest; runtime.nearMailbox=flags.nearMailbox
       runtime.nearHouse=flags.nearHouse or false; runtime.nearNPC=flags.nearNPC or false; runtime.nearPassenger=flags.nearPassenger
       runtime.nearReturnTrain=flags.nearReturnTrain or false; runtime.nearFire=flags.nearFire or false
+      runtime.nearStopActivity=flags.nearStopActivity or false
       runtime.nearCarPrev=flags.nearCarPrev or false; runtime.nearCarNext=flags.nearCarNext or false; ui.nearRadio=flags.nearRadio or false
   end
 
@@ -155,7 +158,8 @@ local function new(context)
           if dx~=0 then runtime.player.facing=dx>0 and 1 or -1 end
           local sprint=(love.keyboard.isDown("lshift","rshift") or mobileSprinting()) and 1.7 or 1
           local oldX,oldY=runtime.player.x,runtime.player.y
-          runtime.player.x,runtime.player.y=runtime.player.x+dx*runtime.player.speed*sprint*dt,runtime.player.y+dy*runtime.player.speed*sprint*dt
+          local worldSlow=runtime.scene=="stop" and (runtime.stopHazardSlow or 1) or 1
+          runtime.player.x,runtime.player.y=runtime.player.x+dx*runtime.player.speed*sprint*worldSlow*dt,runtime.player.y+dy*runtime.player.speed*sprint*worldSlow*dt
           if runtime.walkingSoundTimer<=0 then
               ui.playSfx("walkingSteps")
               runtime.walkingSoundTimer=math.max(.18,.34/sprint)

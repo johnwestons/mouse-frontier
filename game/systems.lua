@@ -43,6 +43,7 @@ return {
     smokeComposition = require("game.smoke_composition"),
     smokePlaythrough = require("game.smoke_playthrough"),
     stopHelpProgression = require("game.stop_help_progression"),
+    stopActivities = require("game.stop_activities"),
     startupRuntime = require("game.startup_runtime"),
     startupComposition = require("game.startup_composition"),
     trainCarRuntime = require("game.train_car_runtime"),

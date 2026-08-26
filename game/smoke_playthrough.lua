@@ -67,6 +67,7 @@ local function install(context)
     local finaleAudit=required(context,"finaleAudit","function")
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local trainPresentationAudit=required(context,"trainPresentationAudit","function")
+    local stopActivityAudit=required(context,"stopActivityAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -250,6 +251,10 @@ local function install(context)
                         and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
                         and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
                 end},
+            {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
+                return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
+                    and result.goodwill==1 and result.persistent and result.curve=="stop-world-variety-v1"
+            end},
             {name="positive_finale_progression",action=finaleAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="finale-v1" and result.choiceCount==3 and result.selected=="lifeline"
@@ -424,6 +429,18 @@ local function install(context)
                 expect={food=9,water=9,coal=9,traveling=true}},
             {name="complete_travel",action=function() return true end,expect={location=2,traveling=false},timeout=20},
             fixtureStep("stop"),
+            {name="settlement_activity_help",action=function()
+                local layout=ensureStopLayout(); local activity=layout.worldActivity
+                if not activity then return false end
+                local beforeHealth,beforeGoodwill=game.saveData.health,game.saveData.goodwill
+                game.dialogue=nil; game.questOffer=nil
+                game.player.x,game.player.y=activity.x,activity.y
+                ui.smokeUpdate(.05); ui.smokeDraw(); ui.interaction={kind="stopActivity",label=activity.label}; love.keypressed("q")
+                return {completed=activity.completed,hazardTriggered=activity.hazardTriggered,healthBefore=beforeHealth,
+                    healthAfter=game.saveData.health,goodwillBefore=beforeGoodwill,goodwillAfter=game.saveData.goodwill,kind=activity.kind}
+            end,check=function(_,_,snapshot,result)
+                return result and result.completed and result.goodwillAfter==result.goodwillBefore+1 and snapshot.scene=="stop"
+            end},
             {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return "q" end,expect={state="game",scene="house"}},
             fixtureStep("house"),
             {name="exit_home_button",action=function()
@@ -576,6 +593,18 @@ local function install(context)
                     return {width=control.w,height=control.h,scene=game.scene}
                 end,check=function(_,_,snapshot,result)
                     return result and result.width>=220 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
+                end},
+                {name="mobile_settlement_help_touch",action=function()
+                    local layout=ensureStopLayout(); local activity=layout.worldActivity
+                    if not activity or activity.completed then return false end
+                    game.dialogue=nil; game.questOffer=nil
+                    game.player.x,game.player.y=activity.x,activity.y
+                    ui.smokeUpdate(.05); ui.smokeDraw()
+                    love.touchpressed("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
+                    love.touchreleased("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
+                    return {completed=activity.completed,goodwill=game.saveData.goodwill}
+                end,check=function(_,_,snapshot,result)
+                    return result and result.completed and result.goodwill==1 and snapshot.scene=="stop"
                 end},
                 {name="mobile_pinch_zoom",action=function()
                     ui.mobileMenuOpen=false; game.inventoryOpen=false; game.mapOpen=false; game.dialogue=nil; presentationRuntime.setZoom(1)

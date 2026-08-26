@@ -39,7 +39,8 @@ function Wildlife.spawn(layout,location,settlements)
     layout.chickensInitialized=true
     layout.wildlife={}
     local seed=(location or 1)*41+3
-    layout.chickensEnabled=(seed%100)<40
+    local feedActivity=layout.worldActivity and layout.worldActivity.kind=="wildlife-trough"
+    layout.chickensEnabled=(seed%100)<40 or feedActivity
     if not layout.chickensEnabled then return layout.wildlife end
 
     local centerX,centerY=nearbyWalkable(250+(seed%430),430+(seed%145),location,settlements)
@@ -54,26 +55,35 @@ function Wildlife.spawn(layout,location,settlements)
     return layout.wildlife
 end
 
-function Wildlife.update(list,dt,location,settlements)
+function Wildlife.update(list,dt,location,settlements,ecology)
     for index,bird in ipairs(list or {}) do
         bird.t=(bird.t or 0)+dt; bird.wait=(bird.wait or 0)-dt
         local mother=bird.mother and list[bird.mother]
-        if mother then
+        local player=ecology and ecology.player
+        local threatX,threatY=player and bird.x-player.x or 0,player and bird.y-player.y or 0
+        local threatDistance=math.sqrt(threatX*threatX+threatY*threatY)
+        if player and threatDistance<82 then
+            local length=math.max(1,threatDistance)
+            bird.targetX,bird.targetY=nearbyWalkable(bird.x+threatX/length*90,bird.y+threatY/length*58,location,settlements)
+            bird.wait=.9; bird.scared=true
+        elseif mother then
             -- Chicks keep a loose formation behind their mother and walk to
             -- catch up rather than being teleported with her.
             local side=((index%2)==0 and -1 or 1)*(10+index*3)
             bird.targetX,bird.targetY=mother.x-side*(mother.facing or 1),mother.y+12+(index%3)*5
         elseif bird.wait<=0 or not bird.targetX then
-            local angle=love.math.random()*math.pi*2
-            local distance=love.math.random(25,85)
-            bird.targetX,bird.targetY=nearbyWalkable(bird.homeX+math.cos(angle)*distance,bird.homeY+math.sin(angle)*distance*.62,location,settlements)
+            local center=ecology and ecology.feed
+            local angle=love.math.random()*math.pi*2; local distance=center and love.math.random(12,48) or love.math.random(25,85)
+            local centerX,centerY=center and center.x or bird.homeX,center and center.y or bird.homeY
+            bird.targetX,bird.targetY=nearbyWalkable(centerX+math.cos(angle)*distance,centerY+math.sin(angle)*distance*.62,location,settlements)
             bird.wait=love.math.random(2,6)
+            bird.scared=false
         end
         local dx,dy=(bird.targetX or bird.x)-bird.x,(bird.targetY or bird.y)-bird.y
         local distance=math.sqrt(dx*dx+dy*dy); bird.moving=distance>2
         if bird.moving then
             bird.facing=dx>=0 and 1 or -1
-            local speed=bird.kind=="chick" and 28 or 22
+            local speed=(bird.kind=="chick" and 28 or 22)*(bird.scared and 1.65 or 1)
             local step=math.min(distance,speed*dt)
             local nx,ny=bird.x+dx/distance*step,bird.y+dy/distance*step
             bird.x,bird.y=settlements.move(location,bird.x,bird.y,nx,ny)

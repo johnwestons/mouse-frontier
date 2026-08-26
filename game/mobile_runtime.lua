@@ -58,6 +58,7 @@ local function new(context)
       elseif kind=="npc" or kind=="passenger" then return "q","TALK"
       elseif kind=="house" then return "q","ENTER"
       elseif kind=="houseExit" then return "q","EXIT"
+      elseif kind=="stopActivity" then return "q","HELP"
       elseif kind=="returnTrain" then return "q","BOARD"
       elseif kind=="carNext" or kind=="carPrev" then return "q","DOOR"
       end

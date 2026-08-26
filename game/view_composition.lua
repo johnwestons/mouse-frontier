@@ -83,7 +83,7 @@ local function new(context)
     npcImages=content.npcImages,npcWalkImages=content.npcWalkImages,familyImages=content.familyImages,
     mobImages=content.mobImages,mobIdleImages=content.mobIdleImages,mobWalkImages=content.mobWalkImages,
     mobHitImages=content.mobHitImages,mobDeathImages=content.mobDeathImages,
-    drawStopSludges=world.worldScene.drawStopSludges,drawWildlife=world.worldScene.drawWildlife,
+    drawStopSludges=world.worldScene.drawStopSludges,drawStopActivity=world.worldScene.drawStopActivity,drawWildlife=world.worldScene.drawWildlife,
     train=Train,characterAnimation=CharacterAnimation,catalog=Catalog,family=Family,settlements=Settlements,stops=Stops,util=Util,ui=ui,
     itemIsHere=world.worldScene.itemIsHere,pendingMailHere=adventure.journeyRules.pendingMailHere,
     ensureStopLayout=world.worldScene.ensureStopLayout,

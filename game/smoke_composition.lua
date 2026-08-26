@@ -39,6 +39,7 @@ local function new(context)
   local AudioSelfTest=required(domain,"domain","audioSelfTest","table")
   local FinaleProgression=required(domain,"domain","finaleProgression","table")
   local StopHelpProgression=required(domain,"domain","stopHelpProgression","table")
+  local StopActivities=required(domain,"domain","stopActivities","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
@@ -79,6 +80,7 @@ local function new(context)
       audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
       trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
+      stopActivityAudit=function() return StopActivities.audit(StopHelpProgression) end,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
