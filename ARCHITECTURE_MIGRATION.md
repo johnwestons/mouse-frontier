@@ -28,7 +28,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Structural regression protection | Smoke tests only | Fast source-architecture tests plus smoke tests | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat, world-scene, audio, inventory-presentation, event, train-car, mobile-control, and frame-presentation behavior split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Battle, world-scene, audio, inventory-presentation, event, train-car, mobile-control, and frame-presentation orchestration extracted; further domain extraction is incremental |
+| Composition root | Combat, world-scene, audio, inventory-presentation, event, train-car, mobile-control, frame-presentation, and startup behavior split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Battle, world-scene, audio, inventory-presentation, event, train-car, mobile-control, frame-presentation, and startup orchestration extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -61,6 +61,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 17. Train-car orchestration now lives behind a validated runtime service. Active-car imagery, floor and object bounds, player clamping, inter-car transition startup/completion, train re-entry, and edited-item placement share one owner; session bootstrap, update, and input consume focused train-car operations, with an automated two-car transition checkpoint.
 18. Mobile-control orchestration now lives behind a validated runtime service. Controller creation, action labels, overlay visibility, movement/held/sprint queries, pointer translation, pinch zoom, synthetic-mouse filtering, touch forwarding, drawing, Android back-key translation, and focus cancellation share one owner; gameplay systems consume focused mobile capabilities instead of the raw controller.
 19. Frame-presentation orchestration now lives behind a validated runtime service. Viewport scaling, camera-aware coordinate conversion, pan and zoom controls, screen dispatch, exit prompts, mobile overlays, and travel fades share one owner; rendering and hit testing now use one overlay-aware camera predicate, while input and mobile systems consume focused presentation capabilities instead of raw camera and viewport objects.
+20. Startup orchestration now lives behind a validated runtime service. Graphics defaults, save-directory creation, audio and mobile initialization, asset hydration, settlement metadata, lazy streaming, character animations, cloud state, and load-ordered gameplay-update construction share one owner; renderers consume stable getters and the application load/update callbacks only delegate.
 
 ## Definition of done for this migration wave
 
@@ -68,7 +69,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/app.lua` is the only application composition root.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 40-check smoke run and full route to stop 50 pass.
+- The 41-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -77,7 +78,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 40 checkpoints, including legacy migration, invalid-save rejection, backup recovery, and overlay-aware presentation coordinates.
+- The normal autonomous smoke playthrough passed all 41 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, and startup-runtime readiness.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 44 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 45 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

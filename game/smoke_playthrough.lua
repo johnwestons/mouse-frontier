@@ -60,6 +60,9 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
         ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
         local startX=player.x
         local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
+            {name="startup_runtime_ready",action=function()
+                return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
+            end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
             {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end

@@ -42,7 +42,6 @@ local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
 local MobileControls = require("game.mobile_controls")
 local Systems = require("game.systems")
-local GameplayUpdate = Systems.gameplayUpdate
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
 screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
@@ -53,13 +52,10 @@ local runtime = RuntimeState.new({
 })
 local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
 local scenery, backgroundImages, ui = {}, {}, {}
-local cloudLayer
 local characterWalkImages, npcWalkImages = {}, {}
 local characterActionImages, mobAttackImages, mobIdleImages, mobHitImages = {}, {}, {}, {}
 local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {}, {}
 local itemIdleImages = {}
-local characterAnimations = {}
-local HOLD_PICKUP_SECONDS = Config.holdPickupSeconds
 local maintenanceSession = Maintenance.new()
 
 
@@ -186,7 +182,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     mobDeathImages=mobDeathImages,
     mobWalkImages=mobWalkImages,
     mobRangedImages=mobRangedImages,
-    getCharacterAnimations=function() return characterAnimations end,
+    getCharacterAnimations=function() return Systems.startupRuntime.characterAnimations() end,
     mobileEnabled=Systems.mobileRuntime.isEnabled,
     getWorldRenderer=function() return Systems.worldRenderer end,
     getScreenUI=function() return Systems.screenUI end,
@@ -242,40 +238,35 @@ Systems.eventRuntime=Systems.eventRuntime.new({
     enterStop=Systems.journeyRules.enterStop,
 })
 
-function App.load()
-    love.graphics.setDefaultFilter("nearest", "nearest")
-    love.graphics.setFont(love.graphics.newFont(16))
-    Systems.audioRuntime.initialize()
-    love.filesystem.createDirectory("saves")
-    characterAnimations=Assets.load({
+Systems.startupRuntime=Systems.startupRuntime.new({
+    ui=ui,
+    scenery=scenery,
+    graphics=love.graphics,
+    filesystem=love.filesystem,
+    assets=Assets,
+    settlements=Settlements,
+    clouds=Clouds,
+    assetStreamer=Systems.assetStreamer,
+    gameplayUpdate=Systems.gameplayUpdate,
+    initializeAudio=Systems.audioRuntime.initialize,
+    initializeMobile=Systems.mobileRuntime.initialize,
+    createIntro=function() return Systems.intro.new(10) end,
+    assetTargets={
         ui=ui, scenery=scenery, characters=characters, characterImages=characterImages,
         npcImages=npcImages, mobImages=mobImages, mobFiles=mobFiles, backgroundImages=backgroundImages,
         characterWalkImages=characterWalkImages, npcWalkImages=npcWalkImages, characterActionImages=characterActionImages,
         mobAttackImages=mobAttackImages, mobIdleImages=mobIdleImages, mobHitImages=mobHitImages,
         mobDeathImages=mobDeathImages, mobWalkImages=mobWalkImages, mobRangedImages=mobRangedImages,
         familyImages=familyImages, itemIdleImages=itemIdleImages,
-    })
-    ui.introCinematic=Systems.intro.new(10)
-    cloudLayer = Clouds.new(scenery.cloudImages)
-    scenery.settlements=Settlements.load(function(path)
-        local ok,image=pcall(love.graphics.newImage,path)
-        return ok and image or nil
-    end)
-    ui.assetStreamer=require("game.asset_streamer").new({
-        settlements=scenery.settlements,
-        interiorFiles=scenery.interiorFiles,
-        characterAnimations=characterAnimations,
-        legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages,npcImages,mobImages},
-    })
-    Systems.mobileRuntime.initialize()
-    Systems.gameplayUpdate=GameplayUpdate.new({
+    },
+    legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages,npcImages,mobImages},
+    gameplayContext={
         runtime=runtime,
         width=W,
-        holdPickupSeconds=HOLD_PICKUP_SECONDS,
+        holdPickupSeconds=Config.holdPickupSeconds,
         ui=ui,
         car=car,
         scenery=scenery,
-        cloudLayer=cloudLayer,
         maintenanceSession=maintenanceSession,
         mobileEnabled=Systems.mobileRuntime.isEnabled,
         mobileMovement=Systems.mobileRuntime.movement,
@@ -306,8 +297,10 @@ function App.load()
         trainFloorBounds=Systems.trainCarRuntime.floorBounds,
         updateCarTransition=Systems.trainCarRuntime.updateTransition,
         writeSave=writeSave,
-    })
-end
+    },
+})
+
+function App.load() return Systems.startupRuntime.load() end
 
 screens:register("intro",{update=function(dt)
     if Systems.intro.update(ui.introCinematic,dt) then runtime.state="slots" end
@@ -320,7 +313,7 @@ screens:register("event",{update=function() return true end})
 screens:register("ending",{update=function() return true end})
 screens:register("game",{update=function() return false end})
 
-function App.update(dt) return Systems.gameplayUpdate.update(dt) end
+function App.update(dt) return Systems.startupRuntime.update(dt) end
 
 Systems.screenUI=Systems.screenUI.new({
     runtime=runtime,
@@ -382,7 +375,7 @@ Systems.worldRenderer=Systems.worldRenderer.new({
     scenery=scenery,
     car=car,
     colors=colors,
-    getCharacterAnimations=function() return characterAnimations end,
+    getCharacterAnimations=function() return Systems.startupRuntime.characterAnimations() end,
     characterImages=characterImages,
     characterWalkImages=characterWalkImages,
     characterActionImages=characterActionImages,
@@ -418,8 +411,8 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     ui=ui,
     colors=colors,
     maintenanceSession=maintenanceSession,
-    holdPickupSeconds=HOLD_PICKUP_SECONDS,
-    getCloudLayer=function() return cloudLayer end,
+    holdPickupSeconds=Config.holdPickupSeconds,
+    getCloudLayer=function() return Systems.startupRuntime.cloudLayer() end,
     mobileEnabled=Systems.mobileRuntime.isEnabled,
     engineUpgrades=EngineUpgrades,
     clouds=Clouds,
@@ -542,7 +535,7 @@ function App.installSmoke()
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
-        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="presentationRuntime" then return Systems.presentationRuntime
+        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="presentationRuntime" then return Systems.presentationRuntime elseif name=="startupRuntime" then return Systems.startupRuntime
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end

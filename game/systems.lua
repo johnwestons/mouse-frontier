@@ -3,6 +3,7 @@
 -- runtime-facing services after it has created authoritative application state.
 return {
     audioRuntime = require("game.audio_runtime"),
+    assetStreamer = require("game.asset_streamer"),
     battleRuntime = require("game.battle_runtime"),
     battleUI = require("game.battle_ui"),
     eventRuntime = require("game.event_runtime"),
@@ -21,6 +22,7 @@ return {
     screenUI = require("game.screen_ui"),
     session = require("game.game_session"),
     sessionBootstrap = require("game.session_bootstrap"),
+    startupRuntime = require("game.startup_runtime"),
     trainCarRuntime = require("game.train_car_runtime"),
     worldScene = require("game.world_scene"),
     worldRenderer = require("game.world_renderer"),
