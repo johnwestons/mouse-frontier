@@ -39,8 +39,9 @@ Battle.prompt=prompt
 
 function Battle.begin(c,encounter)
     encounter.mobFiles=encounter.mobFiles or (encounter.mobFile and {encounter.mobFile} or {})
-    local tier=encounter.tier or (c.saveData.location<=4 and "easy" or (c.saveData.location<=8 and "medium" or "hard")); encounter.tier=tier
-    local maxHP=encounter.maxHP or ({easy=12,medium=20,hard=32})[tier]; encounter.maxHP=maxHP
+    local tier=encounter.tier or c.CombatBalance.tierFor(c.saveData.location); encounter.tier=tier
+    local profile=c.CombatBalance.enemyProfile(c.saveData.location,tier)
+    local maxHP=encounter.maxHP or profile.maxHP; encounter.maxHP=maxHP
     local d=c.saveData; local C=c.Catalog; local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=2,hp=d.health,maxHP=d.maxHealth,move=2+(d.trait and d.trait.move or 0),armor=2+(d.trait and d.trait.armor or 0),aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
     local starts={{q=1,r=3},{q=0,r=2},{q=0,r=4}}
     if encounter.temporaryAllies then
@@ -58,13 +59,13 @@ function Battle.begin(c,encounter)
             end
         end
     end
-    local rows={1,2,3,4}; local armor=({easy=1,medium=3,hard=5})[tier]
+    local rows={1,2,3,4}
     for i,file in ipairs(encounter.mobFiles) do
         local ranged=file:find("eagle") or file:find("owl") or file:find("dragon") or file:find("zombie")
         local isArmed=armed(file); local row=rows[((i-1)%#rows)+1]
         local weapon=isArmed and LootProgression.rollWeapon(C,d.location,"common") or natural(file)
         local combat=C.weaponCombat[weapon] or C.weaponCombat.scratch
-        units[#units+1]={id="enemy"..i,team="enemy",name=c.Util.titleFromFile(file),file=file,q=c.BOARD_COLS,r=row,hp=maxHP,maxHP=maxHP,move=tier=="hard" and 3 or 2,armor=armor,aim=tier=="easy" and 0 or (tier=="medium" and 2 or 4),attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon}
+        units[#units+1]={id="enemy"..i,team="enemy",name=c.Util.titleFromFile(file),file=file,q=c.BOARD_COLS,r=row,hp=maxHP,maxHP=maxHP,move=profile.move,armor=profile.armor,aim=profile.aim,attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon}
     end
     local tiles,vars={},{ }
     for q=0,c.BOARD_COLS+1 do
@@ -87,8 +88,10 @@ function Battle.advance(c)
     local b=c.battle; local enemy,ally=false,false; for _,u in ipairs(b.units) do if u.hp>0 then if u.team=="enemy" then enemy=true else ally=true end end end
     if not enemy then
         b.encounter.resolved=true; local d=c.saveData; local C=c.Catalog; if d.health<=0 then d.health=1; for _,unit in ipairs(b.units) do if unit.id=="player" then unit.hp=1 end end end
-        local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(3,6); local scrap=math.max(1,math.floor(love.math.random(4,8)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=({easy=6,medium=12,hard=20})[b.encounter.tier or "easy"]; local defenseBonus=""
-        if b.encounter.defenseBattle then reward=reward+4; scrap=scrap+8; xp=xp+8; d.resources.food=math.min(30,d.resources.food+2); d.resources.water=math.min(30,d.resources.water+2); defenseBonus=" The survivors share +2 food and +2 water." end
+        local enemyCount=0; for _,unit in ipairs(b.units) do if unit.team=="enemy" then enemyCount=enemyCount+1 end end
+        local rewards=c.CombatBalance.rewardProfile(b.encounter.tier,enemyCount,b.encounter.defenseBattle)
+        local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(rewards.coalMin,rewards.coalMax); local scrap=math.max(1,math.floor(love.math.random(rewards.scrapMin,rewards.scrapMax)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=rewards.xp; local defenseBonus=""
+        if b.encounter.defenseBattle then d.resources.food=math.min(30,d.resources.food+2); d.resources.water=math.min(30,d.resources.water+2); defenseBonus=" The survivors share +2 food and +2 water." end
         local loot=c.Events.grantBattleLoot(d,C,b.encounter); local levels=c.BattleRules.gainExperience(d,xp); d.scrap=d.scrap+scrap; d.resources.coal=math.min(30,d.resources.coal+reward); d.battlePotionLootChance=nil; msg(c,"Victory! +"..xp.." XP, +"..reward.." coal, +"..scrap.." scrap."..defenseBonus..loot..(levels>0 and " LEVEL UP!" or "")); b.finished="win"; c.writeSave(); return true
     end
     if not ally then c.saveData.health=math.max(1,math.floor(c.saveData.maxHealth/2)); c.saveData.battlePotionLootChance=nil; msg(c,"Your party was overwhelmed and returned to the train."); b.finished="loss"; c.writeSave(); return true end

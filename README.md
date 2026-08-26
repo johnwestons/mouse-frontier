@@ -35,7 +35,7 @@ Android controls, installation, update flow, and device verification are documen
 - Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
-- Weapon damage and mob difficulty increase as the journey progresses.
+- Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience.
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
 - Battles award experience; gaining levels improves maximum health and adds an attack bonus.

@@ -279,7 +279,7 @@ local function title(name)
     return (name or ""):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
 end
 
-function Events.resolve(data,catalog,event,choiceIndex)
+function Events.resolve(data,catalog,event,choiceIndex,CombatBalance)
     local choice=event and event.choices[choiceIndex]; if not choice then return {} end
     if not Events.canChoose(data,choice) then return {blocked=true} end
     applyValues(data,choice.cost,-1); applyValues(data,choice.reward,1)
@@ -300,9 +300,9 @@ function Events.resolve(data,catalog,event,choiceIndex)
     Events.record(data,event,choiceIndex)
     local encounter
     if choice.battle then
-        local tier=data.location<=10 and "easy" or (data.location<=28 and "medium" or "hard"); local pool=catalog.mobTiers[tier]
+        local tier=CombatBalance.tierFor(data.location); local pool=catalog.mobTiers[tier]
         encounter={rolled=true,hasMob=true,resolved=false,tier=tier,mobFiles={},eventBattle=true,eventReward=true,eventRewardQuality=choice.rewardQuality or 2,defenseBattle=choice.defense,defenseTitle=event.title}
-        local count=choice.count or catalog.encounterMobCount(tier,data.location)
+        local count=choice.count or CombatBalance.mobCount(tier,data.location,love.math.random())
         for i=1,count do encounter.mobFiles[i]=pool[love.math.random(#pool)] end
         if choice.allies then encounter.temporaryAllies={}; local available={}; for _,file in ipairs(data.npcRoster or {}) do available[#available+1]=file end; for i=1,math.min(choice.allies,#available) do encounter.temporaryAllies[i]=table.remove(available,love.math.random(#available)) end end
     end

@@ -7,6 +7,7 @@ return {
     assetStreamer = require("game.asset_streamer"),
     battleRuntime = require("game.battle_runtime"),
     battleUI = require("game.battle_ui"),
+    combatBalance = require("game.combat_balance"),
     contentRegistry = require("game.content_registry"),
     eventRuntime = require("game.event_runtime"),
     gameplayHUD = require("game.gameplay_hud"),

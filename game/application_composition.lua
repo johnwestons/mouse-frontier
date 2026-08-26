@@ -92,6 +92,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,content=content,colors=colors,car=car,
     inventory=Inventory,catalog=Catalog,util=Util,battleRules=BattleRules,events=Events,
     battleController=BattleController,battleUI=Modules.battleUI,engineUpgrades=EngineUpgrades,
+    combatBalance=Modules.combatBalance,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,

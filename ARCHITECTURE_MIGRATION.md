@@ -78,6 +78,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 33. Smoke instrumentation now has a dedicated composition boundary. The application root supplies four grouped inputs while `game.smoke_composition` validates them and owns the detailed playthrough context, keeping test-only service mapping out of production assembly.
 34. The complete runtime graph now has one validated owner. `game.application_composition` constructs authoritative state and all ordered domain graphs, verifies seven compositions and 18 published services, and exposes a lifecycle interface consumed by the 27-line `game.app` adapter.
 35. Travel progression now uses a deterministic milestone curve. The 49-leg baseline drops from 325/425/295 to 145/175/175 food/water/coal, individual baseline costs remain within storage limits, and desktop/mobile controls show exact affordability and shortage feedback.
+36. Combat progression now uses one deterministic curve across ordinary and event battles. Stops are divided into 12 easy, 18 medium, and 20 hard encounters; enemy statistics grow within each band, group sizes ramp gradually, and rewards scale with enemy count.
 
 ## Definition of done for this migration wave
 
@@ -85,7 +86,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/application_composition.lua` is the only runtime graph builder; `game/app.lua` is a thin lifecycle adapter.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 55-check smoke run and full route to stop 50 pass.
+- The 56-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -94,7 +95,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 55 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic progression balance, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
+- The normal autonomous smoke playthrough passed all 56 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel and combat balance, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 59 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 60 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

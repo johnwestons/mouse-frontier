@@ -269,13 +269,6 @@ Catalog.mobTiers = {
     hard={"ghost-tall.png","purple-dragon.png","mutant-horned-owl.png","tunnel-badger-raider.png","wasteland-human-zombie.png","wasteland-human-zombie.png","vampire-mouse.png","mouse-bandit.png"}
 }
 
-function Catalog.encounterMobCount(tier, location)
-    local chance = tier=="easy" and 0.10 or (tier=="medium" and 0.38 or 0.68)
-    if (location or 1) >= 20 then chance=math.min(.82,chance+.10) end
-    if love.math.random() >= chance then return 1 end
-    return tier=="hard" and 3 or 2
-end
-
 Catalog.dialogueLines = {
     "Hello", "Howdy stranger", "Nice train", "Sure is hot out", "Where'd you come from?", "Where you headed?",
     "Be careful out there", "Hi", "Don't get much visitors these days", "How's yer mom and them?",

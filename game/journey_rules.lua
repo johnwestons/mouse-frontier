@@ -13,6 +13,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
+  local CombatBalance=required(context,"combatBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local Util=required(context,"util","table")
@@ -149,12 +150,12 @@ local function new(context)
           -- Story and mystery chapters are checked above; ordinary stops still
           -- favor combat while leaving room for the five random event families.
           local hasMob=love.math.random()<.58
-          local tier=runtime.saveData.location<=4 and "easy" or (runtime.saveData.location<=8 and "medium" or "hard")
+          local tier=CombatBalance.tierFor(runtime.saveData.location)
           encounter={rolled=true,hasMob=hasMob,resolved=not hasMob,tier=tier}
           local pool=Catalog.mobTiers[tier]
           if hasMob and #pool>0 then
               encounter.mobFiles={}
-              for i=1,Catalog.encounterMobCount(tier,runtime.saveData.location) do
+              for i=1,CombatBalance.mobCount(tier,runtime.saveData.location,love.math.random()) do
                   encounter.mobFiles[i]=pool[love.math.random(#pool)]
               end
               encounter.mobFile=encounter.mobFiles[1]

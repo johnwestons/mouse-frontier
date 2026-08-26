@@ -34,6 +34,7 @@ local function new(context)
   local Events=required(context,"events","table")
   local BattleController=required(context,"battleController","table")
   local BattleUI=required(context,"battleUI","table")
+  local CombatBalance=required(context,"combatBalance","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local pointerPosition=required(context,"pointerPosition","function")
@@ -48,6 +49,7 @@ local function new(context)
           Util=Util,
           BattleRules=BattleRules,
           Events=Events,
+          CombatBalance=CombatBalance,
           BOARD_COLS=7,
           BOARD_ROWS=4,
           playSfx=ui.playSfx,
@@ -65,6 +67,8 @@ local function new(context)
       runtime.dialogue=nil
       writeSave()
   end
+
+  local function balanceAudit() return CombatBalance.audit() end
 
   local function setPrompt(text) BattleController.prompt(controllerContext(),text) end
   local function advanceTurn() BattleController.advance(controllerContext()) end
@@ -117,7 +121,7 @@ local function new(context)
   end
 
   return {
-      beginEncounter=beginEncounter,
+      beginEncounter=beginEncounter,balanceAudit=balanceAudit,
       setPrompt=setPrompt,
       advanceTurn=advanceTurn,
       resolveAttack=resolveAttack,

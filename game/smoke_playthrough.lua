@@ -53,6 +53,7 @@ local function install(context)
     local battleAttack=required(context,"battleAttack","function")
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
     local balanceAudit=required(context,"balanceAudit","function")
+    local combatBalanceAudit=required(context,"combatBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -144,6 +145,12 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.shortageDetected and result.legs==49 and result.resourceCap==30
                         and result.maximum.food==5 and result.maximum.water==7 and result.maximum.coal==7
+                end},
+            {name="combat_balance_curve",action=combatBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.tierCounts.easy==12 and result.tierCounts.medium==18
+                        and result.tierCounts.hard==20 and result.hardEnd.maxHP==34 and result.hardEnd.armor==5
+                        and result.groupHardReward.xp>result.singleHardReward.xp
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
