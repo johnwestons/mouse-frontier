@@ -82,6 +82,7 @@ local function new(context)
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
       beginEncounter=battleRuntime.beginEncounter,consumeSelected=inventoryActions.consumeSelected,
       balanceAudit=journeyRules.balanceAudit,combatBalanceAudit=battleRuntime.balanceAudit,upgradeBalanceAudit=journeyRules.upgradeBalanceAudit,
+      battleGridAudit=battleRuntime.gridAudit,
       playerBalanceAudit=battleRuntime.playerBalanceAudit,
       lootBalanceAudit=inventoryActions.balanceAudit,
       questBalanceAudit=journeyRules.questBalanceAudit,

@@ -8,6 +8,7 @@ return {
     audioSelfTest = require("game.audio_self_test"),
     assetStreamer = require("game.asset_streamer"),
     battleRuntime = require("game.battle_runtime"),
+    battleGrid = require("game.battle_grid"),
     battleUI = require("game.battle_ui"),
     combatBalance = require("game.combat_balance"),
     contentRegistry = require("game.content_registry"),

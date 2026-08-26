@@ -122,6 +122,25 @@ local function loadBattleAtlas(file, label)
     return atlas
 end
 
+local function loadGeneratedBattleAtlas(file)
+    local path="assets/sprites/battle-maps/"..file
+    local ok,data=pcall(love.image.newImageData,path)
+    if not ok or not data then AssetDiagnostics.record("battle scenery",path,"could not decode generated obstacle atlas"); return nil end
+    -- The built-in generator preserved its preview checker in RGB. Convert
+    -- only its bright neutral squares to alpha at load so the approved pixel
+    -- art remains portable in the tracked source image.
+    data:mapPixel(function(_,_,r,g,b,a)
+        local neutral=math.max(r,g,b)-math.min(r,g,b)<.035
+        if neutral and math.min(r,g,b)>.82 then return r,g,b,0 end
+        return r,g,b,a
+    end)
+    local image=love.graphics.newImage(data); image:setFilter("nearest","nearest")
+    local width,height=image:getDimensions(); local cellWidth,cellHeight=width/3,height/2
+    local atlas={image=image,cw=cellWidth,ch=cellHeight,quads={}}
+    for index=1,6 do local column,row=(index-1)%3,math.floor((index-1)/3); atlas.quads[index]=love.graphics.newQuad(column*cellWidth,row*cellHeight,cellWidth,cellHeight,width,height) end
+    return atlas
+end
+
 local function loadMenuFrames(ui)
     ui.menuFrames = {}
     for index, file in ipairs({"train-dialog-frame-v1.png", "train-panel-frame-v1.png", "train-tooltip-frame-v1.png", "train-button-frame-v1.png"}) do
@@ -348,6 +367,13 @@ function Assets.load(targets)
         scenery.battleAtlases[#scenery.battleAtlases + 1] = loadBattleAtlas(entry[2], entry[1])
         scenery.battleVariations[#scenery.battleVariations + 1] = loadBattleAtlas(entry[3], entry[1])
     end
+    scenery.battleAccents={}
+    for index,entry in ipairs({{"WASTELAND","wasteland-tiles-v4.png"},{"FOREST","forest-tiles-v3.png"},{"TOWN RUINS","town-ruins-tiles-v3.png"},{"MOUNTAINS","mountain-tiles-v3.png"}}) do
+        local atlas=loadGeneratedBattleAtlas(entry[2])
+        if atlas then atlas.name=entry[1] end
+        scenery.battleAccents[index]=atlas
+    end
+    scenery.battleObstacles=loadGeneratedBattleAtlas("battle-obstacles-v1.png")
 
     -- Settlement sprites now provide the complete stop surface and buildings.
     -- Keep only chicken assets from the wildlife module for future dynamic spawns.

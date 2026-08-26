@@ -31,6 +31,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
   local BattleRules=required(context,"battleRules","table")
+  local BattleGrid=required(context,"battleGrid","table")
   local Events=required(context,"events","table")
   local BattleController=required(context,"battleController","table")
   local BattleUI=required(context,"battleUI","table")
@@ -54,8 +55,9 @@ local function new(context)
           CombatBalance=CombatBalance,
           TrainUpgradeBalance=TrainUpgradeBalance,
           PlayerProgression=PlayerProgression,
-          BOARD_COLS=7,
-          BOARD_ROWS=4,
+          BOARD_COLS=BattleGrid.COLS,
+          BOARD_ROWS=BattleGrid.ROWS,
+          BattleGrid=BattleGrid,
           playSfx=ui.playSfx,
           weaponSfx=ui.weaponSfx,
           writeSave=writeSave,
@@ -73,6 +75,7 @@ local function new(context)
   end
 
   local function balanceAudit() return CombatBalance.audit() end
+  local function gridAudit() return BattleGrid.audit() end
   local function playerBalanceAudit() return PlayerProgression.audit() end
 
   local function setPrompt(text) BattleController.prompt(controllerContext(),text) end
@@ -95,7 +98,7 @@ local function new(context)
       local renderer=getWorldRenderer()
       local screenUI=getScreenUI()
       return {
-          W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,scenery=scenery,colors=colors,mobileEnabled=mobileEnabled(),
+          W=W,H=H,battle=runtime.battle,battleZoom=runtime.battleZoom,battleGrid=BattleGrid,scenery=scenery,colors=colors,mobileEnabled=mobileEnabled(),
           characterImages=characterImages,npcImages=npcImages,mobImages=mobImages,
           characterWalkImages=characterWalkImages,npcWalkImages=npcWalkImages,
           mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,
@@ -126,7 +129,7 @@ local function new(context)
   end
 
   return {
-      beginEncounter=beginEncounter,balanceAudit=balanceAudit,playerBalanceAudit=playerBalanceAudit,
+      beginEncounter=beginEncounter,balanceAudit=balanceAudit,gridAudit=gridAudit,playerBalanceAudit=playerBalanceAudit,
       setPrompt=setPrompt,
       advanceTurn=advanceTurn,
       resolveAttack=resolveAttack,

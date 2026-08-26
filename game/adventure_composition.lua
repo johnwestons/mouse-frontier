@@ -22,6 +22,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
   local BattleRules=required(context,"battleRules","table")
+  local BattleGrid=required(context,"battleGrid","table")
   local Events=required(context,"events","table")
   local BattleController=required(context,"battleController","table")
   local BattleUI=required(context,"battleUI","table")
@@ -59,7 +60,7 @@ local function new(context)
     mobDeathImages=content.mobDeathImages,mobWalkImages=content.mobWalkImages,mobRangedImages=content.mobRangedImages,
     getCharacterAnimations=getCharacterAnimations,mobileEnabled=mobileEnabled,
     getWorldRenderer=getWorldRenderer,getScreenUI=getScreenUI,catalog=Catalog,util=Util,
-    battleRules=BattleRules,events=Events,battleController=BattleController,battleUI=BattleUI,
+    battleRules=BattleRules,battleGrid=BattleGrid,events=Events,battleController=BattleController,battleUI=BattleUI,
     combatBalance=CombatBalance,trainUpgradeBalance=TrainUpgradeBalance,
     playerProgression=PlayerProgression,
     writeSave=writeSave,screenToGame=screenToGame,pointerPosition=pointerPosition,

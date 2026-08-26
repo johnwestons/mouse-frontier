@@ -28,7 +28,7 @@ local function new(context)
 
   local function musicCategory()
       if runtime.state=="ending" then return "endingHappy" end
-      if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.tier=="hard" and "bossFight" or "battle" end
+      if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.boss and "bossFight" or "battle" end
       if runtime.state~="game" and runtime.state~="event" then return nil end
       if runtime.scene=="house" then return "insideHomes" end
       if runtime.scene=="stop" or runtime.state=="event" then return "stops" end

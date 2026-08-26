@@ -57,6 +57,7 @@ local function install(context)
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
     local balanceAudit=required(context,"balanceAudit","function")
     local combatBalanceAudit=required(context,"combatBalanceAudit","function")
+    local battleGridAudit=required(context,"battleGridAudit","function")
     local playerBalanceAudit=required(context,"playerBalanceAudit","function")
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
@@ -161,7 +162,12 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.tierCounts.easy==12 and result.tierCounts.medium==18
                         and result.tierCounts.hard==20 and result.hardEnd.maxHP==34 and result.hardEnd.armor==5
-                        and result.groupHardReward.xp>result.singleHardReward.xp
+                        and result.groupHardReward.xp>result.singleHardReward.xp and result.bossHardReward.xp>result.groupHardReward.xp
+                end},
+            {name="tactical_grid_expansion",action=battleGridAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.curve=="battle-grid-v1" and result.columns==10 and result.rows==6
+                        and result.spaces==60 and result.obstacles==7 and result.pathing and result.lineOfSight and result.zoomHitTest
                 end},
             {name="player_progression_curve",action=playerBalanceAudit,
                 check=function(_,_,_,result)
@@ -254,7 +260,7 @@ local function install(context)
                 settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()
                 local stationCategory=audioRuntime.status().category
                 local oldState,oldBattle=game.state,game.battle
-                game.state="battle"; game.battle={encounter={tier="hard"}}; audioRuntime.update()
+                game.state="battle"; game.battle={encounter={tier="hard",boss=true}}; audioRuntime.update()
                 local battleCategory=audioRuntime.status().category
                 game.state="slots"; audioRuntime.update()
                 local titleStatus=audioRuntime.status()

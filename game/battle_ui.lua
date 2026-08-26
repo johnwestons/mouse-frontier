@@ -2,19 +2,15 @@ local BattleRules = require("game.battle_rules")
 local Catalog = require("game.catalog")
 local Util = require("game.util")
 local WeaponAttachment = require("game.weapon_attachment")
+local Grid = require("game.battle_grid")
 
 local BattleUI = {}
-local BOARD_COLS, BOARD_ROWS = 7, 4
 local function boardToScreen(ctx,q,r)
-    local battleZoom=ctx.battleZoom or 1
-    local x=460+(q-r)*61; local y=88+(q+r)*34
-    return 460+(x-460)*battleZoom,88+(y-88)*battleZoom
+    return Grid.boardToScreen(1,q,r)
 end
 
 function BattleUI.screenToBoardSpace(ctx,x,y)
-    local battle, battleZoom=ctx.battle, ctx.battleZoom or 1
-    x=460+(x-460)/battleZoom; y=88+(y-88)/battleZoom
-    for q=0,BOARD_COLS+2 do for r=1,BOARD_ROWS do if BattleRules.isBoardSpace(battle,q,r) then local bx,by=460+(q-r)*61,88+(q+r)*34; if math.abs(x-bx)/58+math.abs(y-by)/30<=1 then return q,r end end end end
+    return Grid.screenToBoardSpace(ctx.battle,ctx.battleZoom,x,y)
 end
 
 function BattleUI.draw(ctx)
@@ -32,20 +28,35 @@ function BattleUI.draw(ctx)
     drawLandscape(); drawGround()
     love.graphics.setColor(0.06,0.045,0.035,.88); love.graphics.rectangle("fill",25,55,910,625,12,12)
     love.graphics.setColor(colors.cream); love.graphics.printf("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,70,910,"center",0,1.25,1.25)
+    love.graphics.setColor(colors.brass); love.graphics.printf("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),260,98,440,"center",0,.58,.58)
     local active=BattleRules.selectedUnit(battle)
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
+    local zoom=ctx.battleZoom or 1
+    love.graphics.push(); love.graphics.translate(Grid.ORIGIN_X,Grid.ORIGIN_Y); love.graphics.scale(zoom,zoom); love.graphics.translate(-Grid.ORIGIN_X,-Grid.ORIGIN_Y)
     if terrainAtlas then
-        for depth=1,BOARD_COLS+BOARD_ROWS+3 do for q=0,BOARD_COLS+2 do local r=depth-q; if BattleRules.isBoardSpace(battle,q,r) then
+        local reachableSpaces=active and active.team=="ally" and BattleRules.reachable(battle,active,active.move) or {}
+        for depth=1,Grid.COLS+Grid.ROWS do for q=0,Grid.COLS do local r=depth-q; if BattleRules.isBoardSpace(battle,q,r) then
             local x,y=boardToScreen(ctx,q,r); local tile=battle.tiles[q][r]
             local variation=scenery.battleVariations and scenery.battleVariations[battle.biome or 1]
-            local tileAtlas=(battle.tileVariants and battle.tileVariants[q] and battle.tileVariants[q][r]==2 and variation) or terrainAtlas
+            local accent=scenery.battleAccents and scenery.battleAccents[battle.biome or 1]
+            local variant=battle.tileVariants and battle.tileVariants[q] and battle.tileVariants[q][r] or 1
+            local tileAtlas=(variant==3 and accent) or (variant==2 and variation) or terrainAtlas
             local quad=tileAtlas.quads[tile]
             if quad then love.graphics.setColor(1,1,1); love.graphics.draw(tileAtlas.image,quad,x,y,0,.30,.30,tileAtlas.cw/2,tileAtlas.ch*.42) end
-            local occupant=BattleRules.unitAt(battle,q,r); local reachable=active and active.team=="ally" and BattleRules.distance(active,{q=q,r=r})<=active.move and not occupant
-            local targetable=active and battle.phase=="target" and occupant and occupant.team~=active.team and BattleRules.distance(active,occupant)<=BattleRules.weaponRange(Catalog,battle.chosenWeapon or "scratch")
+            local occupant=BattleRules.unitAt(battle,q,r); local reachable=reachableSpaces[tostring(q)..":"..tostring(r)] and not occupant and not BattleRules.blocksMovement(battle,q,r)
+            local targetable=active and battle.phase=="target" and occupant and occupant.team~=active.team and BattleRules.distance(active,occupant)<=BattleRules.weaponRange(Catalog,battle.chosenWeapon or "scratch") and BattleRules.lineOfSight(battle,active,occupant)
             if targetable then love.graphics.setColor(1,.12,.08,.60); love.graphics.setLineWidth(3); love.graphics.circle("line",x,y,10)
             elseif reachable and (battle.phase=="select" or battle.phase=="move") then love.graphics.setColor(1,.80,.18,.40); love.graphics.setLineWidth(2); love.graphics.circle("line",x,y,8) end
         end end end
+    end
+    if scenery.battleObstacles then
+        local obstacleAtlas=scenery.battleObstacles; local ordered={}
+        for _,obstacle in pairs(battle.obstacles or {}) do ordered[#ordered+1]=obstacle end
+        table.sort(ordered,function(a,b) return a.q+a.r<b.q+b.r end)
+        for _,obstacle in ipairs(ordered) do
+            local profile=Grid.profile(obstacle); local quad=profile and obstacleAtlas.quads[profile.sprite]
+            if quad then local x,y=boardToScreen(ctx,obstacle.q,obstacle.r); love.graphics.setColor(1,1,1); love.graphics.draw(obstacleAtlas.image,quad,x,y+12,0,.30,.30,obstacleAtlas.cw/2,obstacleAtlas.ch*.88) end
+        end
     end
     -- Draw tactical units from the back of the isometric board to the front.
     -- Dead units are deliberately first at the same depth, so a death sprite
@@ -95,7 +106,11 @@ function BattleUI.draw(ctx)
             local rise=(.9-u.damageNumberTimer)*24
             love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
         end
-        if u.hp>0 then love.graphics.setColor(.1,.06,.04,.9); love.graphics.rectangle("fill",x-31,y+14,62,8); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),8) end
+        if u.hp>0 then
+            love.graphics.setColor(.1,.06,.04,.9); love.graphics.rectangle("fill",x-31,y+14,62,8); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),8)
+            local status=u.boss and "BOSS" or ((u.sleepRounds or 0)>0 and "SLEEP" or ((u.paralyzedRounds or 0)>0 and "PARALYZED" or ((u.moveBonus or 0)<0 and "SNARED" or (u.guarding and "GUARD" or ((u.regenRounds or 0)>0 and "REGEN" or nil)))))
+            if status then love.graphics.setColor(colors.brass); love.graphics.printf(status,x-45,y+25,90,"center",0,.43,.43) end
+        end
     end
     if battle.projectile and scenery.projectiles then
         local p=battle.projectile; local sx,sy=boardToScreen(ctx,p.fromQ,p.fromR); local tx,ty=boardToScreen(ctx,p.toQ,p.toR); local progress=math.min(1,p.t/p.duration); local px,py=sx+(tx-sx)*progress,sy+(ty-sy)*progress-35
@@ -106,6 +121,7 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
+    love.graphics.pop()
     love.graphics.setColor(.08,.055,.04,.92); love.graphics.rectangle("fill",185,488,590,82,8,8)
     love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",205,497,0,.72,.72)
     local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
@@ -150,7 +166,7 @@ function BattleUI.draw(ctx)
         ui.battleHeal=button("HEAL",mobile and 240 or 648,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
         ui.battleGuard=button("GUARD",mobile and 460 or 748,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
         local abilityBase=Catalog.characterAbility(active.file or "")
-        local abilityLevel=active.id=="player" and saveData.stats.level or 1
+        local abilityLevel=active.id=="player" and saveData.stats.level or math.max(1,math.min(12,math.ceil((saveData.location or 1)/5)))
         local abilityProfile=ctx.playerProgression.abilityProfile(abilityBase.kind,abilityLevel)
         ui.battleAbility=button("ABILITY R"..abilityProfile.rank,mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.60)
         ui.battleInventory=button("BACKPACK",20,mobile and 634 or 638,mobile and 200 or 105,mobile and 54 or 34,true,.68)

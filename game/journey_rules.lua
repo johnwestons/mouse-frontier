@@ -241,9 +241,10 @@ local function new(context)
           -- Battles should be the primary stop interruption; trail events remain less common.
           -- Story and mystery chapters are checked above; ordinary stops still
           -- favor combat while leaving room for the five random event families.
-          local hasMob=love.math.random()<EventBalance.encounterChance(runtime.saveData.location)
+          local bossStop=runtime.saveData.location==15 or runtime.saveData.location==35 or runtime.saveData.location==47
+          local hasMob=bossStop or love.math.random()<EventBalance.encounterChance(runtime.saveData.location)
           local tier=CombatBalance.tierFor(runtime.saveData.location)
-          encounter={rolled=true,hasMob=hasMob,resolved=not hasMob,tier=tier}
+          encounter={rolled=true,hasMob=hasMob,resolved=not hasMob,tier=tier,boss=bossStop}
           local pool=Catalog.mobTiers[tier]
           if hasMob and #pool>0 then
               encounter.mobFiles={}

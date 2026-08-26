@@ -1,10 +1,11 @@
 local PlayerProgression = require("game.player_progression")
+local Grid = require("game.battle_grid")
 local BattleRules = {}
 
-BattleRules.directions = {{1, 0}, {0, -1}, {-1, 0}, {0, 1}}
+BattleRules.directions = Grid.directions
 
 function BattleRules.distance(a, b)
-    return math.abs(a.q - b.q) + math.abs(a.r - b.r)
+    return Grid.distance(a,b)
 end
 
 function BattleRules.unitAt(battle, q, r)
@@ -24,8 +25,15 @@ function BattleRules.terrainAt(battle, q, r)
 end
 
 function BattleRules.isBoardSpace(battle, q, r)
-    return battle and battle.tiles and battle.tiles[q] and battle.tiles[q][r] ~= nil or false
+    return Grid.isBoardSpace(battle,q,r)
 end
+
+BattleRules.obstacleAt=Grid.obstacleAt
+BattleRules.blocksMovement=Grid.blocksMovement
+BattleRules.reachable=Grid.reachable
+BattleRules.canMove=Grid.canMove
+BattleRules.lineOfSight=Grid.lineOfSight
+BattleRules.bestAdvance=Grid.bestAdvance
 
 function BattleRules.activeUnit(battle)
     return battle and battle.units and battle.units[battle.active] or nil

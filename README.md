@@ -43,7 +43,7 @@ Android controls, installation, update flow, and device verification are documen
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
 - Equipped weapons wear by one point on every attack attempt, including misses. Broken weapons cannot attack; repair the most damaged equipped weapon for scrap at the train workshop.
-- Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience.
+- Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience. Tactical battles use a 60-space board with path-blocking dead trees, cars, ruins, rocks, barricades, and rail carts; ranged attacks respect line of sight and the whole board zooms together.
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
 - Battles and quests award experience. Levels improve maximum health, aim, armor, movement, and the player's four-rank special ability; the HUD shows every active bonus.
@@ -81,6 +81,8 @@ Android controls, installation, update flow, and device verification are documen
 LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder. Older saves are upgraded sequentially to the current schema on load, with the original retained as a backup; invalid primary files recover from a validated temporary file or backup when available.
 
 Loot rarity, weapon tiers, pricing, durability, repairs, ammunition availability, and resale rules are documented in [LOOT_EQUIPMENT_BALANCE.md](LOOT_EQUIPMENT_BALANCE.md).
+
+Battlefield geometry, obstacles, line of sight, boss milestones, AI movement, ally scaling, status presentation, and combat rewards are documented in [COMBAT_BALANCE.md](COMBAT_BALANCE.md).
 
 Quest offers, delivery distances, rewards, passenger jobs, objective tracking, and mailbox delivery are documented in [QUEST_PASSENGER_BALANCE.md](QUEST_PASSENGER_BALANCE.md).
 

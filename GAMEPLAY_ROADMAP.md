@@ -25,7 +25,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Add multiple positive ending tiers without an evil alignment.
 - Add a meaningful final encounter or decision and a campaign summary.
 
-## 4. Tactical battle expansion
+## 4. Tactical battle expansion — Complete
 
 - Enlarge the battlefield and add more traversable grid spaces.
 - Add new terrain-square art and biome variety.

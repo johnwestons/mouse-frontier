@@ -38,7 +38,7 @@ function Balance.mobCount(tier,location,roll)
   return 1
 end
 
-function Balance.rewardProfile(tier,enemyCount,defenseBattle)
+function Balance.rewardProfile(tier,enemyCount,defenseBattle,boss)
   tier=tier or "easy"
   enemyCount=math.max(1,math.floor(enemyCount or 1))
   local extra=enemyCount-1
@@ -48,13 +48,13 @@ function Balance.rewardProfile(tier,enemyCount,defenseBattle)
     hard={xp=20,xpExtra=6,coal={5,8},coalExtra=2,scrap={9,15},scrapExtra=3},
   }
   local values=base[tier] or base.easy
-  local defense=defenseBattle and 1 or 0
+  local defense=defenseBattle and 1 or 0; local bossBonus=boss and 1 or 0
   return {
-    xp=values.xp+extra*values.xpExtra+defense*8,
-    coalMin=values.coal[1]+extra*values.coalExtra+defense*4,
-    coalMax=values.coal[2]+extra*values.coalExtra+defense*4,
-    scrapMin=values.scrap[1]+extra*values.scrapExtra+defense*8,
-    scrapMax=values.scrap[2]+extra*values.scrapExtra+defense*8,
+    xp=values.xp+extra*values.xpExtra+defense*8+bossBonus*12,
+    coalMin=values.coal[1]+extra*values.coalExtra+defense*4+bossBonus*4,
+    coalMax=values.coal[2]+extra*values.coalExtra+defense*4+bossBonus*4,
+    scrapMin=values.scrap[1]+extra*values.scrapExtra+defense*8+bossBonus*8,
+    scrapMax=values.scrap[2]+extra*values.scrapExtra+defense*8+bossBonus*8,
   }
 end
 
@@ -68,16 +68,17 @@ function Balance.audit()
   local hardEnd=Balance.enemyProfile(50)
   local single=Balance.rewardProfile("hard",1,false)
   local group=Balance.rewardProfile("hard",3,false)
+  local boss=Balance.rewardProfile("hard",3,false,true)
   local countsReady=Balance.mobCount("hard",31,.10)==3 and Balance.mobCount("hard",50,.40)==2
     and Balance.mobCount("hard",50,.80)==1
   local ready=tierCounts.easy==12 and tierCounts.medium==18 and tierCounts.hard==20
     and easyEnd.maxHP==12 and mediumStart.maxHP==16 and mediumEnd.maxHP==24
     and hardStart.maxHP==26 and hardEnd.maxHP==34 and hardEnd.armor==5 and hardEnd.aim==4
-    and group.xp>single.xp and group.coalMin>single.coalMin and group.scrapMin>single.scrapMin and countsReady
+    and group.xp>single.xp and group.coalMin>single.coalMin and group.scrapMin>single.scrapMin and boss.xp>group.xp and boss.scrapMin>group.scrapMin and countsReady
   return {
     ready=ready,tierCounts=tierCounts,easyEnd=easyEnd,mediumStart=mediumStart,
     mediumEnd=mediumEnd,hardStart=hardStart,hardEnd=hardEnd,
-    singleHardReward=single,groupHardReward=group,countsReady=countsReady,curve="combat-v1",
+    singleHardReward=single,groupHardReward=group,bossHardReward=boss,countsReady=countsReady,curve="combat-v2",
   }
 end
 

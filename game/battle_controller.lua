@@ -43,43 +43,46 @@ function Battle.begin(c,encounter)
     local profile=c.CombatBalance.enemyProfile(c.saveData.location,tier)
     local maxHP=encounter.maxHP or profile.maxHP; encounter.maxHP=maxHP
     local d=c.saveData; local C=c.Catalog; local levelBonuses=c.PlayerProgression.combatBonuses(d.stats.level)
-    local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=2,hp=d.health,maxHP=d.maxHealth,move=2+(d.trait and d.trait.move or 0)+levelBonuses.move,armor=2+(d.trait and d.trait.armor or 0)+levelBonuses.armor,aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
-    local starts={{q=1,r=3},{q=0,r=2},{q=0,r=4}}
+    local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=3,hp=d.health,maxHP=d.maxHealth,move=2+(d.trait and d.trait.move or 0)+levelBonuses.move,armor=2+(d.trait and d.trait.armor or 0)+levelBonuses.armor,aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
+    local starts={{q=1,r=2},{q=0,r=3},{q=1,r=4}}
     if encounter.temporaryAllies then
         for i,file in ipairs(encounter.temporaryAllies) do
             if i<=3 then
                 local s=starts[i]
-                units[#units+1]={id="defender"..i,team="ally",name=c.Util.titleFromFile(file),file=file,q=s.q,r=s.r,hp=14,maxHP=14,move=2,armor=1,aim=1,weapon=armed(file) and LootProgression.rollWeapon(C,d.location,"common") or nil}
+                local weapon=LootProgression.rollWeapon(C,d.location,d.location>=31 and "uncommon" or "common") or "frontier-short-sword"
+                units[#units+1]={id="defender"..i,team="ally",name=c.Util.titleFromFile(file),file=file,q=s.q,r=s.r,hp=14,maxHP=14,move=2,armor=1,aim=1,weapon=weapon}
             end
         end
     else
         for i,p in ipairs(d.passengers or {}) do
             if i<=2 then
                 local s=starts[i]
+                p.weapon=p.weapon or LootProgression.rollWeapon(C,d.location,d.location>=31 and "uncommon" or "common") or "frontier-short-sword"
                 units[#units+1]={id="ally"..i,team="ally",name=c.Util.titleFromFile(p.npc),file=p.npc,q=s.q,r=s.r,hp=12,maxHP=12,move=2,armor=1,aim=1,weapon=p.weapon}
             end
         end
     end
-    local rows={1,2,3,4}
+    local rows={1,2,3,4,5,6}
     for i,file in ipairs(encounter.mobFiles) do
         local ranged=file:find("eagle") or file:find("owl") or file:find("dragon") or file:find("zombie")
         local isArmed=armed(file); local row=rows[((i-1)%#rows)+1]
         local weapon=isArmed and LootProgression.rollWeapon(C,d.location,"common") or natural(file)
         local combat=C.weaponCombat[weapon] or C.weaponCombat.scratch
-        units[#units+1]={id="enemy"..i,team="enemy",name=c.Util.titleFromFile(file),file=file,q=c.BOARD_COLS,r=row,hp=maxHP,maxHP=maxHP,move=profile.move,armor=profile.armor,aim=profile.aim,attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon}
+        local boss=encounter.boss and i==1
+        local unitHP=boss and math.floor(maxHP*1.55) or maxHP
+        units[#units+1]={id="enemy"..i,team="enemy",name=(boss and "Alpha " or "")..c.Util.titleFromFile(file),file=file,q=c.BOARD_COLS,r=row,hp=unitHP,maxHP=unitHP,move=profile.move,armor=profile.armor+(boss and 1 or 0),aim=profile.aim+(boss and 1 or 0),attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon,boss=boss}
     end
     local tiles,vars={},{ }
-    for q=0,c.BOARD_COLS+1 do
+    for q=0,c.BOARD_COLS do
         tiles[q]={}; vars[q]={}
         for r=1,c.BOARD_ROWS do
-            tiles[q][r]=terrain(); vars[q][r]=love.math.random(1,2)
+            tiles[q][r]=terrain(); vars[q][r]=love.math.random(1,3)
         end
     end
-    tiles[c.BOARD_COLS+2]={}; vars[c.BOARD_COLS+2]={}
-    for r=2,3 do
-        tiles[c.BOARD_COLS+2][r]=terrain(); vars[c.BOARD_COLS+2][r]=love.math.random(1,2)
-    end
-    c.battle={encounter=encounter,units=units,tiles=tiles,tileVariants=vars,biome=((d.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},message="Move between highlighted terrain pieces, or choose an attack.",log={"Battle begins."},logScroll=0,terrainSeed=d.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
+    local obstacles=c.BattleGrid.generateObstacles(d.location,tier)
+    for _,unit in ipairs(units) do obstacles[tostring(unit.q)..":"..tostring(unit.r)]=nil end
+    local objective=encounter.boss and "Defeat the alpha threat" or (encounter.defenseBattle and "Protect the settlement defenders" or "Defeat all threats")
+    c.battle={encounter=encounter,units=units,tiles=tiles,tileVariants=vars,obstacles=obstacles,biome=((d.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},objective=objective,message="Move between highlighted terrain pieces, or choose an attack.",log={"OBJECTIVE: "..objective,"Battle begins."},logScroll=0,terrainSeed=d.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
     for name in pairs(d.nextBattlePotions or {}) do applyPotionToPlayer(c,units[1],name) end
     d.nextBattlePotions={}; c.writeSave()
     c.battleZoom=1; c.writeSave(); return c.battle
@@ -90,7 +93,7 @@ function Battle.advance(c)
     if not enemy then
         b.encounter.resolved=true; local d=c.saveData; local C=c.Catalog; if d.health<=0 then d.health=1; for _,unit in ipairs(b.units) do if unit.id=="player" then unit.hp=1 end end end
         local enemyCount=0; for _,unit in ipairs(b.units) do if unit.team=="enemy" then enemyCount=enemyCount+1 end end
-        local rewards=c.CombatBalance.rewardProfile(b.encounter.tier,enemyCount,b.encounter.defenseBattle)
+        local rewards=c.CombatBalance.rewardProfile(b.encounter.tier,enemyCount,b.encounter.defenseBattle,b.encounter.boss)
         local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(rewards.coalMin,rewards.coalMax); local scrap=math.max(1,math.floor(love.math.random(rewards.scrapMin,rewards.scrapMax)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=rewards.xp; local defenseBonus=""
         if b.encounter.defenseBattle then local food=c.TrainUpgradeBalance.addResource(d,"food",2); local water=c.TrainUpgradeBalance.addResource(d,"water",2); defenseBonus=" The survivors share +"..food.." food and +"..water.." water." end
         local loot=c.Events.grantBattleLoot(d,C,b.encounter); local levels=c.BattleRules.gainExperience(d,xp); d.scrap=d.scrap+scrap; local coal=c.TrainUpgradeBalance.addResource(d,"coal",reward); d.battlePotionLootChance=nil; msg(c,"Victory! +"..xp.." XP, +"..coal.." coal, +"..scrap.." scrap."..defenseBonus..loot..(levels>0 and " LEVEL UP!" or "")); b.finished="win"; c.writeSave(); return true
@@ -140,7 +143,8 @@ end
 function Battle.move(c,q,r)
     local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" then return end
     if b.moveUsed or b.phase=="action" or b.phase=="target" then prompt(c,"Movement has already been used this turn."); return end
-    if not c.BattleRules.isBoardSpace(b,q,r) or c.BattleRules.unitAt(b,q,r) or c.BattleRules.distance(u,{q=q,r=r})>u.move then prompt(c,"That terrain piece is outside this unit's movement range."); return end
+    local allowed=c.BattleRules.canMove(b,u,q,r,u.move)
+    if not allowed then prompt(c,"No clear path reaches that terrain space this turn."); return end
     u.moveAnim={fromQ=u.q,fromR=u.r,toQ=q,toR=r,t=0,duration=.48}; u.q,u.r=q,r; b.moveUsed=true
     if u.id=="player" and (u.extraMoves or 0)>0 then u.extraMoves=u.extraMoves-1; b.moveUsed=false; b.phase="select"; prompt(c,u.name.." moved. One extra move remains.") else b.phase="action"; prompt(c,u.name.." moved. Choose an attack or end the turn.") end
 end
@@ -164,7 +168,7 @@ local function advanceAttack(c,attacker)
 end
 function Battle.ability(c,kind)
     local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" or b.abilitiesUsed[u.id] then return end; b.abilitiesUsed[u.id]=true
-    local abilityLevel=u.id=="player" and c.saveData.stats.level or 1
+    local abilityLevel=u.id=="player" and c.saveData.stats.level or math.max(1,math.min(12,math.ceil((c.saveData.location or 1)/5)))
     local profile=c.PlayerProgression.abilityProfile(kind,abilityLevel)
     if kind=="heal" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=profile.radius then a.hp=math.min(a.maxHP,a.hp+profile.heal); if a.id=="player" then c.saveData.health=a.hp end end end; msg(c,u.name.." restored nearby allies with rank "..profile.rank.." healing.")
     elseif kind=="rally" then for _,a in ipairs(b.units) do if a.team=="ally" and a.hp>0 and c.BattleRules.distance(u,a)<=profile.radius then c.BattleRules.applyTemporaryStat(a,"aim",profile.aim,profile.rounds); c.BattleRules.applyTemporaryStat(a,"move",profile.move,profile.rounds) end end; msg(c,u.name.." rallied nearby allies.")
@@ -181,6 +185,8 @@ end
 function Battle.resolve(c,attacker,target,weaponName)
     local b=c.battle; local C=c.Catalog; local d=c.saveData; local stats=C.weaponStats[weaponName] or C.weaponStats.scratch; local combat=C.weaponCombat[weaponName] or C.weaponCombat.scratch; local distance=c.BattleRules.distance(attacker,target); local range=c.BattleRules.weaponRange(C,weaponName)
     if distance>range then prompt(c,stats.name.." is out of range ("..range.." terrain spaces)."); return false end
+    local sight,obstruction,lineCover=c.BattleRules.lineOfSight(b,attacker,target)
+    if combat.kind=="ranged" and not sight then prompt(c,stats.name.." is blocked by "..c.Util.titleFromFile(obstruction.kind).."."); return false end
     local durability=attacker.team=="ally" and weaponName~="scratch" and (d.weaponDurability[weaponName] or 100) or 100
     local condition=LootProgression.weaponCondition(durability)
     if attacker.team=="ally" and weaponName~="scratch" and condition.multiplier==0 then msg(c,attacker.name.." cannot use "..stats.name.." because it is broken. Repair it in the train workshop."); return false end
@@ -189,7 +195,7 @@ function Battle.resolve(c,attacker,target,weaponName)
     if attacker.team=="ally" and weaponName~="scratch" then LootProgression.wearWeapon(d,weaponName,1) end
     local prof=0
     if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
-    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local bonus=(attacker.aim or 0)+levelAttack; local defense=8+(target.armor or 0)+cover+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
+    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local bonus=(attacker.aim or 0)+levelAttack; local defense=8+(target.armor or 0)+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
     if not attacker.perfectAccuracy and (roll==1 or (roll~=20 and roll+bonus<defense)) then msg(c,attacker.name.." used "..name.." against "..target.name.." — MISS."); b.attackTimer=attacker.team=="enemy" and .90 or .45; advanceAttack(c,attacker); return true end
     local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-(target.armor or 0)); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
     target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then d.health=target.hp end
@@ -200,7 +206,13 @@ function Battle.enemyTurn(c)
     if (enemy.sleepRounds or 0)>0 or (enemy.paralyzedRounds or 0)>0 then local status=(enemy.sleepRounds or 0)>0 and "asleep" or "paralyzed"; enemy.sleepRounds=math.max(0,(enemy.sleepRounds or 0)-1); enemy.paralyzedRounds=math.max(0,(enemy.paralyzedRounds or 0)-1); msg(c,enemy.name.." is "..status.." and loses its turn."); Battle.advance(c); return end
     local target; for _,u in ipairs(b.units) do if u.team=="ally" and u.hp>0 and (not target or c.BattleRules.distance(enemy,u)<c.BattleRules.distance(enemy,target)) then target=u end end; if not target then return end
     local weapon=enemy.weapon or (enemy.attackStyle=="ranged" and "mob-spit" or "mob-claw"); local preferred=enemy.attackStyle=="ranged" and c.BattleRules.weaponRange(c.Catalog,weapon) or 1
-    if c.BattleRules.distance(enemy,target)>preferred then local q,r,d=enemy.q,enemy.r,c.BattleRules.distance(enemy,target); for _,dir in ipairs(c.BattleRules.directions) do local nq,nr=enemy.q+dir[1],enemy.r+dir[2]; local nd=c.BattleRules.distance({q=nq,r=nr},target); if c.BattleRules.isBoardSpace(b,nq,nr) and not c.BattleRules.unitAt(b,nq,nr) and nd<d then q,r,d=nq,nr,nd end end; if q~=enemy.q or r~=enemy.r then enemy.moveAnim={fromQ=enemy.q,fromR=enemy.r,toQ=q,toR=r,t=0,duration=.68} end; enemy.q,enemy.r=q,r; prompt(c,enemy.name.." advances across the battlefield."); b.attackTimer=.82; Battle.advance(c) else Battle.resolve(c,enemy,target,weapon) end
+    local inRange=c.BattleRules.distance(enemy,target)<=preferred
+    local hasSight=c.BattleRules.lineOfSight(b,enemy,target)
+    if not inRange or (enemy.attackStyle=="ranged" and not hasSight) then
+        local step=c.BattleRules.bestAdvance(b,enemy,target,enemy.move,preferred)
+        local q,r=step.q,step.r; if q~=enemy.q or r~=enemy.r then enemy.moveAnim={fromQ=enemy.q,fromR=enemy.r,toQ=q,toR=r,t=0,duration=.68} end
+        enemy.q,enemy.r=q,r; prompt(c,enemy.name.." maneuvers around the battlefield."); b.attackTimer=.82; Battle.advance(c)
+    else Battle.resolve(c,enemy,target,weapon) end
 end
 function Battle.update(c,dt)
     local b=c.battle; if not b then return end; b.attackTimer=math.max(0,(b.attackTimer or 0)-dt); b.enemyDelay=math.max(0,(b.enemyDelay or 0)-dt); b.hitFlash=math.max(0,(b.hitFlash or 0)-dt)

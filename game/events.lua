@@ -178,10 +178,12 @@ function Events.ensure(data)
     data.eventProgress=data.eventProgress or {story=0,mystery=0}
     data.eventHistory=data.eventHistory or {}
     data.eventCategoryHistory=data.eventCategoryHistory or {}
-    if not data.mysteryStops or #data.mysteryStops~=5 then
+    local bossStops={[15]=true,[35]=true,[47]=true}; local overlapsBoss=false
+    for _,stop in ipairs(data.mysteryStops or {}) do if bossStops[stop] then overlapsBoss=true; break end end
+    if not data.mysteryStops or #data.mysteryStops~=5 or overlapsBoss then
         data.mysteryStops={}
         local bands={{4,10},{11,19},{20,29},{30,39},{40,47}}
-        local occupied={}; for _,stop in ipairs(Events.storyStops) do occupied[stop]=true end
+        local occupied={[15]=true,[35]=true,[47]=true}; for _,stop in ipairs(Events.storyStops) do occupied[stop]=true end
         for _,band in ipairs(bands) do
             local choices={}; for stop=band[1],band[2] do if not occupied[stop] then choices[#choices+1]=stop end end
             local selected=choices[love.math.random(#choices)]; data.mysteryStops[#data.mysteryStops+1]=selected; occupied[selected]=true
