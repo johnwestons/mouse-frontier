@@ -73,6 +73,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 28. Gameplay input construction now lives behind a validated command composition. Keyboard, pointer, inventory, battle, journey, train, camera, audio, and exit-prompt bindings consume the published platform, adventure, and view graphs; the former broad `Systems` dependency inside gameplay input is replaced by four focused capabilities.
 29. World and session construction now live behind a validated composition module. World-scene ownership is established first, then session bootstrap consumes its encounter reset operation and platform-owned train bounds; only the later inventory weapon predicate remains an explicit callback.
 30. Startup-runtime construction now lives behind a validated composition module. Asset hydration and the gameplay-update context consume the published content, platform, adventure, and world/session graphs; the application root publishes the finished idempotent startup runtime instead of assembling per-frame capabilities inline.
+31. View composition now consumes explicit factories and published platform, adventure, world/session, and startup graphs. Its final broad `Systems` lookup and service helper are removed while local late-bound renderer callbacks continue to resolve the intentional screen/render cycle.
 
 ## Definition of done for this migration wave
 
@@ -80,7 +81,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/app.lua` is the only application composition root.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 50-check smoke run and full route to stop 50 pass.
+- The 51-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -89,7 +90,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 50 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, shared content-registry hydration, complete view, adventure, platform, input, world/session, and startup composition, forced focus-loss persistence, and complete screen-flow installation.
+- The normal autonomous smoke playthrough passed all 51 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, shared content-registry hydration, explicit view dependencies, complete adventure, platform, input, world/session, and startup composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 54 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 55 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

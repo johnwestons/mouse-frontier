@@ -130,7 +130,10 @@ function App.load() return Systems.startupRuntime.load() end
 function App.update(dt) return Systems.startupRuntime.update(dt) end
 
 local views=Systems.viewComposition.new({
-    systems=Systems,runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
+    screenUIFactory=Systems.screenUI,inventoryPresenterFactory=Systems.inventoryPresenter,
+    worldRendererFactory=Systems.worldRenderer,gameplayHUDFactory=Systems.gameplayHUD,inventoryUI=Systems.inventory,
+    platform=platform,adventure=adventure,world=world,startup=startup,
+    runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,

@@ -114,6 +114,8 @@ local function install(context)
             end},
             {name="view_layer_composed",action=viewComposition.status,
                 check=function(_,_,_,result) return result.ready and result.componentCount==4 end},
+            {name="view_dependencies_explicit",action=viewComposition.status,
+                check=function(_,_,_,result) return result.explicitDependencies end},
             {name="adventure_services_composed",action=adventureComposition.status,
                 check=function(_,_,_,result) return result.ready and result.componentCount==4 end},
             {name="platform_services_composed",action=platformComposition.status,
