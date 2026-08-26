@@ -189,6 +189,7 @@ public class GameActivity extends SDLActivity {
     $apkPath = Join-Path $outputRoot ("MouseFrontier-" + $config.versionName + "-debug.apk")
     Copy-Item -LiteralPath $builtApk.FullName -Destination $apkPath -Force
 
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     $apkArchive = [System.IO.Compression.ZipFile]::OpenRead($apkPath)
     try {
         $embeddedGame = $apkArchive.GetEntry('assets/game.love')
