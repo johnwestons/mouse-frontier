@@ -1,14 +1,12 @@
 local Stops = {}
 local LootProgression = require("game.loot_progression")
+local QuestProgression = require("game.quest_progression")
 
 local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree","autumn-tree","white-birch","dead-white-tree","dead-brown-tree","tall-stump","mossy-stump","flowering-shrub","white-flower-shrub","red-berry-bush","fern-cluster","tall-reeds","red-mushrooms","brown-mushrooms","wild-herb-patch","butterfly-flowers","mossy-boulders","fallen-log","hollow-log","branch-pile","broken-fence","signpost","straight-fence","stone-fire-ring","lit-campfire","patched-tent","rusty-barrel","wooden-barrel","supply-crate","reinforced-crate","old-stone-well","weathered-gravestone","loose-stones"}
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
 local decorationSpots={{65,535},{215,590},{335,660},{515,600},{690,670},{825,575},{920,650}}
 
-local function offerRoll()
-    local roll=love.math.random()
-    return roll<.20 and "mail" or (roll<.34 and "ride" or (roll<.52 and "supplies" or (roll<.62 and "trade" or "none")))
-end
+local function offerRoll(location) return QuestProgression.rollOffer(location) end
 
 local function stock(catalog,location) return LootProgression.tradeStock(catalog,location) end
 
@@ -52,7 +50,7 @@ function Stops.ensure(data,catalog,scene)
     if not layout then
         layout={houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7),interior=generatedInteriorIndex(data.location or 1)}
         if #roster>0 then layout.npcOutside=roster[love.math.random(#roster)]; layout.npcInside=differentNpc(roster,layout.npcOutside); layout.npc=layout.npcOutside end
-        layout.offer=offerRoll(); data.stopLayouts[key]=layout
+        layout.offer=offerRoll(data.location); data.stopLayouts[key]=layout
     end
     if (data.location or 1)<=5 and (not layout.interior or layout.interior<=5) then layout.interior=generatedInteriorIndex(data.location or 1) end
     layout.interior=layout.interior or generatedInteriorIndex(data.location or 1); layout.npcOutside=layout.npcOutside or layout.npc or roster[1]
@@ -66,7 +64,7 @@ function Stops.ensure(data,catalog,scene)
         if lower:find("crow%-merchant") then
             layout.npcOffers[npc]="trade"
         elseif layout.npcOffers[npc]==nil then
-            layout.npcOffers[npc]=offerRoll()
+            layout.npcOffers[npc]=offerRoll(data.location)
         end
     end
     ensureOffer(layout.npcOutside); ensureOffer(layout.npcInside)
@@ -76,7 +74,7 @@ function Stops.ensure(data,catalog,scene)
         local first,second=layout.npcOffers[layout.npcOutside],layout.npcOffers[layout.npcInside]
         if first and second and first==second and first~="none" and layout.npcInside:lower():find("crow%-merchant") == nil then
             local replacement=second
-            for _=1,4 do replacement=offerRoll(); if replacement~=first then break end end
+            for _=1,4 do replacement=offerRoll(data.location); if replacement~=first then break end end
             layout.npcOffers[layout.npcInside]=replacement==first and "none" or replacement
         end
     end
@@ -93,7 +91,7 @@ function Stops.ensure(data,catalog,scene)
     -- Give those residents their own independent offer as well.
     if data.currentNPC and layout.npcOffers[data.currentNPC]==nil then
         local lower=data.currentNPC:lower()
-        layout.npcOffers[data.currentNPC]=lower:find("crow%-merchant") and "trade" or offerRoll()
+        layout.npcOffers[data.currentNPC]=lower:find("crow%-merchant") and "trade" or offerRoll(data.location)
     end
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"

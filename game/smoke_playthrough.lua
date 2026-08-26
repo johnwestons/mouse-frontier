@@ -58,6 +58,7 @@ local function install(context)
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
+    local questBalanceAudit=required(context,"questBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -179,6 +180,18 @@ local function install(context)
                         and result.lateWeaponPrice>result.starterWeaponPrice
                         and result.legendaryPrice>result.commonPrice
                         and result.wornResale<result.soundResale
+                end},
+            {name="quest_passenger_balance",action=questBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.earlyWeights.mail>result.lateWeights.mail
+                        and result.lateWeights.trade>result.earlyWeights.trade
+                        and result.farReward.scrap>result.nearReward.scrap
+                        and result.farReward.xp>result.nearReward.xp
+                        and result.diplomatReward.scrap>result.farReward.scrap
+                        and result.greenhousePreferred.amount>result.greenhouseBase.amount
+                        and result.scavenger.kind=="scrap" and result.objectiveCount==3
+                        and result.stockedRide>result.lowSupplyRide and result.mailboxDelivery=="mailbox"
+                        and result.ammoDelivery=="ammunition"
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}

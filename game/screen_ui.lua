@@ -35,6 +35,7 @@ local function new(context)
   local isWeapon=required(context,"isWeapon","function")
   local travelCost=required(context,"travelCost","function")
   local repairStatus=required(context,"repairStatus","function")
+  local questSummary=required(context,"questSummary","function")
 
   local function drawMenuFrame(x,y,w,h,kind,alpha)
       local frame=ui.menuFrames and ui.menuFrames[kind or 1]
@@ -264,7 +265,9 @@ local function new(context)
       local enc=runtime.saveData.encounters[tostring(runtime.saveData.location)]; local status=not enc and "Unexplored stop" or (enc.hasMob and not enc.resolved and "Danger nearby" or (enc.hasMob and "Mob cleared" or "Peaceful stop"))
       love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,62,8,8)
       love.graphics.setColor(colors.cream); love.graphics.printf("CURRENT: Stop "..runtime.saveData.location.." - "..biomes[((runtime.saveData.location-1)%#biomes)+1].." - "..status,120,562,720,"center")
-      love.graphics.printf("Only visited country is revealed.  Press M to close.",120,586,720,"center",0,0.8,0.8)
+      local quests=questSummary()
+      local questLine=quests.count>0 and ("ACTIVE: "..quests.first..(quests.count>1 and ("  +"..(quests.count-1).." more") or "")) or "No active deliveries or passengers."
+      love.graphics.printf(questLine,120,586,720,"center",0,0.8,0.8)
       local mobile=mobileEnabled()
       ui.mapUp=button("^",mobile and 790 or 805,105,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0); ui.mapDown=button("v",mobile and 790 or 805,mobile and 181 or 155,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
       love.graphics.setColor(colors.ink); love.graphics.print("PAGE "..(runtime.mapScroll+1).."/"..(maxScroll+1),720,130,0,0.75,0.75)

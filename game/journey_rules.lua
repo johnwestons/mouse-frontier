@@ -16,6 +16,9 @@ local function new(context)
   local CombatBalance=required(context,"combatBalance","table")
   local EventBalance=required(context,"eventBalance","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local QuestProgression=required(context,"questProgression","table")
+  local LootProgression=required(context,"lootProgression","table")
+  local BattleRules=required(context,"battleRules","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local Util=required(context,"util","table")
@@ -35,36 +38,64 @@ local function new(context)
       return ProgressionBalance.travelStatus(runtime.saveData,travelCost())
   end
 
+  local function storeRewardItem(name)
+      return QuestProgression.storeRewardItem(runtime.saveData,Catalog,Inventory,name,function(fallbackName)
+          House.storeLoot(runtime.saveData,Catalog,fallbackName,runtime.saveData.location)
+      end)
+  end
+
+  local function grantProgressionReward(kind,origin,destination)
+      local reward=QuestProgression.rollReward(Catalog,LootProgression,kind,origin,destination,runtime.saveData.trait)
+      local coal=TrainUpgradeBalance.addResource(runtime.saveData,"coal",reward.coal)
+      local overflow=math.max(0,reward.coal-coal)
+      runtime.saveData.scrap=(runtime.saveData.scrap or 0)+reward.scrap+overflow
+      local levels=BattleRules.gainExperience(runtime.saveData,reward.xp)
+      local delivery=storeRewardItem(reward.item)
+      reward.coalAdded=coal; reward.scrapAdded=reward.scrap+overflow; reward.coalConverted=overflow
+      reward.levels=levels; reward.delivery=delivery
+      return reward
+  end
+
+  local function rewardText(reward)
+      local item=Util.titleFromFile(reward.item)
+      local delivered=reward.delivery=="backpack" and item or (reward.delivery=="ammunition" and (item.." ammunition") or (item.." in your "..reward.delivery))
+      return "+"..reward.xp.." XP, +"..reward.coalAdded.." coal, +"..reward.scrapAdded.." scrap, and "..delivered..(reward.levels>0 and "  LEVEL UP!" or "")
+  end
+
   local function processPassengerArrivals()
+      local notices={}
+      if runtime.saveData.arrivalNotice then notices[#notices+1]=runtime.saveData.arrivalNotice end
       for i=#runtime.saveData.passengers,1,-1 do
           local passenger=runtime.saveData.passengers[i]
           if runtime.saveData.location>=passenger.destination then
               table.remove(runtime.saveData.passengers,i)
-              local coal=math.max(1,math.floor(love.math.random(1,3)*(runtime.saveData.trait.reward or 1))); coal=TrainUpgradeBalance.addResource(runtime.saveData,"coal",coal)
-              local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(runtime.saveData); if slot then runtime.saveData.inventory[slot]=item end
-              runtime.saveData.arrivalNotice=(Util.titleFromFile(passenger.npc).." reached their stop and left you "..coal.." coal"..(slot and " and "..Util.titleFromFile(item) or "")..".")
+              local origin=passenger.origin or math.max(1,(passenger.destination or runtime.saveData.location)-3)
+              local reward=grantProgressionReward("ride",origin,passenger.destination or runtime.saveData.location)
+              notices[#notices+1]=Util.titleFromFile(passenger.npc).." reached their stop: "..rewardText(reward).."."
           end
       end
+      runtime.saveData.arrivalNotice=#notices>0 and table.concat(notices," ") or nil
   end
 
   local function passengerContributions()
-      local notes={}; local hasGreenhouse=false; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="greenhouse" then hasGreenhouse=true end end
+      local notes={}
       for _,passenger in ipairs(runtime.saveData.passengers or {}) do
-          passenger.job=passenger.job or Passengers.jobFor(passenger.npc); local gained
-          if passenger.job=="greenhouse" and hasGreenhouse then local amount=TrainUpgradeBalance.addResource(runtime.saveData,"food",2); gained="grew "..amount.." food"
-          elseif passenger.job=="fireman" then local amount=TrainUpgradeBalance.addResource(runtime.saveData,"coal",1); gained="salvaged "..amount.." coal"
-          elseif passenger.job=="medic" then local before=runtime.saveData.health; runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+2); gained="restored "..(runtime.saveData.health-before).." health"
-          else local resource=({"food","water","coal"})[love.math.random(3)]; local amount=TrainUpgradeBalance.addResource(runtime.saveData,resource,1); gained="scavenged "..amount.." "..resource end
+          passenger.job=passenger.job or Passengers.jobFor(passenger.npc)
+          local preferred=TrainUpgradeBalance.owns(runtime.saveData,Passengers.preferredCarId(passenger.job))
+          local contribution=QuestProgression.passengerContribution(passenger.job,preferred); local amount
+          if contribution.kind=="resource" then amount=TrainUpgradeBalance.addResource(runtime.saveData,contribution.resource,contribution.amount)
+          elseif contribution.kind=="health" then local before=runtime.saveData.health; runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+contribution.amount); amount=runtime.saveData.health-before
+          else runtime.saveData.scrap=(runtime.saveData.scrap or 0)+contribution.amount; amount=contribution.amount end
+          local gained=contribution.verb.." "..amount.." "..(contribution.kind=="health" and "health" or (contribution.kind=="scrap" and "scrap" or contribution.resource))
           notes[#notes+1]=Util.titleFromFile(passenger.npc).." "..gained
       end
       if #notes>0 then runtime.saveData.arrivalNotice=table.concat(notes,". ").."." end
   end
 
-  local function giveQuestReward(message)
-      local coal=math.max(1,math.floor(love.math.random(1,3)*(runtime.saveData.trait.reward or 1))); coal=TrainUpgradeBalance.addResource(runtime.saveData,"coal",coal)
-      local item=Catalog.questRewardItems[love.math.random(#Catalog.questRewardItems)]; local slot=Inventory.firstEmptySlot(runtime.saveData)
-      if slot then runtime.saveData.inventory[slot]=item else House.storeLoot(runtime.saveData,Catalog,item,runtime.saveData.location) end
-      runtime.dialogue={speaker="Traveler",text=(message or "Thank you!").."  You received "..coal.." coal and "..Util.titleFromFile(item)..".",timer=4}
+  local function giveQuestReward(kind,origin,destination,message)
+      local reward=grantProgressionReward(kind,origin,destination)
+      runtime.dialogue={speaker="Traveler",text=(message or "Thank you!").."  Reward: "..rewardText(reward)..".",timer=5}
+      return reward
   end
 
   local function pendingMailHere()
@@ -75,21 +106,24 @@ local function new(context)
 
   local function acceptQuest(kind)
       if kind=="mail" then
-          local maxAhead=math.max(1,math.min(8,50-runtime.saveData.location)); local destination=math.min(50,runtime.saveData.location+love.math.random(1,maxAhead))
+          local distance=QuestProgression.questDistance("mail",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local layout=runtime.saveData.stopLayouts[tostring(destination)] or {houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7)}
           local roster=runtime.saveData.npcRoster or {}; layout.npc=layout.npc or roster[love.math.random(math.max(1,#roster))] or runtime.saveData.currentNPC; runtime.saveData.stopLayouts[tostring(destination)]=layout
           runtime.saveData.mailQuests[#runtime.saveData.mailQuests+1]={sender=runtime.saveData.currentNPC,recipient=layout.npc,origin=runtime.saveData.location,destination=destination,complete=false}
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you. Please look for "..Util.titleFromFile(layout.npc).." around stop "..destination..".",timer=4}
+          local reward=QuestProgression.rewardProfile("mail",distance,runtime.saveData.trait,destination)
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you. Find "..Util.titleFromFile(layout.npc).." at stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
       elseif kind=="ride" then
           local remaining=math.max(1,50-runtime.saveData.location); local job=Passengers.jobFor(runtime.saveData.currentNPC); local rideStops=Passengers.rideLength(job,remaining,runtime.saveData.resources.food,runtime.saveData.resources.water,love.math.random(-1,1))
           local index=#runtime.saveData.passengers+1; local px=car.x+225+(index-1)*85
           local layout=ensureStopLayout()
-          runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,destination=runtime.saveData.location+rideStops,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll ride for "..rideStops..(rideStops==1 and " stop" or " stops").." and help as your "..job..".",timer=4}
+          local destination=runtime.saveData.location+rideStops
+          runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
+          local reward=QuestProgression.rewardProfile("ride",rideStops,runtime.saveData.trait,destination)
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll help as your "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
       elseif kind=="trade" then
           runtime.tradeOpen=true; runtime.tradeNPC=runtime.saveData.currentNPC; runtime.dialogue=nil
       elseif kind=="supplies" then
-          local destination=math.min(50,runtime.saveData.location+love.math.random(1,math.max(1,math.min(6,50-runtime.saveData.location))))
+          local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local amount=3; local added=0; local addedSlots={}
           for _=1,amount do
               local slot=Inventory.firstEmptySlot(runtime.saveData)
@@ -98,12 +132,13 @@ local function new(context)
           end
           if added<amount then
               for _,slot in ipairs(addedSlots) do runtime.saveData.inventory[slot]=nil end
-              TrainUpgradeBalance.addResource(runtime.saveData,"food",amount)
-              runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=amount,complete=false,foodItems=0,storedAtTrain=true}
-              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Your backpack is full, so the 3 food items were sent to the train stores for stop "..destination..".",timer=5}
+              runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=amount,complete=false,foodItems=0,cargoStored=true}
+              local reward=QuestProgression.rewardProfile("supplies",distance,runtime.saveData.trait,destination)
+              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="The 3 food crates are secured in the cargo hold for stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
           else
               runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=amount,complete=false,foodItems=amount}
-              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Take these 3 food items to the settlers at stop "..destination..". They will reward you when it arrives.",timer=5}
+              local reward=QuestProgression.rewardProfile("supplies",distance,runtime.saveData.trait,destination)
+              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Take these 3 food items to stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
           end
       end
       runtime.questOffer=nil; writeSave()
@@ -112,8 +147,10 @@ local function new(context)
   local function talkToNPC()
       for _,supply in ipairs(runtime.saveData.supplyQuests or {}) do
           if not supply.complete and supply.destination==runtime.saveData.location then
-              if supply.storedAtTrain or supply.foodItems==nil then
-                  if runtime.saveData.resources.food>=supply.amount then runtime.saveData.resources.food=runtime.saveData.resources.food-supply.amount; supply.complete=true; giveQuestReward("Those supplies will keep us going. Thank you!"); writeSave()
+              if supply.cargoStored then
+                  supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave(); return
+              elseif supply.storedAtTrain or supply.foodItems==nil then
+                  if runtime.saveData.resources.food>=supply.amount then runtime.saveData.resources.food=runtime.saveData.resources.food-supply.amount; supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave()
                   else runtime.dialogue={speaker="Settler",text="You don't have enough food stored for our delivery. We're hungry and disappointed.",timer=4} end
                   return
               end
@@ -121,13 +158,13 @@ local function new(context)
               for i=1,(runtime.saveData.inventoryCapacity or 6) do
                   local name=runtime.saveData.inventory[i]; if name and Catalog.itemEffects[name] and Catalog.itemEffects[name].food and remaining>0 then consumed[#consumed+1]=i; remaining=remaining-1 end
               end
-              if remaining<=0 then for _,i in ipairs(consumed) do runtime.saveData.inventory[i]=nil end; supply.complete=true; giveQuestReward("Those supplies will keep us going. Thank you!"); writeSave()
+              if remaining<=0 then for _,i in ipairs(consumed) do runtime.saveData.inventory[i]=nil end; supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave()
               else runtime.dialogue={speaker="Settler",text="You need the 3 food items I gave you for this delivery.",timer=4} end
               return
           end
       end
       local mail=pendingMailHere()
-      if mail then mail.complete=true; giveQuestReward(Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]); writeSave(); return end
+      if mail then mail.complete=true; giveQuestReward("mail",mail.origin,mail.destination,Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]); writeSave(); return end
       local key=tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC); local layout=ensureStopLayout()
       -- Read the offer for the NPC being spoken to. A stop can have several
       -- critters, and their quest rolls must not leak between conversations.
@@ -175,6 +212,8 @@ local function new(context)
     travelStatus=travelStatus,
     balanceAudit=function() return ProgressionBalance.audit(EngineUpgrades,TrainUpgradeBalance) end,
     upgradeBalanceAudit=function() return TrainUpgradeBalance.audit(EngineUpgrades) end,
+    questBalanceAudit=function() return QuestProgression.audit(Catalog,LootProgression,Passengers,Inventory) end,
+    questSummary=function() return QuestProgression.summary(runtime.saveData) end,
     processPassengerArrivals=processPassengerArrivals,
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,

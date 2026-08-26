@@ -394,6 +394,7 @@ local function new(context)
       elseif action=="returnTrain" then
           enterTrain(true)
       elseif action=="give" then giveWeaponToNearby()
+      elseif action=="openStorage" then runtime.activeChest=runtime.saveData.droppedItems[arg]; runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.activeChest.mailUnread=false; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave()
       elseif action=="holdPickup" then runtime.holdPickupIndex=arg; runtime.holdPickupTime=0
       elseif action=="pickup" then runtime.nearbyItem=arg; pickUpNearby()
       elseif action=="fire" then addCoalToFire() end
@@ -410,7 +411,7 @@ local function new(context)
       if keypressedGlobal(key) then return end
       if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif runtime.state=="game" and (runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or runtime.poseMenu or ui.optionsOpen or runtime.trainUpgradeOpen) then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.mapOpen=false; runtime.dialogue=nil; runtime.questOffer=nil; runtime.editMode=false; runtime.editedItem=nil; runtime.draggedSlot=nil; runtime.giftOpen=false; runtime.giftSlot=nil; runtime.poseMenu=false; ui.optionsOpen=false; runtime.trainUpgradeOpen=false; writeSave() elseif runtime.state~="slots" then requestExitPrompt("title") else requestExitPrompt("quit") end end
       if key=="i" and runtime.state=="game" and not runtime.editMode then
-          if runtime.nearChest then runtime.activeChest=runtime.saveData.droppedItems[runtime.nearChest]; if runtime.activeChest then runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil end
+          if runtime.nearChest or runtime.nearMailbox then runtime.activeChest=runtime.saveData.droppedItems[runtime.nearChest or runtime.nearMailbox]; if runtime.activeChest then runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.activeChest.mailUnread=false; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; writeSave() end
           else runtime.inventoryOpen=not runtime.inventoryOpen; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil end
       end
       if key=="m" and runtime.state=="game" then runtime.mapOpen=not runtime.mapOpen; if runtime.mapOpen then runtime.mapScroll=math.max(0,math.floor((runtime.saveData.location-1)/6)-2) end; runtime.inventoryOpen=false; runtime.dialogue=nil end

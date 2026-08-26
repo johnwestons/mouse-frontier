@@ -27,6 +27,7 @@ return {
     persistenceRuntime = require("game.persistence_runtime"),
     presentationRuntime = require("game.presentation_runtime"),
     progressionBalance = require("game.progression_balance"),
+    questProgression = require("game.quest_progression"),
     screens = require("game.screen_manager"),
     screenFlow = require("game.screen_flow"),
     screenUI = require("game.screen_ui"),

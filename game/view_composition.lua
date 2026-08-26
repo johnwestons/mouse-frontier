@@ -54,6 +54,7 @@ local function new(context)
     drawTrainCar=function(...) return worldRenderer.drawTrainCar(...) end,
     isWeapon=adventure.inventoryActions.isWeapon,travelCost=adventure.journeyRules.travelCost,
     repairStatus=adventure.inventoryActions.repairStatus,
+    questSummary=adventure.journeyRules.questSummary,
   })
 
   inventoryPresenter=InventoryPresenter.new({

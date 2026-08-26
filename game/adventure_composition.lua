@@ -29,6 +29,7 @@ local function new(context)
   local EventBalance=required(context,"eventBalance","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local LootProgression=required(context,"lootProgression","table")
+  local QuestProgression=required(context,"questProgression","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local Maintenance=required(context,"maintenance","table")
@@ -69,6 +70,7 @@ local function new(context)
   journeyRules=JourneyRules.new({
     runtime=runtime,car=car,inventory=Inventory,catalog=Catalog,engineUpgrades=EngineUpgrades,
     progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,
+    questProgression=QuestProgression,lootProgression=LootProgression,battleRules=BattleRules,
     maintenance=Maintenance,passengers=Passengers,util=Util,house=House,
     ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,writeSave=writeSave,
     beginEncounter=battleRuntime.beginEncounter,

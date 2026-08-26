@@ -81,6 +81,7 @@ function InteractionRouter.keyAction(ctx,key)
         if selected and (selected.kind=="npc" or selected.kind=="passenger") then return "give",selected.index end
     elseif key=="e" then
         if ctx.dialogue then return "closeDialogue"
+        elseif selected and selected.kind=="mailbox" then return "openStorage",selected.index
         elseif selected and selected.kind=="chest" then return "holdPickup",selected.index
         elseif selected and selected.kind=="item" then return ctx.isFurniture(selected.index) and "holdPickup" or "pickup",selected.index
         elseif selected and selected.kind=="fire" then return "fire" end

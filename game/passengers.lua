@@ -9,13 +9,17 @@ function Passengers.jobFor(file)
 end
 
 function Passengers.preferredCar(passenger,trainCars)
-    local wanted=passenger.job=="greenhouse" and "greenhouse"
-        or (passenger.job=="fireman" and "coal-hauler"
-        or (passenger.job=="medic" and "medical" or "sleeper"))
+    local wanted=Passengers.preferredCarId(passenger.job)
     for index,id in ipairs(trainCars or {}) do
         if id==wanted then return index end
     end
     return 1
+end
+
+function Passengers.preferredCarId(job)
+    return job=="greenhouse" and "greenhouse"
+        or (job=="fireman" and "coal-hauler"
+        or (job=="medic" and "medical" or "sleeper"))
 end
 
 function Passengers.rideLength(job,remaining,food,water,randomOffset)
