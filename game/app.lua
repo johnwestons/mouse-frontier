@@ -49,12 +49,11 @@ local runtime = RuntimeState.new({
     transition = function(screen) screens:transition(screen) end,
 })
 local content=Systems.contentRegistry.new({filesystem=love.filesystem})
-local characters,characterImages,npcImages,mobImages,mobFiles=content.characters,content.characterImages,content.npcImages,content.mobImages,content.mobFiles
-local scenery,backgroundImages,ui=content.scenery,content.backgroundImages,content.ui
+local characters,characterImages,npcImages,mobImages=content.characters,content.characterImages,content.npcImages,content.mobImages
+local scenery,ui=content.scenery,content.ui
 local characterWalkImages,npcWalkImages=content.characterWalkImages,content.npcWalkImages
-local characterActionImages,mobAttackImages,mobIdleImages,mobHitImages=content.characterActionImages,content.mobAttackImages,content.mobIdleImages,content.mobHitImages
-local familyImages,mobDeathImages,mobWalkImages,mobRangedImages=content.familyImages,content.mobDeathImages,content.mobWalkImages,content.mobRangedImages
-local itemIdleImages=content.itemIdleImages
+local mobAttackImages,mobIdleImages,mobHitImages=content.mobAttackImages,content.mobIdleImages,content.mobHitImages
+local mobDeathImages,mobWalkImages,mobRangedImages=content.mobDeathImages,content.mobWalkImages,content.mobRangedImages
 local maintenanceSession = Maintenance.new()
 
 
@@ -310,123 +309,15 @@ function App.load() return Systems.startupRuntime.load() end
 
 function App.update(dt) return Systems.startupRuntime.update(dt) end
 
-Systems.screenUI=Systems.screenUI.new({
-    runtime=runtime,
-    width=W,
-    height=H,
-    ui=ui,
-    colors=colors,
-    scenery=scenery,
-    characters=characters,
-    characterImages=characterImages,
-    npcImages=npcImages,
-    readSave=Systems.persistenceRuntime.read,
-    util=Util,
-    catalog=Catalog,
-    inventory=Inventory,
-    eventUI=EventUI,
-    canChooseEvent=Systems.eventRuntime.canChoose,
-    engineUpgrades=EngineUpgrades,
-    writeSave=Systems.persistenceRuntime.schedule,
-    screenToGame=Systems.presentationRuntime.screenToGame,
-    ensureStopLayout=Systems.worldScene.ensureStopLayout,
-    mobileEnabled=Systems.mobileRuntime.isEnabled,
-    drawLandscape=function(...) return Systems.worldRenderer.drawLandscape(...) end,
-    drawTracks=function(...) return Systems.worldRenderer.drawTracks(...) end,
-    drawLocomotive=function(...) return Systems.worldRenderer.drawLocomotive(...) end,
-    drawTrainCar=function(...) return Systems.worldRenderer.drawTrainCar(...) end,
-    isWeapon=Systems.inventoryActions.isWeapon,
-    travelCost=Systems.journeyRules.travelCost,
+local views=Systems.viewComposition.new({
+    systems=Systems,runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
+    maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
+    inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,
+    train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
+    clouds=Clouds,maintenance=Maintenance,
 })
-
-Systems.inventoryPresenter=Systems.inventoryPresenter.new({
-    runtime=runtime,
-    ui=ui,
-    inventoryUI=Systems.inventory,
-    inventory=Inventory,
-    catalog=Catalog,
-    colors=colors,
-    mobileEnabled=Systems.mobileRuntime.isEnabled,
-    pointIn=Util.pointIn,
-    title=Util.titleFromFile,
-    isWeapon=Systems.inventoryActions.isWeapon,
-    drawMenuFrame=Systems.screenUI.drawMenuFrame,
-    button=Systems.screenUI.button,
-    pointer=function() return Systems.presentationRuntime.screenToGame(Systems.mobileRuntime.pointerPosition()) end,
-    value=Systems.inventoryActions.containerValue,
-    move=Systems.inventoryActions.moveBetweenSlots,
-    quickTransfer=Systems.inventoryActions.quickTransfer,
-    collectAmmo=Systems.inventoryActions.collectAmmo,
-    drop=Systems.inventoryActions.dropFromContainer,
-    consume=Systems.inventoryActions.consumeSelected,
-    consumeBattle=Systems.inventoryActions.consumeBattleSelected,
-})
-
-Systems.worldRenderer=Systems.worldRenderer.new({
-    runtime=runtime,
-    width=W,
-    height=H,
-    backgroundImages=backgroundImages,
-    scenery=scenery,
-    car=car,
-    colors=colors,
-    getCharacterAnimations=function() return Systems.startupRuntime.characterAnimations() end,
-    characterImages=characterImages,
-    characterWalkImages=characterWalkImages,
-    characterActionImages=characterActionImages,
-    itemIdleImages=itemIdleImages,
-    npcImages=npcImages,
-    npcWalkImages=npcWalkImages,
-    familyImages=familyImages,
-    mobImages=mobImages,
-    mobIdleImages=mobIdleImages,
-    mobWalkImages=mobWalkImages,
-    mobHitImages=mobHitImages,
-    mobDeathImages=mobDeathImages,
-    drawStopSludges=Systems.worldScene.drawStopSludges,
-    drawWildlife=Systems.worldScene.drawWildlife,
-    train=Train,
-    characterAnimation=CharacterAnimation,
-    catalog=Catalog,
-    family=Family,
-    settlements=Settlements,
-    stops=Stops,
-    util=Util,
-    ui=ui,
-    itemIsHere=Systems.worldScene.itemIsHere,
-    pendingMailHere=Systems.journeyRules.pendingMailHere,
-    ensureStopLayout=Systems.worldScene.ensureStopLayout,
-})
-
-
-Systems.gameplayHUD=Systems.gameplayHUD.new({
-    runtime=runtime,
-    width=W,
-    height=H,
-    ui=ui,
-    colors=colors,
-    maintenanceSession=maintenanceSession,
-    holdPickupSeconds=Config.holdPickupSeconds,
-    getCloudLayer=function() return Systems.startupRuntime.cloudLayer() end,
-    mobileEnabled=Systems.mobileRuntime.isEnabled,
-    engineUpgrades=EngineUpgrades,
-    clouds=Clouds,
-    maintenance=Maintenance,
-    util=Util,
-    button=Systems.screenUI.button,
-    drawMenuFrame=Systems.screenUI.drawMenuFrame,
-    drawTrade=Systems.screenUI.drawTrade,
-    isFurnitureItem=content.isFurnitureItem,
-    containerValue=Systems.inventoryActions.containerValue,
-    screenToGame=Systems.presentationRuntime.screenToGame,
-    pointerPosition=Systems.mobileRuntime.pointerPosition,
-    getAudioStatus=Systems.audioRuntime.status,
-    drawLandscape=Systems.worldRenderer.drawLandscape,
-    drawTracks=Systems.worldRenderer.drawTracks,
-    drawTrainView=Systems.worldRenderer.drawTrainView,
-    drawHouse=Systems.worldRenderer.drawHouse,
-    drawStop=Systems.worldRenderer.drawStop,
-})
+Systems.screenUI,Systems.inventoryPresenter=views.screenUI,views.inventoryPresenter
+Systems.worldRenderer,Systems.gameplayHUD=views.worldRenderer,views.gameplayHUD
 function App.draw() return Systems.presentationRuntime.draw() end
 
 Systems.gameplayInput=Systems.gameplayInput.new({
@@ -514,7 +405,8 @@ function App.installSmoke()
         runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
-        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,contentRegistry=content,
+        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
+        contentRegistry=content,viewComposition=views,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,

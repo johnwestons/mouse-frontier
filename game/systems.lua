@@ -27,6 +27,7 @@ return {
     sessionBootstrap = require("game.session_bootstrap"),
     startupRuntime = require("game.startup_runtime"),
     trainCarRuntime = require("game.train_car_runtime"),
+    viewComposition = require("game.view_composition"),
     worldScene = require("game.world_scene"),
     worldRenderer = require("game.world_renderer"),
 }
