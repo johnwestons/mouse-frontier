@@ -52,6 +52,7 @@ local function new(context)
   local world=required(graphs,"graphs","world","table")
   local startup=required(graphs,"graphs","startup","table")
   local serviceRegistry=required(graphs,"graphs","serviceRegistry","table")
+  local applicationComposition=required(graphs,"graphs","applicationComposition","table")
 
   local composition={}
   function composition.install()
@@ -64,6 +65,7 @@ local function new(context)
       contentRegistry=content,viewComposition=views,adventureComposition=adventure,
       platformComposition=platform,inputComposition=input,worldSessionComposition=world,
       startupComposition=startup,serviceRegistry=serviceRegistry,smokeComposition=composition,
+      applicationComposition=applicationComposition,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,

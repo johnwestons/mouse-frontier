@@ -1,6 +1,6 @@
 -- Central composition manifest for the application-facing game systems.
--- Feature modules remain independently require-able; game.app constructs the
--- runtime-facing services after it has created authoritative application state.
+-- Feature modules remain independently require-able; application_composition
+-- constructs runtime-facing services after creating authoritative state.
 return {
     adventureComposition = require("game.adventure_composition"),
     audioRuntime = require("game.audio_runtime"),

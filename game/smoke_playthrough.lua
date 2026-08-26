@@ -39,6 +39,7 @@ local function install(context)
     local startupComposition=required(context,"startupComposition","table")
     local serviceRegistry=required(context,"serviceRegistry","table")
     local smokeComposition=required(context,"smokeComposition","table")
+    local applicationComposition=required(context,"applicationComposition","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -134,6 +135,10 @@ local function install(context)
                 end},
             {name="smoke_context_composed",action=smokeComposition.status,
                 check=function(_,_,_,result) return result.ready and result.groupCount==4 end},
+            {name="application_graph_composed",action=applicationComposition.status,
+                check=function(_,_,_,result)
+                    return result.ready and result.compositionCount==7 and result.serviceCount==18
+                end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
             end,check=function(_,_,_,result) return result.installed and result.routes==7 and result.current~=nil end},

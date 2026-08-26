@@ -52,7 +52,8 @@ Android controls, installation, update flow, and device verification are documen
 ## Project layout
 
 - `main.lua` — thin LÖVE lifecycle forwarding only
-- `game/app.lua` — application composition and lifecycle coordination
+- `game/application_composition.lua` — validated runtime graph construction
+- `game/app.lua` — thin lifecycle adapter
 - `game/systems.lua` — application-facing system manifest
 - `game/config.lua` — shared runtime dimensions, layout, timing, and palette configuration
 - `game/save_schema.lua` — authoritative save format version
