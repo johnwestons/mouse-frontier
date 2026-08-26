@@ -99,9 +99,15 @@ function Battle.advance(c)
         local loot=c.Events.grantBattleLoot(d,C,b.encounter); local levels=c.BattleRules.gainExperience(d,xp); d.scrap=d.scrap+scrap; local coal=c.TrainUpgradeBalance.addResource(d,"coal",reward); d.battlePotionLootChance=nil; msg(c,"Victory! +"..xp.." XP, +"..coal.." coal, +"..scrap.." scrap."..defenseBonus..loot..(levels>0 and " LEVEL UP!" or "")); b.finished="win"; c.writeSave(); return true
     end
     if not ally then c.saveData.health=math.max(1,math.floor(c.saveData.maxHealth/2)); c.saveData.battlePotionLootChance=nil; msg(c,"Your party was overwhelmed and returned to the train."); b.finished="loss"; c.writeSave(); return true end
-    local ended=c.BattleRules.activeUnit(b); c.BattleRules.endTurn(ended); ended.extraAttacks=nil; ended.extraMoves=nil; ended.perfectAccuracy=nil
+    local ended=c.BattleRules.activeUnit(b); c.BattleRules.endTurn(ended); ended.staggeredRounds=math.max(0,(ended.staggeredRounds or 0)-1); ended.extraAttacks=nil; ended.extraMoves=nil; ended.perfectAccuracy=nil
     local start=b.active; repeat b.active=b.active%#b.units+1 until b.units[b.active].hp>0 or b.active==start; if b.active==1 then b.round=b.round+1 end
     local active=b.units[b.active]; active.guarding=false
+    if (active.bleedRounds or 0)>0 then
+        local bleed=math.max(1,active.bleedDamage or 1); active.hp=math.max(0,active.hp-bleed); active.bleedRounds=active.bleedRounds-1; active.hitTimer=.38; active.damageNumber=bleed; active.damageNumberTimer=.7
+        if active.id=="player" then c.saveData.health=active.hp end
+        msg(c,active.name.." suffers "..bleed.." bleeding damage.")
+        if active.hp<=0 then Battle.advance(c); return end
+    end
     if active.team=="ally" and (active.regenRounds or 0)>0 then local healed=math.min(active.maxHP,active.hp+(active.regenAmount or 2))-active.hp; active.hp=active.hp+healed; active.regenRounds=active.regenRounds-1; if active.id=="player" then c.saveData.health=active.hp end; if healed>0 then msg(c,active.name.." regenerated "..healed.." HP.") end end
     b.phase="select"; b.selected=b.active; b.reachable={}; b.moveUsed=false; b.enemyDelay=active.team=="enemy" and .58 or 0
 end
@@ -194,12 +200,18 @@ function Battle.resolve(c,attacker,target,weaponName)
     attacker.action=combat.kind=="ranged" and "ranged" or "melee"; attacker.actionItem=weaponName; attacker.actionTimer=attacker.team=="enemy" and .68 or .45; c.playSfx(c.weaponSfx(weaponName,combat,attacker)); if combat.kind=="ranged" then b.projectile={fromQ=attacker.q,fromR=attacker.r,toQ=target.q,toR=target.r,ammo=combat.ammo or "rocks",weapon=weaponName,kind=combat.projectile,t=0,duration=attacker.team=="enemy" and .62 or .42} end
     if attacker.team=="ally" and weaponName~="scratch" then LootProgression.wearWeapon(d,weaponName,1) end
     local prof=0
-    if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
-    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local bonus=(attacker.aim or 0)+levelAttack; local defense=8+(target.armor or 0)+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
+    if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or d.weaponProficiency.melee or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
+    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local staggerPenalty=(attacker.staggeredRounds or 0)>0 and 2 or 0; local bonus=(attacker.aim or 0)+levelAttack+(combat.accuracy or 0)-staggerPenalty; local effectiveArmor=math.max(0,(target.armor or 0)-(combat.armorPierce or 0)); local defense=8+effectiveArmor+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
     if not attacker.perfectAccuracy and (roll==1 or (roll~=20 and roll+bonus<defense)) then msg(c,attacker.name.." used "..name.." against "..target.name.." — MISS."); b.attackTimer=attacker.team=="enemy" and .90 or .45; advanceAttack(c,attacker); return true end
-    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-(target.armor or 0)); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
+    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-effectiveArmor); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
     target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then d.health=target.hp end
-    msg(c,attacker.name.." used "..name.." on "..target.name.." — HIT for "..damage.." damage."); b.attackTimer=attacker.team=="enemy" and .95 or .45; b.hitFlash=.18; b.lastTarget=target.id; advanceAttack(c,attacker); return true
+    local effect=""
+    if target.hp>0 and combat.status and love.math.random()<(combat.statusChance or 0) then
+        if combat.status=="bleed" then target.bleedRounds=math.max(target.bleedRounds or 0,2); target.bleedDamage=math.max(target.bleedDamage or 0,combat.bleedDamage or 1); effect=" Bleeding!"
+        elseif combat.status=="stagger" then target.staggeredRounds=math.max(target.staggeredRounds or 0,1); effect=" Staggered!"
+        elseif combat.status=="paralyze" and target.team=="enemy" then target.paralyzedRounds=math.max(target.paralyzedRounds or 0,1); effect=" Paralyzed!" end
+    end
+    msg(c,attacker.name.." used "..name.." on "..target.name.." — HIT for "..damage.." damage."..effect); b.attackTimer=attacker.team=="enemy" and .95 or .45; b.hitFlash=.18; b.lastTarget=target.id; advanceAttack(c,attacker); return true
 end
 function Battle.enemyTurn(c)
     local b=c.battle; local enemy=c.BattleRules.activeUnit(b); if not enemy or enemy.team~="enemy" or b.finished then return end

@@ -64,8 +64,20 @@ local function loadFolderImages(path, destination, predicate, category)
     end
 end
 
-local function registerItemAtlas(ui, path, names, columns, rows)
-    local image = loadImage(path,"item atlas")
+local function registerItemAtlas(ui, path, names, columns, rows, clearGeneratedChecker)
+    local image
+    if clearGeneratedChecker and love.image and love.image.newImageData then
+        local ok,data=pcall(love.image.newImageData,path)
+        if ok and data then
+            data:mapPixel(function(_,_,r,g,b,a)
+                local pale=math.min(r,g,b)>.89 and math.max(r,g,b)-math.min(r,g,b)<.045
+                return r,g,b,pale and 0 or a
+            end)
+            local made,result=pcall(love.graphics.newImage,data)
+            if made then image=result end
+        end
+    end
+    image=image or loadImage(path,"item atlas")
     if not image then return end
     local imageWidth, imageHeight = image:getDimensions()
     local cellWidth, cellHeight = imageWidth / columns, imageHeight / rows
@@ -326,6 +338,10 @@ function Assets.load(targets)
     ui.atlasItems = {}
     registerItemAtlas(ui, "assets/sprites/atlases/food-water-v1.png", {"trail-beans-can", "dried-berry-pouch", "cornbread-square", "mushroom-stew", "jerky-bundle", "preserved-peaches", "metal-water-flask", "blue-water-bottle", "rainwater-jar", "patched-canteen", "boxed-fruit-drink", "ceramic-water-crock"}, 4, 3)
     registerItemAtlas(ui, "assets/sprites/atlases/firearms-v1.png", {"compact-scrap-pistol", "long-barrel-22-pistol", "heavy-frontier-pistol", "machine-pistol", "weathered-lever-rifle", "improvised-service-rifle", "compact-carbine", "rugged-submachine-gun"}, 4, 2)
+    registerItemAtlas(ui, "assets/sprites/atlases/melee-frontier-v1.png", {"salvage-pry-bar", "frontier-hook-sickle", "boiler-smith-maul", "railway-war-pick"}, 2, 2, true)
+    registerItemAtlas(ui, "assets/sprites/atlases/melee-blades-v1.png", {"patched-trench-knife", "gear-toothed-falchion", "railway-cutlass", "brass-backed-greatsword"}, 2, 2)
+    registerItemAtlas(ui, "assets/sprites/atlases/melee-polearms-v1.png", {"scrap-hunting-spear", "frontier-fork-trident", "hooked-railway-halberd", "wasteland-partisan"}, 2, 2, true)
+    registerItemAtlas(ui, "assets/sprites/atlases/melee-axes-v1.png", {"salvaged-track-hatchet", "gearwright-bearded-axe", "rail-splitter-axe", "frontier-executioner-axe"}, 2, 2)
     registerItemAtlas(ui, "assets/sprites/gear/backpack-upgrades-v1.png", {"patched-canvas-pack", "bedroll-hiking-pack", "frontier-leather-pack", "scavenger-frame-pack"}, 2, 2)
     validateCatalogArt(ui)
     loadMenuFrames(ui)

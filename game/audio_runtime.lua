@@ -49,7 +49,10 @@ local function new(context)
   local function weaponSfx(weaponName,combat,attacker)
       local lower=(weaponName or ""):lower(); local file=attacker and (attacker.file or ""):lower() or ""
       if lower:find("slingshot",1,true) or weaponName=="scrap-boomerang" or combat.ammo=="arrows" or file:find("eagle",1,true) then return "bow" end
-      if combat.kind~="ranged" then return weaponName=="scratch" and "slash" or "sword" end
+      if combat.kind~="ranged" then
+          if weaponName=="scratch" or combat.family=="quick" or combat.family=="blunt" then return "slash" end
+          return "sword"
+      end
       local tier=(Catalog.weaponStats[weaponName] and Catalog.weaponStats[weaponName].tier) or 1
       return tier<=4 and "gunshotLight" or (tier<=6 and "gunshotMedium" or "gunshotHeavy")
   end

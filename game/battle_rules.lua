@@ -62,8 +62,9 @@ function BattleRules.facing(battle, unit)
 end
 
 function BattleRules.weaponRange(catalog, name)
+    if catalog.weaponReach then return catalog.weaponReach(name) end
     local combat = catalog.weaponCombat[name] or catalog.weaponCombat.scratch
-    return combat.kind == "ranged" and math.max(2, math.floor((combat.range or 12) / 6)) or 1
+    return combat.kind == "ranged" and math.max(2, math.floor((combat.range or 12) / 6)) or (combat.family=="polearm" and 2 or 1)
 end
 
 function BattleRules.gainExperience(data, amount)

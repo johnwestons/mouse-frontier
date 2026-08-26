@@ -233,13 +233,16 @@ end
 
 function LootProgression.audit(catalog)
     local valid,errors=LootProgression.validate(catalog)
-    local tierCounts,averages={},{}
+    local tierCounts,averages,families,statusProfiles={},{},{},0
     for name,stats in pairs(catalog.weaponStats or {}) do
         if name~="scratch" and not name:find("mob%-") then
             tierCounts[stats.tier]=(tierCounts[stats.tier] or 0)+1
             averages[stats.tier]=(averages[stats.tier] or 0)+(stats.min+stats.max)/2
+            local combat=catalog.weaponCombat[name] or {}
+            if combat.kind=="melee" then families[combat.family or "melee"]=true; if combat.status then statusProfiles=statusProfiles+1 end end
         end
     end
+    local familyCount=0; for _ in pairs(families) do familyCount=familyCount+1 end
     local weaponCount,damageReady,previous=0,true,0
     for tier=1,9 do
         weaponCount=weaponCount+(tierCounts[tier] or 0)
@@ -251,16 +254,16 @@ function LootProgression.audit(catalog)
     local repairData={equipment={"frontier-short-sword"},weaponDurability={["frontier-short-sword"]=40},scrap=20}
     local repair=LootProgression.repairEquipped(repairData,catalog)
     local broken=LootProgression.weaponCondition(0)
-    local ready=valid and weaponCount==65 and damageReady and early.common>late.common and late.rare>early.rare
+    local ready=valid and weaponCount==83 and familyCount>=6 and statusProfiles>=12 and damageReady and early.common>late.common and late.rare>early.rare
         and LootProgression.itemPrice(catalog,"frontier-longsword")>LootProgression.itemPrice(catalog,"trail-slingshot")
         and LootProgression.itemPrice(catalog,"rose-heart-arrow")>LootProgression.itemPrice(catalog,"food-ration")
         and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100
         and LootProgression.resalePrice(catalog,"frontier-short-sword",25)<LootProgression.resalePrice(catalog,"frontier-short-sword",100)
-    return {ready=ready,valid=valid,errors=errors,weaponCount=weaponCount,tierCounts=tierCounts,damageReady=damageReady,
+    return {ready=ready,valid=valid,errors=errors,weaponCount=weaponCount,tierCounts=tierCounts,damageReady=damageReady,familyCount=familyCount,statusProfiles=statusProfiles,
         earlyWeights=early,lateWeights=late,brokenMultiplier=broken.multiplier,repairCost=repair.cost,
         commonPrice=LootProgression.itemPrice(catalog,"food-ration"),legendaryPrice=LootProgression.itemPrice(catalog,"rose-heart-arrow"),
         starterWeaponPrice=LootProgression.itemPrice(catalog,"trail-slingshot"),lateWeaponPrice=LootProgression.itemPrice(catalog,"frontier-longsword"),
-        wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v2"}
+        wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v3"}
 end
 
 return LootProgression

@@ -99,14 +99,29 @@ function BattleUI.draw(ctx)
         if animated and u.team=="ally" and action=="ranged" and (u.actionTimer or 0)>0 and WeaponAttachment.isFirearm(Catalog,u.actionItem) then
             attachedWeapon=WeaponAttachment.draw(characterAnimations,u.file,u.actionItem,ui.propImages[u.actionItem],x,y+20,76,96,facing,actionPhase)
         end
-        if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" and not attachedWeapon then ui.drawItem(u.actionItem,{x=x+10,y=y-38,w=38,h=38}) end
+        if (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" and not attachedWeapon then
+            local combat=Catalog.weaponCombat[u.actionItem] or {}; local progress=1-math.min(1,(u.actionTimer or 0)/(u.team=="enemy" and .68 or .45)); local reach=math.sin(progress*math.pi)
+            local ox,oy=10,-38
+            if combat.animation=="thrust" or combat.animation=="jab" then ox=ox+facing*reach*24
+            elseif combat.animation=="smash" then oy=oy-reach*22
+            elseif combat.animation=="slash" or combat.animation=="chop" or combat.animation=="swing" then ox=ox+facing*reach*14; oy=oy+reach*10 end
+            ui.drawItem(u.actionItem,{x=x+ox,y=y+oy,w=38,h=38})
+        end
         if (u.damageNumberTimer or 0)>0 and u.damageNumber then
             local rise=(.9-u.damageNumberTimer)*24
             love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
         end
         if u.hp>0 then
             love.graphics.setColor(.1,.06,.04,.9); love.graphics.rectangle("fill",x-31,y+14,62,8); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),8)
-            local status=u.boss and "BOSS" or ((u.sleepRounds or 0)>0 and "SLEEP" or ((u.paralyzedRounds or 0)>0 and "PARALYZED" or ((u.moveBonus or 0)<0 and "SNARED" or (u.guarding and "GUARD" or ((u.regenRounds or 0)>0 and "REGEN" or nil)))))
+            local status
+            if u.boss then status="BOSS"
+            elseif (u.sleepRounds or 0)>0 then status="SLEEP"
+            elseif (u.paralyzedRounds or 0)>0 then status="PARALYZED"
+            elseif (u.bleedRounds or 0)>0 then status="BLEEDING"
+            elseif (u.staggeredRounds or 0)>0 then status="STAGGERED"
+            elseif (u.moveBonus or 0)<0 then status="SNARED"
+            elseif u.guarding then status="GUARD"
+            elseif (u.regenRounds or 0)>0 then status="REGEN" end
             if status then love.graphics.setColor(colors.brass); love.graphics.printf(status,x-45,y+25,90,"center",0,.43,.43) end
         end
     end
@@ -152,7 +167,7 @@ function BattleUI.draw(ctx)
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
                 local combat=Catalog.weaponCombat[w] or Catalog.weaponCombat.scratch
                 local durability=(w=="scratch") and 100 or (saveData.weaponDurability[w] or 100)
-                local details=string.format("%s  DMG %d-%d  %s  RANGE %d",stats.name,stats.min,stats.max,string.upper(combat.kind or "melee"),combat.range or 0)
+                local details=string.format("%s  DMG %d-%d  %s  REACH %d",stats.name,stats.min,stats.max,combat.kind=="melee" and Catalog.weaponRole(w) or string.upper(combat.kind or "melee"),Catalog.weaponReach(w))
                 if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
                 details=details.."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or "")
                 love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)

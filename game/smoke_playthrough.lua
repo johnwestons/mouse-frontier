@@ -214,7 +214,8 @@ local function install(context)
                 end},
             {name="loot_equipment_balance",action=lootBalanceAudit,
                 check=function(_,_,_,result)
-                    return result.ready and result.valid and result.weaponCount==65 and result.damageReady
+                    return result.ready and result.valid and result.weaponCount==83 and result.familyCount>=6
+                        and result.statusProfiles>=12 and result.damageReady and result.curve=="loot-v3"
                         and result.brokenMultiplier==0 and result.repairCost>0
                         and result.lateWeaponPrice>result.starterWeaponPrice
                         and result.legendaryPrice>result.commonPrice

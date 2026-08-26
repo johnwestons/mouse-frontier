@@ -109,20 +109,32 @@ Catalog.weaponStats = {
     ["mob-spit"]={name="Toxic Spit",min=3,max=7,tier=3},
     ["brass-knuckle-duster"]={name="Brass Knuckles",min=2,max=4,tier=1},
     ["train-wrench"]={name="Train Wrench",min=2,max=5,tier=1},
+    ["salvage-pry-bar"]={name="Salvage Pry Bar",min=2,max=5,tier=1},
     ["scrap-hatchet"]={name="Scrap Hatchet",min=3,max=5,tier=2},
     ["rusty-cleaver"]={name="Rusty Cleaver",min=3,max=6,tier=2},
     ["frontier-short-sword"]={name="Frontier Sword",min=3,max=6,tier=2},
+    ["patched-trench-knife"]={name="Patched Trench Knife",min=3,max=6,tier=2},
+    ["scrap-hunting-spear"]={name="Scrap Hunting Spear",min=3,max=6,tier=2},
+    ["salvaged-track-hatchet"]={name="Salvaged Track Hatchet",min=3,max=6,tier=2},
     ["miners-pick"]={name="Miner's Pick",min=4,max=7,tier=3},
     ["hunting-bow"]={name="Hunting Bow",min=4,max=7,tier=3},
     ["gear-hammer"]={name="Gear Hammer",min=5,max=8,tier=4},
     ["rail-spike-spear"]={name="Rail Spike Spear",min=5,max=9,tier=4},
+    ["gear-toothed-falchion"]={name="Gear-Toothed Falchion",min=5,max=9,tier=4},
+    ["frontier-fork-trident"]={name="Frontier Fork Trident",min=5,max=9,tier=4},
+    ["gearwright-bearded-axe"]={name="Gearwright Bearded Axe",min=5,max=9,tier=4},
     ["critter-crossbow"]={name="Critter Crossbow",min=6,max=10,tier=5},
     ["chain-flail"]={name="Chain Flail",min=6,max=11,tier=5},
     ["scrap-pistol"]={name="Scrap Pistol",min=7,max=12,tier=6},
+    ["railway-cutlass"]={name="Railway Cutlass",min=7,max=12,tier=6},
+    ["hooked-railway-halberd"]={name="Hooked Railway Halberd",min=7,max=12,tier=6},
+    ["rail-splitter-axe"]={name="Rail-Splitter Axe",min=7,max=12,tier=6},
     ["sawed-off-shotgun"]={name="Sawed-Off Shotgun",min=8,max=14,tier=7},
     ["trail-slingshot"]={name="Trail Slingshot",min=2,max=4,tier=1},
     ["rail-spike-dagger"]={name="Rail Spike Dagger",min=3,max=5,tier=2},
     ["scrap-boomerang"]={name="Scrap Boomerang",min=4,max=7,tier=3},
+    ["frontier-hook-sickle"]={name="Frontier Hook Sickle",min=4,max=7,tier=3},
+    ["frontier-curved-saber"]={name="Frontier Curved Saber",min=4,max=8,tier=3},
     ["steam-shock-baton"]={name="Steam Shock Baton",min=7,max=11,tier=6},
     ["frontier-lever-rifle"]={name="Frontier Lever Rifle",min=9,max=15,tier=8},
     ["compact-scrap-pistol"]={name="Compact Scrap Pistol",min=5,max=9,tier=4},
@@ -151,8 +163,14 @@ Catalog.weaponStats = {
     , ["frontier-longsword"]={name="Frontier Longsword",min=10,max=16,tier=9}
     , ["frontier-machete"]={name="Frontier Machete",min=7,max=12,tier=6}
     , ["frontier-spear"]={name="Frontier Spear",min=6,max=10,tier=5}
+    , ["frontier-cavalry-saber"]={name="Frontier Cavalry Saber",min=6,max=10,tier=5}
     , ["frontier-hatchet"]={name="Frontier Hatchet",min=5,max=9,tier=4}
     , ["frontier-hand-axe"]={name="Frontier Hand Axe",min=7,max=11,tier=6}
+    , ["boiler-smith-maul"]={name="Boiler-Smith Maul",min=8,max=14,tier=7}
+    , ["railway-war-pick"]={name="Railway War Pick",min=9,max=15,tier=8}
+    , ["brass-backed-greatsword"]={name="Brass-Backed Greatsword",min=10,max=17,tier=9}
+    , ["wasteland-partisan"]={name="Wasteland Partisan",min=10,max=17,tier=9}
+    , ["frontier-executioner-axe"]={name="Frontier Executioner Axe",min=11,max=17,tier=9}
     , ["frontier-556-carbine"]={name="Frontier 5.56 Carbine",min=10,max=16,tier=9}
     , ["frontier-9mm-smg"]={name="Frontier 9mm SMG",min=8,max=13,tier=8}
     , ["frontier-22-target-pistol"]={name="Frontier .22 Target Pistol",min=5,max=9,tier=4}
@@ -175,16 +193,34 @@ Catalog.weaponStats = {
 }
 
 Catalog.weaponCombat = {
-    scratch={kind="melee",range=4}, ["brass-knuckle-duster"]={kind="melee",range=4},
-    ["mob-claw"]={kind="melee",range=4}, ["mob-spit"]={kind="ranged",range=24,projectile="toxic"},
-    ["train-wrench"]={kind="melee",range=4}, ["scrap-hatchet"]={kind="melee",range=4},
-    ["rusty-cleaver"]={kind="melee",range=4}, ["frontier-short-sword"]={kind="melee",range=5},
-    ["miners-pick"]={kind="melee",range=5}, ["gear-hammer"]={kind="melee",range=4},
-    ["rail-spike-spear"]={kind="melee",range=6}, ["chain-flail"]={kind="melee",range=6},
-    ["rail-spike-dagger"]={kind="melee",range=4}, ["scrap-boomerang"]={kind="ranged",range=18,capacity=1,projectile="boomerang"},
-    ["steam-shock-baton"]={kind="melee",range=5}, ["hunting-bow"]={kind="ranged",range=24,ammo="arrows",capacity=1},
+    scratch={kind="melee",range=4,family="quick",accuracy=1,animation="swipe"},
+    ["brass-knuckle-duster"]={kind="melee",range=4,family="quick",accuracy=2,animation="jab"},
+    ["mob-claw"]={kind="melee",range=4,family="quick",accuracy=1,animation="swipe"}, ["mob-spit"]={kind="ranged",range=24,projectile="toxic"},
+    ["train-wrench"]={kind="melee",range=4,family="blunt",status="stagger",statusChance=.20,animation="smash"},
+    ["salvage-pry-bar"]={kind="melee",range=4,family="blunt",armorPierce=1,status="stagger",statusChance=.18,animation="smash"},
+    ["scrap-hatchet"]={kind="melee",range=4,family="axe",armorPierce=1,animation="chop"},
+    ["rusty-cleaver"]={kind="melee",range=4,family="blade",status="bleed",statusChance=.20,bleedDamage=1,animation="slash"},
+    ["frontier-short-sword"]={kind="melee",range=5,family="blade",accuracy=1,status="bleed",statusChance=.18,bleedDamage=1,animation="slash"},
+    ["patched-trench-knife"]={kind="melee",range=4,family="blade",accuracy=2,status="bleed",statusChance=.18,bleedDamage=1,animation="jab"},
+    ["scrap-hunting-spear"]={kind="melee",range=6,family="polearm",armorPierce=1,animation="thrust"},
+    ["salvaged-track-hatchet"]={kind="melee",range=4,family="axe",armorPierce=1,animation="chop"},
+    ["miners-pick"]={kind="melee",range=5,family="piercing",armorPierce=2,animation="thrust"},
+    ["gear-hammer"]={kind="melee",range=4,family="blunt",status="stagger",statusChance=.25,animation="smash"},
+    ["rail-spike-spear"]={kind="melee",range=6,family="polearm",armorPierce=1,animation="thrust"},
+    ["gear-toothed-falchion"]={kind="melee",range=5,family="blade",status="bleed",statusChance=.24,bleedDamage=1,animation="slash"},
+    ["frontier-fork-trident"]={kind="melee",range=7,family="polearm",armorPierce=2,animation="thrust"},
+    ["gearwright-bearded-axe"]={kind="melee",range=5,family="axe",armorPierce=2,animation="chop"},
+    ["chain-flail"]={kind="melee",range=6,family="blunt",armorPierce=1,status="stagger",statusChance=.22,animation="swing"},
+    ["rail-spike-dagger"]={kind="melee",range=4,family="quick",accuracy=2,armorPierce=1,animation="jab"},
+    ["frontier-hook-sickle"]={kind="melee",range=5,family="blade",status="bleed",statusChance=.28,bleedDamage=1,animation="slash"},
+    ["frontier-curved-saber"]={kind="melee",range=5,family="blade",accuracy=1,status="bleed",statusChance=.22,bleedDamage=1,animation="slash"},
+    ["scrap-boomerang"]={kind="ranged",range=18,capacity=1,projectile="boomerang"},
+    ["steam-shock-baton"]={kind="melee",range=5,family="blunt",status="paralyze",statusChance=.18,animation="jab"}, ["hunting-bow"]={kind="ranged",range=24,ammo="arrows",capacity=1},
     ["trail-slingshot"]={kind="ranged",range=18,ammo="rocks",capacity=1}, ["critter-crossbow"]={kind="ranged",range=26,ammo="arrows",capacity=1},
     ["scrap-pistol"]={kind="ranged",range=24,ammo="9mm",capacity=8}, ["sawed-off-shotgun"]={kind="ranged",range=12,ammo="45-cal",capacity=2},
+    ["railway-cutlass"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.28,bleedDamage=2,animation="slash"},
+    ["hooked-railway-halberd"]={kind="melee",range=7,family="polearm",armorPierce=3,animation="thrust"},
+    ["rail-splitter-axe"]={kind="melee",range=5,family="axe",armorPierce=3,animation="chop"},
     ["frontier-lever-rifle"]={kind="ranged",range=32,ammo="22lr",capacity=7},
     ["compact-scrap-pistol"]={kind="ranged",range=20,ammo="9mm",capacity=7},
     ["long-barrel-22-pistol"]={kind="ranged",range=25,ammo="22lr",capacity=10},
@@ -206,14 +242,20 @@ Catalog.weaponCombat = {
     ["frontier-long-22-target-pistol"]={kind="ranged",range=30,ammo="22lr",capacity=10},
     ["wood-stock-survival-carbine"]={kind="ranged",range=30,ammo="30-carbine",capacity=15},
     ["vintage-bolt-action-rifle"]={kind="ranged",range=40,ammo="8mm",capacity=5}
-    , ["frontier-katana"]={kind="melee",range=6}
-    , ["frontier-mace"]={kind="melee",range=5}
-    , ["frontier-battle-axe"]={kind="melee",range=5}
-    , ["frontier-longsword"]={kind="melee",range=6}
-    , ["frontier-machete"]={kind="melee",range=5}
-    , ["frontier-spear"]={kind="melee",range=7}
-    , ["frontier-hatchet"]={kind="melee",range=4}
-    , ["frontier-hand-axe"]={kind="melee",range=5}
+    , ["frontier-katana"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.32,bleedDamage=2,animation="slash"}
+    , ["frontier-mace"]={kind="melee",range=5,family="blunt",armorPierce=1,status="stagger",statusChance=.32,animation="smash"}
+    , ["frontier-battle-axe"]={kind="melee",range=5,family="axe",armorPierce=3,animation="chop"}
+    , ["frontier-longsword"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.30,bleedDamage=2,animation="slash"}
+    , ["frontier-machete"]={kind="melee",range=5,family="blade",status="bleed",statusChance=.28,bleedDamage=2,animation="chop"}
+    , ["frontier-spear"]={kind="melee",range=7,family="polearm",armorPierce=2,animation="thrust"}
+    , ["frontier-hatchet"]={kind="melee",range=4,family="axe",armorPierce=2,animation="chop"}
+    , ["frontier-hand-axe"]={kind="melee",range=5,family="axe",armorPierce=2,animation="chop"}
+    , ["frontier-cavalry-saber"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.26,bleedDamage=2,animation="slash"}
+    , ["boiler-smith-maul"]={kind="melee",range=5,family="blunt",armorPierce=2,status="stagger",statusChance=.38,animation="smash"}
+    , ["railway-war-pick"]={kind="melee",range=6,family="piercing",armorPierce=4,animation="thrust"}
+    , ["brass-backed-greatsword"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.36,bleedDamage=3,animation="slash"}
+    , ["wasteland-partisan"]={kind="melee",range=8,family="polearm",armorPierce=4,accuracy=1,animation="thrust"}
+    , ["frontier-executioner-axe"]={kind="melee",range=6,family="axe",armorPierce=4,animation="chop"}
     , ["frontier-556-carbine"]={kind="ranged",range=36,ammo="556",capacity=20}
     , ["frontier-9mm-smg"]={kind="ranged",range=24,ammo="9mm",capacity=30}
     , ["frontier-22-target-pistol"]={kind="ranged",range=27,ammo="22lr",capacity=10}
@@ -236,23 +278,39 @@ Catalog.weaponCombat = {
 }
 
 Catalog.weaponProgression = {
-    "trail-slingshot","brass-knuckle-duster","train-wrench",
-    "rail-spike-dagger","scrap-hatchet","rusty-cleaver","frontier-short-sword","wrist-braced-slingshot",
-    "scrap-boomerang","miners-pick","hunting-bow","metal-scrap-slingshot","frontier-22-pocket-pistol","frontier-pearl-pocket-pistol",
-    "gear-hammer","rail-spike-spear","compact-scrap-pistol","long-barrel-22-pistol","long-hunting-slingshot","frontier-hatchet","frontier-22-target-pistol","frontier-sr22-pistol","frontier-32-pocket-pistol",
-    "critter-crossbow","chain-flail","machine-pistol","frontier-380-revolver","frontier-long-22-target-pistol","frontier-spear","frontier-silver-22-revolver","frontier-silver-compact-pistol","frontier-compact-9mm-pistol","frontier-380-pocket-pistol",
-    "scrap-pistol","steam-shock-baton","heavy-frontier-pistol","rugged-submachine-gun","patched-22-survival-rifle","frontier-long-barrel-revolver","frontier-22-lever-rifle","frontier-mace","frontier-machete","frontier-hand-axe","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-9mm-glock","frontier-single-shot-hunter",
-    "sawed-off-shotgun","weathered-lever-rifle","compact-carbine","wood-stock-survival-carbine","frontier-katana","frontier-12g-pump-shotgun","frontier-lever-carbine",
-    "frontier-lever-rifle","improvised-service-rifle","frontier-battle-axe","frontier-9mm-smg","frontier-762-carbine","frontier-ak-compact","frontier-45-1911",
-    "improvised-556-rifle","vintage-bolt-action-rifle","frontier-longsword","frontier-556-carbine"
+    "trail-slingshot","brass-knuckle-duster","train-wrench","salvage-pry-bar",
+    "rail-spike-dagger","scrap-hatchet","rusty-cleaver","frontier-short-sword","patched-trench-knife","scrap-hunting-spear","salvaged-track-hatchet","wrist-braced-slingshot",
+    "scrap-boomerang","miners-pick","hunting-bow","metal-scrap-slingshot","frontier-hook-sickle","frontier-curved-saber","frontier-22-pocket-pistol","frontier-pearl-pocket-pistol",
+    "gear-hammer","rail-spike-spear","gear-toothed-falchion","frontier-fork-trident","gearwright-bearded-axe","compact-scrap-pistol","long-barrel-22-pistol","long-hunting-slingshot","frontier-hatchet","frontier-22-target-pistol","frontier-sr22-pistol","frontier-32-pocket-pistol",
+    "critter-crossbow","chain-flail","machine-pistol","frontier-380-revolver","frontier-long-22-target-pistol","frontier-spear","frontier-cavalry-saber","frontier-silver-22-revolver","frontier-silver-compact-pistol","frontier-compact-9mm-pistol","frontier-380-pocket-pistol",
+    "scrap-pistol","railway-cutlass","hooked-railway-halberd","rail-splitter-axe","steam-shock-baton","heavy-frontier-pistol","rugged-submachine-gun","patched-22-survival-rifle","frontier-long-barrel-revolver","frontier-22-lever-rifle","frontier-mace","frontier-machete","frontier-hand-axe","frontier-9mm-service-pistol","frontier-compact-9mm","frontier-9mm-glock","frontier-single-shot-hunter",
+    "sawed-off-shotgun","weathered-lever-rifle","compact-carbine","wood-stock-survival-carbine","frontier-katana","boiler-smith-maul","frontier-12g-pump-shotgun","frontier-lever-carbine",
+    "frontier-lever-rifle","improvised-service-rifle","frontier-battle-axe","railway-war-pick","frontier-9mm-smg","frontier-762-carbine","frontier-ak-compact","frontier-45-1911",
+    "improvised-556-rifle","vintage-bolt-action-rifle","frontier-longsword","frontier-556-carbine","brass-backed-greatsword","wasteland-partisan","frontier-executioner-axe"
 }
 
 function Catalog.weaponFamily(name)
     local combat=Catalog.weaponCombat[name] or Catalog.weaponCombat.scratch
-    if combat.kind=="melee" then return "melee" end
+    if combat.kind=="melee" then return combat.family or "melee" end
     if combat.ammo=="arrows" then return "bows" end
     if name and (name:find("slingshot") or name:find("boomerang")) then return "slingshots" end
     return "firearms"
+end
+
+function Catalog.weaponReach(name)
+    local combat=Catalog.weaponCombat[name] or Catalog.weaponCombat.scratch
+    if combat.kind=="ranged" then return math.max(2,math.floor((combat.range or 12)/6)) end
+    return combat.family=="polearm" and 2 or 1
+end
+
+function Catalog.weaponRole(name)
+    local combat=Catalog.weaponCombat[name] or Catalog.weaponCombat.scratch
+    if combat.kind~="melee" then return "RANGED" end
+    local parts={string.upper(combat.family or "melee")}
+    if (combat.accuracy or 0)>0 then parts[#parts+1]="AIM +"..combat.accuracy end
+    if (combat.armorPierce or 0)>0 then parts[#parts+1]="PIERCE "..combat.armorPierce end
+    if combat.status=="bleed" then parts[#parts+1]="BLEED" elseif combat.status=="stagger" then parts[#parts+1]="STAGGER" elseif combat.status=="paralyze" then parts[#parts+1]="SHOCK" end
+    return table.concat(parts," • ")
 end
 
 Catalog.mobTiers = {

@@ -46,10 +46,10 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Make all acquired train cars fit the visible train presentation at desktop and mobile aspect ratios.
 - Centralize maintenance wear, oil supply, servicing costs, upgrade effects, and route-wide balance.
 
-## 7. Audio and weapon variety
+## 7. Audio and weapon variety — Complete
 
 - **Complete:** Give every slingshot and eagle attacks appropriate non-firearm sounds.
-- Add more melee weapon families, progression tiers, animations, sounds, loot placement, and repair values.
+- **Complete:** Add 18 cataloged melee weapons, including four new blades, four polearms, four axes, two restored sabers, and four mixed frontier weapons. Quick, blade, axe, blunt, polearm, and piercing families now have distinct accuracy, armor penetration, bleeding, staggering, reach, animations, sounds, loot tiers, pricing, durability, and repair values.
 
 ## 8. World interaction and visual polish
 
