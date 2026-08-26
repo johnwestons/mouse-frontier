@@ -62,6 +62,7 @@ class LuaArchitectureTests(unittest.TestCase):
         startup_composition = (ROOT / "game" / "startup_composition.lua").read_text(encoding="utf-8")
         service_registry = (ROOT / "game" / "service_registry.lua").read_text(encoding="utf-8")
         smoke_composition = (ROOT / "game" / "smoke_composition.lua").read_text(encoding="utf-8")
+        progression_balance = (ROOT / "game" / "progression_balance.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -114,6 +115,16 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("setfenv", journey_rules)
         self.assertNotIn("dependency resolver", journey_rules)
         self.assertIn("journeyRules=JourneyRules.new({", adventure_composition)
+        self.assertIn('local ProgressionBalance=required(context,"progressionBalance","table")', journey_rules)
+        self.assertIn("progressionBalance=ProgressionBalance", adventure_composition)
+        self.assertIn("progressionBalance=Modules.progressionBalance", application_composition)
+        self.assertIn('progressionBalance = require("game.progression_balance")', systems)
+        self.assertIn("return Balance", progression_balance)
+        self.assertIn("function Balance.travelCost", progression_balance)
+        self.assertIn("function Balance.travelStatus", progression_balance)
+        self.assertIn("function Balance.audit", progression_balance)
+        self.assertIn("travelStatus=travelStatus", journey_rules)
+        self.assertIn("balanceAudit=function() return ProgressionBalance.audit(EngineUpgrades) end", journey_rules)
         self.assertNotIn("resolveJourneyRules", app)
         self.assertIn("return {new=new}", screen_ui)
         self.assertNotIn("setfenv", screen_ui)
@@ -410,6 +421,12 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("applicationComposition=application", application_composition)
         self.assertIn('local applicationComposition=required(context,"applicationComposition","table")', smoke_playthrough)
         self.assertIn('name="application_graph_composed"', smoke_playthrough)
+        self.assertIn('local balanceAudit=required(context,"balanceAudit","function")', smoke_playthrough)
+        self.assertIn('name="progression_balance_curve"', smoke_playthrough)
+        self.assertIn('local travelStatus=required(context,"travelStatus","function")', gameplay_input)
+        self.assertNotIn('required(context,"travelCost"', gameplay_input)
+        self.assertIn('local travelStatus=required(context,"travelStatus","function")', gameplay_hud)
+        self.assertIn('or ((travel.affordable and "TRAVEL" or "NEED")', gameplay_hud)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

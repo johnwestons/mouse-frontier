@@ -12,6 +12,7 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local ProgressionBalance=required(context,"progressionBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local Util=required(context,"util","table")
@@ -24,16 +25,11 @@ local function new(context)
   local beginRandomEvent=required(context,"beginRandomEvent","function")
 
   local function travelCost()
-      local leg=math.max(0,(runtime.saveData.location or 1)-1)
-      local passengers=#(runtime.saveData.passengers or {})
-      local terrain=({"plains","desert","mountains","ruins","forest"})[((runtime.saveData.location or 1)-1)%5+1]
-      local terrainCoal=terrain=="mountains" and 2 or (terrain=="ruins" and 1 or 0); local trait=runtime.saveData.trait or Catalog.characterTraitProfiles[1]
-      local sleeper=false; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="sleeper" then sleeper=true end end
-      local passengerCost=sleeper and math.ceil(passengers/2) or passengers
-      local food,water,coal=EngineUpgrades.applyCosts(runtime.saveData.engineLevel,(1+math.floor(leg/4)+passengerCost)*(trait.food or 1),(1+math.floor(leg/3)+passengerCost)*(trait.water or 1),(1+math.floor(leg/5)+terrainCoal)*(trait.coal or 1))
-      local maintenanceCoal=Maintenance.coalPenalty(runtime.saveData)
-      coal=coal+maintenanceCoal
-      return {food=food,water=water,coal=coal,passengers=passengers,terrain=terrain,maintenanceCoal=maintenanceCoal}
+      return ProgressionBalance.travelCost(runtime.saveData,EngineUpgrades,Maintenance,Catalog.characterTraitProfiles[1])
+  end
+
+  local function travelStatus()
+      return ProgressionBalance.travelStatus(runtime.saveData,travelCost())
   end
 
   local function processPassengerArrivals()
@@ -173,6 +169,8 @@ local function new(context)
 
   return {
     travelCost=travelCost,
+    travelStatus=travelStatus,
+    balanceAudit=function() return ProgressionBalance.audit(EngineUpgrades) end,
     processPassengerArrivals=processPassengerArrivals,
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,

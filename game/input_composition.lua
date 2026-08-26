@@ -42,7 +42,7 @@ local function new(context)
     isFurnitureItem=content.isFurnitureItem,ensureStopLayout=worldScene.ensureStopLayout,
     ownsTrainCar=views.screenUI.ownsTrainCar,moveEditedItem=platform.trainCarRuntime.moveEditedItem,
     attackStopSludge=worldScene.attackStopSludge,acceptQuest=adventure.journeyRules.acceptQuest,
-    attemptLeaveTrain=adventure.journeyRules.attemptLeaveTrain,travelCost=adventure.journeyRules.travelCost,
+    attemptLeaveTrain=adventure.journeyRules.attemptLeaveTrain,travelStatus=adventure.journeyRules.travelStatus,
     playTrainDepart=platform.audioRuntime.playTrainDepart,audioResetMusic=platform.audioRuntime.resetMusic,
     audioPreviousTrack=platform.audioRuntime.previousTrack,audioTogglePause=platform.audioRuntime.togglePause,
     audioNextTrack=platform.audioRuntime.nextTrack,audioToggleMute=platform.audioRuntime.toggleMute,

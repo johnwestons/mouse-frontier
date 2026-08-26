@@ -85,6 +85,7 @@ local function new(context)
     mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,clouds=Clouds,maintenance=Maintenance,util=Util,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
+    travelStatus=adventure.journeyRules.travelStatus,
     screenToGame=platform.presentationRuntime.screenToGame,pointerPosition=platform.mobileRuntime.pointerPosition,
     getAudioStatus=platform.audioRuntime.status,drawLandscape=worldRenderer.drawLandscape,
     drawTracks=worldRenderer.drawTracks,drawTrainView=worldRenderer.drawTrainView,

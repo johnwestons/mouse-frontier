@@ -22,7 +22,7 @@ Android controls, installation, update flow, and device verification are documen
 - Click one of the three save slots, then choose a main character.
 - Existing slots offer **Continue**, **New** (overwrite), and **Delete** controls.
 - Move with **WASD** or the **arrow keys**.
-- Click **TRAVEL TO NEXT STOP** to spend one food, water, and coal.
+- Use the travel control to preview the next leg's food, water, and coal cost. Costs rise at clear journey milestones, with terrain, passengers, engine upgrades, traits, and maintenance modifying the total.
 - Open the backpack with its top-right button or press **I**.
 - Click an item and then another slot to rearrange it.
 - Select an item and click **DROP SELECTED ITEM** to place it permanently in the train.

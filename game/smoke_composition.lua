@@ -43,6 +43,7 @@ local function new(context)
   local battleRuntime=required(services,"services","battleRuntime","table")
   local inventoryActions=required(services,"services","inventoryActions","table")
   local eventRuntime=required(services,"services","eventRuntime","table")
+  local journeyRules=required(services,"services","journeyRules","table")
 
   local content=required(graphs,"graphs","content","table")
   local views=required(graphs,"graphs","views","table")
@@ -70,6 +71,7 @@ local function new(context)
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
       beginEncounter=battleRuntime.beginEncounter,consumeSelected=inventoryActions.consumeSelected,
+      balanceAudit=journeyRules.balanceAudit,
       resolveEventChoice=eventRuntime.choose,advanceBattleTurn=battleRuntime.advanceTurn,
       battleAttack=battleRuntime.attack,resolveBattleAttack=battleRuntime.resolveAttack,
     })

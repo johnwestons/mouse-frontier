@@ -25,6 +25,7 @@ local function new(context)
   local drawTrade=required(context,"drawTrade","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local containerValue=required(context,"containerValue","function")
+  local travelStatus=required(context,"travelStatus","function")
   local screenToGame=required(context,"screenToGame","function")
   local pointerPosition=required(context,"pointerPosition","function")
   local getAudioStatus=required(context,"getAudioStatus","function")
@@ -57,6 +58,10 @@ local function new(context)
       ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110)
       ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110)
       ui.drawJourneyHUD()
+      local travel=travelStatus()
+      local cost=travel.cost
+      local travelLabel=runtime.saveData.location>=50 and "JOURNEY COMPLETE"
+        or ((travel.affordable and "TRAVEL" or "NEED").."  "..cost.food.."F  "..cost.water.."W  "..cost.coal.."C")
       local mobile=mobileEnabled()
       ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
       if mobile then
@@ -65,8 +70,8 @@ local function new(context)
               drawMenuFrame(250,62,690,610,2,.99)
               love.graphics.setColor(colors.cream); love.graphics.printf("JOURNEY MENU",275,84,640,"center",0,1.35,1.35)
               love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",295,122,600,3)
-              local canTravel=runtime.scene=="train" and runtime.saveData.location<50 and runtime.saveData.resources.food>0 and runtime.saveData.resources.water>0 and runtime.saveData.resources.coal>0
-              ui.travel=runtime.scene=="train" and button(runtime.saveData.location>=50 and "JOURNEY COMPLETE" or "TRAVEL TO NEXT STOP",295,142,600,66,canTravel) or nil
+              local canTravel=runtime.scene=="train" and runtime.saveData.location<50 and travel.affordable
+              ui.travel=runtime.scene=="train" and button(travelLabel,295,142,600,66,canTravel) or nil
               ui.backpack=button("BACKPACK",295,226,285,66,true)
               ui.map=button("TRAIL MAP",610,226,285,66,true)
               ui.trainUpgrade=runtime.scene=="train" and button("TRAIN UPGRADES  •  "..runtime.saveData.scrap.." SCRAP",295,310,285,66,true) or nil
@@ -79,7 +84,7 @@ local function new(context)
               love.graphics.setColor(colors.cream); love.graphics.printf("Tap BACK or CLOSE to return to the world",295,575,600,"center",0,.86,.86)
           end
       else
-          ui.travel=runtime.scene=="train" and button(runtime.saveData.location>=50 and "JOURNEY COMPLETE" or "TRAVEL TO NEXT STOP",510,20,220,36,runtime.saveData.location<50 and runtime.saveData.resources.food>0 and runtime.saveData.resources.water>0 and runtime.saveData.resources.coal>0) or nil
+          ui.travel=runtime.scene=="train" and button(travelLabel,510,20,220,36,runtime.saveData.location<50 and travel.affordable) or nil
           -- Keep the departure control with the other scene controls, directly
           -- beneath Options, so it remains discoverable without covering the train.
           ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",790,194,135,32,true) or nil

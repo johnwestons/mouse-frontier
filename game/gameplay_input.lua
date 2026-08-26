@@ -40,7 +40,7 @@ local function new(context)
   local attackStopSludge=required(context,"attackStopSludge","function")
   local acceptQuest=required(context,"acceptQuest","function")
   local attemptLeaveTrain=required(context,"attemptLeaveTrain","function")
-  local travelCost=required(context,"travelCost","function")
+  local travelStatus=required(context,"travelStatus","function")
   local playTrainDepart=required(context,"playTrainDepart","function")
   local audioResetMusic=required(context,"audioResetMusic","function")
   local audioPreviousTrack=required(context,"audioPreviousTrack","function")
@@ -75,6 +75,22 @@ local function new(context)
   local skipIntro=required(context,"skipIntro","function")
   local interactionMouseAction=required(context,"interactionMouseAction","function")
   local interactionKeyAction=required(context,"interactionKeyAction","function")
+
+  local function startTravel()
+      local status=travelStatus()
+      if not status.affordable then
+          runtime.travelConfirm=false
+          runtime.dialogue={speaker="Supplies",text="The next leg still needs "..status.shortage..".",timer=3}
+          return false
+      end
+      local cost=status.cost
+      runtime.saveData.resources.food=runtime.saveData.resources.food-cost.food
+      runtime.saveData.resources.water=runtime.saveData.resources.water-cost.water
+      runtime.saveData.resources.coal=runtime.saveData.resources.coal-cost.coal
+      runtime.travelConfirm=false
+      runtime.travelTransition={t=0,changed=false,departSoundPlayed=true}
+      playTrainDepart(); writeSave(); return true
+  end
 
   function ui.offerGift(slot)
       local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.backpackUpgrades[name] or name=="coal-chunk" or name=="coal-bucket"
@@ -232,7 +248,13 @@ local function new(context)
       if Util.pointIn(x,y,ui.map) then runtime.mapOpen=not runtime.mapOpen; ui.mobileMenuOpen=false; if runtime.mapOpen then runtime.mapScroll=math.max(0,math.floor((runtime.saveData.location-1)/6)-2) end; runtime.inventoryOpen=false; runtime.draggedSlot=nil; return true end
       if runtime.dialogue then runtime.dialogue=nil; return true end
       if Util.pointIn(x,y,ui.leaveTrain) then ui.mobileMenuOpen=false; attemptLeaveTrain(); return true end
-      if Util.pointIn(x,y,ui.travel) and runtime.saveData.location<50 and runtime.saveData.resources.food>0 and runtime.saveData.resources.water>0 and runtime.saveData.resources.coal>0 then ui.mobileMenuOpen=false; runtime.travelConfirm=true; return true end
+      if Util.pointIn(x,y,ui.travel) and runtime.saveData.location<50 then
+          ui.mobileMenuOpen=false
+          local status=travelStatus()
+          if status.affordable then runtime.travelConfirm=true
+          else runtime.dialogue={speaker="Supplies",text="The next leg still needs "..status.shortage..".",timer=3} end
+          return true
+      end
       if Util.pointIn(x,y,ui.returnDoor) then enterTrain(false); return true end
       if Util.pointIn(x,y,ui.pickup) then pickUpNearby(); return true end
       return false
@@ -262,7 +284,7 @@ local function new(context)
       if runtime.state=="ending" then if Util.pointIn(x,y,ui.endingButton) then writeSave(); runtime.state="slots" end; return end
       if runtime.travelConfirm then
           if Util.pointIn(x,y,ui.travelNo) then runtime.travelConfirm=false; return end
-          if Util.pointIn(x,y,ui.travelYes) then local cost=travelCost(); if runtime.saveData.resources.food>=cost.food and runtime.saveData.resources.water>=cost.water and runtime.saveData.resources.coal>=cost.coal then runtime.saveData.resources.food=runtime.saveData.resources.food-cost.food; runtime.saveData.resources.water=runtime.saveData.resources.water-cost.water; runtime.saveData.resources.coal=runtime.saveData.resources.coal-cost.coal; runtime.travelConfirm=false; runtime.travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end
+          if Util.pointIn(x,y,ui.travelYes) then startTravel() end
           return
       end
       if runtime.state=="slots" then
@@ -331,7 +353,7 @@ local function new(context)
       if runtime.state=="ending" then if key=="return" or key=="space" then writeSave(); runtime.state="slots" end; return end
       if runtime.state=="characters" and (key=="down" or key=="s" or key=="pagedown") then runtime.characterScroll=runtime.characterScroll+1; return end
       if runtime.state=="characters" and (key=="up" or key=="w" or key=="pageup") then runtime.characterScroll=math.max(0,runtime.characterScroll-1); return end
-      if runtime.travelConfirm then if key=="escape" then runtime.travelConfirm=false elseif key=="return" or key=="e" then local cost=travelCost(); if runtime.saveData.resources.food>=cost.food and runtime.saveData.resources.water>=cost.water and runtime.saveData.resources.coal>=cost.coal then runtime.saveData.resources.food=runtime.saveData.resources.food-cost.food; runtime.saveData.resources.water=runtime.saveData.resources.water-cost.water; runtime.saveData.resources.coal=runtime.saveData.resources.coal-cost.coal; runtime.travelConfirm=false; runtime.travelTransition={t=0,changed=false,departSoundPlayed=true}; playTrainDepart(); writeSave() end end; return end
+      if runtime.travelConfirm then if key=="escape" then runtime.travelConfirm=false elseif key=="return" or key=="e" then startTravel() end; return end
       if runtime.state=="battle" then
           if runtime.inventoryOpen then
               if key=="i" or key=="escape" then runtime.inventoryOpen=false; runtime.draggedSlot=nil; runtime.inventoryDragActive=false end

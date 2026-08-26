@@ -285,10 +285,10 @@ local function new(context)
       drawLandscape(); drawTracks(); drawLocomotive(); drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",255,185,450,330,16,16)
       local cost=travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(runtime.saveData.location+1),275,220,410,"center",0,1.5,1.5)
-      love.graphics.printf("The next stretch is farther than the last.\nThis journey will consume:",300,275,360,"center")
+      love.graphics.printf("Distance, terrain, passengers, and train condition shape this leg.\nThis journey will consume:",300,275,360,"center")
       love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
       love.graphics.printf("TERRAIN: "..string.upper(cost.terrain or "plains"),280,377,400,"center",0,.78,.78)
-      if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengers.." food and water.",280,385,400,"center",0,0.82,0.82) end
+      if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengerLoad.." food and water.",280,385,400,"center",0,0.82,0.82) end
       if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
       local enough=runtime.saveData.resources.food>=cost.food and runtime.saveData.resources.water>=cost.water and runtime.saveData.resources.coal>=cost.coal
       local mobile=mobileEnabled()

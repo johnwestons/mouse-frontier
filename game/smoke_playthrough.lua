@@ -52,6 +52,7 @@ local function install(context)
     local advanceBattleTurn=required(context,"advanceBattleTurn","function")
     local battleAttack=required(context,"battleAttack","function")
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
+    local balanceAudit=required(context,"balanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -138,6 +139,11 @@ local function install(context)
             {name="application_graph_composed",action=applicationComposition.status,
                 check=function(_,_,_,result)
                     return result.ready and result.compositionCount==7 and result.serviceCount==18
+                end},
+            {name="progression_balance_curve",action=balanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.shortageDetected and result.legs==49 and result.resourceCap==30
+                        and result.maximum.food==5 and result.maximum.water==7 and result.maximum.coal==7
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
