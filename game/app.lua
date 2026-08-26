@@ -49,11 +49,8 @@ local runtime = RuntimeState.new({
     transition = function(screen) screens:transition(screen) end,
 })
 local content=Systems.contentRegistry.new({filesystem=love.filesystem})
-local characters,characterImages,npcImages,mobImages=content.characters,content.characterImages,content.npcImages,content.mobImages
+local characters,characterImages,npcImages=content.characters,content.characterImages,content.npcImages
 local scenery,ui=content.scenery,content.ui
-local characterWalkImages,npcWalkImages=content.characterWalkImages,content.npcWalkImages
-local mobAttackImages,mobIdleImages,mobHitImages=content.mobAttackImages,content.mobIdleImages,content.mobHitImages
-local mobDeathImages,mobWalkImages,mobRangedImages=content.mobDeathImages,content.mobWalkImages,content.mobRangedImages
 local maintenanceSession = Maintenance.new()
 
 
@@ -176,79 +173,22 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     isFurnitureItem=content.isFurnitureItem,
     resetStopSludges=Systems.worldScene.resetStopSludges,
 })
-Systems.battleRuntime=Systems.battleRuntime.new({
-    runtime=runtime,
-    width=W,
-    height=H,
-    ui=ui,
-    scenery=scenery,
-    colors=colors,
-    characterImages=characterImages,
-    npcImages=npcImages,
-    mobImages=mobImages,
-    characterWalkImages=characterWalkImages,
-    npcWalkImages=npcWalkImages,
-    mobAttackImages=mobAttackImages,
-    mobIdleImages=mobIdleImages,
-    mobHitImages=mobHitImages,
-    mobDeathImages=mobDeathImages,
-    mobWalkImages=mobWalkImages,
-    mobRangedImages=mobRangedImages,
+local adventure=Systems.adventureComposition.new({
+    battleRuntimeFactory=Systems.battleRuntime,inventoryActionsFactory=Systems.inventoryActions,
+    journeyRulesFactory=Systems.journeyRules,eventRuntimeFactory=Systems.eventRuntime,
+    runtime=runtime,width=W,height=H,ui=ui,content=content,colors=colors,car=car,
+    inventory=Inventory,catalog=Catalog,util=Util,battleRules=BattleRules,events=Events,
+    battleController=BattleController,battleUI=Systems.battleUI,engineUpgrades=EngineUpgrades,
+    maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
+    writeSave=Systems.persistenceRuntime.schedule,screenToGame=Systems.presentationRuntime.screenToGame,
+    pointerPosition=Systems.mobileRuntime.pointerPosition,mobileEnabled=Systems.mobileRuntime.isEnabled,
+    ensureStopLayout=Systems.worldScene.ensureStopLayout,setupNPC=Systems.worldScene.setupNPC,
     getCharacterAnimations=function() return Systems.startupRuntime.characterAnimations() end,
-    mobileEnabled=Systems.mobileRuntime.isEnabled,
-    getWorldRenderer=function() return Systems.worldRenderer end,
-    getScreenUI=function() return Systems.screenUI end,
-    catalog=Catalog,
-    util=Util,
-    battleRules=BattleRules,
-    events=Events,
-    battleController=BattleController,
-    battleUI=Systems.battleUI,
-    writeSave=Systems.persistenceRuntime.schedule,
-    screenToGame=Systems.presentationRuntime.screenToGame,
-    pointerPosition=Systems.mobileRuntime.pointerPosition,
-    enterStop=function(...) return Systems.journeyRules.enterStop(...) end,
+    getWorldRenderer=function() return Systems.worldRenderer end,getScreenUI=function() return Systems.screenUI end,
     handleInventoryClick=function(x,y) return Systems.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
 })
-
-Systems.inventoryActions=Systems.inventoryActions.new({
-    runtime=runtime,
-    inventory=Inventory,
-    catalog=Catalog,
-    util=Util,
-    writeSave=Systems.persistenceRuntime.schedule,
-    useBattleHealingItem=Systems.battleRuntime.useHealingItem,
-    useBattlePotion=Systems.battleRuntime.usePotion,
-})
-Systems.journeyRules=Systems.journeyRules.new({
-    runtime=runtime,
-    car=car,
-    inventory=Inventory,
-    catalog=Catalog,
-    engineUpgrades=EngineUpgrades,
-    maintenance=Maintenance,
-    passengers=Passengers,
-    util=Util,
-    house=House,
-    ensureStopLayout=Systems.worldScene.ensureStopLayout,
-    setupNPC=Systems.worldScene.setupNPC,
-    writeSave=Systems.persistenceRuntime.schedule,
-    beginEncounter=Systems.battleRuntime.beginEncounter,
-    beginRequiredEvent=function(location) return Systems.eventRuntime.beginRequired(location) end,
-    beginRandomEvent=function() return Systems.eventRuntime.beginRandom() end,
-})
-
-Systems.eventRuntime=Systems.eventRuntime.new({
-    runtime=runtime,
-    ui=ui,
-    events=Events,
-    eventUI=EventUI,
-    catalog=Catalog,
-    pointIn=Util.pointIn,
-    writeSave=Systems.persistenceRuntime.schedule,
-    beginEncounter=Systems.battleRuntime.beginEncounter,
-    enterStop=Systems.journeyRules.enterStop,
-})
+Systems.battleRuntime,Systems.inventoryActions=adventure.battleRuntime,adventure.inventoryActions
+Systems.journeyRules,Systems.eventRuntime=adventure.journeyRules,adventure.eventRuntime
 
 Systems.startupRuntime=Systems.startupRuntime.new({
     ui=ui,
@@ -406,7 +346,7 @@ function App.installSmoke()
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
         startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
-        contentRegistry=content,viewComposition=views,
+        contentRegistry=content,viewComposition=views,adventureComposition=adventure,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,

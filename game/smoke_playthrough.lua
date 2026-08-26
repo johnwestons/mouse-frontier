@@ -32,6 +32,7 @@ local function install(context)
     local screenFlow=required(context,"screenFlow","table")
     local contentRegistry=required(context,"contentRegistry","table")
     local viewComposition=required(context,"viewComposition","table")
+    local adventureComposition=required(context,"adventureComposition","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -108,6 +109,8 @@ local function install(context)
                 return result.hydrated and result.targetsLinked and result.targetCount==19 and result.legacyAnimationCount==11 and result.furnitureLookup
             end},
             {name="view_layer_composed",action=viewComposition.status,
+                check=function(_,_,_,result) return result.ready and result.componentCount==4 end},
+            {name="adventure_services_composed",action=adventureComposition.status,
                 check=function(_,_,_,result) return result.ready and result.componentCount==4 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
