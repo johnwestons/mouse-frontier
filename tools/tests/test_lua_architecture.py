@@ -59,6 +59,7 @@ class LuaArchitectureTests(unittest.TestCase):
         world_session_composition = (ROOT / "game" / "world_session_composition.lua").read_text(encoding="utf-8")
         startup_composition = (ROOT / "game" / "startup_composition.lua").read_text(encoding="utf-8")
         service_registry = (ROOT / "game" / "service_registry.lua").read_text(encoding="utf-8")
+        smoke_composition = (ROOT / "game" / "smoke_composition.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -277,7 +278,10 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn('assert(type(context)=="table","smoke playthrough requires an explicit context")', smoke_playthrough)
         self.assertIn('local game=required(context,"runtime","table")', smoke_playthrough)
         self.assertIn("game.saveData", smoke_playthrough)
-        self.assertIn("SmokePlaythrough.install({", app)
+        self.assertNotIn('require("game.smoke_playthrough")', app)
+        self.assertNotIn("SmokePlaythrough.install({", app)
+        self.assertIn("local smoke=Modules.smokeComposition.new({", app)
+        self.assertIn("function App.installSmoke() return smoke.install() end", app)
         self.assertNotIn("smokeScope", app)
         self.assertNotIn("__index=function", app)
         self.assertNotIn("__newindex=function", app)
@@ -382,6 +386,17 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotRegex(app, r"Modules\.[A-Za-z]+\s*=")
         self.assertIn('local serviceRegistry=required(context,"serviceRegistry","table")', smoke_playthrough)
         self.assertIn('name="service_manifest_immutable"', smoke_playthrough)
+        self.assertIn('smokeComposition = require("game.smoke_composition")', systems)
+        self.assertIn('smokePlaythrough = require("game.smoke_playthrough")', systems)
+        self.assertIn("return {new=new}", smoke_composition)
+        self.assertIn('assert(type(context)=="table","smoke composition requires an explicit context")', smoke_composition)
+        for group in ("state", "domain", "services", "graphs"):
+            self.assertIn(f'local {group}=required(context,"context","{group}","table")', smoke_composition)
+        self.assertIn("return SmokePlaythrough.install({", smoke_composition)
+        self.assertIn("smokeComposition=composition", smoke_composition)
+        self.assertNotIn("currentSaveVersion=", app.split("local smoke=", 1)[0])
+        self.assertIn('local smokeComposition=required(context,"smokeComposition","table")', smoke_playthrough)
+        self.assertIn('name="smoke_context_composed"', smoke_playthrough)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

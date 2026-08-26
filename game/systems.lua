@@ -29,6 +29,8 @@ return {
     serviceRegistry = require("game.service_registry"),
     session = require("game.game_session"),
     sessionBootstrap = require("game.session_bootstrap"),
+    smokeComposition = require("game.smoke_composition"),
+    smokePlaythrough = require("game.smoke_playthrough"),
     startupRuntime = require("game.startup_runtime"),
     startupComposition = require("game.startup_composition"),
     trainCarRuntime = require("game.train_car_runtime"),

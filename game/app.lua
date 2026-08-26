@@ -9,7 +9,6 @@ local App = {}
 local Config = require("game.config")
 local SaveSchema = require("game.save_schema")
 local W, H = Config.baseWidth, Config.baseHeight
-local CURRENT_SAVE_VERSION = SaveSchema.CURRENT_VERSION
 local Audio = require("game.audio")
 local Save = require("game.save")
 local Train = require("game.train")
@@ -37,7 +36,6 @@ local Assets = require("game.assets")
 local StopSludges = require("game.stop_sludges")
 local InteriorDoors = require("game.interior_doors")
 local Interactions = require("game.interactions")
-local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
 local MobileControls = require("game.mobile_controls")
@@ -51,7 +49,6 @@ local runtime = RuntimeState.new({
     transition = function(screen) screens:transition(screen) end,
 })
 local content=Modules.contentRegistry.new({filesystem=love.filesystem})
-local characters=content.characters
 local scenery,ui=content.scenery,content.ui
 local maintenanceSession = Maintenance.new()
 
@@ -161,25 +158,17 @@ function App.touchmoved(...) return services.mobileRuntime.touchmoved(...) end
 function App.touchreleased(...) return services.mobileRuntime.touchreleased(...) end
 function App.focus(focused) return services.persistenceRuntime.focus(focused) end
 
-
-
-function App.installSmoke()
-    return SmokePlaythrough.install({
-        runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
-        currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
-        maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=services.presentationRuntime,
-        startupRuntime=services.startupRuntime,persistenceRuntime=services.persistenceRuntime,screenFlow=services.screenFlow,
-        contentRegistry=content,viewComposition=views,adventureComposition=adventure,platformComposition=platform,
-        inputComposition=input,worldSessionComposition=world,startupComposition=startup,
-        serviceRegistry=serviceRegistry,getMobileControls=function() return services.mobileRuntime.get() end,
-        createIntro=function() return Modules.intro.new(10) end,
-        newSave=services.sessionBootstrap.newSave,enterGame=services.sessionBootstrap.enterGame,
-        ensureStopLayout=services.worldScene.ensureStopLayout,setupNPC=services.worldScene.setupNPC,
-        beginEncounter=services.battleRuntime.beginEncounter,consumeSelected=services.inventoryActions.consumeSelected,
-        resolveEventChoice=services.eventRuntime.choose,advanceBattleTurn=services.battleRuntime.advanceTurn,
-        battleAttack=services.battleRuntime.attack,resolveBattleAttack=services.battleRuntime.resolveAttack,
-    })
-end
+local smoke=Modules.smokeComposition.new({
+    playthrough=Modules.smokePlaythrough,
+    state={runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,
+        session=session,screens=screens,car=car},
+    domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,
+        assets=Assets,save=Save,maintenance=Maintenance,events=Events,battleRules=BattleRules,intro=Modules.intro},
+    services=services,
+    graphs={content=content,views=views,adventure=adventure,platform=platform,input=input,
+        world=world,startup=startup,serviceRegistry=serviceRegistry},
+})
+function App.installSmoke() return smoke.install() end
 
 function App.quit() services.persistenceRuntime.shutdown() end
 
