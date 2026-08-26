@@ -111,14 +111,32 @@ function M.update(sys,ctx,dt)
     end
 end
 
-local function drawSheet(img,frames,frame,x,y,sx,sy,ox,oy)
+local function atlasSpec(asset,fallbackFrames)
+    if not asset then return nil end
+    local descriptor=type(asset)=="table" and asset or nil
+    local image=descriptor and descriptor.image or asset
+    local columns=math.max(1,(descriptor and descriptor.columns) or fallbackFrames or 1)
+    local rows=math.max(1,(descriptor and descriptor.rows) or 1)
+    local count=math.max(1,math.min((descriptor and descriptor.count) or columns*rows,columns*rows))
+    return image,columns,rows,count,image:getWidth()/columns,image:getHeight()/rows
+end
+
+local function drawSheet(asset,fallbackFrames,frame,x,y,sx,sy,ox,oy)
+    local img,columns,rows,count,fw,fh=atlasSpec(asset,fallbackFrames)
     if not img then return end
-    frames=math.max(1,frames or 1); local fw=img:getWidth()/frames
-    local byCount=quadCache[img]; if not byCount then byCount={}; quadCache[img]=byCount end
-    local quads=byCount[frames]
-    if not quads then quads={}; for index=0,frames-1 do quads[index]=love.graphics.newQuad(math.floor(index*fw),0,math.floor(fw),img:getHeight(),img:getWidth(),img:getHeight()) end; byCount[frames]=quads end
-    local q=quads[frame%frames]
-    love.graphics.draw(img,q,x,y,0,sx or 1,sy or sx or 1,ox or fw/2,oy or img:getHeight())
+    local byLayout=quadCache[img]; if not byLayout then byLayout={}; quadCache[img]=byLayout end
+    local key=columns.."x"..rows..":"..count
+    local quads=byLayout[key]
+    if not quads then
+        quads={}
+        for index=0,count-1 do
+            local column,row=index%columns,math.floor(index/columns)
+            quads[index]=love.graphics.newQuad(math.floor(column*fw),math.floor(row*fh),math.floor(fw),math.floor(fh),img:getWidth(),img:getHeight())
+        end
+        byLayout[key]=quads
+    end
+    local q=quads[frame%count]
+    love.graphics.draw(img,q,x,y,0,sx or 1,sy or sx or 1,ox or fw/2,oy or fh)
 end
 
 function M.draw(sys,ctx)
@@ -131,7 +149,8 @@ function M.draw(sys,ctx)
         elseif s.flee then img=ctx.images.walk or img; frames=4; frame=math.floor(ctx.clock*3)%frames end
         if img then
             local sink=s.dead and math.min(1,(s.deathTimer or 0)/1.7) or 0
-            local scale=math.min(.14,45/math.max(1,img:getHeight()))
+            local _,_,_,_,_,frameHeight=atlasSpec(img,frames)
+            local scale=math.min(.14,45/math.max(1,frameHeight))
             love.graphics.setColor(0,0,0,.28); love.graphics.ellipse("fill",s.x,s.y+3,27,9)
             love.graphics.setColor(1,1,1,1-sink*.75); drawSheet(img,frames,frame,s.x,s.y+sink*24,scale,scale)
             if not s.dead and (s.healthTimer or 0)>0 then

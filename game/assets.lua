@@ -92,6 +92,36 @@ local function registerItemAtlas(ui, path, names, columns, rows, clearGeneratedC
     end
 end
 
+local function loadGeneratedAnimationAtlas(path, columns, rows, count)
+    local ok,data=pcall(love.image.newImageData,path)
+    if not ok or not data then
+        AssetDiagnostics.record(path,"mob animation","could not decode generated atlas")
+        return nil
+    end
+    -- Some generator results contain their transparent-preview checker as RGB.
+    -- Sludges have no near-white neutral colors, so this narrowly removes that
+    -- preview surface while preserving their black, yellow, and cyan palette.
+    data:mapPixel(function(_,_,r,g,b,a)
+        if a<.065 then return r,g,b,0 end
+        local neutral=math.max(r,g,b)-math.min(r,g,b)<.045
+        if neutral and math.min(r,g,b)>.89 then return r,g,b,0 end
+        return r,g,b,a
+    end)
+    local made,image=pcall(love.graphics.newImage,data)
+    if not made or not image then
+        AssetDiagnostics.record(path,"mob animation","could not create generated atlas image")
+        return nil
+    end
+    image:setFilter("nearest","nearest")
+    local width,height=image:getDimensions()
+    if width%columns~=0 or height%rows~=0 then
+        AssetDiagnostics.record(path,"mob animation","atlas dimensions do not match its grid")
+        return nil
+    end
+    return {image=image,columns=columns,rows=rows,count=count or columns*rows,
+        w=width/columns,h=height/rows,path=path}
+end
+
 local function validateCatalogArt(ui)
     local checked = {}
     local virtual = {scratch=true, ["mob-claw"]=true, ["mob-spit"]=true}
@@ -324,6 +354,15 @@ function Assets.load(targets)
             elseif file:match("%-ranged%.png$") then registerLazyImage(mobRangedImages,file:gsub("%-ranged%.png$", ".png"),path) end
         end
     end
+    local sludgeAtlasRoot="assets/sprites/Mobs/atlases/"
+    local sludgeIdleWalk=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-idle-walk.png",2,2,4)
+    scenery.sludgeAnimations={
+        idle=sludgeIdleWalk,
+        walk=sludgeIdleWalk,
+        attack=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-attack.png",2,2,4),
+        hit=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-hit.png",2,2,4),
+        death=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-death.png",2,2,4),
+    }
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
         loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end

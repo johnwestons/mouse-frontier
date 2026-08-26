@@ -53,6 +53,17 @@ local function new(context)
       else love.graphics.clear(0.55,0.37,0.20) end
   end
 
+  local function sludgeImages()
+      local generated=scenery.sludgeAnimations or {}
+      return {
+          idle=generated.idle or mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
+          walk=generated.walk or mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
+          attack=generated.attack,
+          hit=generated.hit or mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
+          death=generated.death or mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
+      }
+  end
+
   local function drawTracks()
       if Train.drawTracks(scenery.track,W) then return end
       -- Fallback track uses the same rail baseline as the artwork-backed path.
@@ -264,12 +275,7 @@ local function new(context)
           love.graphics.setColor(colors.cream)
           love.graphics.printf("Q",trainX-12,trainY-5,24,"center",0,.7,.7)
           drawDroppedItems()
-          drawStopSludges({
-              idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-              walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-              hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-              death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-          })
+          drawStopSludges(sludgeImages())
           drawWildlife(ensureStopLayout())
           drawNPC(); drawPlayer(); return
       end
@@ -299,12 +305,7 @@ local function new(context)
       if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
       love.graphics.setColor(1,.78,.12,.72); love.graphics.circle("line",145,425+math.sin(runtime.animationClock*3)*2,11); love.graphics.setColor(colors.cream); love.graphics.printf("Q",133,421,24,"center",0,.7,.7)
       drawDroppedItems()
-      drawStopSludges({
-          idle=mobIdleImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-          walk=mobWalkImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-          hit=mobHitImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"],
-          death=mobDeathImages["sludge-crawler.png"] or mobImages["sludge-crawler.png"]
-      })
+      drawStopSludges(sludgeImages())
       drawWildlife(layout)
       drawNPC(); drawPlayer()
   end

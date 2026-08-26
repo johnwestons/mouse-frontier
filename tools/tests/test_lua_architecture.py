@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import struct
 import unittest
 from pathlib import Path
 
@@ -41,6 +42,8 @@ class LuaArchitectureTests(unittest.TestCase):
         journey_rules = (ROOT / "game" / "journey_rules.lua").read_text(encoding="utf-8")
         screen_ui = (ROOT / "game" / "screen_ui.lua").read_text(encoding="utf-8")
         world_renderer = (ROOT / "game" / "world_renderer.lua").read_text(encoding="utf-8")
+        assets = (ROOT / "game" / "assets.lua").read_text(encoding="utf-8")
+        stop_sludges = (ROOT / "game" / "stop_sludges.lua").read_text(encoding="utf-8")
         gameplay_hud = (ROOT / "game" / "gameplay_hud.lua").read_text(encoding="utf-8")
         battle_runtime = (ROOT / "game" / "battle_runtime.lua").read_text(encoding="utf-8")
         battle_rules = (ROOT / "game" / "battle_rules.lua").read_text(encoding="utf-8")
@@ -348,6 +351,25 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("WeaponAttachment.itemSprite(ui,u.actionItem)", battle_ui)
         self.assertIn("WeaponAttachment.itemSprite(ui,runtime.actionHeldItem)", world_renderer)
         self.assertEqual(54, weapon_attachment_points.count('.png"]={'))
+        sludge_assets = (
+            "sludge-crawler-mouse-ears-idle-walk.png",
+            "sludge-crawler-mouse-ears-attack.png",
+            "sludge-crawler-mouse-ears-hit.png",
+            "sludge-crawler-mouse-ears-death.png",
+        )
+        for asset in sludge_assets:
+            path = ROOT / "assets" / "sprites" / "Mobs" / "atlases" / asset
+            payload = path.read_bytes()
+            self.assertEqual(b"\x89PNG\r\n\x1a\n", payload[:8], asset)
+            width, height = struct.unpack(">II", payload[16:24])
+            self.assertEqual((1254, 1254), (width, height), asset)
+            self.assertEqual(0, width % 2, asset)
+            self.assertEqual(0, height % 2, asset)
+        self.assertIn("loadGeneratedAnimationAtlas", assets)
+        self.assertIn("scenery.sludgeAnimations", assets)
+        self.assertIn('columns=columns,rows=rows,count=count', assets)
+        self.assertIn('local key=columns.."x"..rows..":"..count', stop_sludges)
+        self.assertIn("drawStopSludges(sludgeImages())", world_renderer)
         self.assertNotIn("durability-love.math.random", battle_controller)
         self.assertLess(battle_controller.index("LootProgression.wearWeapon"), battle_controller.index("— MISS."))
         self.assertIn('battleGrid = require("game.battle_grid")', systems)
