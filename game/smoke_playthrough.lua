@@ -30,6 +30,7 @@ local function install(context)
     local startupRuntime=required(context,"startupRuntime","table")
     local persistenceRuntime=required(context,"persistenceRuntime","table")
     local screenFlow=required(context,"screenFlow","table")
+    local contentRegistry=required(context,"contentRegistry","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -98,6 +99,13 @@ local function install(context)
             {name="startup_runtime_ready",action=function()
                 return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
             end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
+            {name="content_registry_hydrated",action=function()
+                local status=contentRegistry.status()
+                status.furnitureLookup=contentRegistry.isFurnitureItem("woven-frontier-rug")
+                return status
+            end,check=function(_,_,_,result)
+                return result.hydrated and result.targetsLinked and result.targetCount==19 and result.legacyAnimationCount==11 and result.furnitureLookup
+            end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
             end,check=function(_,_,_,result) return result.installed and result.routes==7 and result.current~=nil end},

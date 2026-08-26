@@ -48,12 +48,13 @@ local runtime = RuntimeState.new({
     session = session,
     transition = function(screen) screens:transition(screen) end,
 })
-local characters, characterImages, npcImages, mobImages, mobFiles = {}, {}, {}, {}, {}
-local scenery, backgroundImages, ui = {}, {}, {}
-local characterWalkImages, npcWalkImages = {}, {}
-local characterActionImages, mobAttackImages, mobIdleImages, mobHitImages = {}, {}, {}, {}
-local familyImages, mobDeathImages, mobWalkImages, mobRangedImages = {}, {}, {}, {}
-local itemIdleImages = {}
+local content=Systems.contentRegistry.new({filesystem=love.filesystem})
+local characters,characterImages,npcImages,mobImages,mobFiles=content.characters,content.characterImages,content.npcImages,content.mobImages,content.mobFiles
+local scenery,backgroundImages,ui=content.scenery,content.backgroundImages,content.ui
+local characterWalkImages,npcWalkImages=content.characterWalkImages,content.npcWalkImages
+local characterActionImages,mobAttackImages,mobIdleImages,mobHitImages=content.characterActionImages,content.mobAttackImages,content.mobIdleImages,content.mobHitImages
+local familyImages,mobDeathImages,mobWalkImages,mobRangedImages=content.familyImages,content.mobDeathImages,content.mobWalkImages,content.mobRangedImages
+local itemIdleImages=content.itemIdleImages
 local maintenanceSession = Maintenance.new()
 
 
@@ -62,10 +63,6 @@ local maintenanceSession = Maintenance.new()
 local car = Config.trainCar
 local colors = Config.colors
 
-
-local function isFurnitureItem(name)
-    return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
-end
 
 Systems.screenFlow=Systems.screenFlow.new({
     runtime=runtime,
@@ -106,7 +103,7 @@ Systems.worldScene=Systems.worldScene.new({
     mice=Mice,
     stopSludges=StopSludges,
     getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
-    isFurnitureItem=isFurnitureItem,
+    isFurnitureItem=content.isFurnitureItem,
     writeSave=Systems.persistenceRuntime.schedule,
 })
 
@@ -177,7 +174,7 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     trainObjectBounds=Systems.trainCarRuntime.objectBounds,
     trainFloorBounds=Systems.trainCarRuntime.floorBounds,
     clampToTrainFloor=Systems.trainCarRuntime.clampToFloor,
-    isFurnitureItem=isFurnitureItem,
+    isFurnitureItem=content.isFurnitureItem,
     resetStopSludges=Systems.worldScene.resetStopSludges,
 })
 Systems.battleRuntime=Systems.battleRuntime.new({
@@ -267,15 +264,8 @@ Systems.startupRuntime=Systems.startupRuntime.new({
     initializeAudio=Systems.audioRuntime.initialize,
     initializeMobile=Systems.mobileRuntime.initialize,
     createIntro=function() return Systems.intro.new(10) end,
-    assetTargets={
-        ui=ui, scenery=scenery, characters=characters, characterImages=characterImages,
-        npcImages=npcImages, mobImages=mobImages, mobFiles=mobFiles, backgroundImages=backgroundImages,
-        characterWalkImages=characterWalkImages, npcWalkImages=npcWalkImages, characterActionImages=characterActionImages,
-        mobAttackImages=mobAttackImages, mobIdleImages=mobIdleImages, mobHitImages=mobHitImages,
-        mobDeathImages=mobDeathImages, mobWalkImages=mobWalkImages, mobRangedImages=mobRangedImages,
-        familyImages=familyImages, itemIdleImages=itemIdleImages,
-    },
-    legacyAnimationTables={characterWalkImages,npcWalkImages,characterActionImages,mobAttackImages,mobIdleImages,mobHitImages,mobDeathImages,mobWalkImages,mobRangedImages,npcImages,mobImages},
+    assetTargets=content.assetTargets,
+    legacyAnimationTables=content.legacyAnimationTables,
     gameplayContext={
         runtime=runtime,
         width=W,
@@ -426,7 +416,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     button=Systems.screenUI.button,
     drawMenuFrame=Systems.screenUI.drawMenuFrame,
     drawTrade=Systems.screenUI.drawTrade,
-    isFurnitureItem=isFurnitureItem,
+    isFurnitureItem=content.isFurnitureItem,
     containerValue=Systems.inventoryActions.containerValue,
     screenToGame=Systems.presentationRuntime.screenToGame,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
@@ -467,7 +457,7 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     zoomCamera=Systems.presentationRuntime.wheel,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
     isWeapon=Systems.inventoryActions.isWeapon,
-    isFurnitureItem=isFurnitureItem,
+    isFurnitureItem=content.isFurnitureItem,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
     ownsTrainCar=Systems.screenUI.ownsTrainCar,
     moveEditedItem=Systems.trainCarRuntime.moveEditedItem,
@@ -524,7 +514,7 @@ function App.installSmoke()
         runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
-        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
+        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,contentRegistry=content,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,
