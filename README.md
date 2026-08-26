@@ -42,7 +42,7 @@ Android controls, installation, update flow, and device verification are documen
 - Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience.
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
-- Battles award experience; gaining levels improves maximum health and adds an attack bonus.
+- Battles and quests award experience. Levels improve maximum health, aim, armor, movement, and the player's four-rank special ability; the HUD shows every active bonus.
 - Travel chests hold 10 persistent items. Stand nearby and press **E**, then drag items between chest and backpack slots.
 - The cowboy mouse uses dedicated left- and right-walking sprites while moving.
 - New houses receive a persistent randomized selection of four to six furniture pieces.
@@ -78,6 +78,8 @@ LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder
 Loot rarity, weapon tiers, pricing, durability, repairs, ammunition availability, and resale rules are documented in [LOOT_EQUIPMENT_BALANCE.md](LOOT_EQUIPMENT_BALANCE.md).
 
 Quest offers, delivery distances, rewards, passenger jobs, objective tracking, and mailbox delivery are documented in [QUEST_PASSENGER_BALANCE.md](QUEST_PASSENGER_BALANCE.md).
+
+Level requirements, combat bonuses, the level cap, and all four special-ability ranks are documented in [PLAYER_PROGRESSION.md](PLAYER_PROGRESSION.md).
 
 ## Automated smoke playthrough
 

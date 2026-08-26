@@ -24,6 +24,7 @@ local function new(context)
   local Passengers=required(context,"passengers","table")
   local Events=required(context,"events","table")
   local Settlements=required(context,"settlements","table")
+  local PlayerProgression=required(context,"playerProgression","table")
   local trainObjectBounds=required(context,"trainObjectBounds","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
@@ -47,7 +48,7 @@ local function new(context)
           version = SaveSchema.CURRENT_VERSION, character = character, location = 1, scene = "train", stopped = true,
           npcRoster = npcRoster, currentNPC = npcRoster[1],
           resources = {food = 10, water = 10, coal = 10, oil = 10},
-          health = 20, maxHealth = 20, stats={level=1,xp=0,nextXP=10},
+          health = 20, maxHealth = 20, stats=PlayerProgression.newStats(),
           equipment = {"frontier-short-sword", "trail-slingshot"},
           ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0,["30-carbine"]=0,["8mm"]=0,["380-acp"]=0,["32-acp"]=0,["12-gauge"]=0,["762x39"]=0},
           inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
@@ -141,7 +142,7 @@ local function new(context)
           passenger.homeX=math.max(left,math.min(right,passenger.homeX or passenger.x)); passenger.homeY=math.max(top,math.min(bottom,passenger.homeY or passenger.y)); passenger.wait=passenger.wait or 1; passenger.job=passenger.job or Passengers.jobFor(passenger.npc); passenger.pose=passenger.pose or "idle"; passenger.carIndex=math.max(1,math.min(#data.trainCars,passenger.carIndex or 1))
       end
       data.health, data.maxHealth = data.health or 20, data.maxHealth or 20
-      data.stats=data.stats or {level=1,xp=0,nextXP=10}
+      PlayerProgression.ensure(data)
       data.inventory = data.inventory or {}
       data.equipment = data.equipment or {}
       data.ammo=data.ammo or {}

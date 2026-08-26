@@ -32,6 +32,7 @@ local function new(context)
   local QuestProgression=required(context,"questProgression","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
+  local PlayerProgression=required(context,"playerProgression","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local House=required(context,"house","table")
@@ -58,6 +59,7 @@ local function new(context)
     getWorldRenderer=getWorldRenderer,getScreenUI=getScreenUI,catalog=Catalog,util=Util,
     battleRules=BattleRules,events=Events,battleController=BattleController,battleUI=BattleUI,
     combatBalance=CombatBalance,trainUpgradeBalance=TrainUpgradeBalance,
+    playerProgression=PlayerProgression,
     writeSave=writeSave,screenToGame=screenToGame,pointerPosition=pointerPosition,
     enterStop=function(...) return journeyRules.enterStop(...) end,handleInventoryClick=handleInventoryClick,
   })

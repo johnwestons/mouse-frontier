@@ -55,6 +55,7 @@ local function install(context)
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
     local balanceAudit=required(context,"balanceAudit","function")
     local combatBalanceAudit=required(context,"combatBalanceAudit","function")
+    local playerBalanceAudit=required(context,"playerBalanceAudit","function")
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
@@ -156,6 +157,15 @@ local function install(context)
                     return result.ready and result.tierCounts.easy==12 and result.tierCounts.medium==18
                         and result.tierCounts.hard==20 and result.hardEnd.maxHP==34 and result.hardEnd.armor==5
                         and result.groupHardReward.xp>result.singleHardReward.xp
+                end},
+            {name="player_progression_curve",action=playerBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.curve=="player-v2" and result.maxLevel==12
+                        and result.cumulativeXP==1210 and result.sampleLevel==4 and result.sampleHealth==29
+                        and result.sampleNextXP==46 and result.cappedLevel==12 and result.abilityCount==12
+                        and result.finalBonuses.attack==5 and result.finalBonuses.armor==2 and result.finalBonuses.move==1
+                        and result.strongProfiles.heal.heal>result.baseProfiles.heal.heal
+                        and result.strongProfiles.volley.damage>result.baseProfiles.volley.damage
                 end},
             {name="event_balance_curve",action=eventBalanceAudit,
                 check=function(_,_,_,result)

@@ -149,7 +149,10 @@ function BattleUI.draw(ctx)
         ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",mobile and 20 or 548,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.moveUsed,.66)
         ui.battleHeal=button("HEAL",mobile and 240 or 648,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
         ui.battleGuard=button("GUARD",mobile and 460 or 748,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
-        ui.battleAbility=button("ABILITY",mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.66)
+        local abilityBase=Catalog.characterAbility(active.file or "")
+        local abilityLevel=active.id=="player" and saveData.stats.level or 1
+        local abilityProfile=ctx.playerProgression.abilityProfile(abilityBase.kind,abilityLevel)
+        ui.battleAbility=button("ABILITY R"..abilityProfile.rank,mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.60)
         ui.battleInventory=button("BACKPACK",20,mobile and 634 or 638,mobile and 200 or 105,mobile and 54 or 34,true,.68)
         if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48) end
         local potionIndex=0
@@ -162,11 +165,10 @@ function BattleUI.draw(ctx)
         end
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
         ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
-        local abilityProfile=Catalog.characterAbility(active.file or ""); local abilityName=abilityProfile.name
         local mx,my=screenToGame(ctx.pointerPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityName.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
+            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
         end
         love.graphics.setColor(colors.cream); love.graphics.print(active.name.."  HP "..active.hp.."/"..active.maxHP.."  MOVE "..active.move.."  ARMOR "..active.armor,65,115)
     end

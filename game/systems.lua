@@ -25,6 +25,7 @@ return {
     mobileRuntime = require("game.mobile_runtime"),
     platformComposition = require("game.platform_composition"),
     persistenceRuntime = require("game.persistence_runtime"),
+    playerProgression = require("game.player_progression"),
     presentationRuntime = require("game.presentation_runtime"),
     progressionBalance = require("game.progression_balance"),
     questProgression = require("game.quest_progression"),

@@ -24,6 +24,7 @@ local function new(context)
   local canChooseEvent=required(context,"canChooseEvent","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local PlayerProgression=required(context,"playerProgression","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
@@ -62,15 +63,15 @@ local function new(context)
       love.graphics.print(mobile and "TOUCH JOYSTICK" or "WASD / ARROWS",80,98,0,mobile and .70 or .80,mobile and .70 or .80)
       ui.drawHealthBar("HP",runtime.saveData.health,runtime.saveData.maxHealth,25,119,220)
 
-      local level=runtime.saveData.stats.level or 1
-      local xp=runtime.saveData.stats.xp or 0
-      local nextXP=math.max(1,runtime.saveData.stats.nextXP or 10)
+      local progression=PlayerProgression.status(runtime.saveData)
+      local level,xp,nextXP=progression.level,progression.xp,progression.nextXP
       love.graphics.setColor(colors.cream)
-      love.graphics.print("LV "..level,265,119,0,.86,.86)
-      love.graphics.print(xp.." / "..nextXP.." XP",318,119,0,.70,.70)
+      love.graphics.print("LV "..level.."  ABILITY R"..progression.abilityRank,265,119,0,.66,.66)
+      love.graphics.printf(progression.maximum and "MAX" or (xp.." / "..nextXP.." XP"),265,135,130,"center",0,.58,.58)
       love.graphics.setColor(.08,.06,.045,.92); love.graphics.rectangle("fill",265,149,130,12,3,3)
-      love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",267,151,126*math.min(1,xp/nextXP),8,2,2)
-      love.graphics.setColor(colors.cream); love.graphics.printf("JOURNEY STATUS",25,169,370,"center",0,.56,.56)
+      local progress=progression.maximum and 1 or math.min(1,xp/math.max(1,nextXP))
+      love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",267,151,126*progress,8,2,2)
+      love.graphics.setColor(colors.cream); love.graphics.printf("LEVEL BONUS  AIM +"..progression.bonuses.attack.."  ARM +"..progression.bonuses.armor.."  MOVE +"..progression.bonuses.move,25,169,370,"center",0,.50,.50)
 
       local ammoParts={}
       for i=1,2 do

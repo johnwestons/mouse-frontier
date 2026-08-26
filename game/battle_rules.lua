@@ -1,3 +1,4 @@
+local PlayerProgression = require("game.player_progression")
 local BattleRules = {}
 
 BattleRules.directions = {{1, 0}, {0, -1}, {-1, 0}, {0, 1}}
@@ -58,18 +59,7 @@ function BattleRules.weaponRange(catalog, name)
 end
 
 function BattleRules.gainExperience(data, amount)
-    local stats = data.stats
-    stats.xp = stats.xp + amount
-    local levels = 0
-    while stats.xp >= stats.nextXP do
-        stats.xp = stats.xp - stats.nextXP
-        stats.level = stats.level + 1
-        stats.nextXP = math.floor(stats.nextXP * 1.45 + 3)
-        data.maxHealth = data.maxHealth + 3
-        data.health = data.maxHealth
-        levels = levels + 1
-    end
-    return levels
+    return PlayerProgression.gainExperience(data,amount)
 end
 
 function BattleRules.applyTemporaryStat(unit, stat, amount, rounds)

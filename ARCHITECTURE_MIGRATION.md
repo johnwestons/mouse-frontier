@@ -83,6 +83,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 38. Train upgrades now use one progression and purchase policy. Six cars unlock across the route with consistent resource capacities and fully wired effects, engine tiers have milestone unlocks, Navigator/Storage are no longer cosmetic, and every resource gain observes the owned train's capacity.
 39. Loot and equipment now use one progression and economy policy. All 65 playable weapons span nine verified damage tiers, rarity improves across the route, shop and resale values reflect quality and condition, ammunition never unlocks after its weapon, and broken equipment requires a workshop repair.
 40. Quests and passengers now use one route-aware progression policy. Offer pacing changes across the trail, longer deliveries pay more scrap and XP, matching train cars improve passenger jobs, active objectives appear on the map, and full-backpack rewards route safely to the train mailbox.
+41. Player advancement now uses one capped, save-compatible progression policy. Twelve levels provide visible health, aim, armor, and movement gains; all 12 character abilities scale through four ranks; and the HUD, combat runtime, desktop smoke run, and mobile package consume the same authoritative rules.
 
 ## Definition of done for this migration wave
 
@@ -90,7 +91,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/application_composition.lua` is the only runtime graph builder; `game/app.lua` is a thin lifecycle adapter.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 60-check smoke run and full route to stop 50 pass.
+- The 61-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -99,7 +100,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 60 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, event, train-upgrade, loot/equipment, and quest/passenger balance, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
+- The normal autonomous smoke playthrough passed all 61 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, player progression, event, train-upgrade, loot/equipment, and quest/passenger balance, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 64 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 65 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

@@ -82,6 +82,7 @@ local function new(context)
     filesystem=Filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
+    playerProgression=Modules.playerProgression,
     getIsWeapon=function() return services.inventoryActions.isWeapon end,
   })
   serviceRegistry.publishAll(world)
@@ -97,6 +98,7 @@ local function new(context)
     trainUpgradeBalance=Modules.trainUpgradeBalance,
     lootProgression=Modules.lootProgression,
     questProgression=Modules.questProgression,
+    playerProgression=Modules.playerProgression,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
@@ -127,6 +129,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
+    playerProgression=Modules.playerProgression,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })

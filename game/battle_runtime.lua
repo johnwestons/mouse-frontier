@@ -36,6 +36,7 @@ local function new(context)
   local BattleUI=required(context,"battleUI","table")
   local CombatBalance=required(context,"combatBalance","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local PlayerProgression=required(context,"playerProgression","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local pointerPosition=required(context,"pointerPosition","function")
@@ -52,6 +53,7 @@ local function new(context)
           Events=Events,
           CombatBalance=CombatBalance,
           TrainUpgradeBalance=TrainUpgradeBalance,
+          PlayerProgression=PlayerProgression,
           BOARD_COLS=7,
           BOARD_ROWS=4,
           playSfx=ui.playSfx,
@@ -71,6 +73,7 @@ local function new(context)
   end
 
   local function balanceAudit() return CombatBalance.audit() end
+  local function playerBalanceAudit() return PlayerProgression.audit() end
 
   local function setPrompt(text) BattleController.prompt(controllerContext(),text) end
   local function advanceTurn() BattleController.advance(controllerContext()) end
@@ -98,7 +101,7 @@ local function new(context)
           mobAttackImages=mobAttackImages,mobIdleImages=mobIdleImages,mobHitImages=mobHitImages,
           mobDeathImages=mobDeathImages,mobWalkImages=mobWalkImages,mobRangedImages=mobRangedImages,
           animationClock=runtime.animationClock,characterAnimations=getCharacterAnimations(),
-          saveData=runtime.saveData,inventoryOpen=runtime.inventoryOpen,ui=ui,
+          saveData=runtime.saveData,inventoryOpen=runtime.inventoryOpen,ui=ui,playerProgression=PlayerProgression,
           drawLandscape=renderer.drawLandscape,drawGround=renderer.drawGround,
           drawAnimatedCharacter=renderer.drawAnimatedCharacter,button=screenUI.button,screenToGame=screenToGame,pointerPosition=pointerPosition,
           setInventoryOpen=function(value) runtime.inventoryOpen=value end,
@@ -123,7 +126,7 @@ local function new(context)
   end
 
   return {
-      beginEncounter=beginEncounter,balanceAudit=balanceAudit,
+      beginEncounter=beginEncounter,balanceAudit=balanceAudit,playerBalanceAudit=playerBalanceAudit,
       setPrompt=setPrompt,
       advanceTurn=advanceTurn,
       resolveAttack=resolveAttack,
