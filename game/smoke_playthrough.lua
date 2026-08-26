@@ -34,6 +34,7 @@ local function install(context)
     local viewComposition=required(context,"viewComposition","table")
     local adventureComposition=required(context,"adventureComposition","table")
     local platformComposition=required(context,"platformComposition","table")
+    local inputComposition=required(context,"inputComposition","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -115,6 +116,8 @@ local function install(context)
                 check=function(_,_,_,result) return result.ready and result.componentCount==4 end},
             {name="platform_services_composed",action=platformComposition.status,
                 check=function(_,_,_,result) return result.ready and result.componentCount==5 end},
+            {name="input_commands_composed",action=inputComposition.status,
+                check=function(_,_,_,result) return result.ready and result.commandGroups==9 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
             end,check=function(_,_,_,result) return result.installed and result.routes==7 and result.current~=nil end},

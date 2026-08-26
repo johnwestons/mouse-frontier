@@ -12,7 +12,6 @@ local function new(context)
   local characters=required(context,"characters","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local scenery=required(context,"scenery","table")
-  local Systems=required(context,"systems","table")
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
@@ -72,6 +71,10 @@ local function new(context)
   local handleInventoryRelease=required(context,"handleInventoryRelease","function")
   local requestExitPrompt=required(context,"requestExitPrompt","function")
   local resolveExitPrompt=required(context,"resolveExitPrompt","function")
+  local trainItemAt=required(context,"trainItemAt","function")
+  local skipIntro=required(context,"skipIntro","function")
+  local interactionMouseAction=required(context,"interactionMouseAction","function")
+  local interactionKeyAction=required(context,"interactionKeyAction","function")
 
   function ui.offerGift(slot)
       local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.backpackUpgrades[name] or name=="coal-chunk" or name=="coal-bucket"
@@ -185,7 +188,7 @@ local function new(context)
           else local slot=Inventory.firstEmptySlot(runtime.saveData); if slot then runtime.saveData.inventory[slot]=item.name; table.remove(runtime.saveData.droppedItems,runtime.editedItem); runtime.editedItem=nil; writeSave() end end
           return true
       end
-      runtime.editedItem=Systems.worldRenderer.trainItemAt(x,y); runtime.editDragging=runtime.editedItem~=nil; return true
+      runtime.editedItem=trainItemAt(x,y); runtime.editDragging=runtime.editedItem~=nil; return true
   end
 
   function ui.handleGameMousePressed(x,y)
@@ -236,7 +239,7 @@ local function new(context)
   end
 
   local function mousepressed(x,y,button)
-      if runtime.state=="intro" then Systems.intro.skip(ui.introCinematic); return end
+      if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
       if runtime.exitPrompt then
           if button==1 then
               x,y=screenToGame(x,y)
@@ -249,7 +252,7 @@ local function new(context)
       x,y=screenToGame(x,y)
       if runtime.state=="game" and runtime.carTransition then return end
       if button==2 and runtime.state=="game" and not maintenanceSession.open and not runtime.editMode and not runtime.mapOpen and not runtime.tradeOpen and not runtime.inventoryOpen and not runtime.dialogue and not runtime.travelConfirm and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen then
-          local action,index=Systems.interactions.mouseAction(ui.interaction,button)
+          local action,index=interactionMouseAction(ui.interaction,button)
           if action=="openStorage" then runtime.activeChest=runtime.saveData.droppedItems[index]; runtime.activeChest.storage=runtime.activeChest.storage or {}; if runtime.activeChest.mailbox then runtime.activeChest.mailUnread=false; writeSave() end; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false end
           return
       end
@@ -350,7 +353,7 @@ local function new(context)
   end
 
   function ui.routeWorldInteraction(key)
-      local action,arg=Systems.interactions.keyAction({selected=ui.interaction,dialogue=runtime.dialogue,
+      local action,arg=interactionKeyAction({selected=ui.interaction,dialogue=runtime.dialogue,
           blocked=runtime.state~="game" or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.editMode or runtime.carTransition,
           isFurniture=function(index) local item=runtime.saveData.droppedItems[index]; return isFurnitureItem(item and item.name) end},key)
       if not action then return false end
@@ -374,7 +377,7 @@ local function new(context)
   end
 
   local function keypressed(key)
-      if runtime.state=="intro" then Systems.intro.skip(ui.introCinematic); return end
+      if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
       if runtime.exitPrompt then
           if key=="return" or key=="y" then resolveExitPrompt("yes")
           elseif key=="escape" or key=="n" then resolveExitPrompt("no") end

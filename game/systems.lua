@@ -12,6 +12,7 @@ return {
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),
     gameplayUpdate = require("game.gameplay_update"),
+    inputComposition = require("game.input_composition"),
     interactions = require("game.interaction_router"),
     intro = require("game.intro_cinematic"),
     inventory = require("game.inventory_ui"),
