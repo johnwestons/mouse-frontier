@@ -85,6 +85,7 @@ local function new(context)
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
     playerProgression=Modules.playerProgression,
     stopHelpProgression=Modules.stopHelpProgression,
+    npcRelationships=Modules.npcRelationships,
     getIsWeapon=function() return services.inventoryActions.isWeapon end,
   })
   serviceRegistry.publishAll(world)
@@ -102,7 +103,7 @@ local function new(context)
     lootProgression=Modules.lootProgression,
     questProgression=Modules.questProgression,
     playerProgression=Modules.playerProgression,
-    stopHelpProgression=Modules.stopHelpProgression,firstAid=Modules.firstAid,
+    stopHelpProgression=Modules.stopHelpProgression,npcRelationships=Modules.npcRelationships,firstAid=Modules.firstAid,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
@@ -134,7 +135,7 @@ local function new(context)
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     playerProgression=Modules.playerProgression,
-    stopHelpProgression=Modules.stopHelpProgression,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,
+    stopHelpProgression=Modules.stopHelpProgression,npcRelationships=Modules.npcRelationships,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })
@@ -144,7 +145,7 @@ local function new(context)
     gameplayInputFactory=Modules.gameplayInput,runtime=runtime,ui=ui,content=content,
     maintenanceSession=maintenanceSession,platform=platform,adventure=adventure,views=views,
     worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
-    inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
+    inventory=Inventory,catalog=Catalog,npcRelationships=Modules.npcRelationships,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     firstAid=Modules.firstAid,resolveFirstAid=adventure.journeyRules.resolveFirstAid,
     finaleProgression=Modules.finaleProgression,
@@ -166,7 +167,7 @@ local function new(context)
     playthrough=Modules.smokePlaythrough,
     state={runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,
       session=session,screens=screens,car=car},
-    domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,
+    domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,roster=Roster,npcRelationships=Modules.npcRelationships,
       assets=Assets,save=Save,maintenance=Maintenance,train=Train,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
       audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
       finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression,

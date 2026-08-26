@@ -58,10 +58,10 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Complete:** Add a clearly clickable `EXIT HOME` button inside every home. The shared scene control has a compact desktop layout, a larger Android touch target, and uses the same save-safe exit action as the nearby-door shortcut.
 - **Complete:** Expand stops with five persistent community activities whose deterministic rotation prevents either of the previous two activities from repeating. Telegraph environmental hazards, limit them to one nonlethal damage event with movement slowdown, reward help with goodwill and supplies, and make chickens and field mice flee travelers or gather around a filled wildlife trough. Desktop and Android use the same interaction path.
 
-## 9. NPC relationships and character identity
+## 9. NPC relationships and character identity — Complete
 
-- Extend goodwill into persistent NPC recognition, gift responses, merchant benefits, and passenger dialogue.
-- Audit all character traits, special abilities, roster assignments, and selection-screen explanations.
+- **Complete:** Extend goodwill into persistent per-NPC recognition, category-aware gift responses, merchant discounts and resale benefits, and relationship-aware passenger dialogue.
+- **Complete:** Audit every selectable character's trait, implemented special ability, roster eligibility, combat role, and explanation. Character cards now open a touch-friendly confirmation profile before creating the save.
 
 ## 10. Accessibility and mobile polish
 

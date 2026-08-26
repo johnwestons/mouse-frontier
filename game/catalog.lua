@@ -45,6 +45,32 @@ function Catalog.characterTrait(file)
     return byName["Scrapper"]
 end
 
+function Catalog.characterIdentity(file)
+    local trait=Catalog.characterTrait(file)
+    local ability=Catalog.characterAbility(file)
+    local roles={heal="Support",nourish="Support",protect="Guardian",repair="Guardian",snare="Controller",sleep="Controller",
+        disarm="Controller",paralyze="Controller",volley="Striker",area="Striker",haste="Leader",rally="Leader"}
+    local role=roles[ability.kind] or "Traveler"
+    return {file=file,name=(file or "Traveler"):gsub("%.png$",""):gsub("%-"," "),role=role,trait=trait,ability=ability,
+        summary=role.." • "..trait.name.." • "..ability.name}
+end
+
+function Catalog.characterIdentityAudit(files,Roster)
+    local invalid,traitKinds,abilityKinds=0,{},{}
+    for _,file in ipairs(files or {}) do
+        local identity=Catalog.characterIdentity(file)
+        local valid=Roster.isPlayable(file) and identity.trait and identity.trait.description and identity.trait.description~=""
+            and identity.ability and identity.ability.description and identity.ability.description~="" and identity.role~=""
+        if not valid then invalid=invalid+1 end
+        traitKinds[identity.trait and identity.trait.name or "missing"]=true
+        abilityKinds[identity.ability and identity.ability.kind or "missing"]=true
+    end
+    local function count(values) local result=0; for _ in pairs(values) do result=result+1 end; return result end
+    local playable=#(files or {})
+    return {ready=playable>0 and invalid==0 and count(traitKinds)>=5 and count(abilityKinds)>=5,
+        playable=playable,invalid=invalid,traitKinds=count(traitKinds),abilityKinds=count(abilityKinds),curve="character-identity-v1"}
+end
+
 Catalog.trainCarCatalog = TrainUpgradeBalance.carCatalog
 
 Catalog.storageCapacities = {

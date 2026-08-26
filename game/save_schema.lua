@@ -1,7 +1,7 @@
 local AudioCatalog = require("game.audio_catalog")
 
 local SaveSchema = {
-    CURRENT_VERSION = 27,
+    CURRENT_VERSION = 28,
     LEGACY_VERSION = 1,
 }
 
@@ -11,7 +11,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance", "eventCategoryHistory", "helpHistory", "finale",
+    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "finale",
 }
 
 local function finiteNumber(value)

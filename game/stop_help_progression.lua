@@ -1,3 +1,4 @@
+local Relationships=require("game.npc_relationships")
 local StopHelp={}
 
 StopHelp.policyVersion=3
@@ -18,6 +19,7 @@ end
 function StopHelp.ensure(data)
     data.goodwill=math.max(0,math.floor(tonumber(data.goodwill) or 0))
     data.helpHistory=type(data.helpHistory)=="table" and data.helpHistory or {}
+    Relationships.ensureData(data)
     return data.goodwill,data.helpHistory
 end
 
@@ -39,6 +41,7 @@ function StopHelp.add(data,amount,kind,npc,location)
     local gained=math.max(0,math.floor(tonumber(amount) or 0))
     data.goodwill=points+gained
     if gained>0 then history[#history+1]={kind=kind or "help",npc=npc,location=math.max(1,math.floor(tonumber(location) or 1)),points=gained} end
+    if gained>0 then Relationships.recordHelp(data,npc,gained,kind,location) end
     return gained,data.goodwill,StopHelp.tier(data.goodwill)
 end
 

@@ -19,6 +19,7 @@ local function new(context)
   local sessionBootstrap=required(context,"sessionBootstrap","table")
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
+  local NpcRelationships=required(context,"npcRelationships","table")
   local Util=required(context,"util","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
@@ -35,7 +36,7 @@ local function new(context)
 
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
-    inventory=Inventory,catalog=Catalog,util=Util,readSave=platform.persistenceRuntime.read,
+    inventory=Inventory,catalog=Catalog,npcRelationships=NpcRelationships,util=Util,readSave=platform.persistenceRuntime.read,
     removeSave=platform.persistenceRuntime.remove,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,

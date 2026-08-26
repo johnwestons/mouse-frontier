@@ -26,6 +26,7 @@ local function new(context)
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local NpcRelationships=required(context,"npcRelationships","table")
   local FinaleProgression=required(context,"finaleProgression","table")
   local Maintenance=required(context,"maintenance","table")
   local writeSave=required(context,"writeSave","function")
@@ -170,12 +171,15 @@ local function new(context)
       local mouseX,mouseY=screenToGame(love.mouse.getPosition())
       for i, file in ipairs(characters) do
           local col, row = (i-1)%5, math.floor((i-1)/5); local x, y = 42+col*182, 100+(row-runtime.characterScroll)*198
-          local r={x=x,y=y,w=150,h=180}; ui.characters[i]=r
+          local r={x=x,y=y,w=150,h=180,visible=y>78 and y<700}; ui.characters[i]=r
           if y>78 and y<700 then
           love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", x,y,r.w,r.h,10,10)
           local img=characterImages[file]
           if img then local s=math.min(112/img:getWidth(),120/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,x+75,y+68,0,s,s,img:getWidth()/2,img:getHeight()/2) end
-          love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),x+5,y+142,r.w-10,"center",0,0.82,0.82)
+          local identity=Catalog.characterIdentity(file)
+          love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),x+5,y+132,r.w-10,"center",0,0.72,0.72)
+          love.graphics.setColor(colors.brass); love.graphics.printf(identity.trait.name.." • "..identity.ability.name,x+4,y+151,r.w-8,"center",0,.47,.47)
+          love.graphics.setColor(colors.cream); love.graphics.printf(identity.role,x+4,y+166,r.w-8,"center",0,.48,.48)
           if Util.pointIn(mouseX,mouseY,r) then hoveredFile=file end
           end
       end
@@ -199,6 +203,23 @@ local function new(context)
       local mobile=mobileEnabled()
       ui.characterUp=button("^",mobile and 876 or 905,110,mobile and 68 or 38,mobile and 70 or 42,runtime.characterScroll>0); ui.characterDown=button("v",mobile and 876 or 905,mobile and 565 or 590,mobile and 68 or 38,mobile and 70 or 42,runtime.characterScroll<maxScroll)
       love.graphics.setColor(colors.cream); love.graphics.print("SCROLL",898,165,0,0.65,0.65)
+      if runtime.characterPreviewFile then
+          local file=runtime.characterPreviewFile; local identity=Catalog.characterIdentity(file)
+          love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
+          drawMenuFrame(185,115,590,500,1,1)
+          love.graphics.setColor(colors.cream); love.graphics.printf("TRAVELER PROFILE",205,140,550,"center",0,1.15,1.15)
+          local img=characterImages[file]
+          if img then local s=math.min(180/img:getWidth(),205/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,330,300,0,s,s,img:getWidth()/2,img:getHeight()/2) end
+          love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),435,195,290,"left",0,1.1,1.1)
+          love.graphics.setColor(colors.brass); love.graphics.print("ROLE  "..string.upper(identity.role),435,230,0,.75,.75)
+          love.graphics.print("TRAIT  "..string.upper(identity.trait.name),435,270,0,.72,.72)
+          love.graphics.setColor(colors.cream); love.graphics.printf(identity.trait.description,435,294,290,"left",0,.68,.68)
+          love.graphics.setColor(colors.brass); love.graphics.print("ABILITY  "..identity.ability.name,435,355,0,.72,.72)
+          love.graphics.setColor(colors.cream); love.graphics.printf(identity.ability.description,435,379,290,"left",0,.68,.68)
+          love.graphics.printf("This traveler becomes your player character. Every other eligible traveler remains in the NPC roster.",240,455,480,"center",0,.64,.64)
+          ui.characterConfirm=button("CHOOSE THIS TRAVELER",mobile and 260 or 275,520,mobile and 280 or 250,mobile and 66 or 48,true,.78)
+          ui.characterCancel=button("BACK",mobile and 565 or 555,520,mobile and 135 or 130,mobile and 66 or 48,true,.82)
+      else ui.characterConfirm=nil; ui.characterCancel=nil end
   end
 
 
@@ -221,14 +242,17 @@ local function new(context)
   local function drawTrade()
       local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
       local mobile=mobileEnabled()
+      local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
+      local terms=NpcRelationships.merchantTerms(runtime.saveData,merchant)
+      local availableBudget=(layout.tradeBudget or 0)+terms.budgetBonus
       love.graphics.setColor(0,0,0,.72); love.graphics.rectangle("fill",0,0,W,H)
       drawMenuFrame(90,65,780,600,1,1); love.graphics.setColor(colors.cream)
       love.graphics.printf(Util.titleFromFile(runtime.tradeNPC or runtime.saveData.currentNPC).."'S TRADING POST",110,95,740,"center",0,1.35,1.35)
-      love.graphics.printf("YOUR SCRAP: "..(runtime.saveData.scrap or 0).."   •   Buy supplies, sell gear, or give your ally a weapon",120,135,720,"center",0,.82,.82)
+      love.graphics.printf("YOUR SCRAP: "..(runtime.saveData.scrap or 0).."   •   "..terms.tier.." terms: "..math.floor(terms.discount*100+.5).."% buy discount, "..math.floor(terms.saleBonus*100+.5).."% sell bonus",120,135,720,"center",0,.76,.76)
       ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
-      for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,runtime.saveData.scrap>=price and Inventory.firstEmptySlot(runtime.saveData)~=nil) end end
-      love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..(layout.tradeBudget or 0).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-      local row=0; for i=1,(runtime.saveData.inventoryCapacity or 6) do local name=runtime.saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=isWeapon(name); ui.tradeSell[i]=button("SELL +"..Inventory.resalePrice(name,Catalog,runtime.saveData),mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,true); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
+      for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=NpcRelationships.buyPrice(runtime.saveData,merchant,Inventory.scrapPrice(name,Catalog)); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,runtime.saveData.scrap>=price and Inventory.firstEmptySlot(runtime.saveData)~=nil) end end
+      love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..math.max(0,availableBudget).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
+      local row=0; for i=1,(runtime.saveData.inventoryCapacity or 6) do local name=runtime.saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=isWeapon(name); local sellPrice=NpcRelationships.sellPrice(runtime.saveData,merchant,Inventory.resalePrice(name,Catalog,runtime.saveData)); ui.tradeSell[i]=button("SELL +"..sellPrice,mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,availableBudget>=sellPrice); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
       ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 590 or 605,mobile and 240 or 210,mobile and 64 or 40,true)
   end
 

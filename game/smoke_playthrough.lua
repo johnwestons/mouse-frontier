@@ -68,6 +68,8 @@ local function install(context)
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local trainPresentationAudit=required(context,"trainPresentationAudit","function")
     local stopActivityAudit=required(context,"stopActivityAudit","function")
+    local relationshipAudit=required(context,"relationshipAudit","function")
+    local characterIdentityAudit=required(context,"characterIdentityAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -121,6 +123,15 @@ local function install(context)
         ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
         local startX=game.player.x
         local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
+            {name="character_identity_profile",action=function()
+                game.characterPreviewFile=character; ui.smokeDraw()
+                local identity=Catalog.characterIdentity(character)
+                local result={profile=game.characterPreviewFile,trait=identity.trait.name,ability=identity.ability.kind,role=identity.role,
+                    confirm=ui.characterConfirm and ui.characterConfirm.w,cancel=ui.characterCancel and ui.characterCancel.w}
+                game.characterPreviewFile=nil; return result
+            end,check=function(_,_,_,result)
+                return result.profile==character and result.trait and result.ability and result.role and result.confirm>=250 and result.cancel>=130
+            end},
             {name="startup_runtime_ready",action=function()
                 return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
             end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
@@ -255,6 +266,14 @@ local function install(context)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
                     and result.goodwill==1 and result.persistent and result.curve=="stop-world-variety-v1"
             end},
+            {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
+                return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10
+                    and result.budgetBonus>0 and result.curve=="npc-relationships-v1"
+            end},
+            {name="character_identity_roster",action=characterIdentityAudit,check=function(_,_,_,result)
+                return result.ready and result.playable==#characters and result.invalid==0 and result.traitKinds>=5
+                    and result.abilityKinds>=5 and result.curve=="character-identity-v1"
+            end},
             {name="positive_finale_progression",action=finaleAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="finale-v1" and result.choiceCount==3 and result.selected=="lifeline"
@@ -279,6 +298,16 @@ local function install(context)
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
             {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="persistent_gift_response",action=function()
+                local npc=(game.saveData.npcRoster or {})[1]
+                game.saveData.inventory[1]="water-bottle"; game.giftNPC=npc; ui.offerGift(1)
+                local record=game.saveData.relationships and game.saveData.relationships[npc]
+                local result={consumed=game.saveData.inventory[1]==nil,gifts=record and record.gifts,speaker=game.dialogue and game.dialogue.speaker,
+                    text=game.dialogue and game.dialogue.text}; game.dialogue=nil; return result
+            end,check=function(_,_,_,result)
+                return result.consumed and result.gifts==1 and result.speaker and result.speaker:find("Familiar Face",1,true)
+                    and result.text and result.text:find("water",1,true)
+            end},
             {name="audio_priority_and_title_silence",action=function()
                 local settings=game.saveData.audio
                 settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()

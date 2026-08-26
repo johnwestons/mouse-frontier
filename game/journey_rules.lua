@@ -19,6 +19,7 @@ local function new(context)
   local QuestProgression=required(context,"questProgression","table")
   local LootProgression=required(context,"lootProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local NpcRelationships=required(context,"npcRelationships","table")
   local FirstAid=required(context,"firstAid","table")
   local BattleRules=required(context,"battleRules","table")
   local Maintenance=required(context,"maintenance","table")
@@ -151,6 +152,7 @@ local function new(context)
           local layout=ensureStopLayout()
           local destination=runtime.saveData.location+rideStops
           runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
+          NpcRelationships.recordRide(runtime.saveData,runtime.saveData.currentNPC)
           local reward=QuestProgression.rewardProfile("ride",rideStops,runtime.saveData.trait,destination)
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll help as your "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
       elseif kind=="trade" then
@@ -227,7 +229,9 @@ local function new(context)
           else text="I've got supplies to trade. Want to take a look?" end
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return
       end
-      runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text=Catalog.dialogueLines[love.math.random(#Catalog.dialogueLines)],timer=6}
+      local line,status=NpcRelationships.npcDialogue(runtime.saveData,runtime.saveData.currentNPC,Catalog.dialogueLines)
+      runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler").." • "..status.name,text=line,timer=6}
+      writeSave()
   end
 
   local function enterStop()
@@ -271,6 +275,7 @@ local function new(context)
         local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.ready=result.ready and result.firstAid.ready
         return result
     end,
+    relationshipAudit=function() return NpcRelationships.audit() end,
     questSummary=function() return QuestProgression.summary(runtime.saveData) end,
     processPassengerArrivals=processPassengerArrivals,
     passengerContributions=passengerContributions,

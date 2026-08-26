@@ -14,6 +14,7 @@ local function new(context)
   local scenery=required(context,"scenery","table")
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
+  local NpcRelationships=required(context,"npcRelationships","table")
   local Util=required(context,"util","table")
   local readSave=required(context,"readSave","function")
   local removeSave=required(context,"removeSave","function")
@@ -82,6 +83,12 @@ local function new(context)
   local chooseFinale=required(context,"chooseFinale","function")
   local completeStopActivity=required(context,"completeStopActivity","function")
 
+  local function chooseCharacter(file)
+      if not file then return false end
+      runtime.characterPreviewFile=nil
+      runtime.saveData=newSave(file); enterGame(runtime.saveData); writeSave(); return true
+  end
+
   local function startTravel()
       local status=travelStatus()
       if not status.affordable then
@@ -114,8 +121,16 @@ local function new(context)
               if passenger then passenger.weapon=name
               else local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]; if layout then layout.npcWeapon=name end; if runtime.npcActor then runtime.npcActor.weapon=name end end
           end
-          runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker="Gift Accepted",text=Util.titleFromFile(runtime.giftNPC).." accepted the gift of "..Util.titleFromFile(name)..".",timer=2}
-      else runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC),text="I don't need that right now.",timer=2} end
+          local effect=Catalog.itemEffects[name]
+          local category=isWeapon(name) and "weapon" or (Catalog.backpackUpgrades[name] and "gear"
+              or ((name=="coal-chunk" or name=="coal-bucket") and "fuel"
+              or (effect and effect.health and "medical" or (effect and effect.food and "food" or (effect and effect.water and "water" or "useful")))))
+          local result=NpcRelationships.recordGift(runtime.saveData,runtime.giftNPC,name,category)
+          runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC).." • "..result.status.name,text=result.line,timer=5}
+      else
+          local result=NpcRelationships.rejection(runtime.saveData,runtime.giftNPC)
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC).." • "..result.status.name,text=result.line,timer=4}
+      end
       runtime.giftOpen=false; runtime.inventoryOpen=false; runtime.giftSlot=nil; writeSave()
   end
 
@@ -135,20 +150,28 @@ local function new(context)
       if Util.pointIn(x,y,ui.tradeClose) then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave(); return true end
       for i,r in pairs(ui.tradeBuy or {}) do
           if Util.pointIn(x,y,r) then
-              local name=layout.tradeStock and layout.tradeStock[i]; local price=name and Inventory.scrapPrice(name,Catalog) or 999; local slot=Inventory.firstEmptySlot(runtime.saveData)
-              if slot and runtime.saveData.scrap>=price then runtime.saveData.scrap=runtime.saveData.scrap-price; runtime.saveData.inventory[slot]=name; layout.tradeStock[i]=nil; writeSave() end
+              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
+              local name=layout.tradeStock and layout.tradeStock[i]; local base=name and Inventory.scrapPrice(name,Catalog) or 999
+              local price=NpcRelationships.buyPrice(runtime.saveData,merchant,base); local slot=Inventory.firstEmptySlot(runtime.saveData)
+              if slot and runtime.saveData.scrap>=price then runtime.saveData.scrap=runtime.saveData.scrap-price; runtime.saveData.inventory[slot]=name; layout.tradeStock[i]=nil; NpcRelationships.recordTrade(runtime.saveData,merchant); writeSave() end
               return true
           end
       end
       for i,r in pairs(ui.tradeSell or {}) do
           if Util.pointIn(x,y,r) and runtime.saveData.inventory[i] then
-              local name=runtime.saveData.inventory[i]; local price=Inventory.resalePrice(name,Catalog,runtime.saveData)
-              if (layout.tradeBudget or 0)>=price then layout.tradeBudget=layout.tradeBudget-price; runtime.saveData.scrap=runtime.saveData.scrap+price; runtime.saveData.inventory[i]=nil; writeSave() end
+              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
+              local name=runtime.saveData.inventory[i]; local base=Inventory.resalePrice(name,Catalog,runtime.saveData)
+              local price,terms=NpcRelationships.sellPrice(runtime.saveData,merchant,base)
+              if (layout.tradeBudget or 0)+terms.budgetBonus>=price then layout.tradeBudget=(layout.tradeBudget or 0)-price; runtime.saveData.scrap=runtime.saveData.scrap+price; runtime.saveData.inventory[i]=nil; NpcRelationships.recordTrade(runtime.saveData,merchant); writeSave() end
               return true
           end
       end
       for i,r in pairs(ui.tradeGive or {}) do
-          if Util.pointIn(x,y,r) and isWeapon(runtime.saveData.inventory[i]) then layout.npcWeapon=runtime.saveData.inventory[i]; if runtime.npcActor then runtime.npcActor.weapon=layout.npcWeapon end; runtime.saveData.inventory[i]=nil; writeSave(); return true end
+          if Util.pointIn(x,y,r) and isWeapon(runtime.saveData.inventory[i]) then
+              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC; local weapon=runtime.saveData.inventory[i]
+              layout.npcWeapon=weapon; if runtime.npcActor then runtime.npcActor.weapon=layout.npcWeapon end
+              NpcRelationships.recordGift(runtime.saveData,merchant,weapon,"weapon"); runtime.saveData.inventory[i]=nil; writeSave(); return true
+          end
       end
       return true
   end
@@ -323,11 +346,16 @@ local function new(context)
           return
       end
       if runtime.state=="slots" then
-          for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=readSave(i); if data then runtime.selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then runtime.selectedSlot=i; runtime.state="characters"; return elseif Util.pointIn(x,y,ui.slotDelete[i]) then removeSave(i); return end end
+          for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=readSave(i); if data then runtime.selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then runtime.selectedSlot=i; runtime.characterPreviewFile=nil; runtime.state="characters"; return elseif Util.pointIn(x,y,ui.slotDelete[i]) then removeSave(i); return end end
       elseif runtime.state=="characters" then
+          if runtime.characterPreviewFile then
+              if Util.pointIn(x,y,ui.characterConfirm) then chooseCharacter(runtime.characterPreviewFile)
+              elseif Util.pointIn(x,y,ui.characterCancel) then runtime.characterPreviewFile=nil end
+              return
+          end
           if Util.pointIn(x,y,ui.characterUp) then runtime.characterScroll=math.max(0,runtime.characterScroll-1); return end
           if Util.pointIn(x,y,ui.characterDown) then runtime.characterScroll=runtime.characterScroll+1; return end
-          for i,r in ipairs(ui.characters or {}) do if Util.pointIn(x,y,r) then runtime.saveData=newSave(characters[i]); enterGame(runtime.saveData); writeSave(); return end end
+          for i,r in ipairs(ui.characters or {}) do if r.visible and Util.pointIn(x,y,r) then runtime.characterPreviewFile=characters[i]; return end end
       elseif runtime.state=="battle" then ui.handleBattleMousePressed(x,y,false)
       elseif runtime.state=="game" then
           -- UI and modal layers always get first refusal. Only an unconsumed
@@ -388,6 +416,11 @@ local function new(context)
           return true
       end
       if runtime.tradeOpen then if key=="escape" or key=="q" then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave() end; return end
+      if runtime.state=="characters" and runtime.characterPreviewFile then
+          if key=="return" or key=="kpenter" or key=="e" then chooseCharacter(runtime.characterPreviewFile)
+          elseif key=="escape" or key=="q" then runtime.characterPreviewFile=nil end
+          return
+      end
       if runtime.state=="event" then
           local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then chooseEvent(choice) end
           return
@@ -428,7 +461,9 @@ local function new(context)
           isFurniture=function(index) local item=runtime.saveData.droppedItems[index]; return isFurnitureItem(item and item.name) end},key)
       if not action then return false end
       if action=="closeDialogue" then runtime.dialogue=nil
-      elseif action=="talkPassenger" then local p=runtime.saveData.passengers[arg]; runtime.dialogue={speaker=Util.titleFromFile(p.npc).." - "..Util.titleFromFile(p.job),text=Catalog.passengerLines[love.math.random(#Catalog.passengerLines)],timer=7}
+      elseif action=="talkPassenger" then
+          local p=runtime.saveData.passengers[arg]; local line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,Catalog.passengerLines)
+          runtime.dialogue={speaker=Util.titleFromFile(p.npc).." - "..Util.titleFromFile(p.job).." • "..status.name,text=line,timer=7}; writeSave()
       elseif action=="car" then beginCarTransition((runtime.saveData.activeCar or 1)+arg)
       elseif action=="talkNPC" then ui.playSfx("talking"); talkToNPC()
       elseif action=="enterHouse" then

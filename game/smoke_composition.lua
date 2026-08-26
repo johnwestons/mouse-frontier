@@ -26,6 +26,8 @@ local function new(context)
   local currentSaveVersion=required(domain,"domain","currentSaveVersion","number")
   local SaveSchema=required(domain,"domain","saveSchema","table")
   local Catalog=required(domain,"domain","catalog","table")
+  local Roster=required(domain,"domain","roster","table")
+  local NpcRelationships=required(domain,"domain","npcRelationships","table")
   local Assets=required(domain,"domain","assets","table")
   local Save=required(domain,"domain","save","table")
   local Maintenance=required(domain,"domain","maintenance","table")
@@ -81,6 +83,8 @@ local function new(context)
       trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
       stopActivityAudit=function() return StopActivities.audit(StopHelpProgression) end,
+      relationshipAudit=function() return NpcRelationships.audit() end,
+      characterIdentityAudit=function() return Catalog.characterIdentityAudit(characters,Roster) end,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,

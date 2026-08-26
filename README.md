@@ -35,6 +35,7 @@ Android controls, installation, update flow, and device verification are documen
 - Stand beside the engine fire and press **E** to add a coal chunk or coal bucket from the backpack.
 - Stand near an NPC and press **E** to talk. NPCs idle and wander near their homes.
 - Some NPCs ask for a needed item or first aid. Helping awards goodwill; declining or missing an attempt never creates a negative alignment.
+- NPCs remember personal help, rides, gifts, conversations, and trades. Familiar travelers recognize the player, passengers discuss their work and destination, and goodwill plus friendship improve merchant prices and buying budgets.
 - First aid uses three highlighted treatment markers and supports mouse, touch, number keys **1–3**, and cancel/back.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
 - Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
@@ -94,6 +95,8 @@ Quest offers, delivery distances, rewards, passenger jobs, objective tracking, a
 Level requirements, combat bonuses, the level cap, and all four special-ability ranks are documented in [PLAYER_PROGRESSION.md](PLAYER_PROGRESSION.md).
 
 Stop request pacing, item help, the first-aid activity, and the goodwill-only morality score are documented in [STOP_HELP_GOODWILL.md](STOP_HELP_GOODWILL.md).
+
+Persistent NPC recognition, gift responses, merchant benefits, passenger dialogue, and selectable-character identity rules are documented in [NPC_RELATIONSHIPS_IDENTITY.md](NPC_RELATIONSHIPS_IDENTITY.md).
 
 The stop-50 family reunion, final decision, positive legacy tiers, and campaign report are documented in [ENDGAME_FINALE.md](ENDGAME_FINALE.md).
 
