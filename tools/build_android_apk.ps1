@@ -46,12 +46,9 @@ if (-not (Test-Path -LiteralPath $sdkManager)) {
     Write-Output 'Downloading the verified Android command-line tools...'
     $commandToolsArchive = Join-Path $toolingRoot 'android-command-line-tools-12.zip'
     Get-VerifiedDownload -Uri 'https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip' -Destination $commandToolsArchive -Sha256 '3d2917302740f476999a091bc5558837c7a863c5'
-    $extractRoot = Join-Path $toolingRoot 'android-command-line-tools-extract'
-    if (Test-Path -LiteralPath $extractRoot) {
-        $resolvedExtract = (Resolve-Path -LiteralPath $extractRoot).Path
-        if (-not $resolvedExtract.StartsWith((Resolve-Path $toolingRoot).Path,[System.StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe command-tools extraction path' }
-        Remove-Item -LiteralPath $resolvedExtract -Recurse -Force
-    }
+    # A fresh extraction directory avoids Windows/OneDrive failures when a
+    # previous SDK archive contains deep paths that Remove-Item cannot revisit.
+    $extractRoot = Join-Path $toolingRoot ('android-command-line-tools-extract-' + [guid]::NewGuid().ToString('N'))
     Expand-Archive -LiteralPath $commandToolsArchive -DestinationPath $extractRoot -Force
     $versionedRoot = Join-Path $androidRoot 'cmdline-tools\12.0'
     New-Item -ItemType Directory -Force -Path $versionedRoot | Out-Null
