@@ -72,6 +72,7 @@ local function new(context)
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
       beginEncounter=battleRuntime.beginEncounter,consumeSelected=inventoryActions.consumeSelected,
       balanceAudit=journeyRules.balanceAudit,combatBalanceAudit=battleRuntime.balanceAudit,
+      beginRandomEvent=eventRuntime.beginRandom,eventBalanceAudit=eventRuntime.balanceAudit,
       resolveEventChoice=eventRuntime.choose,advanceBattleTurn=battleRuntime.advanceTurn,
       battleAttack=battleRuntime.attack,resolveBattleAttack=battleRuntime.resolveAttack,
     })

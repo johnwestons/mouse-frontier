@@ -53,7 +53,7 @@ local function new(context)
           inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
           droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
           encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
-          choices = {}, stopLayouts = {}, stopSludges={}, events = {}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={},
+          choices = {}, stopLayouts = {}, stopSludges={}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={},
           maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0},
           inventoryCapacity=6, backpack=nil,
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,

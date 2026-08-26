@@ -93,6 +93,7 @@ local function new(context)
     inventory=Inventory,catalog=Catalog,util=Util,battleRules=BattleRules,events=Events,
     battleController=BattleController,battleUI=Modules.battleUI,engineUpgrades=EngineUpgrades,
     combatBalance=Modules.combatBalance,
+    eventBalance=Modules.eventBalance,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,

@@ -9,6 +9,7 @@ return {
     battleUI = require("game.battle_ui"),
     combatBalance = require("game.combat_balance"),
     contentRegistry = require("game.content_registry"),
+    eventBalance = require("game.event_balance"),
     eventRuntime = require("game.event_runtime"),
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),

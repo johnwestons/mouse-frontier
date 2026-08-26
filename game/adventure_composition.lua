@@ -26,6 +26,7 @@ local function new(context)
   local BattleController=required(context,"battleController","table")
   local BattleUI=required(context,"battleUI","table")
   local CombatBalance=required(context,"combatBalance","table")
+  local EventBalance=required(context,"eventBalance","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local Maintenance=required(context,"maintenance","table")
@@ -65,7 +66,7 @@ local function new(context)
 
   journeyRules=JourneyRules.new({
     runtime=runtime,car=car,inventory=Inventory,catalog=Catalog,engineUpgrades=EngineUpgrades,
-    progressionBalance=ProgressionBalance,combatBalance=CombatBalance,
+    progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,
     maintenance=Maintenance,passengers=Passengers,util=Util,house=House,
     ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,writeSave=writeSave,
     beginEncounter=battleRuntime.beginEncounter,
@@ -74,7 +75,7 @@ local function new(context)
   })
 
   eventRuntime=EventRuntime.new({
-    runtime=runtime,ui=ui,events=Events,eventUI=EventUI,catalog=Catalog,combatBalance=CombatBalance,pointIn=Util.pointIn,
+    runtime=runtime,ui=ui,events=Events,eventUI=EventUI,catalog=Catalog,combatBalance=CombatBalance,eventBalance=EventBalance,pointIn=Util.pointIn,
     writeSave=writeSave,beginEncounter=battleRuntime.beginEncounter,enterStop=journeyRules.enterStop,
   })
 

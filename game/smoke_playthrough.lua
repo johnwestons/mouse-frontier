@@ -48,12 +48,14 @@ local function install(context)
     local setupNPC=required(context,"setupNPC","function")
     local beginEncounter=required(context,"beginEncounter","function")
     local consumeSelected=required(context,"consumeSelected","function")
+    local beginRandomEvent=required(context,"beginRandomEvent","function")
     local resolveEventChoice=required(context,"resolveEventChoice","function")
     local advanceBattleTurn=required(context,"advanceBattleTurn","function")
     local battleAttack=required(context,"battleAttack","function")
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
     local balanceAudit=required(context,"balanceAudit","function")
     local combatBalanceAudit=required(context,"combatBalanceAudit","function")
+    local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -83,7 +85,7 @@ local function install(context)
         if name=="intro" then game.state="intro"; ui.introCinematic=createIntro()
         elseif name=="slots" then game.state="slots"
         elseif name=="characters" then game.state="characters"
-        elseif name=="event" then game.state="event"; game.scene="stop"; game.randomEvent=Events.random(game.saveData)
+        elseif name=="event" then game.scene="stop"; game.randomEvent=beginRandomEvent()
         elseif name=="battle" then
             beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={Catalog.mobTiers.easy[1]}}); game.battle.intro=nil
         elseif name=="ending" then game.state="ending"
@@ -151,6 +153,13 @@ local function install(context)
                     return result.ready and result.tierCounts.easy==12 and result.tierCounts.medium==18
                         and result.tierCounts.hard==20 and result.hardEnd.maxHP==34 and result.hardEnd.armor==5
                         and result.groupHardReward.xp>result.singleHardReward.xp
+                end},
+            {name="event_balance_curve",action=eventBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.eventCount==40 and result.choiceCount==120
+                        and #result.blockedEvents==0 and result.encounterChance.easy==.48
+                        and result.encounterChance.hard==.64 and result.earlyWeights.fortune>result.lateWeights.fortune
+                        and result.lateWeights.mishap>result.earlyWeights.mishap and result.repeatAvoided
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}

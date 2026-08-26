@@ -13,6 +13,7 @@ local function new(context)
   local EventUI=required(context,"eventUI","table")
   local Catalog=required(context,"catalog","table")
   local CombatBalance=required(context,"combatBalance","table")
+  local EventBalance=required(context,"eventBalance","table")
   local pointIn=required(context,"pointIn","function")
   local writeSave=required(context,"writeSave","function")
   local beginEncounter=required(context,"beginEncounter","function")
@@ -35,8 +36,10 @@ local function new(context)
 
   local function beginRandom()
       if not runtime.saveData then return false end
-      return begin(Events.random(runtime.saveData))
+      return begin(Events.random(runtime.saveData,EventBalance))
   end
+
+  local function balanceAudit() return EventBalance.audit(Events.definitions) end
 
   local function canChoose(choice)
       return runtime.saveData and Events.canChoose(runtime.saveData,choice) or false
@@ -73,6 +76,7 @@ local function new(context)
       begin=begin,
       beginRequired=beginRequired,
       beginRandom=beginRandom,
+      balanceAudit=balanceAudit,
       canChoose=canChoose,
       choose=choose,
       handleClick=handleClick,

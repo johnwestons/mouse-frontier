@@ -9,7 +9,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance",
+    "maintenance", "eventCategoryHistory",
 }
 
 local function finiteNumber(value)

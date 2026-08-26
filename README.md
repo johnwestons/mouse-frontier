@@ -33,6 +33,7 @@ Android controls, installation, update flow, and device verification are documen
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
 - Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
 - Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.
+- Early stops favor helpful and fortunate trail events; battles and mishaps become more common later, and every event retains an actionable fallback.
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
 - Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience.

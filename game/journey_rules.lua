@@ -14,6 +14,7 @@ local function new(context)
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local CombatBalance=required(context,"combatBalance","table")
+  local EventBalance=required(context,"eventBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local Util=required(context,"util","table")
@@ -149,7 +150,7 @@ local function new(context)
           -- Battles should be the primary stop interruption; trail events remain less common.
           -- Story and mystery chapters are checked above; ordinary stops still
           -- favor combat while leaving room for the five random event families.
-          local hasMob=love.math.random()<.58
+          local hasMob=love.math.random()<EventBalance.encounterChance(runtime.saveData.location)
           local tier=CombatBalance.tierFor(runtime.saveData.location)
           encounter={rolled=true,hasMob=hasMob,resolved=not hasMob,tier=tier}
           local pool=Catalog.mobTiers[tier]

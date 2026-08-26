@@ -46,7 +46,7 @@ local definitions={
         E("help","broken-pump","SETTLEMENT PUMP","A settlement's hand pump has seized and their storage jars are nearly empty.","help-a",3,{
             C("FIX THE PUMP","Spend coal; settlers share food and water.",{cost={coal=2},reward={food=3,water=4}}),
             C("DONATE WATER","Large water cost, larger scrap reward.",{cost={water=4},reward={scrap=7}}),
-            C("SHOW THEM A BYPASS","Lose a little health working; gain food.",{cost={health=2},reward={food=2}})}),
+            C("POINT TO THE OLD ROAD","Share a safe route without spending supplies.",{})}),
         E("help","lost-caravan","LOST CARAVAN","A caravan has followed old rails into a dead end and asks for directions west.","help-a",4,{
             C("GUIDE THEM PERSONALLY","Spend food and water; earn a rare item.",{cost={food=2,water=2},itemPool="rare"}),
             C("DRAW A ROUTE","Small food cost for scrap.",{cost={food=1},reward={scrap=4}}),
@@ -54,7 +54,7 @@ local definitions={
         E("help","cold-shelter","COLD NIGHT SHELTER","Several critters huddle around a dead stove while freezing wind tears at their tent.","help-a",5,{
             C("SHARE THE TRAIN","Spend food; receive coal and medicine.",{cost={food=3},reward={coal=4},itemPool="medical"}),
             C("REPAIR THE STOVE","Spend coal; receive scrap and ammunition.",{cost={coal=2},reward={scrap=4},ammo=true}),
-            C("LEAVE A BLANKET","Lose one backpack item; gain goodwill scrap.",{loseItem=true,reward={scrap=3}})})
+            C("BUILD A WINDBREAK","Help them brace the tent without spending supplies.",{})})
     },
     fortune={
         E("fortune","sealed-pantry","SEALED PANTRY","A collapsed station wall hides a pantry untouched since the flash.","fortune-a",1,{
@@ -82,23 +82,23 @@ local definitions={
         E("mishap","broken-axle","BROKEN AXLE","The train lurches sideways as a patched axle begins to split.","mishap-a",1,{
             C("USE PROPER PARTS","Spend scrap and coal; avoid injury.",{cost={scrap=3,coal=2}}),
             C("IMPROVISE A SPLINT","Lose health but use less coal.",{cost={health=3,coal=1}}),
-            C("LIMP TO THE STOP","Save materials; lose food and water.",{cost={food=2,water=2}})}),
+            C("LIMP TO THE STOP","Use whatever food and water remain; this last resort never blocks.",{cost={food=2,water=2},fallback=true})}),
         E("mishap","spoiled-rations","SPOILED RATIONS","A leaking roof has soaked several sacks of food.","mishap-a",2,{
             C("SALVAGE WHAT YOU CAN","Lose some food and health.",{cost={food=2,health=1}}),
             C("BURN THE SPOILED FOOD","Lose more food; preserve health.",{cost={food=3}}),
-            C("TRADE IT FOR FEED","Lose food, gain a little scrap.",{cost={food=3},reward={scrap=2}})}),
+            C("DISCARD WHAT REMAINS","Lose up to two food; this last resort never blocks.",{cost={food=2},fallback=true})}),
         E("mishap","dry-boiler","DRY BOILER","The boiler drinks the last clean water during a steep climb.","mishap-a",3,{
             C("USE DRINKING WATER","Lose water but protect the engine.",{cost={water=4}}),
             C("RUN IT LOW","Lose health and coal from the rough ride.",{cost={health=2,coal=2}}),
-            C("COLLECT MUDDY WATER","Lose health; save most supplies.",{cost={health=3,water=1}})}),
+            C("COLLECT MUDDY WATER","Use what water remains and risk health; this last resort never blocks.",{cost={health=3,water=1},fallback=true})}),
         E("mishap","cargo-shift","SHIFTING CARGO","A hard turn sends unsecured furniture and crates across the car.","mishap-a",4,{
             C("STOP AND SECURE IT","Lose coal and water.",{cost={coal=2,water=1}}),
             C("CATCH THE HEAVY CRATE","Lose health but find scrap.",{cost={health=3},reward={scrap=2}}),
-            C("LET IT SETTLE","Risk losing one backpack item.",{loseItem=true})}),
+            C("LET IT SETTLE","Risk one backpack item; this last resort never blocks.",{loseItem=true,fallback=true})}),
         E("mishap","ash-storm","ASH STORM","A wall of ash swallows the tracks and chokes the locomotive.","mishap-a",5,{
             C("PUSH THROUGH FAST","Spend coal and suffer some damage.",{cost={coal=4,health=2}}),
             C("SEAL THE TRAIN","Lose food and water while waiting.",{cost={food=2,water=2}}),
-            C("FOLLOW OLD SIGNALS","Spend scrap on repairs afterward.",{cost={scrap=4,coal=1}})})
+            C("FOLLOW OLD SIGNALS","Use whatever scrap and coal remain; this last resort never blocks.",{cost={scrap=4,coal=1},fallback=true})})
     },
     defense={
         E("defense","settlement-siege","SETTLEMENT UNDER SIEGE","A ring of mobs closes around a patched settlement while defenders wave from the roofs.","defense-a",1,{
@@ -126,11 +126,11 @@ local definitions={
         E("mystery","missing-1","THE EMPTY BEDROLL","A tiny bedroll and a carved acorn token lie beside cold ashes. A young critter vanished before dawn.","mystery-a",1,{
             C("SEARCH THE CAMPSITE","Lose water; recover the first clue.",{cost={water=1},reward={scrap=1}}),
             C("QUESTION THE CAMPERS","Share food and learn which way the tracks lead.",{cost={food=1}}),
-            C("FOLLOW SMALL FOOTPRINTS","Risk a scratch, but keep your supplies.",{cost={health=1}})},"The acorn token bears three parallel scratches."),
+            C("STUDY THE FOOTPRINTS","Read the trail carefully without spending supplies.",{})},"The acorn token bears three parallel scratches."),
         E("mystery","missing-2","PRINTS IN THE ASH","Small pawprints cross a field of ash, joined by a much larger set of tracks.","mystery-a",2,{
             C("FOLLOW BOTH TRACKS","Lose health; find the second clue and ammunition.",{cost={health=2},ammo=true}),
             C("CIRCLE AHEAD BY TRAIN","Spend coal; intercept the trail safely.",{cost={coal=2}}),
-            C("ASK A LOCAL SCOUT","Spend scrap for reliable directions.",{cost={scrap=2}})},"The larger tracks stop wherever old signal bells still hang."),
+            C("WATCH FROM COVER","Study where the two trails separate.",{})},"The larger tracks stop wherever old signal bells still hang."),
         E("mystery","missing-3","THE TORN RED THREAD","A red thread matching the missing critter's scarf hangs from a thorn beside a service tunnel.","mystery-a",3,{
             C("ENTER THE TUNNEL","Fight tunnel creatures and secure the clue.",{battle=true,count=3,rewardQuality=2}),
             C("CLEAR THE ENTRANCE","Spend coal and health to search safely.",{cost={coal=2,health=1}}),
@@ -138,7 +138,7 @@ local definitions={
         E("mystery","missing-4","THE FALSE SIGNAL","An abandoned signal flashes at night though no power reaches the tower.","mystery-a",4,{
             C("CLIMB THE TOWER","Lose health; find a map marked with an acorn.",{cost={health=2},itemPool="uncommon"}),
             C("POWER THE SIGNAL","Spend coal and reveal the marked destination.",{cost={coal=3}}),
-            C("WATCH FROM COVER","Lose water; see a cloaked figure leave.",{cost={water=2}})},"The marked route ends at a garden built inside a ruined depot."),
+            C("WAIT FOR DAWN","Observe the signal safely until its route is clear.",{})},"The marked route ends at a garden built inside a ruined depot."),
         E("mystery","missing-5","THE DEPOT GARDEN","A hidden garden fills a ruined depot. The missing youngster is safe, sheltering with a lonely old signal keeper.","mystery-a",5,{
             C("REUNITE THEM","Spend food for a celebration; receive a rare reward.",{cost={food=2},itemPool="legendary",reward={scrap=8}}),
             C("INVITE THE KEEPER ALONG","Share water and receive equipment.",{cost={water=2},weapon=true,reward={scrap=5}}),
@@ -158,9 +158,9 @@ local definitions={
         E("story","family-6","THE CHILD'S DRAWING","A child at a forest camp shows you a drawing of your family beside your train's red engine.","story-b",1,{
             C("GIVE THEM ART SUPPLIES","Lose one item; gain scrap and the clue.",{loseItem=true,reward={scrap=3}}),C("SHARE A SWEET","Spend food; receive the drawing.",{cost={food=1}}),C("MEMORIZE THE DRAWING","Keep supplies and take the clue.",{})},"Mountains and a broken viaduct appear behind your family in the drawing."),
         E("story","family-7","THE BROKEN VIADUCT","At the viaduct, fresh repair marks carry your family's familiar three-line symbol.","story-b",2,{
-            C("CROSS THEIR REPAIR","Risk health and gain scrap.",{cost={health=2},reward={scrap=3}}),C("REINFORCE IT","Spend coal and travel safely.",{cost={coal=2}}),C("FOLLOW THE DETOUR","Spend food and water.",{cost={food=1,water=1}})},"They repaired the viaduct, then turned south toward warmer country."),
+            C("CROSS THEIR REPAIR","Risk health and gain scrap.",{cost={health=2},reward={scrap=3}}),C("REINFORCE IT","Spend coal and travel safely.",{cost={coal=2}}),C("CAMP BELOW THE BRIDGE","Wait and study their route without spending supplies.",{})},"They repaired the viaduct, then turned south toward warmer country."),
         E("story","family-8","LETTER IN A BOTTLE","A sealed bottle caught in desert reeds contains a note addressed to you.","story-b",3,{
-            C("WADE INTO THE MARSH","Lose health; retrieve the letter and water.",{cost={health=1},reward={water=2}}),C("HOOK IT WITH WIRE","Spend scrap and preserve health.",{cost={scrap=2}}),C("WAIT FOR THE CURRENT","Lose food but recover it safely.",{cost={food=1}})},"The letter says: 'Keep coming west. We are leaving signs where we can.'"),
+            C("WADE INTO THE MARSH","Lose health; retrieve the letter and water.",{cost={health=1},reward={water=2}}),C("HOOK IT WITH WIRE","Spend scrap and preserve health.",{cost={scrap=2}}),C("TRACE THE RIVERBANK","Follow the bottle until it reaches shore.",{})},"The letter says: 'Keep coming west. We are leaving signs where we can.'"),
         E("story","family-9","THE LAST EASTBOUND TRAIN","An old conductor arrives from California carrying news of a family matching yours.","story-b",4,{
             C("TRADE RAIL MAPS","Spend scrap; receive ammo and precise directions.",{cost={scrap=3},ammo=true}),C("SHARE PROVISIONS","Spend food and water; receive a rare item.",{cost={food=2,water=2},itemPool="rare"}),C("LISTEN CLOSELY","Take the clue without cost.",{})},"Your family reached a safe settlement less than fifty miles ahead."),
         E("story","family-10","THE CALIFORNIA SIGN","A hand-painted sign bears your family symbol and an arrow toward the final valley.","story-b",5,{
@@ -177,6 +177,7 @@ end
 function Events.ensure(data)
     data.eventProgress=data.eventProgress or {story=0,mystery=0}
     data.eventHistory=data.eventHistory or {}
+    data.eventCategoryHistory=data.eventCategoryHistory or {}
     if not data.mysteryStops or #data.mysteryStops~=5 then
         data.mysteryStops={}
         local bands={{4,10},{11,19},{20,29},{30,39},{40,47}}
@@ -197,9 +198,9 @@ function Events.required(data,location)
     for index,stop in ipairs(data.mysteryStops or {}) do if location>=stop and (data.eventProgress.mystery or 0)<index then return find("mystery",index) end end
 end
 
-function Events.random(data)
+function Events.random(data,EventBalance)
     Events.ensure(data)
-    local categories={"battle","help","fortune","mishap","defense"}; local category=categories[love.math.random(#categories)]
+    local category=EventBalance.pickCategory(data.location,data.eventCategoryHistory,love.math.random())
     local pool=definitions[category]; local recent=data.eventHistory or {}; local event
     for _=1,8 do
         event=pool[love.math.random(#pool)]
@@ -213,6 +214,8 @@ function Events.record(data,event,choiceIndex)
     data.events[tostring(data.location)]={id=event.id,title=event.title,category=event.category,choice=choiceIndex}
     data.eventHistory[#data.eventHistory+1]=event.id
     while #data.eventHistory>8 do table.remove(data.eventHistory,1) end
+    data.eventCategoryHistory[#data.eventCategoryHistory+1]=event.category
+    while #data.eventCategoryHistory>8 do table.remove(data.eventCategoryHistory,1) end
     if event.category=="story" then data.eventProgress.story=math.max(data.eventProgress.story or 0,event.artIndex+(event.artSheet=="story-b" and 5 or 0)) end
     if event.category=="mystery" then data.eventProgress.mystery=math.max(data.eventProgress.mystery or 0,event.artIndex) end
 end
@@ -227,6 +230,7 @@ local function applyValues(data,values,sign)
 end
 
 function Events.canChoose(data,choice)
+    if choice and choice.fallback then return true end
     for name,amount in pairs((choice and choice.cost) or {}) do
         local available=name=="health" and data.health or (name=="scrap" and (data.scrap or 0) or data.resources[name])
         if available==nil or available<amount then return false end
