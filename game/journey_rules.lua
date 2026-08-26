@@ -73,7 +73,8 @@ local function new(context)
               table.remove(runtime.saveData.passengers,i)
               local origin=passenger.origin or math.max(1,(passenger.destination or runtime.saveData.location)-3)
               local reward=grantProgressionReward("ride",origin,passenger.destination or runtime.saveData.location)
-              notices[#notices+1]=Util.titleFromFile(passenger.npc).." reached their stop: "..rewardText(reward).."."
+              local _,goodwill=StopHelpProgression.add(runtime.saveData,1,"ride",passenger.npc,passenger.destination)
+              notices[#notices+1]=Util.titleFromFile(passenger.npc).." reached their stop: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total)."
           end
       end
       runtime.saveData.arrivalNotice=#notices>0 and table.concat(notices," ") or nil
@@ -96,7 +97,8 @@ local function new(context)
 
   local function giveQuestReward(kind,origin,destination,message)
       local reward=grantProgressionReward(kind,origin,destination)
-      runtime.dialogue={speaker="Traveler",text=(message or "Thank you!").."  Reward: "..rewardText(reward)..".",timer=5}
+      local _,goodwill=StopHelpProgression.add(runtime.saveData,1,kind,runtime.saveData.currentNPC,destination)
+      runtime.dialogue={speaker="Traveler",text=(message or "Thank you!").."  Reward: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total).",timer=5}
       return reward
   end
 
@@ -161,22 +163,11 @@ local function new(context)
           if request then beginFirstAid(request) end
       elseif kind=="supplies" then
           local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
-          local amount=3; local added=0; local addedSlots={}
-          for _=1,amount do
-              local slot=Inventory.firstEmptySlot(runtime.saveData)
-              if not slot then break end
-              runtime.saveData.inventory[slot]=({"food-ration","bread-loaf","jerky-bundle"})[love.math.random(3)]; addedSlots[#addedSlots+1]=slot; added=added+1
-          end
-          if added<amount then
-              for _,slot in ipairs(addedSlots) do runtime.saveData.inventory[slot]=nil end
-              runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=amount,complete=false,foodItems=0,cargoStored=true}
-              local reward=QuestProgression.rewardProfile("supplies",distance,runtime.saveData.trait,destination)
-              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="The 3 food crates are secured in the cargo hold for stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
-          else
-              runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=amount,complete=false,foodItems=amount}
-              local reward=QuestProgression.rewardProfile("supplies",distance,runtime.saveData.trait,destination)
-              runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Take these 3 food items to stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
-          end
+          local cargoKind=(runtime.questOffer and runtime.questOffer.deliveryKind) or QuestProgression.rollDelivery(runtime.saveData.location)
+          local profile=QuestProgression.deliveryProfile(cargoKind)
+          runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=profile.amount,cargoKind=cargoKind,complete=false}
+          local reward=QuestProgression.rewardProfile(cargoKind,distance,runtime.saveData.trait,destination)
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=string.format(profile.accepted,destination).." Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=7}
       end
       runtime.questOffer=nil; writeSave()
   end
@@ -200,19 +191,15 @@ local function new(context)
   local function talkToNPC()
       for _,supply in ipairs(runtime.saveData.supplyQuests or {}) do
           if not supply.complete and supply.destination==runtime.saveData.location then
-              if supply.cargoStored then
-                  supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave(); return
-              elseif supply.storedAtTrain or supply.foodItems==nil then
-                  if runtime.saveData.resources.food>=supply.amount then runtime.saveData.resources.food=runtime.saveData.resources.food-supply.amount; supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave()
-                  else runtime.dialogue={speaker="Settler",text="You don't have enough food stored for our delivery. We're hungry and disappointed.",timer=4} end
-                  return
+              local result=QuestProgression.consumeCargo(runtime.saveData,Catalog,supply)
+              local profile=QuestProgression.deliveryProfile(supply.cargoKind)
+              if result.completed then
+                  supply.complete=true; giveQuestReward(supply.cargoKind or "food",supply.origin,supply.destination,profile.thanks); writeSave()
+              else
+                  local text=supply.cargoKind=="recovery" and "The keepsake is still somewhere in the dangerous area. Make the stop safe first."
+                      or ("You still need "..result.shortage.." more for this delivery ("..profile.label.." total). Nothing has been taken yet.")
+                  runtime.dialogue={speaker="Settler",text=text,timer=5}
               end
-              local remaining=supply.foodItems or supply.amount; local consumed={}
-              for i=1,(runtime.saveData.inventoryCapacity or 6) do
-                  local name=runtime.saveData.inventory[i]; if name and Catalog.itemEffects[name] and Catalog.itemEffects[name].food and remaining>0 then consumed[#consumed+1]=i; remaining=remaining-1 end
-              end
-              if remaining<=0 then for _,i in ipairs(consumed) do runtime.saveData.inventory[i]=nil end; supply.complete=true; giveQuestReward("supplies",supply.origin,supply.destination,"Those supplies will keep us going. Thank you!"); writeSave()
-              else runtime.dialogue={speaker="Settler",text="You need the 3 food items I gave you for this delivery.",timer=4} end
               return
           end
       end
@@ -233,7 +220,9 @@ local function new(context)
           local text
           if kind=="mail" then text=Catalog.mailRequestLines[love.math.random(#Catalog.mailRequestLines)]
           elseif kind=="ride" then text=Catalog.rideRequestLines[love.math.random(#Catalog.rideRequestLines)]
-          elseif kind=="supplies" then text="Settlers farther west are hungry. Could you deliver some food for us?"
+          elseif kind=="supplies" then
+              runtime.questOffer.deliveryKind=QuestProgression.rollDelivery(runtime.saveData.location)
+              text=QuestProgression.deliveryProfile(runtime.questOffer.deliveryKind).request
           elseif (kind=="item" or kind=="aid") and request then text=request.text
           else text="I've got supplies to trade. Want to take a look?" end
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return

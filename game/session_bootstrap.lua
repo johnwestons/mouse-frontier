@@ -169,6 +169,9 @@ local function new(context)
               if radioFound then table.remove(data.droppedItems,index)
               else
                   radioFound=true; item.scene="train"; item.carIndex=math.max(1,item.carIndex or 1)
+                  local left,right,top,bottom=trainObjectBounds()
+                  item.x=math.max(left,math.min(right,tonumber(item.x) or car.x+470))
+                  item.y=math.max(top,math.min(bottom,tonumber(item.y) or car.y+285))
                   item.scale=item.scale or 1.15; item.rotation=item.rotation or 0; item.permanent=true
               end
           end

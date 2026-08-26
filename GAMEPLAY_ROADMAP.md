@@ -12,7 +12,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Reduce the frequency of letters, rides, supply deliveries, trades, and other requests so new stop content has room to breathe.
 - Expand ambient NPC dialogue, including the supplied sludge, bandit, family, track, cooperation, and safe-travel lines.
 
-## 2. Quest cargo and delivery variety
+## 2. Quest cargo and delivery variety — Complete
 
 - Supply deliveries consume three eligible food items first, then draw any shortfall from the train's stored food resource.
 - Never create free delivery food merely because the backpack is empty or full.

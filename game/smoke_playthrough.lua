@@ -62,6 +62,7 @@ local function install(context)
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
     local questBalanceAudit=required(context,"questBalanceAudit","function")
+    local audioAudit=required(context,"audioAudit","function")
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
@@ -194,18 +195,22 @@ local function install(context)
                         and result.legendaryPrice>result.commonPrice
                         and result.wornResale<result.soundResale
                 end},
+            {name="audio_engine_lifecycle",action=function() return audioAudit() end,
+                check=function(_,_,_,result) return result.failedTrackSkipped and result.replacementReleased and result.shuffleBag and result.priority and result.focus and result.titleSilent end},
             {name="quest_passenger_balance",action=questBalanceAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.earlyWeights.mail>result.lateWeights.mail
                         and result.lateWeights.trade>result.earlyWeights.trade
-                        and result.curve=="quest-v3" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
+                        and result.curve=="quest-v4" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
                         and result.farReward.scrap>result.nearReward.scrap
                         and result.farReward.xp>result.nearReward.xp
                         and result.diplomatReward.scrap>result.farReward.scrap
                         and result.greenhousePreferred.amount>result.greenhouseBase.amount
-                        and result.scavenger.kind=="scrap" and result.objectiveCount==3
+                        and result.scavenger.kind=="scrap" and result.objectiveCount==8 and result.deliveryKinds==6
                         and result.stockedRide>result.lowSupplyRide and result.mailboxDelivery=="mailbox"
-                        and result.ammoDelivery=="ammunition"
+                        and result.ammoDelivery=="ammunition" and result.foodInventoryUsed==2 and result.foodStorageUsed==1
+                        and result.atomicShortage and result.legacyStorageUsed==3 and result.waterMixed
+                        and result.medicineReady and result.repairMixed and result.ammunitionReady and result.recoveryGated
                 end},
             {name="stop_help_goodwill",action=function()
                     local result=helpBalanceAudit(); local previousState=game.state

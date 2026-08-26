@@ -5,6 +5,7 @@ return {
     adventureComposition = require("game.adventure_composition"),
     audioCatalog = require("game.audio_catalog"),
     audioRuntime = require("game.audio_runtime"),
+    audioSelfTest = require("game.audio_self_test"),
     assetStreamer = require("game.asset_streamer"),
     battleRuntime = require("game.battle_runtime"),
     battleUI = require("game.battle_ui"),

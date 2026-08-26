@@ -86,6 +86,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 41. Player advancement now uses one capped, save-compatible progression policy. Twelve levels provide visible health, aim, armor, and movement gains; all 12 character abilities scale through four ranks; and the HUD, combat runtime, desktop smoke run, and mobile package consume the same authoritative rules.
 42. Stop help and morality now use one goodwill-only progression policy. Ordinary NPC requests are limited to one opportunity per stop and fall to a 36–40% combined rate; persistent item requests and a keyboard/touch first-aid activity award nonnegative goodwill; the HUD and ending expose the saved score; and all supplied ambient dialogue lines are in rotation.
 43. Audio playback now uses a validated catalog and lifecycle-aware runtime. Duplicate music copies and non-runtime mobile audio are excluded deterministically, playlists shuffle without immediate repeats, focus loss suspends active audio, invalid stations normalize safely, and slingshots and eagle attacks no longer route through firearm sounds.
+44. Delivery quests now use one atomic cargo policy shared by desktop and Android. Food and water consume eligible backpack items before train storage, legacy free-cargo flags no longer bypass payment, and medicine, repair, ammunition, and recovery jobs provide distinct requirements, rewards, objective labels, and goodwill.
 
 ## Definition of done for this migration wave
 
@@ -93,7 +94,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/application_composition.lua` is the only runtime graph builder; `game/app.lua` is a thin lifecycle adapter.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 63-check smoke run and full route to stop 50 pass.
+- The 65-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -102,7 +103,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 15 Python architecture, audio-system, mobile-package, and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 63 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, player progression, event, train-upgrade, loot/equipment, quest/passenger balance, stop help, first aid, goodwill, and audio priority/lifecycle behavior, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
+- The normal autonomous smoke playthrough passed all 65 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, player progression, event, train-upgrade, loot/equipment, all six delivery types, atomic cargo and legacy compatibility, stop help, first aid, goodwill, and audio priority/lifecycle behavior, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 68 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 69 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.

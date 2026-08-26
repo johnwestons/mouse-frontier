@@ -33,6 +33,9 @@ local function new(context)
   local BattleRules=required(domain,"domain","battleRules","table")
   local Intro=required(domain,"domain","intro","table")
   local FirstAid=required(domain,"domain","firstAid","table")
+  local Audio=required(domain,"domain","audio","table")
+  local AudioCatalog=required(domain,"domain","audioCatalog","table")
+  local AudioSelfTest=required(domain,"domain","audioSelfTest","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
@@ -70,6 +73,7 @@ local function new(context)
       platformComposition=platform,inputComposition=input,worldSessionComposition=world,
       startupComposition=startup,serviceRegistry=serviceRegistry,smokeComposition=composition,
       applicationComposition=applicationComposition,
+      audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
