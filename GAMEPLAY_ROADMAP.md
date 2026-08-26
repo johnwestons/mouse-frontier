@@ -69,6 +69,12 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Complete:** Improve battle readability with stronger movement and target shapes, bordered health bars, scalable status/feed text, always-visible mobile ability explanations, and keyboard/touch-accessible settings.
 - **Complete:** Keep every new control usable by mouse, keyboard, and Android touch without hover-only assumptions.
 
+## 11. Final desktop/Android parity and regression audit — Complete
+
+- **Complete:** Require every desktop gameplay checkpoint to pass unchanged in the packaged Android build, plus reviewed touch-only coverage for movement, actions, menus, home exits, settlement help, and pinch zoom.
+- **Complete:** Require the full route to reach stop 50, package from a clean tracked commit, verify the APK contents and signature, install on a connected Android device, and confirm the game reaches its startup marker.
+- **Complete:** Keep the release gate repeatable with `tools/audit_platform_parity.py` and document it in `FINAL_PARITY_AUDIT.md`.
+
 ## Mobile parity contract
 
 Android is not a later port. `BUILD_ANDROID.ps1` packages the same tracked Lua tree used by the desktop build. Each completed target must produce a package report whose `sourceCommit` matches the new commit and whose `sourceDirty` value is `false`.

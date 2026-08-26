@@ -17,6 +17,8 @@ You can also drag the entire project folder onto `love.exe`. Do not open `main.l
 
 Run `BUILD_ANDROID.ps1` to derive the current shared game into a phone-sized package, execute the mobile smoke checks, and create a signed sideloadable APK. The first build downloads and verifies its Android build dependencies; later updates reuse the local cache.
 
+Before a release, follow [FINAL_PARITY_AUDIT.md](FINAL_PARITY_AUDIT.md) to compare every shared desktop/mobile checkpoint, verify the full route, install the exact clean commit on Android, and confirm an on-device launch.
+
 Android controls, installation, update flow, and device verification are documented in [ANDROID_PORT.md](ANDROID_PORT.md). The deliberately small platform boundary is recorded in [MOBILE_ARCHITECTURE_DECISION.md](MOBILE_ARCHITECTURE_DECISION.md).
 
 ## Controls
