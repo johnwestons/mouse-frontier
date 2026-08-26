@@ -26,7 +26,7 @@ local function new(context)
   local Settlements=required(context,"settlements","table")
   local InteriorDoors=required(context,"interiorDoors","table")
   local Interactions=required(context,"interactions","table")
-  local Save=required(context,"save","table")
+  local updatePersistence=required(context,"updatePersistence","function")
   local Clouds=required(context,"clouds","table")
   local screens=required(context,"screens","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
@@ -63,7 +63,7 @@ local function new(context)
   end
 
   local function update(dt)
-      Save.update(dt)
+      updatePersistence(dt)
       runtime.animationClock=runtime.animationClock+dt
       Clouds.update(cloudLayer,dt)
       if screens:is("intro") then screens:update(dt); return end

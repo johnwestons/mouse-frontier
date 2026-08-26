@@ -65,16 +65,20 @@ local car = Config.trainCar
 local colors = Config.colors
 
 
-local function writeSave()
-    if not runtime.selectedSlot or not runtime.saveData then return end
-    runtime:syncForSave()
-    ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1
-    session:scheduleSave(Save)
-end
-
 local function isFurnitureItem(name)
     return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
 end
+
+Systems.persistenceRuntime=Systems.persistenceRuntime.new({
+    runtime=runtime,
+    ui=ui,
+    session=session,
+    save=Save,
+    maintenance=Maintenance,
+    maintenanceSession=maintenanceSession,
+    focusMobile=function(...) return Systems.mobileRuntime.focus(...) end,
+    shutdownAudio=function(...) return Systems.audioRuntime.shutdown(...) end,
+})
 
 Systems.worldScene=Systems.worldScene.new({
     runtime=runtime,
@@ -91,7 +95,7 @@ Systems.worldScene=Systems.worldScene.new({
     stopSludges=StopSludges,
     getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
     isFurnitureItem=isFurnitureItem,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
 })
 
 Systems.audioRuntime=Systems.audioRuntime.new({
@@ -109,7 +113,7 @@ Systems.trainCarRuntime=Systems.trainCarRuntime.new({
     train=Train,
     width=W,
     height=H,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
 })
 
 Systems.presentationRuntime=Systems.presentationRuntime.new({
@@ -192,7 +196,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     events=Events,
     battleController=BattleController,
     battleUI=Systems.battleUI,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     screenToGame=Systems.presentationRuntime.screenToGame,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
     enterStop=function(...) return Systems.journeyRules.enterStop(...) end,
@@ -204,7 +208,7 @@ Systems.inventoryActions=Systems.inventoryActions.new({
     inventory=Inventory,
     catalog=Catalog,
     util=Util,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     useBattleHealingItem=Systems.battleRuntime.useHealingItem,
     useBattlePotion=Systems.battleRuntime.usePotion,
 })
@@ -220,7 +224,7 @@ Systems.journeyRules=Systems.journeyRules.new({
     house=House,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
     setupNPC=Systems.worldScene.setupNPC,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     beginEncounter=Systems.battleRuntime.beginEncounter,
     beginRequiredEvent=function(location) return Systems.eventRuntime.beginRequired(location) end,
     beginRandomEvent=function() return Systems.eventRuntime.beginRandom() end,
@@ -233,7 +237,7 @@ Systems.eventRuntime=Systems.eventRuntime.new({
     eventUI=EventUI,
     catalog=Catalog,
     pointIn=Util.pointIn,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     beginEncounter=Systems.battleRuntime.beginEncounter,
     enterStop=Systems.journeyRules.enterStop,
 })
@@ -279,7 +283,7 @@ Systems.startupRuntime=Systems.startupRuntime.new({
         settlements=Settlements,
         interiorDoors=InteriorDoors,
         interactions=Interactions,
-        save=Save,
+        updatePersistence=Systems.persistenceRuntime.update,
         clouds=Clouds,
         screens=screens,
         engineUpgrades=EngineUpgrades,
@@ -296,7 +300,7 @@ Systems.startupRuntime=Systems.startupRuntime.new({
         setupNPC=Systems.worldScene.setupNPC,
         trainFloorBounds=Systems.trainCarRuntime.floorBounds,
         updateCarTransition=Systems.trainCarRuntime.updateTransition,
-        writeSave=writeSave,
+        writeSave=Systems.persistenceRuntime.schedule,
     },
 })
 
@@ -325,14 +329,14 @@ Systems.screenUI=Systems.screenUI.new({
     characters=characters,
     characterImages=characterImages,
     npcImages=npcImages,
-    save=Save,
+    readSave=Systems.persistenceRuntime.read,
     util=Util,
     catalog=Catalog,
     inventory=Inventory,
     eventUI=EventUI,
     canChooseEvent=Systems.eventRuntime.canChoose,
     engineUpgrades=EngineUpgrades,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     screenToGame=Systems.presentationRuntime.screenToGame,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
     mobileEnabled=Systems.mobileRuntime.isEnabled,
@@ -457,14 +461,15 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     inventory=Inventory,
     catalog=Catalog,
     util=Util,
-    save=Save,
+    readSave=Systems.persistenceRuntime.read,
+    removeSave=Systems.persistenceRuntime.remove,
     engineUpgrades=EngineUpgrades,
     maintenance=Maintenance,
     battleRules=BattleRules,
     stops=Stops,
     settlements=Settlements,
     interiorDoors=InteriorDoors,
-    writeSave=writeSave,
+    writeSave=Systems.persistenceRuntime.schedule,
     screenToGame=Systems.presentationRuntime.screenToGame,
     viewportToGame=Systems.presentationRuntime.viewportToGame,
     cameraPanning=Systems.presentationRuntime.isPanning,
@@ -522,12 +527,7 @@ function App.keyreleased(...) return Systems.mobileRuntime.keyreleased(...) end
 function App.touchpressed(...) return Systems.mobileRuntime.touchpressed(...) end
 function App.touchmoved(...) return Systems.mobileRuntime.touchmoved(...) end
 function App.touchreleased(...) return Systems.mobileRuntime.touchreleased(...) end
-function App.focus(focused)
-    Systems.mobileRuntime.focus(focused)
-    if not focused then
-        writeSave(); Save.flush()
-    end
-end
+function App.focus(focused) return Systems.persistenceRuntime.focus(focused) end
 
 
 
@@ -536,7 +536,7 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
         elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="presentationRuntime" then return Systems.presentationRuntime elseif name=="startupRuntime" then return Systems.startupRuntime
-        elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
+        elseif name=="writeSave" then return Systems.persistenceRuntime.schedule elseif name=="persistenceRuntime" then return Systems.persistenceRuntime elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
     end})
@@ -544,6 +544,6 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
 end
 end
 
-function App.quit() Maintenance.release(maintenanceSession); writeSave(); Save.flush(); Systems.audioRuntime.shutdown() end
+function App.quit() Systems.persistenceRuntime.shutdown() end
 
 return App

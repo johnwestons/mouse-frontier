@@ -63,6 +63,15 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             {name="startup_runtime_ready",action=function()
                 return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
             end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
+            {name="persistence_focus_flush",action=function()
+                local previousSlot=selectedSlot; selectedSlot=99
+                local revision=ui.itemOrderRevision or 0
+                local scheduled=persistenceRuntime.schedule()
+                local flushed=persistenceRuntime.focus(false)
+                local persisted=Save.read(99)
+                Save.remove(99); selectedSlot=previousSlot
+                return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision}
+            end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced end},
             {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end

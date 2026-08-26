@@ -16,7 +16,8 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
-  local Save=required(context,"save","table")
+  local readSave=required(context,"readSave","function")
+  local removeSave=required(context,"removeSave","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local Maintenance=required(context,"maintenance","table")
   local BattleRules=required(context,"battleRules","table")
@@ -262,7 +263,7 @@ local function new(context)
           return
       end
       if runtime.state=="slots" then
-          for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=Save.read(i); if data then runtime.selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then runtime.selectedSlot=i; runtime.state="characters"; return elseif Util.pointIn(x,y,ui.slotDelete[i]) then Save.remove(i); return end end
+          for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=readSave(i); if data then runtime.selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then runtime.selectedSlot=i; runtime.state="characters"; return elseif Util.pointIn(x,y,ui.slotDelete[i]) then removeSave(i); return end end
       elseif runtime.state=="characters" then
           if Util.pointIn(x,y,ui.characterUp) then runtime.characterScroll=math.max(0,runtime.characterScroll-1); return end
           if Util.pointIn(x,y,ui.characterDown) then runtime.characterScroll=runtime.characterScroll+1; return end
