@@ -26,6 +26,7 @@ return {
     screens = require("game.screen_manager"),
     screenFlow = require("game.screen_flow"),
     screenUI = require("game.screen_ui"),
+    serviceRegistry = require("game.service_registry"),
     session = require("game.game_session"),
     sessionBootstrap = require("game.session_bootstrap"),
     startupRuntime = require("game.startup_runtime"),

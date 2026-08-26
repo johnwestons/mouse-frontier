@@ -37,6 +37,7 @@ local function install(context)
     local inputComposition=required(context,"inputComposition","table")
     local worldSessionComposition=required(context,"worldSessionComposition","table")
     local startupComposition=required(context,"startupComposition","table")
+    local serviceRegistry=required(context,"serviceRegistry","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -126,6 +127,10 @@ local function install(context)
                 check=function(_,_,_,result) return result.ready and result.componentCount==2 end},
             {name="startup_context_composed",action=startupComposition.status,
                 check=function(_,_,_,result) return result.ready and result.componentCount==2 end},
+            {name="service_manifest_immutable",action=serviceRegistry.status,
+                check=function(_,_,_,result)
+                    return result.immutable and result.separated and result.serviceCount==18 and result.factoryCount>result.serviceCount
+                end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
             end,check=function(_,_,_,result) return result.installed and result.routes==7 and result.current~=nil end},

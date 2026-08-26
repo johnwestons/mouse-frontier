@@ -41,14 +41,16 @@ local SmokePlaythrough = require("game.smoke_playthrough")
 local Clouds = require("game.clouds")
 local Maintenance = require("game.maintenance")
 local MobileControls = require("game.mobile_controls")
-local Systems = require("game.systems")
-local session = Systems.session.new()
-local screens = Systems.screens.new(session)
+local Modules = require("game.systems")
+local serviceRegistry=Modules.serviceRegistry.new(Modules)
+local services=serviceRegistry.services
+local session = Modules.session.new()
+local screens = Modules.screens.new(session)
 local runtime = RuntimeState.new({
     session = session,
     transition = function(screen) screens:transition(screen) end,
 })
-local content=Systems.contentRegistry.new({filesystem=love.filesystem})
+local content=Modules.contentRegistry.new({filesystem=love.filesystem})
 local characters=content.characters
 local scenery,ui=content.scenery,content.ui
 local maintenanceSession = Maintenance.new()
@@ -60,78 +62,75 @@ local car = Config.trainCar
 local colors = Config.colors
 
 
-Systems.screenFlow=Systems.screenFlow.new({
+services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,
     ui=ui,
     screens=screens,
-    intro=Systems.intro,
+    intro=Modules.intro,
     scenery=scenery,
     colors=colors,
-    updateBattle=function(...) return Systems.battleRuntime.update(...) end,
-    drawBattle=function(...) return Systems.battleRuntime.draw(...) end,
-    drawEnding=function(...) return Systems.screenUI.drawEnding(...) end,
-    drawGameplay=function(...) return Systems.gameplayHUD.draw(...) end,
-})
-Systems.screenFlow.install()
+    updateBattle=function(...) return services.battleRuntime.update(...) end,
+    drawBattle=function(...) return services.battleRuntime.draw(...) end,
+    drawEnding=function(...) return services.screenUI.drawEnding(...) end,
+    drawGameplay=function(...) return services.gameplayHUD.draw(...) end,
+}))
+services.screenFlow.install()
 
-local platform=Systems.platformComposition.new({
-    persistenceRuntimeFactory=Systems.persistenceRuntime,audioRuntimeFactory=Systems.audioRuntime,
-    trainCarRuntimeFactory=Systems.trainCarRuntime,presentationRuntimeFactory=Systems.presentationRuntime,
-    mobileRuntimeFactory=Systems.mobileRuntime,runtime=runtime,ui=ui,session=session,save=Save,
+local platform=Modules.platformComposition.new({
+    persistenceRuntimeFactory=Modules.persistenceRuntime,audioRuntimeFactory=Modules.audioRuntime,
+    trainCarRuntimeFactory=Modules.trainCarRuntime,presentationRuntimeFactory=Modules.presentationRuntime,
+    mobileRuntimeFactory=Modules.mobileRuntime,runtime=runtime,ui=ui,session=session,save=Save,
     maintenance=Maintenance,maintenanceSession=maintenanceSession,catalog=Catalog,audio=Audio,
     scenery=scenery,car=car,train=Train,width=W,height=H,screens=screens,viewport=Viewport,camera=Camera,
     engineUpgrades=EngineUpgrades,mobileControls=MobileControls,
-    drawExitPrompt=function(...) return Systems.screenUI.drawExitPrompt(...) end,
-    getGameplayInput=function() return Systems.gameplayInput end,
+    drawExitPrompt=function(...) return services.screenUI.drawExitPrompt(...) end,
+    getGameplayInput=function() return services.gameplayInput end,
 })
-Systems.persistenceRuntime,Systems.audioRuntime=platform.persistenceRuntime,platform.audioRuntime
-Systems.trainCarRuntime,Systems.presentationRuntime=platform.trainCarRuntime,platform.presentationRuntime
-Systems.mobileRuntime=platform.mobileRuntime
+serviceRegistry.publishAll(platform)
 
-local world=Systems.worldSessionComposition.new({
-    worldSceneFactory=Systems.worldScene,sessionBootstrapFactory=Systems.sessionBootstrap,
+local world=Modules.worldSessionComposition.new({
+    worldSceneFactory=Modules.worldScene,sessionBootstrapFactory=Modules.sessionBootstrap,
     platform=platform,content=content,runtime=runtime,ui=ui,car=car,maintenanceSession=maintenanceSession,
     filesystem=love.filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
-    getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
+    getIsWeapon=function() return services.inventoryActions.isWeapon end,
 })
-Systems.worldScene,Systems.sessionBootstrap=world.worldScene,world.sessionBootstrap
-local adventure=Systems.adventureComposition.new({
-    battleRuntimeFactory=Systems.battleRuntime,inventoryActionsFactory=Systems.inventoryActions,
-    journeyRulesFactory=Systems.journeyRules,eventRuntimeFactory=Systems.eventRuntime,
+serviceRegistry.publishAll(world)
+local adventure=Modules.adventureComposition.new({
+    battleRuntimeFactory=Modules.battleRuntime,inventoryActionsFactory=Modules.inventoryActions,
+    journeyRulesFactory=Modules.journeyRules,eventRuntimeFactory=Modules.eventRuntime,
     runtime=runtime,width=W,height=H,ui=ui,content=content,colors=colors,car=car,
     inventory=Inventory,catalog=Catalog,util=Util,battleRules=BattleRules,events=Events,
-    battleController=BattleController,battleUI=Systems.battleUI,engineUpgrades=EngineUpgrades,
+    battleController=BattleController,battleUI=Modules.battleUI,engineUpgrades=EngineUpgrades,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
-    writeSave=Systems.persistenceRuntime.schedule,screenToGame=Systems.presentationRuntime.screenToGame,
-    pointerPosition=Systems.mobileRuntime.pointerPosition,mobileEnabled=Systems.mobileRuntime.isEnabled,
-    ensureStopLayout=Systems.worldScene.ensureStopLayout,setupNPC=Systems.worldScene.setupNPC,
-    getCharacterAnimations=function() return Systems.startupRuntime.characterAnimations() end,
-    getWorldRenderer=function() return Systems.worldRenderer end,getScreenUI=function() return Systems.screenUI end,
-    handleInventoryClick=function(x,y) return Systems.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
+    writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
+    pointerPosition=platform.mobileRuntime.pointerPosition,mobileEnabled=platform.mobileRuntime.isEnabled,
+    ensureStopLayout=world.worldScene.ensureStopLayout,setupNPC=world.worldScene.setupNPC,
+    getCharacterAnimations=function() return services.startupRuntime.characterAnimations() end,
+    getWorldRenderer=function() return services.worldRenderer end,getScreenUI=function() return services.screenUI end,
+    handleInventoryClick=function(x,y) return services.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
 })
-Systems.battleRuntime,Systems.inventoryActions=adventure.battleRuntime,adventure.inventoryActions
-Systems.journeyRules,Systems.eventRuntime=adventure.journeyRules,adventure.eventRuntime
+serviceRegistry.publishAll(adventure)
 
-local startup=Systems.startupComposition.new({
-    startupRuntimeFactory=Systems.startupRuntime,assetStreamer=Systems.assetStreamer,
-    gameplayUpdate=Systems.gameplayUpdate,platform=platform,adventure=adventure,world=world,content=content,
+local startup=Modules.startupComposition.new({
+    startupRuntimeFactory=Modules.startupRuntime,assetStreamer=Modules.assetStreamer,
+    gameplayUpdate=Modules.gameplayUpdate,platform=platform,adventure=adventure,world=world,content=content,
     runtime=runtime,width=W,holdPickupSeconds=Config.holdPickupSeconds,ui=ui,car=car,
     maintenanceSession=maintenanceSession,screens=screens,graphics=love.graphics,filesystem=love.filesystem,
-    assets=Assets,settlements=Settlements,clouds=Clouds,intro=Systems.intro,
-    interactionRouter=Systems.interactions,interactions=Interactions,catalog=Catalog,interiorDoors=InteriorDoors,
+    assets=Assets,settlements=Settlements,clouds=Clouds,intro=Modules.intro,
+    interactionRouter=Modules.interactions,interactions=Interactions,catalog=Catalog,interiorDoors=InteriorDoors,
     engineUpgrades=EngineUpgrades,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
 })
-Systems.startupRuntime=startup.startupRuntime
+serviceRegistry.publishAll(startup)
 
-function App.load() return Systems.startupRuntime.load() end
+function App.load() return services.startupRuntime.load() end
 
-function App.update(dt) return Systems.startupRuntime.update(dt) end
+function App.update(dt) return services.startupRuntime.update(dt) end
 
-local views=Systems.viewComposition.new({
-    screenUIFactory=Systems.screenUI,inventoryPresenterFactory=Systems.inventoryPresenter,
-    worldRendererFactory=Systems.worldRenderer,gameplayHUDFactory=Systems.gameplayHUD,inventoryUI=Systems.inventory,
+local views=Modules.viewComposition.new({
+    screenUIFactory=Modules.screenUI,inventoryPresenterFactory=Modules.inventoryPresenter,
+    worldRendererFactory=Modules.worldRenderer,gameplayHUDFactory=Modules.gameplayHUD,inventoryUI=Modules.inventory,
     platform=platform,adventure=adventure,world=world,startup=startup,
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
@@ -139,29 +138,28 @@ local views=Systems.viewComposition.new({
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
 })
-Systems.screenUI,Systems.inventoryPresenter=views.screenUI,views.inventoryPresenter
-Systems.worldRenderer,Systems.gameplayHUD=views.worldRenderer,views.gameplayHUD
-function App.draw() return Systems.presentationRuntime.draw() end
+serviceRegistry.publishAll(views)
+function App.draw() return services.presentationRuntime.draw() end
 
-local input=Systems.inputComposition.new({
-    gameplayInputFactory=Systems.gameplayInput,runtime=runtime,ui=ui,content=content,
+local input=Modules.inputComposition.new({
+    gameplayInputFactory=Modules.gameplayInput,runtime=runtime,ui=ui,content=content,
     maintenanceSession=maintenanceSession,platform=platform,adventure=adventure,views=views,
-    worldScene=Systems.worldScene,sessionBootstrap=Systems.sessionBootstrap,
+    worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
     inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
-    intro=Systems.intro,interactions=Systems.interactions,
+    intro=Modules.intro,interactions=Modules.interactions,
 })
-Systems.gameplayInput=input.gameplayInput
-function App.mousepressed(...) return Systems.mobileRuntime.mousepressed(...) end
-function App.mousemoved(...) return Systems.mobileRuntime.mousemoved(...) end
-function App.mousereleased(...) return Systems.mobileRuntime.mousereleased(...) end
-function App.wheelmoved(...) return Systems.gameplayInput.wheelmoved(...) end
-function App.keypressed(...) return Systems.mobileRuntime.keypressed(...) end
-function App.keyreleased(...) return Systems.mobileRuntime.keyreleased(...) end
-function App.touchpressed(...) return Systems.mobileRuntime.touchpressed(...) end
-function App.touchmoved(...) return Systems.mobileRuntime.touchmoved(...) end
-function App.touchreleased(...) return Systems.mobileRuntime.touchreleased(...) end
-function App.focus(focused) return Systems.persistenceRuntime.focus(focused) end
+serviceRegistry.publishAll(input)
+function App.mousepressed(...) return services.mobileRuntime.mousepressed(...) end
+function App.mousemoved(...) return services.mobileRuntime.mousemoved(...) end
+function App.mousereleased(...) return services.mobileRuntime.mousereleased(...) end
+function App.wheelmoved(...) return services.gameplayInput.wheelmoved(...) end
+function App.keypressed(...) return services.mobileRuntime.keypressed(...) end
+function App.keyreleased(...) return services.mobileRuntime.keyreleased(...) end
+function App.touchpressed(...) return services.mobileRuntime.touchpressed(...) end
+function App.touchmoved(...) return services.mobileRuntime.touchmoved(...) end
+function App.touchreleased(...) return services.mobileRuntime.touchreleased(...) end
+function App.focus(focused) return services.persistenceRuntime.focus(focused) end
 
 
 
@@ -169,20 +167,20 @@ function App.installSmoke()
     return SmokePlaythrough.install({
         runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
-        maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
-        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
+        maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=services.presentationRuntime,
+        startupRuntime=services.startupRuntime,persistenceRuntime=services.persistenceRuntime,screenFlow=services.screenFlow,
         contentRegistry=content,viewComposition=views,adventureComposition=adventure,platformComposition=platform,
         inputComposition=input,worldSessionComposition=world,startupComposition=startup,
-        getMobileControls=function() return Systems.mobileRuntime.get() end,
-        createIntro=function() return Systems.intro.new(10) end,
-        newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,
-        ensureStopLayout=Systems.worldScene.ensureStopLayout,setupNPC=Systems.worldScene.setupNPC,
-        beginEncounter=Systems.battleRuntime.beginEncounter,consumeSelected=Systems.inventoryActions.consumeSelected,
-        resolveEventChoice=Systems.eventRuntime.choose,advanceBattleTurn=Systems.battleRuntime.advanceTurn,
-        battleAttack=Systems.battleRuntime.attack,resolveBattleAttack=Systems.battleRuntime.resolveAttack,
+        serviceRegistry=serviceRegistry,getMobileControls=function() return services.mobileRuntime.get() end,
+        createIntro=function() return Modules.intro.new(10) end,
+        newSave=services.sessionBootstrap.newSave,enterGame=services.sessionBootstrap.enterGame,
+        ensureStopLayout=services.worldScene.ensureStopLayout,setupNPC=services.worldScene.setupNPC,
+        beginEncounter=services.battleRuntime.beginEncounter,consumeSelected=services.inventoryActions.consumeSelected,
+        resolveEventChoice=services.eventRuntime.choose,advanceBattleTurn=services.battleRuntime.advanceTurn,
+        battleAttack=services.battleRuntime.attack,resolveBattleAttack=services.battleRuntime.resolveAttack,
     })
 end
 
-function App.quit() Systems.persistenceRuntime.shutdown() end
+function App.quit() services.persistenceRuntime.shutdown() end
 
 return App
