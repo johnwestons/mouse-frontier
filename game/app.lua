@@ -532,16 +532,19 @@ function App.focus(focused) return Systems.persistenceRuntime.focus(focused) end
 
 
 function App.installSmoke()
-if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
-    local smokeScope=setmetatable({}, {__index=function(_,name)
-        if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
-        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="presentationRuntime" then return Systems.presentationRuntime elseif name=="startupRuntime" then return Systems.startupRuntime
-        elseif name=="writeSave" then return Systems.persistenceRuntime.schedule elseif name=="persistenceRuntime" then return Systems.persistenceRuntime elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
-    end,__newindex=function(_,name,value)
-        if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end
-    end})
-    SmokePlaythrough.install(smokeScope)
-end
+    return SmokePlaythrough.install({
+        runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
+        currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
+        maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
+        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,
+        getMobileControls=function() return Systems.mobileRuntime.get() end,
+        createIntro=function() return Systems.intro.new(10) end,
+        newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,
+        ensureStopLayout=Systems.worldScene.ensureStopLayout,setupNPC=Systems.worldScene.setupNPC,
+        beginEncounter=Systems.battleRuntime.beginEncounter,consumeSelected=Systems.inventoryActions.consumeSelected,
+        resolveEventChoice=Systems.eventRuntime.choose,advanceBattleTurn=Systems.battleRuntime.advanceTurn,
+        battleAttack=Systems.battleRuntime.attack,resolveBattleAttack=Systems.battleRuntime.resolveAttack,
+    })
 end
 
 function App.quit() Systems.persistenceRuntime.shutdown() end

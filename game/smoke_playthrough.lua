@@ -1,48 +1,81 @@
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
 
-local function install(scope)
-    local env=setmetatable({}, {__index=function(_,key)
-        local value=scope[key]
-        if value~=nil then return value end
-        return _G[key]
-    end, __newindex=function(_,key,value) scope[key]=value end})
-    setfenv(install,env)
+local function required(context,name,expected)
+    local value=context[name]
+    assert(value~=nil,"smoke playthrough requires "..name)
+    if expected then assert(type(value)==expected,"smoke playthrough "..name.." must be a "..expected) end
+    return value
+end
+
+local function install(context)
+    assert(type(context)=="table","smoke playthrough requires an explicit context")
+    if os.getenv("MOUSE_FRONTIER_SMOKE")~="1" then return false end
+    local game=required(context,"runtime","table")
+    local ui=required(context,"ui","table")
+    local characters=required(context,"characters","table")
+    local maintenanceSession=required(context,"maintenanceSession","table")
+    local session=required(context,"session","table")
+    local screens=required(context,"screens","table")
+    local car=required(context,"car","table")
+    local CURRENT_SAVE_VERSION=required(context,"currentSaveVersion","number")
+    local SaveSchema=required(context,"saveSchema","table")
+    local Catalog=required(context,"catalog","table")
+    local Assets=required(context,"assets","table")
+    local Save=required(context,"save","table")
+    local Maintenance=required(context,"maintenance","table")
+    local Events=required(context,"events","table")
+    local BattleRules=required(context,"battleRules","table")
+    local presentationRuntime=required(context,"presentationRuntime","table")
+    local startupRuntime=required(context,"startupRuntime","table")
+    local persistenceRuntime=required(context,"persistenceRuntime","table")
+    local getMobileControls=required(context,"getMobileControls","function")
+    local createIntro=required(context,"createIntro","function")
+    local newSave=required(context,"newSave","function")
+    local enterGame=required(context,"enterGame","function")
+    local ensureStopLayout=required(context,"ensureStopLayout","function")
+    local setupNPC=required(context,"setupNPC","function")
+    local beginEncounter=required(context,"beginEncounter","function")
+    local consumeSelected=required(context,"consumeSelected","function")
+    local resolveEventChoice=required(context,"resolveEventChoice","function")
+    local advanceBattleTurn=required(context,"advanceBattleTurn","function")
+    local battleAttack=required(context,"battleAttack","function")
+    local resolveBattleAttack=required(context,"resolveBattleAttack","function")
+    local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
 -- LÖVE's mouse-frontier save directory.
-if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     ui.smokeLoad,ui.smokeUpdate,ui.smokeDraw=love.load,love.update,love.draw
     ui.smokeReport=nil; ui.smokeController=nil; ui.smokeFinalized=false
     ui.smokeFull=os.getenv("MOUSE_FRONTIER_SMOKE_FULL")=="1"
     local function smokeSnapshot()
-        return {state=state,scene=scene,location=saveData and saveData.location,
-            food=saveData and saveData.resources.food,water=saveData and saveData.resources.water,
-            coal=saveData and saveData.resources.coal,oil=saveData and saveData.resources.oil,health=saveData and saveData.health,
-            inventoryOpen=inventoryOpen,mapOpen=mapOpen,traveling=travelTransition~=nil,
-            maintenanceOpen=maintenanceSession.open,maintenanceCondition=saveData and Maintenance.condition(saveData),
+        return {state=game.state,scene=game.scene,location=game.saveData and game.saveData.location,
+            food=game.saveData and game.saveData.resources.food,water=game.saveData and game.saveData.resources.water,
+            coal=game.saveData and game.saveData.resources.coal,oil=game.saveData and game.saveData.resources.oil,health=game.saveData and game.saveData.health,
+            inventoryOpen=game.inventoryOpen,mapOpen=game.mapOpen,traveling=game.travelTransition~=nil,
+            maintenanceOpen=maintenanceSession.open,maintenanceCondition=game.saveData and Maintenance.condition(game.saveData),
             maintenanceTargets=Maintenance.targetCount(),maintenanceProgress=Maintenance.progressCount(maintenanceSession),
             maintenanceCursor=maintenanceSession.cursorActive,maintenanceCompleted=maintenanceSession.completed,
-            battleActive=battle~=nil,playerX=player and player.x,playerY=player and player.y,
-            activeCar=saveData and saveData.activeCar,carTransitioning=carTransition~=nil,
-            sessionSynchronized=session and session.screen==state and session.scene==scene and session.saveData==saveData and session.player==player and session.selectedSlot==selectedSlot,
-            screenManagerSynchronized=screens and screens.current==state and screens.current==session.screen,
-            runtimeSynchronized=runtime and runtime:isSynchronized(screens),
+            battleActive=game.battle~=nil,playerX=game.player and game.player.x,playerY=game.player and game.player.y,
+            activeCar=game.saveData and game.saveData.activeCar,carTransitioning=game.carTransition~=nil,
+            sessionSynchronized=session and session.screen==game.state and session.scene==game.scene and session.saveData==game.saveData and session.player==game.player and session.selectedSlot==game.selectedSlot,
+            screenManagerSynchronized=screens and screens.current==game.state and screens.current==session.screen,
+            runtimeSynchronized=game:isSynchronized(screens),
             assetFailures=Assets.assetFailureCount(),luaMemoryKB=math.floor(collectgarbage("count")),
             fps=love.timer and love.timer.getFPS and love.timer.getFPS() or nil}
     end
     local function setFixture(name)
-        inventoryOpen,mapOpen,tradeOpen,trainUpgradeOpen,poseMenu=false,false,false,false,false
+        game.inventoryOpen,game.mapOpen,game.tradeOpen,game.trainUpgradeOpen,game.poseMenu=false,false,false,false,false
         ui.optionsOpen,ui.radioOpen=false,false
-        if name=="intro" then state="intro"; ui.introCinematic=Systems.intro.new(10)
-        elseif name=="slots" then state="slots"
-        elseif name=="characters" then state="characters"
-        elseif name=="event" then state="event"; scene="stop"; randomEvent=Events.random(saveData)
+        if name=="intro" then game.state="intro"; ui.introCinematic=createIntro()
+        elseif name=="slots" then game.state="slots"
+        elseif name=="characters" then game.state="characters"
+        elseif name=="event" then game.state="event"; game.scene="stop"; game.randomEvent=Events.random(game.saveData)
         elseif name=="battle" then
-            beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={Catalog.mobTiers.easy[1]}}); battle.intro=nil
-        elseif name=="ending" then state="ending"
-        elseif name=="inventory" then state="game"; scene="train"; saveData.scene=scene; inventoryOpen=true
-        else state="game"; scene=name; saveData.scene=scene; if scene~="train" then ensureStopLayout(); setupNPC() end end
+            beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={Catalog.mobTiers.easy[1]}}); game.battle.intro=nil
+        elseif name=="ending" then game.state="ending"
+        elseif name=="inventory" then game.state="game"; game.scene="train"; game.saveData.scene=game.scene; game.inventoryOpen=true
+        else game.state="game"; game.scene=name; game.saveData.scene=game.scene; if game.scene~="train" then ensureStopLayout(); setupNPC() end end
         return name
     end
     local function fixtureStep(name)
@@ -55,28 +88,29 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
         if not ok then io.stderr:write("LOAD_ERROR: "..tostring(message).."\n"); io.stderr:flush(); os.exit(1) end
         local character=characters[1]
         if not character then io.stderr:write("LOAD_ERROR: no playable character assets found\n"); io.stderr:flush(); os.exit(1) end
-        saveData=newSave(character); selectedSlot=nil; enterGame(saveData)
+        game.saveData=newSave(character); game.selectedSlot=nil; enterGame(game.saveData)
+        local mobileControls=getMobileControls()
         local reportPath=os.getenv("MOUSE_FRONTIER_SMOKE_REPORT") or os.getenv("MOUSE_FRONTIER_SMOKE_RPT") or "smoke-test.rpt"
         ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
-        local startX=player.x
+        local startX=game.player.x
         local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
             {name="startup_runtime_ready",action=function()
                 return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
             end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
             {name="persistence_focus_flush",action=function()
-                local previousSlot=selectedSlot; selectedSlot=99
+                local previousSlot=game.selectedSlot; game.selectedSlot=99
                 local revision=ui.itemOrderRevision or 0
                 local scheduled=persistenceRuntime.schedule()
                 local flushed=persistenceRuntime.focus(false)
                 local persisted=Save.read(99)
-                Save.remove(99); selectedSlot=previousSlot
+                Save.remove(99); game.selectedSlot=previousSlot
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced end},
-            {name="start_new_game",action=function() saveData=newSave(character); enterGame(saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end
                 local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old
-                if not callOk then error(err) end; return player.x
+                if not callOk then error(err) end; return game.player.x
             end,check=function(_,_,snapshot,result) return result>startX and snapshot.playerX>startX end},
             {name="presentation_coordinate_modes",action=function()
                 presentationRuntime.setZoom(2)
@@ -93,34 +127,34 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                     maintenanceAligned=math.abs(maintenanceX-baseX)<.01 and math.abs(maintenanceY-baseY)<.01,
                 }
             end,check=function(_,_,_,result) return result.worldShifted and result.radioAligned and result.maintenanceAligned end},
-            {name="open_inventory_key",action=function() love.keypressed("i"); return inventoryOpen end,expect={inventoryOpen=true}},
+            {name="open_inventory_key",action=function() love.keypressed("i"); return game.inventoryOpen end,expect={inventoryOpen=true}},
             {name="close_inventory_key",action=function() love.keypressed("i"); return "closed" end,expect={inventoryOpen=false}},
-            {name="open_map_key",action=function() love.keypressed("m"); return mapOpen end,expect={mapOpen=true}},
-            {name="scroll_map_key",action=function() local before=mapScroll; love.keypressed("down"); return {before=before,after=mapScroll} end,
+            {name="open_map_key",action=function() love.keypressed("m"); return game.mapOpen end,expect={mapOpen=true}},
+            {name="scroll_map_key",action=function() local before=game.mapScroll; love.keypressed("down"); return {before=before,after=game.mapScroll} end,
                 check=function(_,_,_,result) return result.after==result.before+1 end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
             {name="begin_train_car_transition",action=function()
-                state="game"; scene="train"; saveData.scene=scene; saveData.trainCars={"living-car","sleeper"}; saveData.activeCar=1
-                ui.interaction={kind="carNext"}; love.keypressed("q"); return carTransition~=nil
+                game.state="game"; game.scene="train"; game.saveData.scene=game.scene; game.saveData.trainCars={"living-car","sleeper"}; game.saveData.activeCar=1
+                ui.interaction={kind="carNext"}; love.keypressed("q"); return game.carTransition~=nil
             end,expect={state="game",scene="train",activeCar=1,carTransitioning=true}},
             {name="complete_train_car_transition",action=function() return true end,
                 expect={activeCar=2,carTransitioning=false},timeout=4,
-                after=function() saveData.trainCars={"living-car"}; saveData.activeCar=1; ui.interaction=nil end},
+                after=function() game.saveData.trainCars={"living-car"}; game.saveData.activeCar=1; ui.interaction=nil end},
             {name="open_maintenance",action=function()
-                state="game"; scene="train"; saveData.scene=scene; Maintenance.open(maintenanceSession,saveData)
+                game.state="game"; game.scene="train"; game.saveData.scene=game.scene; Maintenance.open(maintenanceSession,game.saveData)
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCaptureRequested=true end
                 ui.smokeDraw(); return true
             end,expect={maintenanceOpen=true,maintenanceCondition=72,maintenanceTargets=3,maintenanceProgress=0,maintenanceCursor=true}},
             {name="maintenance_cancel_preserves_oil",action=function()
-                saveData.resources.oil=1
-                local before=saveData.resources.oil
+                game.saveData.resources.oil=1
+                local before=game.saveData.resources.oil
                 local x,y=Maintenance.targetPosition(1); love.mousepressed(x,y,1); love.mousepressed(x,y,1)
-                local afterDrop=saveData.resources.oil
+                local afterDrop=game.saveData.resources.oil
                 local limitedProgress=Maintenance.progressCount(maintenanceSession)
                 love.keypressed("escape")
-                local afterCancel=saveData.resources.oil
-                saveData.resources.oil=10
-                Maintenance.open(maintenanceSession,saveData)
+                local afterCancel=game.saveData.resources.oil
+                game.saveData.resources.oil=10
+                Maintenance.open(maintenanceSession,game.saveData)
                 return {before=before,afterDrop=afterDrop,afterCancel=afterCancel,limitedProgress=limitedProgress,
                     reopenedProgress=Maintenance.progressCount(maintenanceSession)}
             end,check=function(_,_,snapshot,result)
@@ -133,20 +167,20 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                 local x1,y1=Maintenance.targetPosition(1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1); love.mousepressed(x1,y1,1)
                 local x2,y2=Maintenance.targetPosition(2); love.mousepressed(x2,y2,1)
                 local x3,y3=Maintenance.targetPosition(3); love.mousepressed(x3,y3,1); love.mousepressed(x3,y3,1)
-                local beforeDone={condition=Maintenance.condition(saveData),progress=Maintenance.progressCount(maintenanceSession),oil=saveData.resources.oil}
+                local beforeDone={condition=Maintenance.condition(game.saveData),progress=Maintenance.progressCount(maintenanceSession),oil=game.saveData.resources.oil}
                 love.mousepressed(712,544,1)
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCompleteCaptureRequested=true end
                 ui.smokeDraw()
-                return {services=saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,oilAfter=saveData.resources.oil,
+                return {services=game.saveData.maintenance.totalServices,outsideProgress=outsideProgress,beforeDone=beforeDone,oilAfter=game.saveData.resources.oil,
                     lights=Maintenance.progressLights(maintenanceSession),cursor=maintenanceSession.cursorActive,
                     animationSpec=Maintenance.animationSpec(),animationState=Maintenance.animationState(maintenanceSession)}
             end,check=function(_,_,snapshot,result)
                 local lit=0; for _,value in ipairs(result.lights or {}) do if value then lit=lit+1 end end
-                local spec,state=result.animationSpec or {},result.animationState or {}
+                local spec,animationState=result.animationSpec or {},result.animationState or {}
                 return result.services==1 and result.outsideProgress==0 and result.beforeDone.condition==72 and result.beforeDone.progress==5 and
                     result.beforeDone.oil==10 and result.oilAfter==5 and snapshot.oil==5 and
                     lit==5 and result.cursor==false and snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true and
-                    spec.wheelFrames==5 and spec.doneFrames==5 and spec.conditionFrames==5 and state.smokePuffs==3
+                    spec.wheelFrames==5 and spec.doneFrames==5 and spec.conditionFrames==5 and animationState.smokePuffs==3
             end},
             {name="maintenance_animation_settles",action=function()
                 Maintenance.update(maintenanceSession,1.1); ui.smokeDraw()
@@ -157,30 +191,30 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             end},
             {name="close_maintenance",action=function() love.keypressed("escape"); return true end,expect={maintenanceOpen=false}},
             {name="maintenance_persists_at_stop",action=function()
-                Maintenance.open(maintenanceSession,saveData)
-                local before=saveData.maintenance.totalServices
-                local x,y=Maintenance.targetPosition(1); local result=Maintenance.mousepressed(maintenanceSession,x,y,saveData)
+                Maintenance.open(maintenanceSession,game.saveData)
+                local before=game.saveData.maintenance.totalServices
+                local x,y=Maintenance.targetPosition(1); local result=Maintenance.mousepressed(maintenanceSession,x,y,game.saveData)
                 local persisted={progress=Maintenance.progressCount(maintenanceSession),cursor=maintenanceSession.cursorActive,
-                    completed=maintenanceSession.completed,services=saveData.maintenance.totalServices,before=before,result=result}
+                    completed=maintenanceSession.completed,services=game.saveData.maintenance.totalServices,before=before,result=result}
                 Maintenance.close(maintenanceSession); return persisted
             end,check=function(_,_,snapshot,result)
                 return result.progress==5 and result.cursor==false and result.completed and result.services==result.before and snapshot.maintenanceOpen==false
             end},
             {name="store_oil_canisters",action=function()
-                saveData.resources.oil=0
+                game.saveData.resources.oil=0
                 local levels={}
                 for _,name in ipairs({"small-oil-canister","medium-oil-canister","large-oil-canister"}) do
-                    saveData.inventory[1]=name; draggedSlot={kind="inventory",index=1}
+                    game.saveData.inventory[1]=name; game.draggedSlot={kind="inventory",index=1}
                     if not consumeSelected() then return false end
-                    levels[#levels+1]=saveData.resources.oil
+                    levels[#levels+1]=game.saveData.resources.oil
                 end
-                dialogue=nil; actionHeldItem=nil; actionTimer=0
-                return {levels=levels,slot=saveData.inventory[1],dragged=draggedSlot}
+                game.dialogue=nil; game.actionHeldItem=nil; game.actionTimer=0
+                return {levels=levels,slot=game.saveData.inventory[1],dragged=game.draggedSlot}
             end,check=function(_,_,snapshot,result)
                 return result and result.levels[1]==1 and result.levels[2]==6 and result.levels[3]==16 and
                     result.slot==nil and result.dragged==nil and snapshot.oil==16
             end},
-            {name="confirm_travel",action=function() state="game"; scene="train"; saveData.scene=scene; travelConfirm=true; love.keypressed("return"); return true end,
+            {name="confirm_travel",action=function() game.state="game"; game.scene="train"; game.saveData.scene=game.scene; game.travelConfirm=true; love.keypressed("return"); return true end,
                 expect={food=9,water=9,coal=9,traveling=true}},
             {name="complete_travel",action=function() return true end,expect={location=2,traveling=false},timeout=20},
             fixtureStep("stop"),
@@ -193,17 +227,17 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                 local pack=ui.battleInventory
                 if not pack then return false end
                 ui.handleBattleMousePressed(pack.x+pack.w/2,pack.y+pack.h/2,false)
-                local opened=inventoryOpen
+                local opened=game.inventoryOpen
                 ui.smokeDraw()
                 local close=ui.battleInventoryClose
                 if not close then return false end
                 ui.handleBattleMousePressed(close.x+close.w/2,close.y+close.h/2,false)
-                return {opened=opened,closed=not inventoryOpen}
+                return {opened=opened,closed=not game.inventoryOpen}
             end,check=function(_,_,snapshot,result)
                 return result and result.opened and result.closed and snapshot.state=="battle" and snapshot.battleActive
             end},
             {name="render_firearm_attachments",action=function()
-                local unit=battle and battle.units and battle.units[1]
+                local unit=game.battle and game.battle.units and game.battle.units[1]
                 if not unit then return false end
                 unit.action="ranged"; unit.actionTimer=.44; unit.actionItem="frontier-9mm-service-pistol"; ui.smokeDraw()
                 unit.actionItem="frontier-22-lever-rifle"; unit.actionTimer=.22; ui.smokeDraw()
@@ -278,23 +312,23 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
         if mobileControls and mobileControls:isEnabled() then
             local mobileSteps={
                 {name="mobile_joystick_move_and_run",action=function()
-                    saveData=newSave(character); enterGame(saveData)
-                    local before=player.x
+                    game.saveData=newSave(character); enterGame(game.saveData)
+                    local before=game.player.x
                     love.touchpressed("smoke-stick",116,604)
                     love.touchmoved("smoke-stick",192,604,76,0)
                     local sprinting=mobileControls:isSprinting()
                     ui.smokeUpdate(.25)
                     love.touchreleased("smoke-stick",192,604)
                     local axisX,axisY=mobileControls:movement()
-                    return {before=before,after=player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=mobileControls.joystick.x,actionX=mobileControls.primary.x}
+                    return {before=before,after=game.player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=mobileControls.joystick.x,actionX=mobileControls.primary.x}
                 end,check=function(_,_,_,result)
                     return result.after>result.before and result.sprinting and result.axisX==0 and result.axisY==0 and result.stickX<=100 and result.actionX>=884
                 end},
                 {name="mobile_action_press_release",action=function()
-                    ui.interaction=nil; dialogue=nil
+                    ui.interaction=nil; game.dialogue=nil
                     love.touchpressed("smoke-action",855,615)
                     local held=mobileControls:isHeld("e")
-                    local action=actionKind
+                    local action=game.actionKind
                     love.touchreleased("smoke-action",855,615)
                     return {held=held,released=not mobileControls:isHeld("e"),action=action}
                 end,check=function(_,_,_,result) return result.held and result.released and result.action=="use" end},
@@ -304,13 +338,13 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                     ui.smokeDraw()
                     local menuOpened=ui.mobileMenuOpen and ui.backpack and ui.backpack.h>=64
                     love.touchpressed("smoke-pack-open",437,259); love.touchreleased("smoke-pack-open",437,259)
-                    local opened=inventoryOpen and not ui.mobileMenuOpen
+                    local opened=game.inventoryOpen and not ui.mobileMenuOpen
                     ui.smokeDraw()
                     love.touchpressed("smoke-back",80,101); love.touchreleased("smoke-back",80,101)
-                    return {menuOpened=menuOpened,opened=opened,closed=not inventoryOpen}
+                    return {menuOpened=menuOpened,opened=opened,closed=not game.inventoryOpen}
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
                 {name="mobile_pinch_zoom",action=function()
-                    ui.mobileMenuOpen=false; inventoryOpen=false; mapOpen=false; dialogue=nil; presentationRuntime.setZoom(1)
+                    ui.mobileMenuOpen=false; game.inventoryOpen=false; game.mapOpen=false; game.dialogue=nil; presentationRuntime.setZoom(1)
                     love.touchpressed("smoke-pinch-a",400,350)
                     love.touchpressed("smoke-pinch-b",560,350)
                     love.touchmoved("smoke-pinch-b",640,350,80,0)
@@ -343,55 +377,55 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
         if ui.smokeFull then
             local fullSteps={
                 {name="full_run_initialize",action=function()
-                    saveData=newSave(character)
+                    game.saveData=newSave(character)
                     -- Full-route mode tests progression to stop 50. The tester
                     -- provisions supplies so ordinary scarcity does not mask
                     -- route, encounter, or ending defects.
-                    saveData.resources.food=1000; saveData.resources.water=1000; saveData.resources.coal=1000
-                    enterGame(saveData); return true
+                    game.saveData.resources.food=1000; game.saveData.resources.water=1000; game.saveData.resources.coal=1000
+                    enterGame(game.saveData); return true
                 end,expect={state="game",scene="train",location=1}},
-                {name="full_journey_to_stop_50",timeout=400,before=function() ui.smokeFullLastLocation=saveData.location; ui.smokeFullStall=0 end,action=function()
-                    if saveData.location==ui.smokeFullLastLocation then ui.smokeFullStall=(ui.smokeFullStall or 0)+1 else ui.smokeFullLastLocation=saveData.location; ui.smokeFullStall=0 end
-                    if ui.smokeFullStall>30 then error("GAMEPLAY_BLOCKED: no progress at stop "..tostring(saveData.location).." state="..tostring(state).." scene="..tostring(scene).." battle="..tostring(battle~=nil).." event="..tostring(randomEvent~=nil)) end
-                    if saveData.location>=50 then state="ending"; return true end
-                    if state=="battle" then
-                        if battle and battle.finished then love.keypressed("return")
-                        elseif ui.smokeFull and battle then
+                {name="full_journey_to_stop_50",timeout=400,before=function() ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end,action=function()
+                    if game.saveData.location==ui.smokeFullLastLocation then ui.smokeFullStall=(ui.smokeFullStall or 0)+1 else ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end
+                    if ui.smokeFullStall>30 then error("GAMEPLAY_BLOCKED: no progress at stop "..tostring(game.saveData.location).." state="..tostring(game.state).." scene="..tostring(game.scene).." battle="..tostring(game.battle~=nil).." event="..tostring(game.randomEvent~=nil)) end
+                    if game.saveData.location>=50 then game.state="ending"; return true end
+                    if game.state=="battle" then
+                        if game.battle and game.battle.finished then love.keypressed("return")
+                        elseif ui.smokeFull and game.battle then
                             -- Full-route mode is a progression reachability
                             -- test. Encounters are still created/rendered, but
                             -- are auto-resolved so combat RNG cannot hide a
                             -- route/ending defect. Normal smoke mode exercises
                             -- the actual battle controls separately.
-                            for _,unit in ipairs(battle.units or {}) do if unit.team=="enemy" then unit.hp=0 end end
+                            for _,unit in ipairs(game.battle.units or {}) do if unit.team=="enemy" then unit.hp=0 end end
                             advanceBattleTurn()
-                        elseif battle and battle.intro then
+                        elseif game.battle and game.battle.intro then
                             -- The real update callback advances the intro.
-                        elseif battle and battle.phase=="select" then
-                            local active=BattleRules.activeUnit(battle); if active and active.team=="ally" then
+                        elseif game.battle and game.battle.phase=="select" then
+                            local active=BattleRules.activeUnit(game.battle); if active and active.team=="ally" then
                                 battleAttack("frontier-short-sword")
                             end
-                        elseif battle and battle.phase=="target" then
-                            local active=BattleRules.activeUnit(battle); local target
-                            for _,unit in ipairs(battle.units or {}) do if unit.team=="enemy" and unit.hp>0 then target=unit; break end end
-                            if active and target then resolveBattleAttack(active,target,battle.chosenWeapon or "frontier-short-sword") end
+                        elseif game.battle and game.battle.phase=="target" then
+                            local active=BattleRules.activeUnit(game.battle); local target
+                            for _,unit in ipairs(game.battle.units or {}) do if unit.team=="enemy" and unit.hp>0 then target=unit; break end end
+                            if active and target then resolveBattleAttack(active,target,game.battle.chosenWeapon or "frontier-short-sword") end
                         end
-                    elseif state=="event" then
+                    elseif game.state=="event" then
                         resolveEventChoice(1)
-                    elseif state=="game" and scene=="stop" then
-                        dialogue=nil; scene="train"; saveData.scene=scene; player.x,player.y=car.x+300,car.y+285; writeSave()
-                    elseif state=="game" and scene=="train" and not travelTransition then
-                        if saveData.resources.food<1 or saveData.resources.water<1 or saveData.resources.coal<1 then
-                            error("GAMEPLAY_BLOCKED: resources exhausted before stop "..tostring(saveData.location+1))
+                    elseif game.state=="game" and game.scene=="stop" then
+                        game.dialogue=nil; game.scene="train"; game.saveData.scene=game.scene; game.player.x,game.player.y=car.x+300,car.y+285; writeSave()
+                    elseif game.state=="game" and game.scene=="train" and not game.travelTransition then
+                        if game.saveData.resources.food<1 or game.saveData.resources.water<1 or game.saveData.resources.coal<1 then
+                            error("GAMEPLAY_BLOCKED: resources exhausted before stop "..tostring(game.saveData.location+1))
                         end
                         -- Route mode focuses on reachability. Mark the current
                         -- stop's interruption as handled, then use the real
                         -- travel confirmation/input path.
-                        local key=tostring(saveData.location); saveData.encounters[key]={resolved=true,hasMob=false}; saveData.events[key]=true
-                        travelConfirm=true; love.keypressed("return")
-                    elseif state~="game" or scene~="train" or travelTransition then
+                        local key=tostring(game.saveData.location); game.saveData.encounters[key]={resolved=true,hasMob=false}; game.saveData.events[key]=true
+                        game.travelConfirm=true; love.keypressed("return")
+                    elseif game.state~="game" or game.scene~="train" or game.travelTransition then
                         -- Let the real update callback advance transitions.
-                    else error("GAMEPLAY_BLOCKED: unexpected state at stop "..tostring(saveData.location)) end
-                    return saveData.location>=50
+                    else error("GAMEPLAY_BLOCKED: unexpected state at stop "..tostring(game.saveData.location)) end
+                    return game.saveData.location>=50
                 end,check=function(_,_,snapshot)
                     if snapshot.state=="ending" and snapshot.location>=50 then return true end
                     return false,"still progressing: stop "..tostring(snapshot.location)
@@ -443,8 +477,8 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
             love.graphics.captureScreenshot("maintenance-smoke-complete-preview.png")
         end
     end
-end
 
+    return true
 end
 
 return {install=install}

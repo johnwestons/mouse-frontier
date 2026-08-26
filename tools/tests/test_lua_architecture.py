@@ -49,6 +49,7 @@ class LuaArchitectureTests(unittest.TestCase):
         presentation_runtime = (ROOT / "game" / "presentation_runtime.lua").read_text(encoding="utf-8")
         startup_runtime = (ROOT / "game" / "startup_runtime.lua").read_text(encoding="utf-8")
         persistence_runtime = (ROOT / "game" / "persistence_runtime.lua").read_text(encoding="utf-8")
+        smoke_playthrough = (ROOT / "game" / "smoke_playthrough.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -258,6 +259,17 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("Save.remove", gameplay_input)
         self.assertNotIn('required(context,"save"', screen_ui)
         self.assertNotIn("Save.read", screen_ui)
+        self.assertIn("return {install=install}", smoke_playthrough)
+        self.assertNotIn("setfenv", smoke_playthrough)
+        self.assertNotIn("setmetatable", smoke_playthrough)
+        self.assertNotIn("_G", smoke_playthrough)
+        self.assertIn('assert(type(context)=="table","smoke playthrough requires an explicit context")', smoke_playthrough)
+        self.assertIn('local game=required(context,"runtime","table")', smoke_playthrough)
+        self.assertIn("game.saveData", smoke_playthrough)
+        self.assertIn("SmokePlaythrough.install({", app)
+        self.assertNotIn("smokeScope", app)
+        self.assertNotIn("__index=function", app)
+        self.assertNotIn("__newindex=function", app)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")
