@@ -6,7 +6,7 @@ local Config = {
     minimumWidth = 720,
     minimumHeight = 540,
     holdPickupSeconds = 0.85,
-    trainCar = {x = 315, y = 280, w = 680, h = 363, gap = 0, wall = 16},
+    trainCar = {x = 315, y = 280, w = 620, h = 363, gap = 0, wall = 16},
     colors = {
         ink = {0.10, 0.065, 0.04},
         wall = {0.31, 0.20, 0.12},

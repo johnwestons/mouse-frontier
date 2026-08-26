@@ -93,7 +93,7 @@ local function new(context)
       runtime.saveData.resources.water=runtime.saveData.resources.water-cost.water
       runtime.saveData.resources.coal=runtime.saveData.resources.coal-cost.coal
       runtime.travelConfirm=false
-      runtime.travelTransition={t=0,changed=false,departSoundPlayed=true}
+      runtime.travelTransition={t=0,changed=false,departSoundPlayed=true,maintenanceCondition=Maintenance.condition(runtime.saveData)}
       playTrainDepart(); writeSave(); return true
   end
 
@@ -245,6 +245,9 @@ local function new(context)
           if Util.pointIn(x,y,ui.questAccept) then acceptQuest(runtime.questOffer.kind)
           elseif Util.pointIn(x,y,ui.questDecline) then runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="I understand. Safe travels.",timer=5}; runtime.questOffer=nil end
           return true
+      end
+      for index,tab in ipairs(ui.trainCarTabs or {}) do
+          if Util.pointIn(x,y,tab) then beginCarTransition(index); return true end
       end
       if Util.pointIn(x,y,ui.editMode) then runtime.editMode=not runtime.editMode; ui.mobileMenuOpen=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil; runtime.inventoryOpen=false; runtime.mapOpen=false; writeSave(); return true end
       if Util.pointIn(x,y,ui.trainUpgrade) then runtime.trainUpgradeOpen=true; ui.mobileMenuOpen=false; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; return true end

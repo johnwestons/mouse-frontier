@@ -75,7 +75,8 @@ local function new(context)
       love.graphics.setColor(.08,.06,.045,.92); love.graphics.rectangle("fill",265,149,130,12,3,3)
       local progress=progression.maximum and 1 or math.min(1,xp/math.max(1,nextXP))
       love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",267,151,126*progress,8,2,2)
-      love.graphics.setColor(colors.cream); love.graphics.printf("LEVEL BONUS  AIM +"..progression.bonuses.attack.."  ARM +"..progression.bonuses.armor.."  MOVE +"..progression.bonuses.move,25,169,370,"center",0,.50,.50)
+      local trainStatus=Maintenance.status(runtime.saveData)
+      love.graphics.setColor(colors.cream); love.graphics.printf("LV BONUS AIM +"..progression.bonuses.attack.." ARM +"..progression.bonuses.armor.." MOVE +"..progression.bonuses.move.."  •  TRAIN "..math.floor(trainStatus.condition).."% "..trainStatus.label.."  NEXT -"..trainStatus.projectedWear,25,169,370,"center",0,.46,.46)
 
       local ammoParts={}
       for i=1,2 do
@@ -320,10 +321,11 @@ local function new(context)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
       love.graphics.setColor(colors.brass); love.graphics.printf("TRAIN WORKSHOP",150,95,660,"center",0,1.7,1.7)
       local engine=EngineUpgrades.profile(runtime.saveData.engineLevel); local engineStatus=TrainUpgradeBalance.engineStatus(runtime.saveData,EngineUpgrades); local nextEngine=engineStatus.entry
-      love.graphics.setColor(colors.cream); love.graphics.printf("Scrap: "..runtime.saveData.scrap.."   •   Buy cars and improve your locomotive",170,132,620,"center")
+      local maintenance=Maintenance.status(runtime.saveData)
+      love.graphics.setColor(colors.cream); love.graphics.printf("Scrap "..runtime.saveData.scrap.."  •  Condition "..math.floor(maintenance.condition).."% "..maintenance.label.."  •  Oil "..maintenance.oil.."/"..maintenance.oilCapacity,170,132,620,"center",0,.78,.78)
       love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
       love.graphics.setColor(colors.brass); love.graphics.print("ENGINE  "..engine.name,205,166,0,.88,.88)
-      love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%",205,190,0,.68,.68)
+      love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%  •  Wear -"..(engine.wearReduction or 0),205,190,0,.62,.62)
       local engineLabel=engineStatus.maximum and "MAX LEVEL" or (engineStatus.locked and ("UNLOCK "..engineStatus.unlockStop) or (nextEngine.cost.." SCRAP"))
       ui.engineUpgrade=button(engineLabel,mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,engineStatus.affordable==true)
       ui.trainCars={}

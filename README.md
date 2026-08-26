@@ -42,6 +42,7 @@ Android controls, installation, update flow, and device verification are documen
 - Early stops favor helpful and fortunate trail events; battles and mishaps become more common later, and every event retains an actionable fallback.
 - Mail, delivery, and passenger quests show their destination on the journey map. Food and water jobs draw from eligible backpack items before train storage; medicine, repair, ammunition, and recovery jobs add variety. Completed help earns goodwill, longer work pays more scrap and experience, passenger jobs improve with their matching train car, and overflow rewards arrive in the train mailbox.
 - Train cars unlock across the route and provide shared storage, production, passenger, healing, or navigation benefits; the workshop shows when each upgrade becomes available.
+- Every owned car fits the shared desktop/mobile train view. Use the numbered consist navigator to jump to any car; condition, projected wear, oil capacity, and engine maintenance reductions are shown before travel and in the workshop.
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
 - Equipped weapons wear by one point on every attack attempt, including misses. Broken weapons cannot attack; repair the most damaged equipped weapon for scrap at the train workshop.
@@ -85,6 +86,8 @@ LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder
 Loot rarity, weapon tiers, pricing, durability, repairs, ammunition availability, and resale rules are documented in [LOOT_EQUIPMENT_BALANCE.md](LOOT_EQUIPMENT_BALANCE.md).
 
 Battlefield geometry, obstacles, line of sight, boss milestones, AI movement, ally scaling, status presentation, and combat rewards are documented in [COMBAT_BALANCE.md](COMBAT_BALANCE.md).
+
+Responsive car framing, consist navigation, route wear, oil capacity, condition penalties, and servicing are documented in [TRAIN_PRESENTATION_MAINTENANCE.md](TRAIN_PRESENTATION_MAINTENANCE.md).
 
 Quest offers, delivery distances, rewards, passenger jobs, objective tracking, and mailbox delivery are documented in [QUEST_PASSENGER_BALANCE.md](QUEST_PASSENGER_BALANCE.md).
 

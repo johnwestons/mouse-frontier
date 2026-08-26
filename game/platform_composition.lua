@@ -51,7 +51,7 @@ local function new(context)
 
   presentationRuntime=PresentationRuntime.new({
     runtime=runtime,ui=ui,screens=screens,maintenanceSession=maintenanceSession,
-    viewport=Viewport,camera=Camera,engineUpgrades=EngineUpgrades,width=W,height=H,
+    viewport=Viewport,camera=Camera,engineUpgrades=EngineUpgrades,maintenance=Maintenance,width=W,height=H,
     drawExitPrompt=drawExitPrompt,drawMobileControls=function(...) return mobileRuntime.draw(...) end,
   })
 

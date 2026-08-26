@@ -75,7 +75,7 @@ local function new(context)
       updateAudio()
       local trainRate=2.2
       if runtime.travelTransition then
-          local t=runtime.travelTransition.t or 0; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
+          local t=runtime.travelTransition.t or 0; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,runtime.travelTransition.maintenanceCondition or Maintenance.condition(runtime.saveData))
           if t<timing.depart then local p=t/timing.depart; trainRate=2.2+6.3*p*p
           elseif t<timing.arrive then trainRate=8.5
           else local p=math.max(0,1-(t-timing.arrive)/timing.arrivalDuration); trainRate=2.2+6.3*p*p end
@@ -89,7 +89,7 @@ local function new(context)
       if runtime.travelTransition then
           local transition=runtime.travelTransition
           transition.t=transition.t+dt
-          local t=transition.t; local speedFactor; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
+          local t=transition.t; local speedFactor; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,transition.maintenanceCondition or Maintenance.condition(runtime.saveData))
           if ui.departSource then
               -- Let the departure cue follow the train out, then release the
               -- channel before the arrival cue begins.

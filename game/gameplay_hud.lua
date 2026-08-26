@@ -24,6 +24,7 @@ local function new(context)
   local Maintenance=required(context,"maintenance","table")
   local FirstAid=required(context,"firstAid","table")
   local Util=required(context,"util","table")
+  local Train=required(context,"train","table")
   local button=required(context,"button","function")
   local drawMenuFrame=required(context,"drawMenuFrame","function")
   local drawTrade=required(context,"drawTrade","function")
@@ -45,7 +46,7 @@ local function new(context)
       if runtime.scene=="train" then
           drawLandscape(); drawTracks(); local tx=0
           if runtime.travelTransition then
-              local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
+              local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,runtime.travelTransition.maintenanceCondition or Maintenance.condition(runtime.saveData))
               if t<timing.depart then local p=t/timing.depart; tx=-W*(p*p*p)
               elseif t<timing.arrive then tx=-W
               else local p=math.min(1,(t-timing.arrive)/timing.arrivalDuration); local eased=1-(1-p)^3; tx=W*(1-eased) end
@@ -60,14 +61,14 @@ local function new(context)
       elseif runtime.scene=="house" then drawHouse() else drawStop() end
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
       ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
-      ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,20)
+      ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,Maintenance.oilCapacity(runtime.saveData))
       ui.drawJourneyHUD()
       local travel=travelStatus()
       local cost=travel.cost
       local travelLabel=runtime.saveData.location>=50 and "JOURNEY COMPLETE"
         or ((travel.affordable and "TRAVEL" or "NEED").."  "..cost.food.."F  "..cost.water.."W  "..cost.coal.."C")
       local mobile=mobileEnabled()
-      ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
+      ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack,ui.trainCarTabs=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
       if mobile then
           if ui.mobileMenuOpen then
               love.graphics.setColor(0,0,0,.64); love.graphics.rectangle("fill",0,0,W,H)
@@ -139,7 +140,19 @@ local function new(context)
           love.graphics.printf(contextText,325,312,310,"center",0,contextScale,contextScale)
           if runtime.holdPickupIndex then love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",365,335,230*math.min(1,runtime.holdPickupTime/HOLD_PICKUP_SECONDS),5,2,2) end
       end
-      if runtime.scene=="train" and #(runtime.saveData.trainCars or {})>1 then love.graphics.setColor(colors.cream); love.graphics.printf("CAR "..(runtime.saveData.activeCar or 1).." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[runtime.saveData.activeCar or 1]),510,188,410,"center",0,.72,.72) end
+      if runtime.scene=="train" and #(runtime.saveData.trainCars or {})>1 and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.editMode and not ui.mobileMenuOpen then
+          local active=runtime.saveData.activeCar or 1
+          ui.trainCarTabs=Train.consistLayout(W,#runtime.saveData.trainCars)
+          for index,tab in ipairs(ui.trainCarTabs) do
+              local selected=index==active
+              love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",tab.x,tab.y,tab.w,tab.h,7,7)
+              love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 3 or 1)
+              love.graphics.rectangle("line",tab.x,tab.y,tab.w,tab.h,7,7)
+              love.graphics.printf(tostring(index),tab.x,tab.y+12,tab.w,"center",0,.78,.78)
+          end
+          love.graphics.setLineWidth(1); love.graphics.setColor(colors.cream)
+          love.graphics.printf("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),430,240,W-455,"center",0,.68,.68)
+      end
       ui.pickup = runtime.nearbyItem and not nearbyFurniture and not runtime.editMode and not ui.mobileMenuOpen and button("PICK UP  [E]",390,650,180,38,true) or nil
       if runtime.inventoryOpen then if runtime.chestOpen then ui.drawChestInventory() end; ui.drawInventory() end
       if runtime.inventoryOpen and runtime.inventoryDragActive and runtime.draggedSlot and containerValue(runtime.draggedSlot) then local mx,my=screenToGame(pointerPosition()); ui.drawItem(containerValue(runtime.draggedSlot),{x=mx-32,y=my-32,w=64,h=64}) end

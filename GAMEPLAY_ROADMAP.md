@@ -41,7 +41,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Define deliberate camera behavior for menus and overlays rather than silently disabling controls.
 - Provide touch pan and pinch zoom parity on Android.
 
-## 6. Train presentation and maintenance
+## 6. Train presentation and maintenance — Complete
 
 - Make all acquired train cars fit the visible train presentation at desktop and mobile aspect ratios.
 - Centralize maintenance wear, oil supply, servicing costs, upgrade effects, and route-wide balance.

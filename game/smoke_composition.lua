@@ -29,6 +29,7 @@ local function new(context)
   local Assets=required(domain,"domain","assets","table")
   local Save=required(domain,"domain","save","table")
   local Maintenance=required(domain,"domain","maintenance","table")
+  local Train=required(domain,"domain","train","table")
   local Events=required(domain,"domain","events","table")
   local BattleRules=required(domain,"domain","battleRules","table")
   local Intro=required(domain,"domain","intro","table")
@@ -76,6 +77,7 @@ local function new(context)
       startupComposition=startup,serviceRegistry=serviceRegistry,smokeComposition=composition,
       applicationComposition=applicationComposition,
       audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
+      trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,

@@ -166,7 +166,7 @@ local function new(context)
     state={runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,
       session=session,screens=screens,car=car},
     domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,
-      assets=Assets,save=Save,maintenance=Maintenance,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
+      assets=Assets,save=Save,maintenance=Maintenance,train=Train,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
       audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
       finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression},
     services=services,

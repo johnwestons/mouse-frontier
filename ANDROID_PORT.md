@@ -23,6 +23,7 @@ The generated installable file is:
 - A Give button appears beside NPCs and passengers.
 - Menus, inventory, the map, travel prompts, events, and battles use direct touch.
 - Pinch zoom and two-finger pan use the shared camera in gameplay, battles, menus, and overlays; fixed thumb, back, and menu controls remain anchored to the phone edges.
+- The complete seven-car navigator fits the shared phone canvas and supports direct touch selection; train condition, projected wear, oil capacity, and servicing use the same rules as Windows.
 - Android Back behaves like Escape: close an overlay or request a return to the title screen.
 - Losing focus releases held touches and flushes pending save data.
 

@@ -315,31 +315,13 @@ local function new(context)
   end
   
   local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
-      local carCount=#(runtime.saveData.trainCars or {})
       love.graphics.push(); love.graphics.translate(offsetX or 0,0)
       if focusIndex==1 then
-          drawLocomotive(); drawTrainCar(1); drawDroppedItems(1); drawPassengers(1)
-          if playerCar==1 then
-              love.graphics.push(); love.graphics.translate((playerX or runtime.player.x)-runtime.player.x,(playerY or runtime.player.y)-runtime.player.y); drawPlayer(); love.graphics.pop()
-          end
-      else
-          -- Additional cars use the same full-size transform as the default
-          -- living car. The viewport clips the neighboring car naturally while
-          -- the slide transition pans between complete, consistently scaled cars.
-          local scale=1
-          local first=focusIndex<carCount and focusIndex or math.max(1,focusIndex-1)
-          local last=math.min(carCount,first+1)
-          for index=first,last do
-              local slot=index-first
-              local targetX=16+slot*(car.w+16)
-              love.graphics.push()
-              love.graphics.translate(targetX-car.x,0)
-              drawTrainCar(index); drawDroppedItems(index); drawPassengers(index)
-              if playerCar==index then
-                  love.graphics.push(); love.graphics.translate((playerX or runtime.player.x)-runtime.player.x,(playerY or runtime.player.y)-runtime.player.y); drawPlayer(); love.graphics.pop()
-              end
-              love.graphics.pop()
-          end
+          drawLocomotive()
+      end
+      drawTrainCar(focusIndex); drawDroppedItems(focusIndex); drawPassengers(focusIndex)
+      if playerCar==focusIndex then
+          love.graphics.push(); love.graphics.translate((playerX or runtime.player.x)-runtime.player.x,(playerY or runtime.player.y)-runtime.player.y); drawPlayer(); love.graphics.pop()
       end
       love.graphics.pop()
   end

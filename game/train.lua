@@ -21,7 +21,7 @@ local Train = {
     engineStaticCouplerX=1537,
     -- Width from the visible engine edge to the rear coupler. This larger
     -- scale matches the reference proportions beside the enlarged car.
-    engineTargetWidth=560
+    engineTargetWidth=300
 }
 
 function Train.carScale(car,image)
@@ -104,6 +104,31 @@ function Train.drawCarImage(image,car)
     love.graphics.setColor(1,1,1)
     love.graphics.draw(image,x,y,0,scale,scale)
     return true
+end
+
+function Train.consistLayout(width,count)
+    count=math.max(1,math.floor(count or 1))
+    local left,right,gap,height,y=430,(width or 960)-25,4,42,194
+    local cellWidth=math.min(76,math.floor((right-left-gap*(count-1))/count))
+    local total=cellWidth*count+gap*(count-1)
+    local start=right-total
+    local result={}
+    for index=1,count do result[index]={x=start+(index-1)*(cellWidth+gap),y=y,w=cellWidth,h=height,index=index} end
+    return result
+end
+
+function Train.audit(car,width)
+    width=width or 960
+    local engineRight=car.x+8
+    local engineLeft=engineRight-Train.engineTargetWidth
+    local carRight=car.x+car.w
+    local tabs=Train.consistLayout(width,7)
+    local aligned=car.x>=0 and carRight<=width and engineLeft>=0 and engineRight<=width
+    local tabsFit=#tabs==7 and tabs[1].x>=0 and tabs[#tabs].x+tabs[#tabs].w<=width
+    local floorLeft,floorRight=Train.characterBounds(car,nil,30)
+    return {ready=aligned and tabsFit and floorLeft>=car.x and floorRight<=carRight,
+        engineLeft=engineLeft,carRight=carRight,tabs=#tabs,tabsFit=tabsFit,aligned=aligned,
+        transitionDistance=width,curve="train-presentation-v1"}
 end
 
 return Train

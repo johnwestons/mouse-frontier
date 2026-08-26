@@ -1,6 +1,7 @@
 local Maintenance = {}
 local WheelAnimation = require("game.maintenance_wheel_animation")
 local PanelAnimation = require("game.maintenance_panel_animation")
+local EngineUpgrades = require("game.engine_upgrades")
 
 local ASSET_ROOT = "assets/sprites/maintenance/oil-running-gear/"
 local BACKGROUND_Y = 90
@@ -18,6 +19,9 @@ local CLOSE_RECT = {x = 881, y = 104, w = 42, h = 34}
 local TOTAL_DOSES = #LAMPS
 local OIL_PER_DROP = 1
 local CONDITION_SOURCE, DONE_SOURCE = PanelAnimation.sourceRects()
+local BASE_OIL_CAPACITY=20
+local SERVICE_OIL_COST=5
+local SERVICE_RESTORE=40
 
 local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
@@ -51,6 +55,42 @@ function Maintenance.oilSupply(data)
     return data.resources.oil
 end
 
+local function ownsCar(data,id)
+    for _,owned in ipairs((data and data.trainCars) or {}) do if owned==id then return true end end
+    return false
+end
+
+function Maintenance.oilCapacity(data)
+    return BASE_OIL_CAPACITY+(ownsCar(data,"coal-hauler") and 10 or 0)
+end
+
+function Maintenance.serviceOilCost()
+    return SERVICE_OIL_COST
+end
+
+function Maintenance.serviceRestore()
+    return SERVICE_RESTORE
+end
+
+function Maintenance.wearProfile(data)
+    local stop=math.max(1,math.floor(tonumber(data and data.location) or 1))
+    local carCount=math.max(1,#((data and data.trainCars) or {"living-car"}))
+    local routeWear=5+math.floor((stop-1)/15)
+    local carWear=math.floor(math.max(0,carCount-1)/3)
+    local engineReduction=EngineUpgrades.profile(data and data.engineLevel).wearReduction or 0
+    return {wear=math.max(3,routeWear+carWear-engineReduction),routeWear=routeWear,carWear=carWear,
+        engineReduction=engineReduction,stop=stop,carCount=carCount}
+end
+
+function Maintenance.status(data)
+    local condition=Maintenance.condition(data)
+    local label=condition<25 and "CRITICAL" or (condition<50 and "WORN" or (condition<75 and "FAIR" or "READY"))
+    local speed=condition<25 and .82 or (condition<50 and .92 or 1)
+    return {condition=condition,label=label,coalPenalty=Maintenance.coalPenalty(data),speed=speed,
+        projectedWear=Maintenance.wearProfile(data).wear,oil=Maintenance.oilSupply(data),oilCapacity=Maintenance.oilCapacity(data),
+        serviceCost=SERVICE_OIL_COST,serviceRestore=SERVICE_RESTORE}
+end
+
 function Maintenance.coalPenalty(data)
     local condition = Maintenance.condition(data)
     if condition < 25 then return 2 end
@@ -60,11 +100,27 @@ end
 
 function Maintenance.onTravel(data)
     local state = Maintenance.ensure(data)
-    local stop = math.max(1, math.floor(tonumber(data.location) or 1))
-    local wear = 6 + math.floor((stop - 1) / 15)
+    local profile=Maintenance.wearProfile(data)
+    local wear=profile.wear
     state.condition = clamp(state.condition - wear, 0, 100)
     state.totalWear = state.totalWear + wear
+    state.lastWear=wear
+    state.lastTravelStop=profile.stop
     return wear, state.condition
+end
+
+function Maintenance.audit()
+    local base={location=1,engineLevel=0,trainCars={"living-car"},resources={oil=20},maintenance={condition=100}}
+    local expanded={location=46,engineLevel=0,trainCars={"living-car","coal-hauler","storage","greenhouse","sleeper","medical","navigator"},resources={oil=30},maintenance={condition=40}}
+    local upgraded={location=46,engineLevel=4,trainCars=expanded.trainCars,resources={oil=30},maintenance={condition=20}}
+    local baseWear=Maintenance.wearProfile(base); local expandedWear=Maintenance.wearProfile(expanded); local upgradedWear=Maintenance.wearProfile(upgraded)
+    local applied,condition=Maintenance.onTravel(upgraded)
+    local low=Maintenance.status(upgraded)
+    return {ready=baseWear.wear==5 and expandedWear.wear==10 and upgradedWear.wear==8 and applied==8 and condition==12
+            and low.coalPenalty==2 and low.speed==.82 and Maintenance.oilCapacity(expanded)==30,
+        baseWear=baseWear.wear,expandedWear=expandedWear.wear,upgradedWear=upgradedWear.wear,
+        oilCapacity=Maintenance.oilCapacity(expanded),serviceCost=SERVICE_OIL_COST,serviceRestore=SERVICE_RESTORE,
+        lowCoalPenalty=low.coalPenalty,lowSpeed=low.speed,curve="maintenance-v1"}
 end
 
 local function loadImage(name)
@@ -262,13 +318,13 @@ function Maintenance.complete(session, data)
         return false
     end
     local state = Maintenance.ensure(data)
-    local oilCost = Maintenance.reservedOil(session)
+    local oilCost = Maintenance.serviceOilCost(data)
     if Maintenance.oilSupply(data) < oilCost then
         session.message = "NOT ENOUGH TRAIN OIL TO COMPLETE SERVICE"
         return false
     end
     local before = state.condition
-    state.condition = clamp(state.condition + 40, 0, 100)
+    state.condition = clamp(state.condition + Maintenance.serviceRestore(data), 0, 100)
     state.lastServicedStop = math.max(1, math.floor(tonumber(data.location) or 1))
     state.totalServices = state.totalServices + 1
     data.resources.oil = data.resources.oil - oilCost
@@ -482,7 +538,7 @@ function Maintenance.draw(session, data)
 
     love.graphics.setColor(.035, .027, .023, .92); love.graphics.rectangle("fill", 690, 578, 205, 27, 5, 5)
     love.graphics.setColor(.96, .82, .48, 1)
-    love.graphics.printf("OIL " .. Maintenance.oilSupply(data) .. "  •  RESERVED " .. Maintenance.reservedOil(session), 690, 585, 205, "center", 0, .58, .58)
+    love.graphics.printf("OIL " .. Maintenance.oilSupply(data) .. " / "..Maintenance.oilCapacity(data).."  •  COST " .. Maintenance.serviceOilCost(data), 690, 585, 205, "center", 0, .52, .52)
 
     if allOiled(session) and not session.completed then
         love.graphics.setColor(1, .70, .12, .22); love.graphics.rectangle("fill", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8)

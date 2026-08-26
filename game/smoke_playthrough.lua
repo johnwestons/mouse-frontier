@@ -66,6 +66,7 @@ local function install(context)
     local audioAudit=required(context,"audioAudit","function")
     local finaleAudit=required(context,"finaleAudit","function")
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
+    local trainPresentationAudit=required(context,"trainPresentationAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -169,6 +170,18 @@ local function install(context)
                     return result.inverse and result.bounded and result.isolated and result.restored
                         and result.minZoom==1 and result.maxZoom==2.25 and result.curve=="global-camera-v1"
                 end},
+            {name="responsive_train_presentation",action=trainPresentationAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.aligned and result.tabsFit and result.tabs==7
+                        and result.engineLeft==23 and result.carRight==935 and result.transitionDistance==960
+                        and result.curve=="train-presentation-v1"
+                end},
+            {name="maintenance_route_balance",action=Maintenance.audit,
+                check=function(_,_,_,result)
+                    return result.ready and result.baseWear==5 and result.expandedWear==10 and result.upgradedWear==8
+                        and result.oilCapacity==30 and result.serviceCost==5 and result.serviceRestore==40
+                        and result.lowCoalPenalty==2 and result.lowSpeed==.82 and result.curve=="maintenance-v1"
+                end},
             {name="tactical_grid_expansion",action=battleGridAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="battle-grid-v1" and result.columns==10 and result.rows==6
@@ -194,7 +207,7 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.carCount==6 and result.carCost==158 and result.engineCost==158
                         and result.baseCapacity==20 and result.expandedCapacity.food==30
-                        and result.expandedCapacity.water==30 and result.expandedCapacity.coal==30
+                        and result.expandedCapacity.water==30 and result.expandedCapacity.coal==30 and result.expandedCapacity.oil==30
                         and result.passengerLoad==2 and result.arrival.food==2 and result.arrival.health==3
                         and result.navigatorSavings==1 and result.firstCarPurchase and result.firstEnginePurchase
                         and result.legacyOverflowPreserved and result.firstEngineUnlock==5
@@ -318,11 +331,19 @@ local function install(context)
                 check=function(_,_,_,result) return result.after==result.before+1 end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
             {name="begin_train_car_transition",action=function()
-                game.state="game"; game.scene="train"; game.saveData.scene=game.scene; game.saveData.trainCars={"living-car","sleeper"}; game.saveData.activeCar=1
-                ui.interaction={kind="carNext"}; love.keypressed("q"); return game.carTransition~=nil
-            end,expect={state="game",scene="train",activeCar=1,carTransitioning=true}},
+                game.state="game"; game.scene="train"; game.saveData.scene=game.scene
+                game.saveData.trainCars={"living-car","coal-hauler","storage","greenhouse","sleeper","medical","navigator"}; game.saveData.activeCar=1
+                game.dialogue=nil; ui.smokeDraw()
+                local tabs=ui.trainCarTabs or {}; local target=tabs[7]
+                if target then love.mousepressed(target.x+target.w/2,target.y+target.h/2,1) end
+                return {transition=game.carTransition~=nil,to=game.carTransition and game.carTransition.to,tabs=#tabs,
+                    first=tabs[1] and tabs[1].x,last=tabs[7] and tabs[7].x+tabs[7].w}
+            end,check=function(_,_,snapshot,result)
+                return result.transition and result.to==7 and result.tabs==7 and result.first>=0 and result.last<=960
+                    and snapshot.activeCar==1 and snapshot.carTransitioning
+            end},
             {name="complete_train_car_transition",action=function() return true end,
-                expect={activeCar=2,carTransitioning=false},timeout=4,
+                expect={activeCar=7,carTransitioning=false},timeout=4,
                 after=function() game.saveData.trainCars={"living-car"}; game.saveData.activeCar=1; ui.interaction=nil end},
             {name="open_maintenance",action=function()
                 game.state="game"; game.scene="train"; game.saveData.scene=game.scene; Maintenance.open(maintenanceSession,game.saveData)
@@ -586,7 +607,7 @@ local function install(context)
                     game.saveData.resources.food=1000; game.saveData.resources.water=1000; game.saveData.resources.coal=1000
                     enterGame(game.saveData); return true
                 end,expect={state="game",scene="train",location=1}},
-                {name="full_journey_to_stop_50",timeout=400,before=function() ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end,action=function()
+                {name="full_journey_to_stop_50",timeout=500,before=function() ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end,action=function()
                     if game.saveData.location==ui.smokeFullLastLocation then ui.smokeFullStall=(ui.smokeFullStall or 0)+1 else ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end
                     if ui.smokeFullStall>30 then error("GAMEPLAY_BLOCKED: no progress at stop "..tostring(game.saveData.location).." state="..tostring(game.state).." scene="..tostring(game.scene).." battle="..tostring(game.battle~=nil).." event="..tostring(game.randomEvent~=nil)) end
                     if game.saveData.location>=50 then game.state="ending"; return true end

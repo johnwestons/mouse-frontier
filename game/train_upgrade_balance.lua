@@ -1,8 +1,9 @@
+local Maintenance=require("game.maintenance")
 local Balance={}
 
 Balance.baseResourceCapacity=20
 Balance.carCatalog={
-  {id="coal-hauler",name="Coal Hauler",cost=20,unlockStop=4,description="Coal capacity +10"},
+  {id="coal-hauler",name="Coal Hauler",cost=20,unlockStop=4,description="Coal and oil capacity +10"},
   {id="storage",name="Storage Car",cost=22,unlockStop=8,description="Food and water capacity +10"},
   {id="greenhouse",name="Greenhouse",cost=28,unlockStop=12,description="Produces 2 food after every journey"},
   {id="sleeper",name="Sleeper Car",cost=24,unlockStop=16,description="Halves passenger supply load"},
@@ -16,6 +17,7 @@ function Balance.owns(data,id)
 end
 
 function Balance.resourceCapacity(data,name)
+  if name=="oil" then return Maintenance.oilCapacity(data) end
   local capacity=Balance.baseResourceCapacity
   if name=="coal" and Balance.owns(data,"coal-hauler") then capacity=capacity+10 end
   if (name=="food" or name=="water") and Balance.owns(data,"storage") then capacity=capacity+10 end
@@ -111,14 +113,14 @@ function Balance.audit(EngineUpgrades)
   local ready=#Balance.carCatalog==6 and carCost==158 and engineCost==158 and unlocksReady
     and Balance.resourceCapacity(base,"food")==20 and Balance.resourceCapacity(base,"coal")==20
     and Balance.resourceCapacity(expanded,"food")==30 and Balance.resourceCapacity(expanded,"water")==30
-    and Balance.resourceCapacity(expanded,"coal")==30 and Balance.passengerLoad(expanded,3)==2
+    and Balance.resourceCapacity(expanded,"coal")==30 and Balance.resourceCapacity(expanded,"oil")==30 and Balance.passengerLoad(expanded,3)==2
     and arrival.food==2 and arrival.health==3 and Balance.navigatorCoalSavings(expanded,"mountains")==1
     and Balance.revealsTerrain(expanded) and carPurchase.ok and carPurchaseData.scrap==0
     and enginePurchase.ok and enginePurchaseData.engineLevel==1 and enginePurchaseData.scrap==0
     and overflowGain==0 and legacyOverflow.resources.food==30
     and lockedEngine.locked and lockedEngine.unlockStop==5
   return {ready=ready,carCount=#Balance.carCatalog,carCost=carCost,engineCost=engineCost,
-    baseCapacity=Balance.baseResourceCapacity,expandedCapacity={food=Balance.resourceCapacity(expanded,"food"),water=Balance.resourceCapacity(expanded,"water"),coal=Balance.resourceCapacity(expanded,"coal")},
+    baseCapacity=Balance.baseResourceCapacity,expandedCapacity={food=Balance.resourceCapacity(expanded,"food"),water=Balance.resourceCapacity(expanded,"water"),coal=Balance.resourceCapacity(expanded,"coal"),oil=Balance.resourceCapacity(expanded,"oil")},
     passengerLoad=Balance.passengerLoad(expanded,3),arrival=arrival,navigatorSavings=Balance.navigatorCoalSavings(expanded,"mountains"),
     firstCarPurchase=carPurchase.ok,firstEnginePurchase=enginePurchase.ok,legacyOverflowPreserved=legacyOverflow.resources.food==30,
     firstEngineUnlock=lockedEngine.unlockStop,curve="train-upgrades-v1"}
