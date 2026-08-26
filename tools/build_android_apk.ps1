@@ -46,15 +46,12 @@ if (-not (Test-Path -LiteralPath $sdkManager)) {
     Write-Output 'Downloading the verified Android command-line tools...'
     $commandToolsArchive = Join-Path $toolingRoot 'android-command-line-tools-12.zip'
     Get-VerifiedDownload -Uri 'https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip' -Destination $commandToolsArchive -Sha256 '3d2917302740f476999a091bc5558837c7a863c5'
-    # A fresh extraction directory avoids Windows/OneDrive failures when a
-    # previous SDK archive contains deep paths that Remove-Item cannot revisit.
-    $extractRoot = Join-Path $toolingRoot ('android-tools-' + [guid]::NewGuid().ToString('N').Substring(0,8))
-    New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
-    & tar.exe -xf $commandToolsArchive -C $extractRoot
-    if ($LASTEXITCODE -ne 0) { throw "Android command-tools extraction failed with exit code $LASTEXITCODE" }
+    # Extract directly into the versioned SDK directory. This avoids the deep
+    # recursive copy/remove operations that OneDrive can interrupt on Windows.
     $versionedRoot = Join-Path $androidRoot 'cmdline-tools\12.0'
     New-Item -ItemType Directory -Force -Path $versionedRoot | Out-Null
-    Copy-Item -Path (Join-Path $extractRoot 'cmdline-tools\*') -Destination $versionedRoot -Recurse -Force
+    & tar.exe -xf $commandToolsArchive -C $versionedRoot --strip-components=1
+    if ($LASTEXITCODE -ne 0) { throw "Android command-tools extraction failed with exit code $LASTEXITCODE" }
     $sdkManager = Join-Path $versionedRoot 'bin\sdkmanager.bat'
 }
 
