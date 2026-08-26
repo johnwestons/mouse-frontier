@@ -116,15 +116,31 @@ Systems.trainCarRuntime=Systems.trainCarRuntime.new({
     writeSave=writeSave,
 })
 
+Systems.presentationRuntime=Systems.presentationRuntime.new({
+    runtime=runtime,
+    ui=ui,
+    screens=screens,
+    maintenanceSession=maintenanceSession,
+    viewport=Viewport,
+    camera=Camera,
+    engineUpgrades=EngineUpgrades,
+    width=W,
+    height=H,
+    drawExitPrompt=function(...) return Systems.screenUI.drawExitPrompt(...) end,
+    drawMobileControls=function(...) return Systems.mobileRuntime.draw(...) end,
+})
+
 Systems.mobileRuntime=Systems.mobileRuntime.new({
     runtime=runtime,
     ui=ui,
     maintenanceSession=maintenanceSession,
     mobileControls=MobileControls,
-    viewport=Viewport,
-    camera=Camera,
     width=W,
     height=H,
+    viewportToGame=Systems.presentationRuntime.viewportToGame,
+    getCameraZoom=Systems.presentationRuntime.getZoom,
+    setCameraZoom=Systems.presentationRuntime.setZoom,
+    endCameraPan=Systems.presentationRuntime.endPan,
     getGameplayInput=function() return Systems.gameplayInput end,
 })
 
@@ -152,20 +168,6 @@ Systems.sessionBootstrap=Systems.sessionBootstrap.new({
     isFurnitureItem=isFurnitureItem,
     resetStopSludges=Systems.worldScene.resetStopSludges,
 })
-
-
-
-local function screenToGame(x,y)
-    x,y=Viewport.toGame(x,y,W,H)
-    -- Radio/options are screen-space overlays; camera zoom must not shift their
-    -- hit testing into a neighboring station button.
-    if runtime.state=="game" and not runtime.travelConfirm and not ui.radioOpen and not ui.mobileMenuOpen and Camera:isActive() then
-        local focusX,focusY=(runtime.player and runtime.player.x or W/2),(runtime.player and runtime.player.y or H/2)
-        x,y=Camera:toWorld(x,y,focusX,focusY)
-    end
-    return x,y
-end
-
 Systems.battleRuntime=Systems.battleRuntime.new({
     runtime=runtime,
     width=W,
@@ -195,7 +197,7 @@ Systems.battleRuntime=Systems.battleRuntime.new({
     battleController=BattleController,
     battleUI=Systems.battleUI,
     writeSave=writeSave,
-    screenToGame=screenToGame,
+    screenToGame=Systems.presentationRuntime.screenToGame,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
     enterStop=function(...) return Systems.journeyRules.enterStop(...) end,
     handleInventoryClick=function(x,y) return Systems.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
@@ -294,7 +296,7 @@ function App.load()
         family=Family,
         util=Util,
         passengers=Passengers,
-        screenToGame=screenToGame,
+        screenToGame=Systems.presentationRuntime.screenToGame,
         updateAudio=Systems.audioRuntime.update,
         ensureStopLayout=Systems.worldScene.ensureStopLayout,
         updateWorldScene=Systems.worldScene.update,
@@ -338,7 +340,7 @@ Systems.screenUI=Systems.screenUI.new({
     canChooseEvent=Systems.eventRuntime.canChoose,
     engineUpgrades=EngineUpgrades,
     writeSave=writeSave,
-    screenToGame=screenToGame,
+    screenToGame=Systems.presentationRuntime.screenToGame,
     ensureStopLayout=Systems.worldScene.ensureStopLayout,
     mobileEnabled=Systems.mobileRuntime.isEnabled,
     drawLandscape=function(...) return Systems.worldRenderer.drawLandscape(...) end,
@@ -362,7 +364,7 @@ Systems.inventoryPresenter=Systems.inventoryPresenter.new({
     isWeapon=Systems.inventoryActions.isWeapon,
     drawMenuFrame=Systems.screenUI.drawMenuFrame,
     button=Systems.screenUI.button,
-    pointer=function() return screenToGame(Systems.mobileRuntime.pointerPosition()) end,
+    pointer=function() return Systems.presentationRuntime.screenToGame(Systems.mobileRuntime.pointerPosition()) end,
     value=Systems.inventoryActions.containerValue,
     move=Systems.inventoryActions.moveBetweenSlots,
     quickTransfer=Systems.inventoryActions.quickTransfer,
@@ -428,7 +430,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     drawTrade=Systems.screenUI.drawTrade,
     isFurnitureItem=isFurnitureItem,
     containerValue=Systems.inventoryActions.containerValue,
-    screenToGame=screenToGame,
+    screenToGame=Systems.presentationRuntime.screenToGame,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
     getAudioStatus=Systems.audioRuntime.status,
     drawLandscape=Systems.worldRenderer.drawLandscape,
@@ -440,8 +442,7 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
 
 
 
-screens:register("intro",{draw=function()
-    local windowWidth,windowHeight=love.graphics.getDimensions()
+screens:register("intro",{draw=function(windowWidth,windowHeight)
     Systems.intro.draw(ui.introCinematic,scenery,colors,windowWidth,windowHeight)
 end})
 screens:register("slots",{draw=ui.drawSlots})
@@ -451,34 +452,10 @@ screens:register("event",{draw=ui.drawRandomEvent})
 screens:register("ending",{draw=Systems.screenUI.drawEnding})
 screens:register("game",{draw=function() if runtime.travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
 
-function App.draw()
-    love.graphics.clear(0.025,0.02,0.025,1)
-    if screens:is("intro") then screens:draw(); return end
-    local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
-    love.graphics.push()
-    love.graphics.translate(offsetX,offsetY)
-    love.graphics.scale(scaleX,scaleY)
-    if runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.mobileMenuOpen and Camera:isActive() then
-        local focusX,focusY=(runtime.player and runtime.player.x or W/2),(runtime.player and runtime.player.y or H/2)
-        Camera:apply(focusX,focusY)
-    end
-    screens:draw()
-    if runtime.exitPrompt then Systems.screenUI.drawExitPrompt() end
-    love.graphics.pop()
-    Systems.mobileRuntime.draw(offsetX,offsetY,scaleX,scaleY)
-    if runtime.travelTransition then
-        local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel)
-        local alpha=t<timing.change and math.max(0,math.min(1,(t-timing.fadeOut)/timing.fadeDuration)) or math.max(0,1-(t-timing.change)/timing.finishFade)
-        local windowWidth,windowHeight=love.graphics.getDimensions()
-        love.graphics.setColor(0,0,0,alpha)
-        love.graphics.rectangle("fill",0,0,windowWidth,windowHeight)
-    end
-end
+function App.draw() return Systems.presentationRuntime.draw() end
 
 Systems.gameplayInput=Systems.gameplayInput.new({
     runtime=runtime,
-    width=W,
-    height=H,
     ui=ui,
     characters=characters,
     maintenanceSession=maintenanceSession,
@@ -490,14 +467,18 @@ Systems.gameplayInput=Systems.gameplayInput.new({
     save=Save,
     engineUpgrades=EngineUpgrades,
     maintenance=Maintenance,
-    camera=Camera,
-    viewport=Viewport,
     battleRules=BattleRules,
     stops=Stops,
     settlements=Settlements,
     interiorDoors=InteriorDoors,
     writeSave=writeSave,
-    screenToGame=screenToGame,
+    screenToGame=Systems.presentationRuntime.screenToGame,
+    viewportToGame=Systems.presentationRuntime.viewportToGame,
+    cameraPanning=Systems.presentationRuntime.isPanning,
+    beginCameraPan=Systems.presentationRuntime.beginPan,
+    moveCameraPan=Systems.presentationRuntime.movePan,
+    endCameraPan=Systems.presentationRuntime.endPan,
+    zoomCamera=Systems.presentationRuntime.wheel,
     pointerPosition=Systems.mobileRuntime.pointerPosition,
     isWeapon=Systems.inventoryActions.isWeapon,
     isFurnitureItem=isFurnitureItem,
@@ -561,7 +542,7 @@ function App.installSmoke()
 if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
     local smokeScope=setmetatable({}, {__index=function(_,name)
         if name=="state" then return session.screen elseif name=="selectedSlot" then return session.selectedSlot elseif name=="saveData" then return session.saveData elseif name=="characters" then return characters elseif name=="ui" then return ui elseif name=="scene" then return session.scene elseif name=="player" then return session.player elseif name=="inventoryOpen" then return runtime.inventoryOpen elseif name=="mapOpen" then return runtime.mapOpen elseif name=="mapScroll" then return runtime.mapScroll elseif name=="tradeOpen" then return runtime.tradeOpen elseif name=="trainUpgradeOpen" then return runtime.trainUpgradeOpen elseif name=="poseMenu" then return runtime.poseMenu elseif name=="randomEvent" then return runtime.randomEvent elseif name=="battle" then return runtime.battle elseif name=="travelTransition" then return runtime.travelTransition elseif name=="maintenanceSession" then return maintenanceSession elseif name=="draggedSlot" then return runtime.draggedSlot elseif name=="actionHeldItem" then return runtime.actionHeldItem elseif name=="actionTimer" then return runtime.actionTimer elseif name=="actionKind" then return runtime.actionKind elseif name=="travelConfirm" then return runtime.travelConfirm elseif name=="car" then return car elseif name=="dialogue" then return runtime.dialogue elseif name=="editMode" then return runtime.editMode elseif name=="carTransition" then return runtime.carTransition
-        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="Camera" then return Camera
+        elseif name=="session" then return session elseif name=="runtime" then return runtime elseif name=="screens" then return screens elseif name=="CURRENT_SAVE_VERSION" then return CURRENT_SAVE_VERSION elseif name=="SaveSchema" then return SaveSchema elseif name=="Catalog" then return Catalog elseif name=="Assets" then return Assets elseif name=="Save" then return Save elseif name=="Maintenance" then return Maintenance elseif name=="Events" then return Events elseif name=="Systems" then return Systems elseif name=="mobileControls" then return Systems.mobileRuntime.get() elseif name=="presentationRuntime" then return Systems.presentationRuntime
         elseif name=="writeSave" then return writeSave elseif name=="newSave" then return Systems.sessionBootstrap.newSave elseif name=="enterGame" then return Systems.sessionBootstrap.enterGame elseif name=="ensureStopLayout" then return Systems.worldScene.ensureStopLayout elseif name=="setupNPC" then return Systems.worldScene.setupNPC elseif name=="beginEncounter" then return Systems.battleRuntime.beginEncounter elseif name=="consumeSelected" then return Systems.inventoryActions.consumeSelected elseif name=="resolveEventChoice" then return Systems.eventRuntime.choose elseif name=="advanceBattleTurn" then return Systems.battleRuntime.advanceTurn elseif name=="battleAttack" then return Systems.battleRuntime.attack elseif name=="resolveBattleAttack" then return Systems.battleRuntime.resolveAttack end
     end,__newindex=function(_,name,value)
         if name=="state" then runtime.state=value elseif name=="selectedSlot" then runtime.selectedSlot=value elseif name=="saveData" then runtime.saveData=value elseif name=="scene" then runtime.scene=value elseif name=="player" then runtime.player=value elseif name=="inventoryOpen" then runtime.inventoryOpen=value elseif name=="mapOpen" then runtime.mapOpen=value elseif name=="mapScroll" then runtime.mapScroll=value elseif name=="tradeOpen" then runtime.tradeOpen=value elseif name=="trainUpgradeOpen" then runtime.trainUpgradeOpen=value elseif name=="poseMenu" then runtime.poseMenu=value elseif name=="randomEvent" then runtime.randomEvent=value elseif name=="battle" then runtime.battle=value elseif name=="travelTransition" then runtime.travelTransition=value elseif name=="maintenanceSession" then maintenanceSession=value elseif name=="draggedSlot" then runtime.draggedSlot=value elseif name=="actionHeldItem" then runtime.actionHeldItem=value elseif name=="actionTimer" then runtime.actionTimer=value elseif name=="travelConfirm" then runtime.travelConfirm=value elseif name=="dialogue" then runtime.dialogue=value elseif name=="editMode" then runtime.editMode=value elseif name=="carTransition" then runtime.carTransition=value end

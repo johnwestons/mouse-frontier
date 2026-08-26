@@ -16,6 +16,7 @@ return {
     inventoryPresenter = require("game.inventory_presenter"),
     journeyRules = require("game.journey_rules"),
     mobileRuntime = require("game.mobile_runtime"),
+    presentationRuntime = require("game.presentation_runtime"),
     screens = require("game.screen_manager"),
     screenUI = require("game.screen_ui"),
     session = require("game.game_session"),

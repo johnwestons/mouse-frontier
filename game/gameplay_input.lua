@@ -8,8 +8,6 @@ end
 local function new(context)
   assert(type(context)=="table","gameplay input requires an explicit context")
   local runtime=required(context,"runtime","table")
-  local W=required(context,"width","number")
-  local H=required(context,"height","number")
   local ui=required(context,"ui","table")
   local characters=required(context,"characters","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
@@ -21,14 +19,18 @@ local function new(context)
   local Save=required(context,"save","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local Maintenance=required(context,"maintenance","table")
-  local Camera=required(context,"camera","table")
-  local Viewport=required(context,"viewport","table")
   local BattleRules=required(context,"battleRules","table")
   local Stops=required(context,"stops","table")
   local Settlements=required(context,"settlements","table")
   local InteriorDoors=required(context,"interiorDoors","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
+  local viewportToGame=required(context,"viewportToGame","function")
+  local cameraPanning=required(context,"cameraPanning","function")
+  local beginCameraPan=required(context,"beginCameraPan","function")
+  local moveCameraPan=required(context,"moveCameraPan","function")
+  local endCameraPan=required(context,"endCameraPan","function")
+  local zoomCamera=required(context,"zoomCamera","function")
   local pointerPosition=required(context,"pointerPosition","function")
   local isWeapon=required(context,"isWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
@@ -218,7 +220,7 @@ local function new(context)
       if Util.pointIn(x,y,ui.trainUpgrade) then runtime.trainUpgradeOpen=true; ui.mobileMenuOpen=false; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; return true end
       if Util.pointIn(x,y,ui.maintenance) then
           runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; ui.mobileMenuOpen=false; runtime.dialogue=nil
-          Camera:endPan()
+          endCameraPan()
           Maintenance.open(maintenanceSession,runtime.saveData); ui.playSfx("menu"); return true
       end
       if ui.handleEditorMousePressed(x,y) then return true end
@@ -242,7 +244,7 @@ local function new(context)
           end
           return
       end
-      if button==3 and runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not runtime.editMode then Camera:beginPan(x,y); return end
+      if button==3 and runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not runtime.editMode then beginCameraPan(x,y); return end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and runtime.carTransition then return end
       if button==2 and runtime.state=="game" and not maintenanceSession.open and not runtime.editMode and not runtime.mapOpen and not runtime.tradeOpen and not runtime.inventoryOpen and not runtime.dialogue and not runtime.travelConfirm and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen then
@@ -275,9 +277,8 @@ local function new(context)
   end
 
   local function mousemoved(x,y)
-      if Camera.panning then
-          local _,_,scaleX=Viewport.transform(W,H)
-          Camera:movePan(x,y,scaleX); return
+      if cameraPanning() then
+          moveCameraPan(x,y); return
       end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and maintenanceSession.open then maintenanceSession.mouseX,maintenanceSession.mouseY=x,y; return end
@@ -288,7 +289,7 @@ local function new(context)
   end
 
   local function mousereleased(x,y,button)
-      if button==3 then Camera:endPan(); return end
+      if button==3 then endCameraPan(); return end
       x,y=screenToGame(x,y)
       if button==1 and ui.editSliderDrag then ui.updateEditColorSlider(x); ui.editSliderDrag=nil; writeSave(); return end
       if button==1 and runtime.editDragging then runtime.editDragging=false; writeSave() end
@@ -298,7 +299,7 @@ local function new(context)
   local function wheelmoved(_,y)
       if runtime.state=="battle" and runtime.battle then
           local mouseX,mouseY=pointerPosition()
-          local mx,my=Viewport.toGame(mouseX,mouseY,W,H)
+          local mx,my=viewportToGame(mouseX,mouseY)
           if mx>=185 and mx<=775 and my>=488 and my<=570 then
               runtime.battle.logScroll=math.max(0,math.min(math.max(0,#(runtime.battle.log or {})-1),(runtime.battle.logScroll or 0)+(y>0 and 1 or -1)))
           elseif mx>=25 and mx<=935 and my>=55 and my<480 then
@@ -307,7 +308,7 @@ local function new(context)
       elseif runtime.state=="game" and runtime.mapOpen then runtime.mapScroll=math.max(0,runtime.mapScroll-(y>0 and 1 or -1))
       elseif runtime.state=="characters" then runtime.characterScroll=math.max(0,runtime.characterScroll-(y>0 and 1 or -1))
       elseif runtime.state=="game" and not maintenanceSession.open and not runtime.inventoryOpen and not runtime.editMode and not ui.radioOpen then
-          Camera:wheel(y)
+          zoomCamera(y)
       end
   end
 

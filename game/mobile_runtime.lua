@@ -11,10 +11,12 @@ local function new(context)
   local ui=required(context,"ui","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local MobileControls=required(context,"mobileControls","table")
-  local Viewport=required(context,"viewport","table")
-  local Camera=required(context,"camera","table")
   local W=required(context,"width","number")
   local H=required(context,"height","number")
+  local viewportToGame=required(context,"viewportToGame","function")
+  local getCameraZoom=required(context,"getCameraZoom","function")
+  local setCameraZoom=required(context,"setCameraZoom","function")
+  local endCameraPan=required(context,"endCameraPan","function")
   local getGameplayInput=required(context,"getGameplayInput","function")
   local controls
 
@@ -70,15 +72,15 @@ local function new(context)
       controls=MobileControls.new({
           width=W,
           height=H,
-          toGame=function(x,y) return Viewport.toGame(x,y,W,H) end,
+          toGame=viewportToGame,
           gameplayActive=gameplayActive,
-          getZoom=function() return Camera.zoom end,
-          setZoom=function(value) Camera:setZoom(value) end,
+          getZoom=getCameraZoom,
+          setZoom=setCameraZoom,
           backVisible=backVisible,
           backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
           menuVisible=menuVisible,
           menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
-          menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; Camera:endPan() end,
+          menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; endCameraPan() end,
           primaryAction=primaryAction,
           secondaryAction=secondaryAction,
           pressKey=function(key) gameplayInput().keypressed(key) end,

@@ -66,6 +66,21 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                 local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old
                 if not callOk then error(err) end; return player.x
             end,check=function(_,_,snapshot,result) return result>startX and snapshot.playerX>startX end},
+            {name="presentation_coordinate_modes",action=function()
+                presentationRuntime.setZoom(2)
+                local baseX,baseY=presentationRuntime.viewportToGame(100,100)
+                local worldX,worldY=presentationRuntime.screenToGame(100,100)
+                ui.radioOpen=true
+                local radioX,radioY=presentationRuntime.screenToGame(100,100)
+                ui.radioOpen=false; maintenanceSession.open=true
+                local maintenanceX,maintenanceY=presentationRuntime.screenToGame(100,100)
+                maintenanceSession.open=false; presentationRuntime.setZoom(1)
+                return {
+                    worldShifted=math.abs(worldX-baseX)>.01 or math.abs(worldY-baseY)>.01,
+                    radioAligned=math.abs(radioX-baseX)<.01 and math.abs(radioY-baseY)<.01,
+                    maintenanceAligned=math.abs(maintenanceX-baseX)<.01 and math.abs(maintenanceY-baseY)<.01,
+                }
+            end,check=function(_,_,_,result) return result.worldShifted and result.radioAligned and result.maintenanceAligned end},
             {name="open_inventory_key",action=function() love.keypressed("i"); return inventoryOpen end,expect={inventoryOpen=true}},
             {name="close_inventory_key",action=function() love.keypressed("i"); return "closed" end,expect={inventoryOpen=false}},
             {name="open_map_key",action=function() love.keypressed("m"); return mapOpen end,expect={mapOpen=true}},
@@ -283,18 +298,18 @@ if os.getenv("MOUSE_FRONTIER_SMOKE")=="1" then
                     return {menuOpened=menuOpened,opened=opened,closed=not inventoryOpen}
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
                 {name="mobile_pinch_zoom",action=function()
-                    ui.mobileMenuOpen=false; inventoryOpen=false; mapOpen=false; dialogue=nil; Camera:setZoom(1)
+                    ui.mobileMenuOpen=false; inventoryOpen=false; mapOpen=false; dialogue=nil; presentationRuntime.setZoom(1)
                     love.touchpressed("smoke-pinch-a",400,350)
                     love.touchpressed("smoke-pinch-b",560,350)
                     love.touchmoved("smoke-pinch-b",640,350,80,0)
-                    local zoomed=Camera.zoom
+                    local zoomed=presentationRuntime.getZoom()
                     love.touchreleased("smoke-pinch-b",640,350)
                     love.touchreleased("smoke-pinch-a",400,350)
                     local clean=mobileControls.pinch==nil and next(mobileControls.touches)==nil
                     love.touchpressed("smoke-pinch-c",400,350)
                     love.touchpressed("smoke-pinch-d",640,350)
                     love.touchmoved("smoke-pinch-d",420,350,-220,0)
-                    local clamped=Camera.zoom
+                    local clamped=presentationRuntime.getZoom()
                     love.touchreleased("smoke-pinch-d",420,350); love.touchreleased("smoke-pinch-c",400,350)
                     return {zoomed=zoomed,clamped=clamped,clean=clean}
                 end,check=function(_,_,_,result)
