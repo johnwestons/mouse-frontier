@@ -1,5 +1,6 @@
 local MobileControls = {}
 MobileControls.__index = MobileControls
+local Accessibility=require("game.accessibility")
 
 local function distance(x1,y1,x2,y2)
     local dx,dy=x1-x2,y1-y2
@@ -38,6 +39,7 @@ function MobileControls.new(options)
     self.menuVisible=options.menuVisible or function() return false end
     self.menuLabel=options.menuLabel or function() return "MENU" end
     self.menuAction=options.menuAction or function() end
+    self.accessibilityData=options.accessibilityData or function() return {} end
     self.touches={}
     self.axisX,self.axisY=0,0
     self.lastPointerX,self.lastPointerY=nil,nil
@@ -46,6 +48,7 @@ function MobileControls.new(options)
     self.secondary={x=self.width-218,y=self.height-72,radius=38}
     self.back={x=22,y=68,w=126,h=66}
     self.menu={x=self.width-166,y=68,w=144,h=66}
+    self.feedback=nil
     return self
 end
 
@@ -61,6 +64,10 @@ end
 
 function MobileControls:_updateCornerLayout()
     if not self.enabled or not love or not love.graphics then return end
+    local profile=Accessibility.touchProfile(self.accessibilityData())
+    self.joystick.radius,self.joystick.knob=profile.joystick,profile.knob
+    self.primary.radius,self.secondary.radius=profile.primary,profile.secondary
+    self.back.h,self.menu.h=profile.barHeight,profile.barHeight
     local windowWidth,windowHeight=love.graphics.getDimensions()
     local left,top=self.toGame(0,0)
     local right,bottom=self.toGame(windowWidth,windowHeight)
@@ -72,6 +79,13 @@ function MobileControls:_updateCornerLayout()
     self.primary.y=bottom-self.primary.radius-24
     self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-24
     self.secondary.y=bottom-self.secondary.radius-22
+end
+
+function MobileControls:_feedback(x,y)
+    if not Accessibility.enabled(self.accessibilityData(),"touchFeedback") then return end
+    local now=love and love.timer and love.timer.getTime and love.timer.getTime() or 0
+    self.feedback={x=x,y=y,time=now}
+    if love and love.system and love.system.vibrate then pcall(love.system.vibrate,.025) end
 end
 
 function MobileControls:_updateJoystick(x,y)
@@ -125,10 +139,10 @@ function MobileControls:touchpressed(id,x,y)
     self.lastPointerX,self.lastPointerY=x,y
     local gx,gy=self.toGame(x,y)
     if self.backVisible() and gx>=self.back.x and gx<=self.back.x+self.back.w and gy>=self.back.y and gy<=self.back.y+self.back.h then
-        self.touches[id]={kind="key",key="escape"}; self.pressKey("escape"); return true
+        self:_feedback(gx,gy); self.touches[id]={kind="key",key="escape"}; self.pressKey("escape"); return true
     end
     if self.menuVisible() and gx>=self.menu.x and gx<=self.menu.x+self.menu.w and gy>=self.menu.y and gy<=self.menu.y+self.menu.h then
-        self.touches[id]={kind="menu"}; self.menuAction(); return true
+        self:_feedback(gx,gy); self.touches[id]={kind="menu"}; self.menuAction(); return true
     end
     if self:isGameplayActive() then
         local stick=self.joystick
@@ -140,11 +154,11 @@ function MobileControls:touchpressed(id,x,y)
         end
         if distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
             local key=self.primaryAction()
-            if key then self.touches[id]={kind="key",key=key}; self.pressKey(key); return true end
+            if key then self:_feedback(gx,gy); self.touches[id]={kind="key",key=key}; self.pressKey(key); return true end
         end
         local secondaryKey=self.secondaryAction()
         if secondaryKey and distance(gx,gy,self.secondary.x,self.secondary.y)<=self.secondary.radius*1.2 then
-            self.touches[id]={kind="key",key=secondaryKey}; self.pressKey(secondaryKey); return true
+            self:_feedback(gx,gy); self.touches[id]={kind="key",key=secondaryKey}; self.pressKey(secondaryKey); return true
         end
         -- Canvas taps are deferred until release. This leaves the first touch
         -- available to become a camera gesture without activating the surface.
@@ -189,7 +203,7 @@ function MobileControls:touchreleased(id,x,y)
     elseif touch.kind=="key" then self.releaseKey(touch.key)
     elseif touch.kind=="canvasPointer" then
         if touch.pressed then self.releasePointer(x,y,1)
-        elseif not touch.pinching then self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
+        elseif not touch.pinching then local gx,gy=self.toGame(x,y); self:_feedback(gx,gy); self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
     end
     self.touches[id]=nil
     if self.pinch and (self.pinch.first==id or self.pinch.second==id) then
@@ -210,24 +224,26 @@ function MobileControls:cancelAll()
     self.axisX,self.axisY=0,0
 end
 
-local function drawButton(button,label,active)
+local function drawButton(button,label,active,textScale)
     love.graphics.setColor(.055,.038,.028,.78)
     love.graphics.circle("fill",button.x,button.y,button.radius)
     love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.92)
     love.graphics.setLineWidth(4)
     love.graphics.circle("line",button.x,button.y,button.radius)
     love.graphics.setColor(1,.93,.75,.96)
-    love.graphics.printf(label,button.x-button.radius,button.y-7,button.radius*2,"center",0,.72,.72)
+    local scale=math.min(.98,.72*(textScale or 1))
+    love.graphics.printf(label,button.x-button.radius,button.y-8*scale,button.radius*2,"center",0,scale,scale)
 end
 
-local function drawRectButton(button,label,active)
+local function drawRectButton(button,label,active,textScale)
     love.graphics.setColor(.055,.038,.028,.92)
     love.graphics.rectangle("fill",button.x,button.y,button.w,button.h,12,12)
     love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.96)
     love.graphics.setLineWidth(4)
     love.graphics.rectangle("line",button.x,button.y,button.w,button.h,12,12)
     love.graphics.setColor(1,.93,.75,.98)
-    love.graphics.printf(label,button.x+6,button.y+button.h/2-9,button.w-12,"center",0,.92,.92)
+    local scale=math.min(1.12,.92*(textScale or 1))
+    love.graphics.printf(label,button.x+6,button.y+button.h/2-9*scale,button.w-12,"center",0,scale,scale)
 end
 
 function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
@@ -236,6 +252,7 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     love.graphics.push()
     love.graphics.translate(offsetX,offsetY)
     love.graphics.scale(scaleX,scaleY)
+    local textScale=Accessibility.textScale(self.accessibilityData())
     if self:isGameplayActive() then
         local stick=self.joystick
         love.graphics.setColor(.055,.038,.028,.60)
@@ -250,12 +267,20 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
         love.graphics.setColor(.96,.66,.22,.92)
         love.graphics.circle("fill",knobX,knobY,stick.knob)
         local primaryKey,primaryLabel=self.primaryAction()
-        drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey))
+        drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey),textScale)
         local secondaryKey,secondaryLabel=self.secondaryAction()
-        if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey)) end
+        if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey),textScale) end
     end
-    if self.backVisible() then drawRectButton(self.back,self.backLabel(),false) end
-    if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false) end
+    if self.backVisible() then drawRectButton(self.back,self.backLabel(),false,textScale) end
+    if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false,textScale) end
+    if self.feedback then
+        local now=love and love.timer and love.timer.getTime and love.timer.getTime() or self.feedback.time+.3
+        local elapsed=now-self.feedback.time
+        if elapsed<.34 then
+            local progress=math.max(0,math.min(1,elapsed/.34)); love.graphics.setColor(1,.88,.32,1-progress)
+            love.graphics.setLineWidth(4); love.graphics.circle("line",self.feedback.x,self.feedback.y,16+progress*34)
+        else self.feedback=nil end
+    end
     love.graphics.setLineWidth(1)
     love.graphics.pop()
 end

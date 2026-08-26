@@ -167,7 +167,7 @@ local function new(context)
     playthrough=Modules.smokePlaythrough,
     state={runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,
       session=session,screens=screens,car=car},
-    domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,roster=Roster,npcRelationships=Modules.npcRelationships,
+    domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,roster=Roster,npcRelationships=Modules.npcRelationships,accessibility=Modules.accessibility,
       assets=Assets,save=Save,maintenance=Maintenance,train=Train,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
       audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
       finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression,

@@ -1,3 +1,5 @@
+local Accessibility=require("game.accessibility")
+
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"screen UI requires "..name)
@@ -51,6 +53,9 @@ local function new(context)
           local xs={0,sx,sw-sx,sw}; local ys={0,sy,sh-sy,sh}; local xd={x,x+dx,x+w-dx,x+w}; local yd={y,y+dy,y+h-dy,y+h}
           for row=1,3 do for col=1,3 do local qw,qh=xs[col+1]-xs[col],ys[row+1]-ys[row]; local dw,dh=xd[col+1]-xd[col],yd[row+1]-yd[row]; if qw>0 and qh>0 and dw>0 and dh>0 then love.graphics.draw(frame.image,frame.quads[row][col],xd[col],yd[row],0,dw/qw,dh/qh) end end end
       else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,w,h,8,8) end
+      if runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast") then
+          love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",x,y,w,h,8,8); love.graphics.setLineWidth(1)
+      end
   end
 
   function ui.drawJourneyHUD()
@@ -92,11 +97,16 @@ local function new(context)
   end
 
   local function button(text, x, y, w, h, active, textScale)
-      if ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
-      local scale=textScale or 1
+      local highContrast=runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast")
+      if highContrast then
+          love.graphics.setColor(0,0,0,active and .98 or .82); love.graphics.rectangle("fill",x,y,w,h,8,8)
+          love.graphics.setColor(active and 1 or .62,active and .84 or .62,active and .28 or .62,1); love.graphics.setLineWidth(active and 4 or 2); love.graphics.rectangle("line",x,y,w,h,8,8); love.graphics.setLineWidth(1)
+      elseif ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
+      local scale=(textScale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1)
       if mobileEnabled() then scale=math.max(scale,.78) end
+      scale=math.min(scale,mobileEnabled() and 1.18 or 1.22)
       love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8*scale, w-10, "center",0,scale,scale)
-      return {x=x,y=y,w=w,h=h}
+      return {x=x,y=y,w=w,h=h,textScale=scale}
   end
 
   local function requestExitPrompt(kind)
@@ -306,9 +316,10 @@ local function new(context)
 
   function ui.drawDialogue()
       if not runtime.dialogue then return end
-      local x,y,w,h=230,115,500,105
+      local textScale=Accessibility.textScale(runtime.saveData)
+      local x,y,w,h=230,115,500,textScale>1.15 and 140 or 118
       drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
-      love.graphics.setColor(colors.cream); love.graphics.print(runtime.dialogue.speaker or "Traveler",x+20,y+17,0,1.15,1.15); love.graphics.printf(runtime.dialogue.text,x+20,y+49,w-40,"left")
+      love.graphics.setColor(colors.cream); love.graphics.print(runtime.dialogue.speaker or "Traveler",x+20,y+17,0,1.15*math.min(textScale,1.15),1.15*math.min(textScale,1.15)); love.graphics.printf(runtime.dialogue.text,x+20,y+52,w-40,"left",0,textScale,textScale)
       if runtime.dialogue.choice and runtime.questOffer then
           local agreeing=runtime.questOffer.kind=="trade" and "YES, AGREE TO TRADE" or "YES, I'LL HELP"
           local declining=runtime.questOffer.kind=="trade" and "NO, DECLINE TRADE" or "SORRY, NO"

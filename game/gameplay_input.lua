@@ -1,3 +1,5 @@
+local Accessibility=require("game.accessibility")
+
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"gameplay input requires "..name)
@@ -198,7 +200,15 @@ local function new(context)
       if not ui.optionsOpen then return false end
       if Util.pointIn(x,y,ui.options) then ui.optionsOpen=false; ui.playSfx("menu"); return true end
       if Util.pointIn(x,y,ui.pose) then ui.optionsOpen=false; runtime.poseMenu=true; ui.playSfx("menu"); return true end
-      if Util.pointIn(x,y,ui.musicDown) then runtime.saveData.audio.musicVolume=math.max(0,(runtime.saveData.audio.musicVolume or .10)-.05)
+      if Util.pointIn(x,y,ui.optionsAudioTab) then runtime.optionsPage="audio"; ui.playSfx("menu"); return true
+      elseif Util.pointIn(x,y,ui.optionsAccessTab) then runtime.optionsPage="accessibility"; ui.playSfx("menu"); return true
+      elseif Util.pointIn(x,y,ui.accessTextSize) then Accessibility.cycleTextSize(runtime.saveData); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessHighContrast) then Accessibility.toggle(runtime.saveData,"highContrast"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessReducedMotion) then Accessibility.toggle(runtime.saveData,"reducedMotion"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessControlHints) then Accessibility.toggle(runtime.saveData,"controlHints"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessTouchFeedback) then Accessibility.toggle(runtime.saveData,"touchFeedback"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessLargeTouchTargets) then Accessibility.toggle(runtime.saveData,"largeTouchTargets"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.musicDown) then runtime.saveData.audio.musicVolume=math.max(0,(runtime.saveData.audio.musicVolume or .10)-.05)
       elseif Util.pointIn(x,y,ui.musicUp) then runtime.saveData.audio.musicVolume=math.min(1,(runtime.saveData.audio.musicVolume or .10)+.05)
       elseif Util.pointIn(x,y,ui.sfxDown) then runtime.saveData.audio.sfxVolume=math.max(0,(runtime.saveData.audio.sfxVolume or .55)-.05)
       elseif Util.pointIn(x,y,ui.sfxUp) then runtime.saveData.audio.sfxVolume=math.min(1,(runtime.saveData.audio.sfxVolume or .55)+.05); ui.playSfx("menu")
@@ -263,8 +273,8 @@ local function new(context)
       if runtime.tradeOpen then ui.handleTradeClick(x,y); return true end
       if runtime.trainUpgradeOpen then ui.handleUpgradeMousePressed(x,y); return true end
       if ui.optionsOpen then ui.handleOptionsMousePressed(x,y); return true end
-      if runtime.poseMenu then if Util.pointIn(x,y,ui.options) then runtime.poseMenu=false; ui.optionsOpen=true; ui.playSfx("menu") else ui.handlePoseClick(x,y) end; return true end
-      if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; runtime.poseMenu=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
+      if runtime.poseMenu then if Util.pointIn(x,y,ui.options) then runtime.poseMenu=false; ui.optionsOpen=true; runtime.optionsPage=runtime.optionsPage or "audio"; ui.playSfx("menu") else ui.handlePoseClick(x,y) end; return true end
+      if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; runtime.optionsPage=runtime.optionsPage or "audio"; runtime.poseMenu=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if ui.handlePoseClick(x,y) then return true end
       if runtime.mapOpen then if Util.pointIn(x,y,ui.mapUp) then runtime.mapScroll=math.max(0,runtime.mapScroll-1) elseif Util.pointIn(x,y,ui.mapDown) then runtime.mapScroll=runtime.mapScroll+1 end; return true end
       if runtime.scene=="house" and ui.exitHome and Util.pointIn(x,y,ui.exitHome) then exitHouse(); return true end
@@ -413,6 +423,22 @@ local function new(context)
       if maintenanceSession.open then
           local result=Maintenance.keypressed(maintenanceSession,key,runtime.saveData)
           if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
+          return true
+      end
+      if ui.optionsOpen then
+          if key=="escape" or key=="q" then ui.optionsOpen=false; writeSave(); return true end
+          if key=="tab" then runtime.optionsPage=runtime.optionsPage=="accessibility" and "audio" or "accessibility"; ui.playSfx("menu"); return true end
+          if runtime.optionsPage=="accessibility" then
+              local changed=true
+              if key=="1" then Accessibility.cycleTextSize(runtime.saveData)
+              elseif key=="2" then Accessibility.toggle(runtime.saveData,"highContrast")
+              elseif key=="3" then Accessibility.toggle(runtime.saveData,"reducedMotion")
+              elseif key=="4" then Accessibility.toggle(runtime.saveData,"controlHints")
+              elseif key=="5" then Accessibility.toggle(runtime.saveData,"touchFeedback")
+              elseif key=="6" then Accessibility.toggle(runtime.saveData,"largeTouchTargets")
+              else changed=false end
+              if changed then ui.playSfx("menu"); writeSave() end
+          end
           return true
       end
       if runtime.tradeOpen then if key=="escape" or key=="q" then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave() end; return end

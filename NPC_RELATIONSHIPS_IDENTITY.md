@@ -17,7 +17,7 @@ Global goodwill and the personal relationship both improve merchant terms. Disco
 
 Accepted gifts receive a response suited to weapons, medicine, food, water, gear, or fuel. Rejected gifts remain in the backpack and receive a friendly response. Passenger conversations remember gifts, acknowledge relationship rank, identify the passenger's job, and mention the shared destination.
 
-Relationship data is stored in save schema version 28. Older saves gain an empty relationship table during the normal sequential migration; no previous goodwill, quests, equipment, or roster data is discarded.
+Relationship data was introduced in save schema version 28 and remains part of the current schema. Older saves gain an empty relationship table during normal sequential migration; no previous goodwill, quests, equipment, or roster data is discarded.
 
 ## Character identity
 

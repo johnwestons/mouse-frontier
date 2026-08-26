@@ -2,6 +2,7 @@
 -- Feature modules remain independently require-able; application_composition
 -- constructs runtime-facing services after creating authoritative state.
 return {
+    accessibility = require("game.accessibility"),
     adventureComposition = require("game.adventure_composition"),
     audioCatalog = require("game.audio_catalog"),
     audioRuntime = require("game.audio_runtime"),

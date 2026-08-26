@@ -88,6 +88,7 @@ local function new(context)
           menuVisible=menuVisible,
           menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
           menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; endCameraPan() end,
+          accessibilityData=function() return runtime.saveData or {} end,
           primaryAction=primaryAction,
           secondaryAction=secondaryAction,
           pressKey=function(key) gameplayInput().keypressed(key) end,

@@ -26,6 +26,7 @@ Android controls, installation, update flow, and device verification are documen
 - Move with **WASD** or the **arrow keys**.
 - Use the mouse wheel or **+ / -** to zoom any gameplay scene, battle, menu, or overlay. Middle-drag to pan, **Alt + arrow keys** to nudge the view, and **0** to reset the current view. Hold **Shift** while using the wheel on the journey map or character list to scroll that interface instead.
 - On Android, pinch anywhere outside the fixed thumb controls to zoom and use a two-finger drag to pan. Camera views are remembered separately for worlds and interfaces, while the edge controls remain fixed and reachable.
+- Open **Settings → Accessibility** for three text sizes, high contrast, reduced motion, optional control hints, visual/haptic touch feedback, and larger Android thumb controls. On Windows, use **Tab** to change settings pages and **1–6** to change accessibility preferences.
 - Use the travel control to preview the next leg's food, water, and coal cost. Costs rise at clear journey milestones, with terrain, passengers, engine upgrades, traits, and maintenance modifying the total.
 - Open the backpack with its top-right button or press **I**.
 - Click an item and then another slot to rearrange it.
@@ -99,6 +100,8 @@ Stop request pacing, item help, the first-aid activity, and the goodwill-only mo
 Persistent NPC recognition, gift responses, merchant benefits, passenger dialogue, and selectable-character identity rules are documented in [NPC_RELATIONSHIPS_IDENTITY.md](NPC_RELATIONSHIPS_IDENTITY.md).
 
 The stop-50 family reunion, final decision, positive legacy tiers, and campaign report are documented in [ENDGAME_FINALE.md](ENDGAME_FINALE.md).
+
+Text sizing, contrast, reduced motion, guidance, battle readability, and the shared Android touch-control contract are documented in [ACCESSIBILITY_MOBILE.md](ACCESSIBILITY_MOBILE.md).
 
 ## Automated smoke playthrough
 

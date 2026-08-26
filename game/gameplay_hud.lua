@@ -1,4 +1,5 @@
 local AudioCatalog = require("game.audio_catalog")
+local Accessibility = require("game.accessibility")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -83,7 +84,7 @@ local function new(context)
               ui.editMode=runtime.scene=="train" and button("MOVE / SCALE",610,310,285,66,true) or nil
               ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE  •  "..math.floor(Maintenance.condition(runtime.saveData)).."%",295,394,285,66,true) or nil
               ui.pose=button("CHARACTER POSES",610,394,285,66,true)
-              ui.options=button("AUDIO OPTIONS",295,478,285,66,true)
+              ui.options=button("SETTINGS",295,478,285,66,true)
               ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",610,478,285,66,true) or nil
               ui.stopAttack=runtime.scene=="stop" and button("ATTACK",610,478,285,66,true) or nil
               love.graphics.setColor(colors.cream); love.graphics.printf("Tap BACK or CLOSE to return to the world",295,575,600,"center",0,.86,.86)
@@ -115,7 +116,7 @@ local function new(context)
       local tipColor={colors.panel[1],colors.panel[2],colors.panel[3],.50}
       local nearbyFurniture=runtime.nearbyItem and isFurnitureItem(runtime.saveData.droppedItems[runtime.nearbyItem] and runtime.saveData.droppedItems[runtime.nearbyItem].name)
       local contextText,contextScale
-      if not runtime.inventoryOpen and not runtime.editMode and not runtime.carTransition and not ui.mobileMenuOpen then
+      if Accessibility.enabled(runtime.saveData,"controlHints") and not runtime.inventoryOpen and not runtime.editMode and not runtime.carTransition and not ui.mobileMenuOpen then
           if mobile then
               if ui.nearRadio then contextText,contextScale="TAP RADIO",.78
               elseif runtime.nearPassenger or runtime.nearNPC then contextText,contextScale="TAP TALK   •   TAP GIVE",.72
@@ -144,8 +145,12 @@ local function new(context)
           elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78 end
       end
       if contextText then
-          love.graphics.setColor(tipColor); love.graphics.rectangle("fill",325,300,310,40,6,6); love.graphics.setColor(colors.cream)
-          love.graphics.printf(contextText,325,312,310,"center",0,contextScale,contextScale)
+          local highContrast=Accessibility.enabled(runtime.saveData,"highContrast")
+          love.graphics.setColor(highContrast and {0,0,0,.96} or tipColor); love.graphics.rectangle("fill",325,300,310,40,6,6)
+          if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",325,300,310,40,6,6); love.graphics.setLineWidth(1) end
+          love.graphics.setColor(colors.cream)
+          local shownScale=math.min(1.05,contextScale*Accessibility.textScale(runtime.saveData))
+          love.graphics.printf(contextText,325,320-8*shownScale,310,"center",0,shownScale,shownScale)
           if runtime.holdPickupIndex then love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",365,335,230*math.min(1,runtime.holdPickupTime/HOLD_PICKUP_SECONDS),5,2,2) end
       end
       if runtime.scene=="train" and #(runtime.saveData.trainCars or {})>1 and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.editMode and not ui.mobileMenuOpen then
@@ -168,6 +173,8 @@ local function new(context)
       if runtime.editMode then ui.drawEditControls() end
       ui.poseIdle=nil; ui.poseSit=nil; ui.poseLay=nil; ui.poseAction=nil
       ui.musicDown=nil; ui.musicUp=nil; ui.sfxDown=nil; ui.sfxUp=nil; ui.rainDown=nil; ui.rainUp=nil; ui.musicPrevious=nil; ui.musicPause=nil; ui.musicNext=nil; ui.musicMute=nil
+      ui.optionsAudioTab=nil; ui.optionsAccessTab=nil; ui.accessTextSize=nil; ui.accessHighContrast=nil; ui.accessReducedMotion=nil
+      ui.accessControlHints=nil; ui.accessTouchFeedback=nil; ui.accessLargeTouchTargets=nil
       ui.radioPrevious=nil; ui.radioPause=nil; ui.radioNext=nil; ui.radioMute=nil
       if runtime.poseMenu then
           if mobile then
@@ -178,20 +185,48 @@ local function new(context)
           else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",735,198,190,150,8,8); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); love.graphics.setColor(colors.cream); love.graphics.printf("Movement returns to standing",750,306,160,"center",0,.68,.68) end
       end
       if ui.optionsOpen then
-          drawMenuFrame(mobile and 330 or 565,mobile and 90 or 175,mobile and 600 or 370,mobile and 555 or 380,2,.98); love.graphics.setColor(colors.cream); love.graphics.print("AUDIO OPTIONS",mobile and 380 or 595,mobile and 118 or 196,0,mobile and 1.35 or 1.05,mobile and 1.35 or 1.05)
-          love.graphics.print("MUSIC  "..math.floor((runtime.saveData.audio.musicVolume or .10)*100).."%",mobile and 400 or 635,mobile and 200 or 252)
-          ui.musicDown=button("-",mobile and 680 or 770,mobile and 177 or 242,mobile and 88 or 45,mobile and 64 or 34,true); ui.musicUp=button("+",mobile and 790 or 830,mobile and 177 or 242,mobile and 88 or 45,mobile and 64 or 34,true)
-          love.graphics.print("SOUND FX  "..math.floor((runtime.saveData.audio.sfxVolume or .55)*100).."%",mobile and 400 or 635,mobile and 290 or 301)
-          ui.sfxDown=button("-",mobile and 680 or 770,mobile and 267 or 291,mobile and 88 or 45,mobile and 64 or 34,true); ui.sfxUp=button("+",mobile and 790 or 830,mobile and 267 or 291,mobile and 88 or 45,mobile and 64 or 34,true)
-          love.graphics.print("RAIN  "..math.floor((runtime.saveData.audio.rainVolume or .20)*100).."%",mobile and 400 or 635,mobile and 380 or 350)
-          ui.rainDown=button("-",mobile and 680 or 770,mobile and 357 or 340,mobile and 88 or 45,mobile and 64 or 34,true); ui.rainUp=button("+",mobile and 790 or 830,mobile and 357 or 340,mobile and 88 or 45,mobile and 64 or 34,true)
-          local stationLabel=AudioCatalog.stationLabel(runtime.saveData.audio.station)
-          love.graphics.print("STATION: "..stationLabel,mobile and 400 or 635,mobile and 450 or 399,0,mobile and 1.0 or .85,mobile and 1.0 or .85)
-          local audioStatus=getAudioStatus()
-          local status=audioStatus.available and (audioStatus.lastError and ("ERROR: "..audioStatus.lastError) or (audioStatus.nowPlaying and ("PLAYING: "..Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying)) or "STARTING MUSIC...")) or "AUDIO UNAVAILABLE"
-          love.graphics.setColor(audioStatus.lastError and colors.red or colors.cream); love.graphics.printf(status,mobile and 400 or 610,mobile and 480 or 431,mobile and 470 or 285,"left",0,mobile and .68 or .60,mobile and .68 or .60)
-          ui.musicPrevious=button("|<",mobile and 375 or 600,mobile and 540 or 479,mobile and 120 or 68,mobile and 66 or 38,true); ui.musicPause=button(runtime.saveData.audio.musicPaused and "PLAY" or "PAUSE",mobile and 505 or 676,mobile and 540 or 479,mobile and 120 or 72,mobile and 66 or 38,true)
-          ui.musicNext=button(">|",mobile and 635 or 756,mobile and 540 or 479,mobile and 120 or 68,mobile and 66 or 38,true); ui.musicMute=button(runtime.saveData.audio.musicMuted and "UNMUTE" or "MUTE",mobile and 765 or 832,mobile and 540 or 479,mobile and 120 or 82,mobile and 66 or 38,true)
+          runtime.optionsPage=runtime.optionsPage or "audio"
+          local panelX,panelY,panelW,panelH=mobile and 250 or 485,mobile and 55 or 125,mobile and 680 or 460,mobile and 615 or 525
+          drawMenuFrame(panelX,panelY,panelW,panelH,2,.99); love.graphics.setColor(colors.cream)
+          love.graphics.printf("SETTINGS",panelX+20,panelY+24,panelW-40,"center",0,mobile and 1.28 or 1.08,mobile and 1.28 or 1.08)
+          ui.optionsAudioTab=button("AUDIO",panelX+35,panelY+68,(panelW-85)/2,mobile and 58 or 42,runtime.optionsPage=="audio",.78)
+          ui.optionsAccessTab=button("ACCESSIBILITY",panelX+50+(panelW-85)/2,panelY+68,(panelW-85)/2,mobile and 58 or 42,runtime.optionsPage=="accessibility",.72)
+          if runtime.optionsPage=="audio" then
+              local labelX=panelX+65; local downX=panelX+panelW-250; local upX=panelX+panelW-135
+              local row1,row2,row3=panelY+155,panelY+225,panelY+295
+              love.graphics.setColor(colors.cream); love.graphics.print("MUSIC  "..math.floor((runtime.saveData.audio.musicVolume or .10)*100).."%",labelX,row1+12)
+              ui.musicDown=button("-",downX,row1,mobile and 95 or 58,mobile and 58 or 40,true); ui.musicUp=button("+",upX,row1,mobile and 95 or 58,mobile and 58 or 40,true)
+              love.graphics.print("SOUND FX  "..math.floor((runtime.saveData.audio.sfxVolume or .55)*100).."%",labelX,row2+12)
+              ui.sfxDown=button("-",downX,row2,mobile and 95 or 58,mobile and 58 or 40,true); ui.sfxUp=button("+",upX,row2,mobile and 95 or 58,mobile and 58 or 40,true)
+              love.graphics.print("RAIN  "..math.floor((runtime.saveData.audio.rainVolume or .20)*100).."%",labelX,row3+12)
+              ui.rainDown=button("-",downX,row3,mobile and 95 or 58,mobile and 58 or 40,true); ui.rainUp=button("+",upX,row3,mobile and 95 or 58,mobile and 58 or 40,true)
+              local stationLabel=AudioCatalog.stationLabel(runtime.saveData.audio.station)
+              love.graphics.print("STATION: "..stationLabel,labelX,panelY+370,0,mobile and .92 or .78,mobile and .92 or .78)
+              local audioStatus=getAudioStatus()
+              local status=audioStatus.available and (audioStatus.lastError and ("ERROR: "..audioStatus.lastError) or (audioStatus.nowPlaying and ("PLAYING: "..Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying)) or "STARTING MUSIC...")) or "AUDIO UNAVAILABLE"
+              love.graphics.setColor(audioStatus.lastError and colors.red or colors.cream); love.graphics.printf(status,labelX,panelY+400,panelW-130,"left",0,mobile and .68 or .58,mobile and .68 or .58)
+              local controlsY=panelY+465; local bw=(panelW-90)/4
+              ui.musicPrevious=button("|<",panelX+30,controlsY,bw,mobile and 62 or 42,true); ui.musicPause=button(runtime.saveData.audio.musicPaused and "PLAY" or "PAUSE",panelX+40+bw,controlsY,bw,mobile and 62 or 42,true,.72)
+              ui.musicNext=button(">|",panelX+50+bw*2,controlsY,bw,mobile and 62 or 42,true); ui.musicMute=button(runtime.saveData.audio.musicMuted and "UNMUTE" or "MUTE",panelX+60+bw*3,controlsY,bw,mobile and 62 or 42,true,.72)
+          else
+              local settings=Accessibility.ensure(runtime.saveData)
+              local labels={
+                  {"TEXT SIZE",Accessibility.textLabel(runtime.saveData),"accessTextSize"},
+                  {"HIGH CONTRAST",settings.highContrast and "ON" or "OFF","accessHighContrast"},
+                  {"REDUCED MOTION",settings.reducedMotion and "ON" or "OFF","accessReducedMotion"},
+                  {"CONTROL HINTS",settings.controlHints and "ON" or "OFF","accessControlHints"},
+                  {"TOUCH FEEDBACK",settings.touchFeedback and "ON" or "OFF","accessTouchFeedback"},
+                  {"LARGE TOUCH TARGETS",settings.largeTouchTargets and "ON" or "OFF","accessLargeTouchTargets"},
+              }
+              local startY=panelY+150; local rowGap=mobile and 64 or 55
+              for index,entry in ipairs(labels) do
+                  local y=startY+(index-1)*rowGap; love.graphics.setColor(colors.cream); love.graphics.print((mobile and "" or (index.."  "))..entry[1],panelX+45,y+(mobile and 18 or 12),0,mobile and .84 or .72,mobile and .84 or .72)
+                  ui[entry[3]]=button(entry[2],panelX+panelW-(mobile and 245 or 180),y,mobile and 195 or 140,mobile and 58 or 42,true,.72)
+              end
+              local note=mobile and "Settings save with this journey. Camera zoom remains available in every scene."
+                  or "Keys 1–6 change settings  •  TAB changes page  •  Settings save with this journey."
+              love.graphics.setColor(colors.cream); love.graphics.printf(note,panelX+45,panelY+panelH-42,panelW-90,"center",0,.60,.60)
+          end
       end
       if ui.radioOpen then
           love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,W,H)

@@ -30,6 +30,7 @@ local TRANSIENT_DEFAULTS = {
     nearHouse = false,
     nearNPC = false,
     nearReturnTrain = false,
+    optionsPage = "audio",
     playerPose = "idle",
     poseMenu = false,
     sceneryOffset = 0,
@@ -105,6 +106,7 @@ function RuntimeState:resetForGameEntry()
     self.carTransition=nil
     self.firstAid=nil
     self.characterPreviewFile=nil
+    self.optionsPage="audio"
 end
 
 function RuntimeState:snapshot()

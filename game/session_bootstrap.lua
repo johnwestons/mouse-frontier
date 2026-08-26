@@ -62,7 +62,9 @@ local function new(context)
           inventoryCapacity=6, backpack=nil,
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
           specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,
-          audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false}, playerX = car.x + 300, playerY = car.y + 285
+          audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false},
+          accessibility={version=1,textSize=1,highContrast=false,reducedMotion=false,controlHints=true,touchFeedback=true,largeTouchTargets=true},
+          playerX = car.x + 300, playerY = car.y + 285
       }
       for i,name in ipairs({"coal-bucket","pickaxe","potted-sprout","flower-pot","potted-flowers"}) do House.storeLoot(result,Catalog,name,i) end
       return result

@@ -3,6 +3,7 @@ local Catalog = require("game.catalog")
 local Util = require("game.util")
 local WeaponAttachment = require("game.weapon_attachment")
 local Grid = require("game.battle_grid")
+local Accessibility = require("game.accessibility")
 
 local BattleUI = {}
 local function boardToScreen(ctx,q,r)
@@ -23,12 +24,19 @@ function BattleUI.draw(ctx)
     local animationClock,characterAnimations=ctx.animationClock,ctx.characterAnimations
     local saveData,inventoryOpen,ui=ctx.saveData,ctx.inventoryOpen,ctx.ui
     local mobile=ctx.mobileEnabled
+    local highContrast=Accessibility.enabled(saveData,"highContrast")
+    local textScale=Accessibility.textScale(saveData)
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
     drawLandscape(); drawGround()
-    love.graphics.setColor(0.06,0.045,0.035,.88); love.graphics.rectangle("fill",25,55,910,625,12,12)
+    love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,55,910,625,12,12)
+    if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,55,910,625,12,12); love.graphics.setLineWidth(1) end
     love.graphics.setColor(colors.cream); love.graphics.printf("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,70,910,"center",0,1.25,1.25)
     love.graphics.setColor(colors.brass); love.graphics.printf("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),260,98,440,"center",0,.58,.58)
+    if Accessibility.enabled(saveData,"controlHints") then
+        local hint=mobile and "TAP A UNIT OR HIGHLIGHTED TILE  •  PINCH TO ZOOM" or "CLICK A UNIT OR HIGHLIGHTED TILE  •  RIGHT CLICK INSPECT  •  WHEEL ZOOMS"
+        love.graphics.setColor(colors.cream); love.graphics.printf(hint,145,119,670,"center",0,.52*math.min(textScale,1.18),.52*math.min(textScale,1.18))
+    end
     local active=BattleRules.selectedUnit(battle)
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
     if terrainAtlas then
@@ -43,8 +51,8 @@ function BattleUI.draw(ctx)
             if quad then love.graphics.setColor(1,1,1); love.graphics.draw(tileAtlas.image,quad,x,y,0,.30,.30,tileAtlas.cw/2,tileAtlas.ch*.42) end
             local occupant=BattleRules.unitAt(battle,q,r); local reachable=reachableSpaces[tostring(q)..":"..tostring(r)] and not occupant and not BattleRules.blocksMovement(battle,q,r)
             local targetable=active and battle.phase=="target" and occupant and occupant.team~=active.team and BattleRules.distance(active,occupant)<=BattleRules.weaponRange(Catalog,battle.chosenWeapon or "scratch") and BattleRules.lineOfSight(battle,active,occupant)
-            if targetable then love.graphics.setColor(1,.12,.08,.60); love.graphics.setLineWidth(3); love.graphics.circle("line",x,y,10)
-            elseif reachable and (battle.phase=="select" or battle.phase=="move") then love.graphics.setColor(1,.80,.18,.40); love.graphics.setLineWidth(2); love.graphics.circle("line",x,y,8) end
+            if targetable then love.graphics.setColor(1,.12,.08,highContrast and 1 or .60); love.graphics.setLineWidth(highContrast and 6 or 3); love.graphics.circle("line",x,y,highContrast and 13 or 10); if highContrast then love.graphics.line(x-8,y,x+8,y); love.graphics.line(x,y-8,x,y+8) end
+            elseif reachable and (battle.phase=="select" or battle.phase=="move") then love.graphics.setColor(1,.88,.18,highContrast and 1 or .40); love.graphics.setLineWidth(highContrast and 5 or 2); love.graphics.circle("line",x,y,highContrast and 11 or 8) end
         end end end
     end
     if scenery.battleObstacles then
@@ -114,7 +122,9 @@ function BattleUI.draw(ctx)
             love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
         end
         if u.hp>0 then
-            love.graphics.setColor(.1,.06,.04,.9); love.graphics.rectangle("fill",x-31,y+14,62,8); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),8)
+            local hpHeight=highContrast and 12 or 8
+            love.graphics.setColor(highContrast and 0 or .1,highContrast and 0 or .06,highContrast and 0 or .04,.96); love.graphics.rectangle("fill",x-31,y+14,62,hpHeight); love.graphics.setColor(u.team=="enemy" and colors.red or colors.green); love.graphics.rectangle("fill",x-31,y+14,62*(u.hp/u.maxHP),hpHeight)
+            if highContrast then love.graphics.setColor(1,1,1,1); love.graphics.setLineWidth(2); love.graphics.rectangle("line",x-31,y+14,62,hpHeight); love.graphics.setLineWidth(1) end
             local status
             if u.boss then status="BOSS"
             elseif (u.sleepRounds or 0)>0 then status="SLEEP"
@@ -124,7 +134,7 @@ function BattleUI.draw(ctx)
             elseif (u.moveBonus or 0)<0 then status="SNARED"
             elseif u.guarding then status="GUARD"
             elseif (u.regenRounds or 0)>0 then status="REGEN" end
-            if status then love.graphics.setColor(colors.brass); love.graphics.printf(status,x-45,y+25,90,"center",0,.43,.43) end
+            if status then love.graphics.setColor(colors.brass); local statusScale=.43*textScale; love.graphics.printf(status,x-50,y+29,100,"center",0,statusScale,statusScale) end
         end
     end
     if battle.projectile and scenery.projectiles then
@@ -136,11 +146,12 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
-    love.graphics.setColor(.08,.055,.04,.92); love.graphics.rectangle("fill",185,488,590,82,8,8)
+    love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); love.graphics.rectangle("fill",185,488,590,82,8,8)
     love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",205,497,0,.72,.72)
     local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
     local newest=#log-offset; local first=math.max(1,newest-2); local row=0
-    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*16,520,"left",0,.67,.67); row=row+1 end
+    local feedScale=.67*math.min(textScale,1.22)
+    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*(16*math.min(textScale,1.15)),520,"left",0,feedScale,feedScale); row=row+1 end
     if mobile then ui.battleLogUp=nil; ui.battleLogDown=nil
     else ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0) end
     ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
@@ -195,6 +206,10 @@ function BattleUI.draw(ctx)
         end
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
         ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
+        if mobile and Accessibility.enabled(saveData,"controlHints") then
+            love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",210,450,730,32,5,5)
+            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." R"..abilityProfile.rank.."  •  "..abilityProfile.description,220,458,710,"center",0,.55*math.min(textScale,1.15),.55*math.min(textScale,1.15))
+        end
         local mx,my=screenToGame(ctx.pointerPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)

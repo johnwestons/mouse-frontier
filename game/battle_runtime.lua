@@ -1,3 +1,5 @@
+local Accessibility=require("game.accessibility")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"battle runtime requires "..name)
@@ -89,7 +91,7 @@ local function new(context)
   local function useHealingItem(name) return BattleController.useHealingItem(controllerContext(),name) end
 
   local function update(dt)
-      if runtime.battle then BattleController.update(controllerContext(),dt) end
+      if runtime.battle then BattleController.update(controllerContext(),dt*Accessibility.motionSpeed(runtime.saveData)) end
       return true
   end
 

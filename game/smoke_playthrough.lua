@@ -70,6 +70,7 @@ local function install(context)
     local stopActivityAudit=required(context,"stopActivityAudit","function")
     local relationshipAudit=required(context,"relationshipAudit","function")
     local characterIdentityAudit=required(context,"characterIdentityAudit","function")
+    local accessibilityAudit=required(context,"accessibilityAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -274,6 +275,10 @@ local function install(context)
                 return result.ready and result.playable==#characters and result.invalid==0 and result.traitKinds>=5
                     and result.abilityKinds>=5 and result.curve=="character-identity-v1"
             end},
+            {name="accessibility_preferences",action=accessibilityAudit,check=function(_,_,_,result)
+                return result.ready and result.textLabel=="LARGE" and result.motionSpeed==4 and result.touchRadius>=58
+                    and result.curve=="accessibility-mobile-v1"
+            end},
             {name="positive_finale_progression",action=finaleAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="finale-v1" and result.choiceCount==3 and result.selected=="lifeline"
@@ -298,6 +303,19 @@ local function install(context)
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
             {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="accessibility_settings_controls",action=function()
+                game.optionsPage="accessibility"; ui.optionsOpen=true; ui.smokeDraw()
+                local controls={ui.optionsAudioTab,ui.optionsAccessTab,ui.accessTextSize,ui.accessHighContrast,ui.accessReducedMotion,ui.accessControlHints,ui.accessTouchFeedback,ui.accessLargeTouchTargets}
+                local touchReady=true; for _,control in ipairs(controls) do touchReady=touchReady and control and control.w>=100 and control.h>=42 end
+                local control=ui.accessTextSize; ui.handleOptionsMousePressed(control.x+control.w/2,control.y+control.h/2)
+                control=ui.accessHighContrast; ui.handleOptionsMousePressed(control.x+control.w/2,control.y+control.h/2)
+                love.keypressed("3"); ui.smokeDraw(); local settings=game.saveData.accessibility
+                local result={touchReady=touchReady,textSize=settings.textSize,highContrast=settings.highContrast,
+                    reducedMotion=settings.reducedMotion,scaled=ui.accessTextSize and ui.accessTextSize.textScale,tab=game.optionsPage}
+                settings.textSize=1; settings.highContrast=false; settings.reducedMotion=false; ui.optionsOpen=false; game.optionsPage="audio"; return result
+            end,check=function(_,_,_,result)
+                return result.touchReady and result.textSize==2 and result.highContrast and result.reducedMotion and result.scaled>0 and result.tab=="accessibility"
+            end},
             {name="persistent_gift_response",action=function()
                 local npc=(game.saveData.npcRoster or {})[1]
                 game.saveData.inventory[1]="water-bottle"; game.giftNPC=npc; ui.offerGift(1)
@@ -597,9 +615,12 @@ local function install(context)
                     love.touchpressed("smoke-action",855,615)
                     local held=mobileControls:isHeld("e")
                     local action=game.actionKind
+                    local feedback=mobileControls.feedback~=nil
                     love.touchreleased("smoke-action",855,615)
-                    return {held=held,released=not mobileControls:isHeld("e"),action=action}
-                end,check=function(_,_,_,result) return result.held and result.released and result.action=="use" end},
+                    return {held=held,released=not mobileControls:isHeld("e"),action=action,feedback=feedback,
+                        primaryRadius=mobileControls.primary.radius,joystickRadius=mobileControls.joystick.radius}
+                end,check=function(_,_,_,result) return result.held and result.released and result.action=="use" and result.feedback
+                    and result.primaryRadius>=58 and result.joystickRadius>=82 end},
                 {name="mobile_menu_touch",action=function()
                     ui.smokeDraw()
                     love.touchpressed("smoke-menu-open",866,100); love.touchreleased("smoke-menu-open",866,100)

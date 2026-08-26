@@ -63,10 +63,11 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Complete:** Extend goodwill into persistent per-NPC recognition, category-aware gift responses, merchant discounts and resale benefits, and relationship-aware passenger dialogue.
 - **Complete:** Audit every selectable character's trait, implemented special ability, roster eligibility, combat role, and explanation. Character cards now open a touch-friendly confirmation profile before creating the save.
 
-## 10. Accessibility and mobile polish
+## 10. Accessibility and mobile polish — Complete
 
-- Improve text scaling, control guidance, touch feedback, settings, battle readability, and accessibility options.
-- Keep all new buttons and minigames usable without mouse-only assumptions.
+- **Complete:** Add persistent Normal, Large, and Extra Large text choices, high contrast, reduced motion, optional control hints, visual/haptic touch feedback, and adjustable large touch targets.
+- **Complete:** Improve battle readability with stronger movement and target shapes, bordered health bars, scalable status/feed text, always-visible mobile ability explanations, and keyboard/touch-accessible settings.
+- **Complete:** Keep every new control usable by mouse, keyboard, and Android touch without hover-only assumptions.
 
 ## Mobile parity contract
 

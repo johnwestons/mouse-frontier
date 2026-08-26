@@ -1,3 +1,5 @@
+local Accessibility=require("game.accessibility")
+
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"gameplay update requires "..name)
@@ -91,7 +93,7 @@ local function new(context)
       updateWorldScene(dt)
       if runtime.travelTransition then
           local transition=runtime.travelTransition
-          transition.t=transition.t+dt
+          transition.t=transition.t+dt*Accessibility.motionSpeed(runtime.saveData)
           local t=transition.t; local speedFactor; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,transition.maintenanceCondition or Maintenance.condition(runtime.saveData))
           if ui.departSource then
               -- Let the departure cue follow the train out, then release the
@@ -145,7 +147,7 @@ local function new(context)
           runtime.sceneryOffset=(runtime.sceneryOffset+sceneryDistance)%W
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
       end
-      if updateCarTransition(dt) then return end
+      if updateCarTransition(dt*Accessibility.motionSpeed(runtime.saveData)) then return end
       Maintenance.update(maintenanceSession,dt)
       if maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen then return end
       local dx=movementAxis("a","d")+movementAxis("left","right")

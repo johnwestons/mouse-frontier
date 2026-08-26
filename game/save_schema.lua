@@ -1,7 +1,8 @@
 local AudioCatalog = require("game.audio_catalog")
+local Accessibility = require("game.accessibility")
 
 local SaveSchema = {
-    CURRENT_VERSION = 28,
+    CURRENT_VERSION = 29,
     LEGACY_VERSION = 1,
 }
 
@@ -11,7 +12,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "finale",
+    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale",
 }
 
 local function finiteNumber(value)
@@ -108,6 +109,7 @@ local function ensureRootTables(data)
     data.audio.rainEnabled=data.audio.rainEnabled==true
     data.audio.musicPaused=data.audio.musicPaused==true
     data.audio.musicMuted=data.audio.musicMuted==true
+    Accessibility.ensure(data)
     for _,item in pairs(data.droppedItems) do
         item.scene=type(item.scene)=="string" and item.scene or "train"
         if item.scene=="train" then item.carIndex=math.max(1,math.floor(nonnegative(item.carIndex,1)))
