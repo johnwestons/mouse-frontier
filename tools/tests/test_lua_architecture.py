@@ -50,6 +50,7 @@ class LuaArchitectureTests(unittest.TestCase):
         startup_runtime = (ROOT / "game" / "startup_runtime.lua").read_text(encoding="utf-8")
         persistence_runtime = (ROOT / "game" / "persistence_runtime.lua").read_text(encoding="utf-8")
         smoke_playthrough = (ROOT / "game" / "smoke_playthrough.lua").read_text(encoding="utf-8")
+        screen_flow = (ROOT / "game" / "screen_flow.lua").read_text(encoding="utf-8")
 
         for callback in ("load", "update", "draw", "keypressed", "mousepressed", "quit"):
             self.assertIn(f"function App.{callback}", app)
@@ -270,6 +271,16 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn("smokeScope", app)
         self.assertNotIn("__index=function", app)
         self.assertNotIn("__newindex=function", app)
+        self.assertIn('screenFlow = require("game.screen_flow")', systems)
+        self.assertIn("return {new=new}", screen_flow)
+        self.assertNotIn("setfenv", screen_flow)
+        self.assertNotIn("dependency resolver", screen_flow)
+        self.assertIn("Systems.screenFlow=Systems.screenFlow.new({", app)
+        self.assertIn("Systems.screenFlow.install()", app)
+        self.assertNotIn("screens:register", app)
+        for route in ("intro", "slots", "characters", "battle", "event", "ending", "game"):
+            self.assertIn(f'{{"{route}",', screen_flow)
+        self.assertIn('local screenFlow=required(context,"screenFlow","table")', smoke_playthrough)
 
     def test_mobile_package_stages_the_shared_lua_tree(self) -> None:
         builder = (ROOT / "tools" / "build_mobile_package.py").read_text(encoding="utf-8")

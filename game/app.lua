@@ -44,8 +44,6 @@ local MobileControls = require("game.mobile_controls")
 local Systems = require("game.systems")
 local session = Systems.session.new()
 local screens = Systems.screens.new(session)
-screens:register("intro"); screens:register("slots"); screens:register("characters"); screens:register("game")
-screens:register("battle"); screens:register("event"); screens:register("ending")
 local runtime = RuntimeState.new({
     session = session,
     transition = function(screen) screens:transition(screen) end,
@@ -68,6 +66,20 @@ local colors = Config.colors
 local function isFurnitureItem(name)
     return name and love.filesystem.getInfo("assets/sprites/furniture/"..name..".png")~=nil
 end
+
+Systems.screenFlow=Systems.screenFlow.new({
+    runtime=runtime,
+    ui=ui,
+    screens=screens,
+    intro=Systems.intro,
+    scenery=scenery,
+    colors=colors,
+    updateBattle=function(...) return Systems.battleRuntime.update(...) end,
+    drawBattle=function(...) return Systems.battleRuntime.draw(...) end,
+    drawEnding=function(...) return Systems.screenUI.drawEnding(...) end,
+    drawGameplay=function(...) return Systems.gameplayHUD.draw(...) end,
+})
+Systems.screenFlow.install()
 
 Systems.persistenceRuntime=Systems.persistenceRuntime.new({
     runtime=runtime,
@@ -306,17 +318,6 @@ Systems.startupRuntime=Systems.startupRuntime.new({
 
 function App.load() return Systems.startupRuntime.load() end
 
-screens:register("intro",{update=function(dt)
-    if Systems.intro.update(ui.introCinematic,dt) then runtime.state="slots" end
-    return true
-end})
-screens:register("slots",{update=function() return true end})
-screens:register("characters",{update=function() return true end})
-screens:register("battle",{update=Systems.battleRuntime.update})
-screens:register("event",{update=function() return true end})
-screens:register("ending",{update=function() return true end})
-screens:register("game",{update=function() return false end})
-
 function App.update(dt) return Systems.startupRuntime.update(dt) end
 
 Systems.screenUI=Systems.screenUI.new({
@@ -436,19 +437,6 @@ Systems.gameplayHUD=Systems.gameplayHUD.new({
     drawHouse=Systems.worldRenderer.drawHouse,
     drawStop=Systems.worldRenderer.drawStop,
 })
-
-
-
-screens:register("intro",{draw=function(windowWidth,windowHeight)
-    Systems.intro.draw(ui.introCinematic,scenery,colors,windowWidth,windowHeight)
-end})
-screens:register("slots",{draw=ui.drawSlots})
-screens:register("characters",{draw=ui.drawCharacterSelect})
-screens:register("battle",{draw=Systems.battleRuntime.draw})
-screens:register("event",{draw=ui.drawRandomEvent})
-screens:register("ending",{draw=Systems.screenUI.drawEnding})
-screens:register("game",{draw=function() if runtime.travelConfirm then ui.drawTravelConfirm() else Systems.gameplayHUD.draw() end end})
-
 function App.draw() return Systems.presentationRuntime.draw() end
 
 Systems.gameplayInput=Systems.gameplayInput.new({
@@ -536,7 +524,7 @@ function App.installSmoke()
         runtime=runtime,ui=ui,characters=characters,maintenanceSession=maintenanceSession,session=session,screens=screens,car=car,
         currentSaveVersion=CURRENT_SAVE_VERSION,saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
-        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,
+        startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,

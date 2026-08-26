@@ -29,6 +29,7 @@ local function install(context)
     local presentationRuntime=required(context,"presentationRuntime","table")
     local startupRuntime=required(context,"startupRuntime","table")
     local persistenceRuntime=required(context,"persistenceRuntime","table")
+    local screenFlow=required(context,"screenFlow","table")
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
@@ -97,6 +98,9 @@ local function install(context)
             {name="startup_runtime_ready",action=function()
                 return {loaded=startupRuntime.isLoaded(),secondLoad=startupRuntime.load(),animations=type(startupRuntime.characterAnimations())=="table",clouds=type(startupRuntime.cloudLayer())=="table",streamer=ui.assetStreamer~=nil}
             end,check=function(_,_,_,result) return result.loaded and result.secondLoad==false and result.animations and result.clouds and result.streamer end},
+            {name="screen_flow_installed",action=function()
+                return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
+            end,check=function(_,_,_,result) return result.installed and result.routes==7 and result.current~=nil end},
             {name="persistence_focus_flush",action=function()
                 local previousSlot=game.selectedSlot; game.selectedSlot=99
                 local revision=ui.itemOrderRevision or 0
