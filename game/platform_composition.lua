@@ -20,6 +20,7 @@ local function new(context)
   local maintenanceSession=required(context,"maintenanceSession","table")
   local Catalog=required(context,"catalog","table")
   local Audio=required(context,"audio","table")
+  local AudioCatalog=required(context,"audioCatalog","table")
   local scenery=required(context,"scenery","table")
   local car=required(context,"car","table")
   local Train=required(context,"train","table")
@@ -37,10 +38,11 @@ local function new(context)
   persistenceRuntime=PersistenceRuntime.new({
     runtime=runtime,ui=ui,session=session,save=Save,maintenance=Maintenance,maintenanceSession=maintenanceSession,
     focusMobile=function(...) return mobileRuntime.focus(...) end,
+    focusAudio=function(...) return audioRuntime.focus(...) end,
     shutdownAudio=function(...) return audioRuntime.shutdown(...) end,
   })
 
-  audioRuntime=AudioRuntime.new({runtime=runtime,ui=ui,catalog=Catalog,audio=Audio})
+  audioRuntime=AudioRuntime.new({runtime=runtime,ui=ui,catalog=Catalog,audio=Audio,audioCatalog=AudioCatalog})
 
   trainCarRuntime=TrainCarRuntime.new({
     runtime=runtime,ui=ui,scenery=scenery,car=car,train=Train,width=W,height=H,

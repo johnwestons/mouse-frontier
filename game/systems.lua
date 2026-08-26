@@ -3,6 +3,7 @@
 -- constructs runtime-facing services after creating authoritative state.
 return {
     adventureComposition = require("game.adventure_composition"),
+    audioCatalog = require("game.audio_catalog"),
     audioRuntime = require("game.audio_runtime"),
     assetStreamer = require("game.asset_streamer"),
     battleRuntime = require("game.battle_runtime"),
@@ -11,6 +12,7 @@ return {
     contentRegistry = require("game.content_registry"),
     eventBalance = require("game.event_balance"),
     eventRuntime = require("game.event_runtime"),
+    firstAid = require("game.first_aid"),
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),
     gameplayUpdate = require("game.gameplay_update"),
@@ -37,6 +39,7 @@ return {
     sessionBootstrap = require("game.session_bootstrap"),
     smokeComposition = require("game.smoke_composition"),
     smokePlaythrough = require("game.smoke_playthrough"),
+    stopHelpProgression = require("game.stop_help_progression"),
     startupRuntime = require("game.startup_runtime"),
     startupComposition = require("game.startup_composition"),
     trainCarRuntime = require("game.train_car_runtime"),

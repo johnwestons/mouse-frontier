@@ -76,6 +76,8 @@ local function new(context)
   local interactionMouseAction=required(context,"interactionMouseAction","function")
   local interactionKeyAction=required(context,"interactionKeyAction","function")
   local repairEquipped=required(context,"repairEquipped","function")
+  local FirstAid=required(context,"firstAid","table")
+  local resolveFirstAid=required(context,"resolveFirstAid","function")
 
   local function startTravel()
       local status=travelStatus()
@@ -146,11 +148,15 @@ local function new(context)
 
   function ui.handleRadioMousePressed(x,y)
       if not ui.radioOpen then return false end
-      if Util.pointIn(x,y,ui.radio8bit) then runtime.saveData.audio.station="8bit"; audioResetMusic(); ui.playSfx("menu"); writeSave()
-      elseif Util.pointIn(x,y,ui.radioChill) then local changed=runtime.saveData.audio.station~="chill"; runtime.saveData.audio.station="chill"; if changed then runtime.saveData.audio.rainEnabled=true end; audioResetMusic(); ui.playSfx("menu"); writeSave()
-      elseif Util.pointIn(x,y,ui.radioVibes) then runtime.saveData.audio.station="vibes"; audioResetMusic(); ui.playSfx("menu"); writeSave()
+      if Util.pointIn(x,y,ui.radio8bit) then if runtime.saveData.audio.station~="8bit" then runtime.saveData.audio.station="8bit"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.radioChill) then if runtime.saveData.audio.station~="chill" then runtime.saveData.audio.station="chill"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.radioVibes) then if runtime.saveData.audio.station~="vibes" then runtime.saveData.audio.station="vibes"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
       elseif Util.pointIn(x,y,ui.radioRain) then runtime.saveData.audio.rainEnabled=not runtime.saveData.audio.rainEnabled; ui.playSfx("menu"); writeSave()
       elseif Util.pointIn(x,y,ui.radioClose) then ui.radioOpen=false; ui.playSfx("menu") end
+      if Util.pointIn(x,y,ui.radioPrevious) then audioPreviousTrack(); ui.playSfx("menu"); writeSave()
+      elseif Util.pointIn(x,y,ui.radioPause) then audioTogglePause(); ui.playSfx("menu"); writeSave()
+      elseif Util.pointIn(x,y,ui.radioNext) then audioNextTrack(); ui.playSfx("menu"); writeSave()
+      elseif Util.pointIn(x,y,ui.radioMute) then audioToggleMute(); ui.playSfx("menu"); writeSave() end
       return true
   end
 
@@ -272,6 +278,13 @@ local function new(context)
           end
           return
       end
+      if runtime.firstAid then
+          if button==1 then
+              local aidX,aidY=screenToGame(x,y); local outcome=FirstAid.mousepressed(runtime.firstAid,aidX,aidY)
+              if outcome=="complete" or outcome=="failed" or outcome=="cancelled" then resolveFirstAid(outcome) end
+          end
+          return
+      end
       if button==3 and runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not runtime.editMode then beginCameraPan(x,y); return end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and runtime.carTransition then return end
@@ -342,6 +355,11 @@ local function new(context)
 
   local function keypressedGlobal(key)
       if ui.mobileMenuOpen and key=="escape" then ui.mobileMenuOpen=false; return true end
+      if runtime.firstAid then
+          local outcome=FirstAid.keypressed(runtime.firstAid,key)
+          if outcome=="complete" or outcome=="failed" or outcome=="cancelled" then resolveFirstAid(outcome) end
+          return true
+      end
       if maintenanceSession.open then
           local result=Maintenance.keypressed(maintenanceSession,key,runtime.saveData)
           if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end

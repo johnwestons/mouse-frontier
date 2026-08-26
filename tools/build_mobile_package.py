@@ -30,6 +30,16 @@ FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 FFMPEG_SHA_URL = FFMPEG_URL + ".sha256"
 ACTIONS = {"idle", "sit", "lay", "walk", "melee", "ranged", "use", "hit", "death", "unconscious"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
+EXCLUDED_RUNTIME_AUDIO_PREFIXES = (
+    "sounds/soundeffects/hurtmale/",
+    "sounds/soundeffects/hurtmob/",
+    "sounds/soundeffects/nature/",
+    "sounds/soundeffects/train/traintraveling/",
+)
+EXCLUDED_RUNTIME_AUDIO_FILES = {
+    "sounds/soundeffects/rain/rainlit shelter.mp3",  # Music duplicated into the old ambience pool.
+    "sounds/soundeffects/rain/865261__robo9418__rain-hitting-window.wav",  # Outside the curated rain level range.
+}
 
 
 def safe_clean(path: Path) -> None:
@@ -104,7 +114,18 @@ def optimize_image(source: Path, destination: Path, relative: str, config: dict)
 
 
 def normalized_music_stem(stem: str) -> str:
-    return re.sub(r"(?:\s*\(1\)|[12])$", "", stem).casefold()
+    normalized = stem.casefold()
+    while True:
+        updated = re.sub(r"\s*\(1\)$", "", normalized)
+        updated = re.sub(r"[12]$", "", updated)
+        if updated == normalized:
+            return normalized
+        normalized = updated
+
+
+def runtime_audio(relative: str) -> bool:
+    folded = relative.casefold()
+    return folded not in EXCLUDED_RUNTIME_AUDIO_FILES and not folded.startswith(EXCLUDED_RUNTIME_AUDIO_PREFIXES)
 
 
 def select_audio_sources() -> list[Path]:
@@ -113,6 +134,8 @@ def select_audio_sources() -> list[Path]:
     music_groups: dict[tuple[str, str], list[Path]] = {}
     for source in sources:
         relative = source.relative_to(ROOT).as_posix()
+        if not runtime_audio(relative):
+            continue
         if relative.startswith("sounds/music/"):
             key = (source.parent.as_posix(), normalized_music_stem(source.stem))
             music_groups.setdefault(key, []).append(source)

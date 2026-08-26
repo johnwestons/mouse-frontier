@@ -1,3 +1,5 @@
+local AudioCatalog = require("game.audio_catalog")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"gameplay HUD requires "..name)
@@ -20,6 +22,7 @@ local function new(context)
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
+  local FirstAid=required(context,"firstAid","table")
   local Util=required(context,"util","table")
   local button=required(context,"button","function")
   local drawMenuFrame=required(context,"drawMenuFrame","function")
@@ -144,6 +147,7 @@ local function new(context)
       if runtime.editMode then ui.drawEditControls() end
       ui.poseIdle=nil; ui.poseSit=nil; ui.poseLay=nil; ui.poseAction=nil
       ui.musicDown=nil; ui.musicUp=nil; ui.sfxDown=nil; ui.sfxUp=nil; ui.rainDown=nil; ui.rainUp=nil; ui.musicPrevious=nil; ui.musicPause=nil; ui.musicNext=nil; ui.musicMute=nil
+      ui.radioPrevious=nil; ui.radioPause=nil; ui.radioNext=nil; ui.radioMute=nil
       if runtime.poseMenu then
           if mobile then
               drawMenuFrame(410,150,510,390,2,.99); love.graphics.setColor(colors.cream); love.graphics.printf("CHARACTER POSE",435,180,460,"center",0,1.25,1.25)
@@ -160,7 +164,7 @@ local function new(context)
           ui.sfxDown=button("-",mobile and 680 or 770,mobile and 267 or 291,mobile and 88 or 45,mobile and 64 or 34,true); ui.sfxUp=button("+",mobile and 790 or 830,mobile and 267 or 291,mobile and 88 or 45,mobile and 64 or 34,true)
           love.graphics.print("RAIN  "..math.floor((runtime.saveData.audio.rainVolume or .20)*100).."%",mobile and 400 or 635,mobile and 380 or 350)
           ui.rainDown=button("-",mobile and 680 or 770,mobile and 357 or 340,mobile and 88 or 45,mobile and 64 or 34,true); ui.rainUp=button("+",mobile and 790 or 830,mobile and 357 or 340,mobile and 88 or 45,mobile and 64 or 34,true)
-          local stationLabel=runtime.saveData.audio.station=="chill" and "CHILL RADIO" or (runtime.saveData.audio.station=="vibes" and "VIBES RADIO" or "8-BIT SCORE")
+          local stationLabel=AudioCatalog.stationLabel(runtime.saveData.audio.station)
           love.graphics.print("STATION: "..stationLabel,mobile and 400 or 635,mobile and 450 or 399,0,mobile and 1.0 or .85,mobile and 1.0 or .85)
           local audioStatus=getAudioStatus()
           local status=audioStatus.available and (audioStatus.lastError and ("ERROR: "..audioStatus.lastError) or (audioStatus.nowPlaying and ("PLAYING: "..Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying)) or "STARTING MUSIC...")) or "AUDIO UNAVAILABLE"
@@ -171,17 +175,26 @@ local function new(context)
       if ui.radioOpen then
           love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,W,H)
           if ui.radioFace then love.graphics.setColor(1,1,1); love.graphics.draw(ui.radioFace,130,95,0,700/ui.radioFace:getWidth(),450/ui.radioFace:getHeight()) else drawMenuFrame(130,95,700,450,2,1) end
-          -- Keep station selectors and ambience controls on distinct rows. This
-          -- prevents the rain hitbox from being interpreted as the chill button
-          -- when the radio is scaled or shown fullscreen.
           ui.radio8bit={x=248,y=468,w=82,h=54}; ui.radioChill={x=343,y=468,w=82,h=54}; ui.radioVibes={x=438,y=468,w=82,h=54}
           ui.radioRain={x=533,y=468,w=82,h=54}; ui.radioClose={x=628,y=468,w=82,h=54}
-          for i,r in ipairs({ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose}) do
+          local radioButtons={ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose}
+          local radioLabels={"8-BIT","CHILL","VIBES","RAIN","CLOSE"}
+          for i,r in ipairs(radioButtons) do
               if ui.radioButtonsImage and ui.radioButtonQuads then love.graphics.setColor(1,1,1); local iw,ih=ui.radioButtonsImage:getDimensions(); local q=((i-1)%3)+1; love.graphics.draw(ui.radioButtonsImage,ui.radioButtonQuads[q],r.x,r.y,0,r.w/(iw/3),r.h/ih) else button("",r.x,r.y,r.w,r.h,true) end
+              local selected=(i==1 and runtime.saveData.audio.station=="8bit") or (i==2 and runtime.saveData.audio.station=="chill") or (i==3 and runtime.saveData.audio.station=="vibes") or (i==4 and runtime.saveData.audio.rainEnabled)
+              love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 4 or 2); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,5,5)
+              love.graphics.printf(radioLabels[i],r.x+2,r.y+21,r.w-4,"center",0,.58,.58)
           end
-          local stationName=runtime.saveData.audio.station=="chill" and "CHILL RADIO" or (runtime.saveData.audio.station=="vibes" and "VIBES RADIO" or "8-BIT SCORE")
-          love.graphics.setColor(colors.cream); love.graphics.printf(stationName,300,405,360,"center",0,1.1,1.1)
-          love.graphics.printf(runtime.saveData.audio.rainEnabled and "RAIN: ON" or "RAIN: OFF",300,432,360,"center",0,.78,.78)
+          love.graphics.setLineWidth(1)
+          local audioStatus=getAudioStatus()
+          local track=audioStatus.nowPlaying and Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying) or "Starting music..."
+          love.graphics.setColor(colors.cream); love.graphics.printf("NOW PLAYING:  "..track,220,385,520,"center",0,.72,.72)
+          love.graphics.printf(AudioCatalog.stationLabel(runtime.saveData.audio.station).."   •   "..(runtime.saveData.audio.rainEnabled and "RAIN ON" or "RAIN OFF"),260,420,440,"center",0,.82,.82)
+          drawMenuFrame(230,552,500,62,4,.94)
+          ui.radioPrevious=button("|<  PREV",242,560,110,46,true,.72)
+          ui.radioPause=button(runtime.saveData.audio.musicPaused and "PLAY" or "PAUSE",364,560,110,46,true,.72)
+          ui.radioNext=button("NEXT  >|",486,560,110,46,true,.72)
+          ui.radioMute=button(runtime.saveData.audio.musicMuted and "UNMUTE" or "MUTE",608,560,110,46,true,.72)
           local mx,my=screenToGame(pointerPosition()); local tip
           if Util.pointIn(mx,my,ui.radio8bit) then tip="Scene-based 8-bit score"
           elseif Util.pointIn(mx,my,ui.radioChill) then tip="Chill Radio"
@@ -197,6 +210,7 @@ local function new(context)
           maintenanceSession.mouseX,maintenanceSession.mouseY=screenToGame(pointerPosition())
           Maintenance.draw(maintenanceSession,runtime.saveData)
       end
+      if runtime.firstAid then FirstAid.draw(runtime.firstAid,colors) end
   end
 
   return {draw=drawGame}

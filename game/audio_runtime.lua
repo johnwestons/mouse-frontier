@@ -11,12 +11,13 @@ local function new(context)
   local ui=required(context,"ui","table")
   local Catalog=required(context,"catalog","table")
   local Audio=required(context,"audio","table")
+  local AudioCatalog=required(context,"audioCatalog","table")
   local audio
   local departSource
 
   local function initialize()
       if audio then audio:shutdown() end
-      audio=Audio.new()
+      audio=Audio.new({catalog=AudioCatalog})
       audio:installGunPools()
       return audio
   end
@@ -28,6 +29,7 @@ local function new(context)
   local function musicCategory()
       if runtime.state=="ending" then return "endingHappy" end
       if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.tier=="hard" and "bossFight" or "battle" end
+      if runtime.state~="game" and runtime.state~="event" then return nil end
       if runtime.scene=="house" then return "insideHomes" end
       if runtime.scene=="stop" or runtime.state=="event" then return "stops" end
       return "train"
@@ -40,11 +42,13 @@ local function new(context)
 
   local function playTrainDepart()
       departSource=playSfx("trainDepart")
+      ui.departSource=departSource
       return departSource
   end
 
-  local function weaponSfx(weaponName,combat)
-      if weaponName=="trail-slingshot" or weaponName=="scrap-boomerang" or combat.ammo=="arrows" then return "bow" end
+  local function weaponSfx(weaponName,combat,attacker)
+      local lower=(weaponName or ""):lower(); local file=attacker and (attacker.file or ""):lower() or ""
+      if lower:find("slingshot",1,true) or weaponName=="scrap-boomerang" or combat.ammo=="arrows" or file:find("eagle",1,true) then return "bow" end
       if combat.kind~="ranged" then return weaponName=="scratch" and "slash" or "sword" end
       local tier=(Catalog.weaponStats[weaponName] and Catalog.weaponStats[weaponName].tier) or 1
       return tier<=4 and "gunshotLight" or (tier<=6 and "gunshotMedium" or "gunshotHeavy")
@@ -85,12 +89,22 @@ local function new(context)
           available=audio~=nil,
           lastError=audio and audio.lastError or nil,
           nowPlaying=audio and audio.nowPlaying or nil,
+          category=audio and audio.category or nil,
+          rainPath=audio and audio.rainPath or nil,
+          suspended=audio and audio.suspended or false,
       }
+  end
+
+  local function focus(focused)
+      local current=settings()
+      if not audio or not current then return true end
+      if not focused then departSource=nil; ui.departSource=nil end
+      return focused and audio:resume(current) or audio:suspend(current)
   end
 
   local function shutdown()
       if audio then audio:shutdown(); audio=nil end
-      departSource=nil
+      departSource=nil; ui.departSource=nil
   end
 
   ui.playSfx=playSfx
@@ -109,6 +123,7 @@ local function new(context)
       nextTrack=nextTrack,
       toggleMute=toggleMute,
       status=status,
+      focus=focus,
       shutdown=shutdown,
   }
 end

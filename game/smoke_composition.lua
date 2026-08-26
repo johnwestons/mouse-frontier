@@ -32,10 +32,12 @@ local function new(context)
   local Events=required(domain,"domain","events","table")
   local BattleRules=required(domain,"domain","battleRules","table")
   local Intro=required(domain,"domain","intro","table")
+  local FirstAid=required(domain,"domain","firstAid","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
   local persistenceRuntime=required(services,"services","persistenceRuntime","table")
+  local audioRuntime=required(services,"services","audioRuntime","table")
   local screenFlow=required(services,"services","screenFlow","table")
   local mobileRuntime=required(services,"services","mobileRuntime","table")
   local sessionBootstrap=required(services,"services","sessionBootstrap","table")
@@ -62,7 +64,8 @@ local function new(context)
       session=session,screens=screens,car=car,currentSaveVersion=currentSaveVersion,
       saveSchema=SaveSchema,catalog=Catalog,assets=Assets,save=Save,maintenance=Maintenance,
       events=Events,battleRules=BattleRules,presentationRuntime=presentationRuntime,
-      startupRuntime=startupRuntime,persistenceRuntime=persistenceRuntime,screenFlow=screenFlow,
+      firstAid=FirstAid,
+      startupRuntime=startupRuntime,persistenceRuntime=persistenceRuntime,audioRuntime=audioRuntime,screenFlow=screenFlow,
       contentRegistry=content,viewComposition=views,adventureComposition=adventure,
       platformComposition=platform,inputComposition=input,worldSessionComposition=world,
       startupComposition=startup,serviceRegistry=serviceRegistry,smokeComposition=composition,
@@ -75,6 +78,7 @@ local function new(context)
       playerBalanceAudit=battleRuntime.playerBalanceAudit,
       lootBalanceAudit=inventoryActions.balanceAudit,
       questBalanceAudit=journeyRules.questBalanceAudit,
+      helpBalanceAudit=journeyRules.helpBalanceAudit,
       beginRandomEvent=eventRuntime.beginRandom,eventBalanceAudit=eventRuntime.balanceAudit,
       resolveEventChoice=eventRuntime.choose,advanceBattleTurn=battleRuntime.advanceTurn,
       battleAttack=battleRuntime.attack,resolveBattleAttack=battleRuntime.resolveAttack,

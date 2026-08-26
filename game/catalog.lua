@@ -269,7 +269,13 @@ Catalog.dialogueLines = {
     "Hope you find what you're looking for", "Got any grapes?", "Can I borrow $3.50?",
     "What happened to the rest of the people?", "I hope my family is ok...", "What are we gonna do come winter...",
     "How far have you traveled so far?", "Some critters got mutated in the great flash.",
-    "We need more people like you...", "Wow, what an adventure!"
+    "We need more people like you...", "Wow, what an adventure!",
+    "Those darn sludges keep tainting my crops...", "I would go myself but I know there will be bandits...",
+    "We need to work together.", "If you see a sludge you gotta mash it!",
+    "I hope you guys make it to the next stop safely.", "I've not seen my family in ages it feels like...",
+    "Have you ever seen a human?", "Grab whatever you need for the journey.",
+    "How are the tracks holding up?", "How many of us are out there?",
+    "Wish we could all get along...", "Safe travels friend", "Maybe we will all get our happy endings..."
 }
 
 Catalog.mailRequestLines={"Could you take this letter west for me?","If you see my brother, will you give him this letter?","My sister went west. If you see her, will you give her this letter?","My family is out there somewhere. Could you carry this letter?","If my dad is still alive, please show him the picture in this letter."}

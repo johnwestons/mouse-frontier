@@ -29,7 +29,7 @@ local function new(context)
   local function gameplayActive()
       return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open
           and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.exitPrompt
+          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.exitPrompt and not runtime.firstAid
   end
 
   local function backVisible()
@@ -37,13 +37,13 @@ local function new(context)
       if runtime.state=="slots" or runtime.state=="characters" then return true end
       if runtime.state=="battle" then return runtime.inventoryOpen end
       return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
-          or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil)
+          or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid)
   end
 
   local function menuVisible()
       return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
           and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue
+          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue and not runtime.firstAid
   end
 
   local function primaryAction()

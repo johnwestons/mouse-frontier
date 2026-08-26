@@ -14,6 +14,7 @@ local function new(context)
   local Maintenance=required(context,"maintenance","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local focusMobile=required(context,"focusMobile","function")
+  local focusAudio=required(context,"focusAudio","function")
   local shutdownAudio=required(context,"shutdownAudio","function")
 
   local function schedule()
@@ -30,6 +31,7 @@ local function new(context)
 
   local function focus(focused)
       focusMobile(focused)
+      focusAudio(focused)
       if focused then return true end
       schedule()
       return flush()

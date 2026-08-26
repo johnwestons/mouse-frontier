@@ -1,6 +1,7 @@
 local Stops = {}
 local LootProgression = require("game.loot_progression")
 local QuestProgression = require("game.quest_progression")
+local StopHelpProgression = require("game.stop_help_progression")
 
 local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree","autumn-tree","white-birch","dead-white-tree","dead-brown-tree","tall-stump","mossy-stump","flowering-shrub","white-flower-shrub","red-berry-bush","fern-cluster","tall-reeds","red-mushrooms","brown-mushrooms","wild-herb-patch","butterfly-flowers","mossy-boulders","fallen-log","hollow-log","branch-pile","broken-fence","signpost","straight-fence","stone-fire-ring","lit-campfire","patched-tent","rusty-barrel","wooden-barrel","supply-crate","reinforced-crate","old-stone-well","weathered-gravestone","loose-stones"}
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
@@ -55,27 +56,27 @@ function Stops.ensure(data,catalog,scene)
     if (data.location or 1)<=5 and (not layout.interior or layout.interior<=5) then layout.interior=generatedInteriorIndex(data.location or 1) end
     layout.interior=layout.interior or generatedInteriorIndex(data.location or 1); layout.npcOutside=layout.npcOutside or layout.npc or roster[1]
     layout.npcInside=layout.npcInside or differentNpc(roster,layout.npcOutside); layout.npc=layout.npcOutside
-    -- Offers belong to the individual critter, never to the whole stop.  Keep
-    -- the old `offer` field only as a compatibility value for older UI code.
-    layout.npcOffers=layout.npcOffers or {}
-    local function ensureOffer(npc)
+    -- A stop now has one ordinary request opportunity rather than giving
+    -- every resident an independent roll. Merchants retain their trade role.
+    layout.npcOffers=layout.npcOffers or {}; layout.helpRequests=layout.helpRequests or {}
+    local function assignOffer(npc,kind)
         if not npc then return end
         local lower=npc:lower()
         if lower:find("crow%-merchant") then
             layout.npcOffers[npc]="trade"
-        elseif layout.npcOffers[npc]==nil then
-            layout.npcOffers[npc]=offerRoll(data.location)
-        end
+        else layout.npcOffers[npc]=kind or "none" end
+        local assigned=layout.npcOffers[npc]
+        if assigned=="item" or assigned=="aid" then StopHelpProgression.ensureRequest(layout,npc,assigned,data.location) end
     end
-    ensureOffer(layout.npcOutside); ensureOffer(layout.npcInside)
-    -- Avoid the old “everyone repeats the same quest” presentation when both
-    -- visible residents happen to roll the same non-empty offer.
-    if layout.npcOutside and layout.npcInside and layout.npcOutside~=layout.npcInside then
-        local first,second=layout.npcOffers[layout.npcOutside],layout.npcOffers[layout.npcInside]
-        if first and second and first==second and first~="none" and layout.npcInside:lower():find("crow%-merchant") == nil then
-            local replacement=second
-            for _=1,4 do replacement=offerRoll(data.location); if replacement~=first then break end end
-            layout.npcOffers[layout.npcInside]=replacement==first and "none" or replacement
+    if (layout.offerPolicyVersion or 0)<StopHelpProgression.policyVersion then
+        layout.npcOffers={}; layout.helpRequests=layout.helpRequests or {}
+        assignOffer(layout.npcOutside,offerRoll(data.location)); assignOffer(layout.npcInside,"none")
+        layout.offerPolicyVersion=StopHelpProgression.policyVersion
+    else
+        if layout.npcOffers[layout.npcOutside]==nil then assignOffer(layout.npcOutside,offerRoll(data.location)) end
+        if layout.npcOffers[layout.npcInside]==nil then assignOffer(layout.npcInside,"none") end
+        for npc,kind in pairs(layout.npcOffers) do
+            if kind=="item" or kind=="aid" then StopHelpProgression.ensureRequest(layout,npc,kind,data.location) end
         end
     end
     layout.offer=layout.npcOffers[layout.npcOutside] or layout.offer or "none"
@@ -89,10 +90,7 @@ function Stops.ensure(data,catalog,scene)
     data.currentNPC=(scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
     -- Additional house doors can introduce NPCs beyond the two legacy slots.
     -- Give those residents their own independent offer as well.
-    if data.currentNPC and layout.npcOffers[data.currentNPC]==nil then
-        local lower=data.currentNPC:lower()
-        layout.npcOffers[data.currentNPC]=lower:find("crow%-merchant") and "trade" or offerRoll(data.location)
-    end
+    if data.currentNPC and layout.npcOffers[data.currentNPC]==nil then assignOffer(data.currentNPC,"none") end
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"
     if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end

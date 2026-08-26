@@ -26,9 +26,11 @@ local function install(context)
     local Maintenance=required(context,"maintenance","table")
     local Events=required(context,"events","table")
     local BattleRules=required(context,"battleRules","table")
+    local FirstAid=required(context,"firstAid","table")
     local presentationRuntime=required(context,"presentationRuntime","table")
     local startupRuntime=required(context,"startupRuntime","table")
     local persistenceRuntime=required(context,"persistenceRuntime","table")
+    local audioRuntime=required(context,"audioRuntime","table")
     local screenFlow=required(context,"screenFlow","table")
     local contentRegistry=required(context,"contentRegistry","table")
     local viewComposition=required(context,"viewComposition","table")
@@ -60,6 +62,7 @@ local function install(context)
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
     local questBalanceAudit=required(context,"questBalanceAudit","function")
+    local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -195,6 +198,7 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.earlyWeights.mail>result.lateWeights.mail
                         and result.lateWeights.trade>result.earlyWeights.trade
+                        and result.curve=="quest-v3" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
                         and result.farReward.scrap>result.nearReward.scrap
                         and result.farReward.xp>result.nearReward.xp
                         and result.diplomatReward.scrap>result.farReward.scrap
@@ -202,6 +206,18 @@ local function install(context)
                         and result.scavenger.kind=="scrap" and result.objectiveCount==3
                         and result.stockedRide>result.lowSupplyRide and result.mailboxDelivery=="mailbox"
                         and result.ammoDelivery=="ammunition"
+                end},
+            {name="stop_help_goodwill",action=function()
+                    local result=helpBalanceAudit(); local previousState=game.state
+                    game.state="game"; game.firstAid=FirstAid.new({location=2,itemName="field-bandage-roll",itemSlot=1})
+                    ui.smokeDraw(); game.firstAid=nil; game.state=previousState; result.overlayRendered=true
+                    return result
+                end,
+                check=function(_,_,_,result)
+                    return result.ready and result.curve=="goodwill-v1" and result.policyVersion==3
+                        and result.points==5 and result.helpCount==2 and result.itemGoodwill==2 and result.aidGoodwill==3
+                        and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
+                        and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
@@ -211,11 +227,34 @@ local function install(context)
                 local revision=ui.itemOrderRevision or 0
                 local scheduled=persistenceRuntime.schedule()
                 local flushed=persistenceRuntime.focus(false)
+                local suspended=audioRuntime.status().suspended
+                persistenceRuntime.focus(true)
+                local resumed=not audioRuntime.status().suspended
                 local persisted=Save.read(99)
                 Save.remove(99); game.selectedSlot=previousSlot
-                return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision}
-            end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced end},
+                return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
+            end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
             {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="audio_priority_and_title_silence",action=function()
+                local settings=game.saveData.audio
+                settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()
+                local stationCategory=audioRuntime.status().category
+                local oldState,oldBattle=game.state,game.battle
+                game.state="battle"; game.battle={encounter={tier="hard"}}; audioRuntime.update()
+                local battleCategory=audioRuntime.status().category
+                game.state="slots"; audioRuntime.update()
+                local titleStatus=audioRuntime.status()
+                game.state,game.battle=oldState,oldBattle; settings.station="8bit"; audioRuntime.resetMusic(); audioRuntime.update()
+                return {station=stationCategory,battle=battleCategory,titleSilent=titleStatus.nowPlaying==nil and titleStatus.rainPath==nil}
+            end,check=function(_,_,_,result) return result.station=="chill" and result.battle=="bossFight" and result.titleSilent end},
+            {name="radio_transport_render",action=function()
+                ui.radioOpen=true; ui.smokeDraw()
+                local controls={ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose,ui.radioPrevious,ui.radioPause,ui.radioNext,ui.radioMute}
+                local complete=true
+                for _,control in ipairs(controls) do complete=complete and control and control.w>0 and control.h>0 end
+                ui.radioOpen=false
+                return {complete=complete,count=#controls}
+            end,check=function(_,_,_,result) return result.complete and result.count==9 end},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end
                 local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old

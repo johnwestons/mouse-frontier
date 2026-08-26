@@ -1,5 +1,7 @@
+local AudioCatalog = require("game.audio_catalog")
+
 local SaveSchema = {
-    CURRENT_VERSION = 25,
+    CURRENT_VERSION = 26,
     LEGACY_VERSION = 1,
 }
 
@@ -9,7 +11,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance", "eventCategoryHistory",
+    "maintenance", "eventCategoryHistory", "helpHistory",
 }
 
 local function finiteNumber(value)
@@ -32,7 +34,7 @@ local function validateShape(data)
             return false,field.." must be a table"
         end
     end
-    for _,field in ipairs({"location","health","maxHealth","activeCar","engineLevel","inventoryCapacity","scrap"}) do
+    for _,field in ipairs({"location","health","maxHealth","activeCar","engineLevel","inventoryCapacity","scrap","goodwill"}) do
         local value=data[field]
         if value~=nil and tonumber(value)==nil then return false,field.." must be numeric" end
     end
@@ -94,11 +96,12 @@ local function ensureRootTables(data)
     data.stats.nextXP=math.max(1,nonnegative(data.stats.nextXP,10))
     data.inventoryCapacity=math.max(1,math.floor(nonnegative(data.inventoryCapacity,6)))
     data.scrap=nonnegative(data.scrap,0)
+    data.goodwill=math.floor(nonnegative(data.goodwill,0))
     data.visitedStops[data.location]=true
     if #data.trainCars==0 then data.trainCars={"living-car"} end
     data.activeCar=math.max(1,math.min(#data.trainCars,math.floor(nonnegative(data.activeCar,1))))
     data.engineLevel=math.floor(nonnegative(data.engineLevel,0))
-    data.audio.station=type(data.audio.station)=="string" and data.audio.station or "8bit"
+    data.audio.station=AudioCatalog.normalizeStation(data.audio.station)
     data.audio.musicVolume=math.min(1,nonnegative(data.audio.musicVolume,.10))
     data.audio.sfxVolume=math.min(1,nonnegative(data.audio.sfxVolume,.55))
     data.audio.rainVolume=math.min(1,nonnegative(data.audio.rainVolume,.20))

@@ -18,6 +18,8 @@ local function new(context)
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local QuestProgression=required(context,"questProgression","table")
   local LootProgression=required(context,"lootProgression","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local FirstAid=required(context,"firstAid","table")
   local BattleRules=required(context,"battleRules","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
@@ -104,6 +106,35 @@ local function new(context)
       end
   end
 
+  local function currentHelpRequest()
+      local layout=ensureStopLayout()
+      return StopHelpProgression.request(layout,runtime.saveData.currentNPC),layout
+  end
+
+  local function itemHelp(request)
+      request.accepted=true
+      local result=StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
+      local speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler")
+      if result.completed then
+          runtime.dialogue={speaker=speaker,text="That is exactly what we needed. Thank you! +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
+      else
+          runtime.dialogue={speaker=speaker,text="Thank you for offering. Please bring me "..(request.label or Util.titleFromFile(request.item)).." when you find one.",timer=6}
+      end
+      return result
+  end
+
+  local function beginFirstAid(request)
+      request.accepted=true
+      local slot,name=StopHelpProgression.medicalItem(runtime.saveData,Catalog)
+      if not slot then
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text="I still need help, but you need a bandage, salve, tonic, splint, or medkit to treat this wound.",timer=6}
+          return false
+      end
+      runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location})
+      runtime.dialogue=nil
+      return true
+  end
+
   local function acceptQuest(kind)
       if kind=="mail" then
           local distance=QuestProgression.questDistance("mail",runtime.saveData.location); local destination=runtime.saveData.location+distance
@@ -122,6 +153,12 @@ local function new(context)
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll help as your "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
       elseif kind=="trade" then
           runtime.tradeOpen=true; runtime.tradeNPC=runtime.saveData.currentNPC; runtime.dialogue=nil
+      elseif kind=="item" then
+          local request=currentHelpRequest()
+          if request then itemHelp(request) end
+      elseif kind=="aid" then
+          local request=currentHelpRequest()
+          if request then beginFirstAid(request) end
       elseif kind=="supplies" then
           local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local amount=3; local added=0; local addedSlots={}
@@ -142,6 +179,22 @@ local function new(context)
           end
       end
       runtime.questOffer=nil; writeSave()
+  end
+
+  local function resolveFirstAid(outcome)
+      local session=runtime.firstAid
+      if not session then return false end
+      runtime.firstAid=nil
+      local layout=runtime.saveData.stopLayouts[tostring(session.location)]
+      local request=StopHelpProgression.request(layout,session.npc)
+      local speaker=Util.titleFromFile(session.npc or "Traveler")
+      if outcome=="complete" then
+          local result=StopHelpProgression.completeAid(runtime.saveData,request,session,session.npc,session.location)
+          if result.completed then runtime.dialogue={speaker=speaker,text="You patched me up. I won't forget this. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
+          else runtime.dialogue={speaker=speaker,text="The medical supply went missing before the treatment was finished. We can try again.",timer=6} end
+      elseif outcome=="failed" then runtime.dialogue={speaker=speaker,text="That did not work, but thank you for trying. We can try again when you're ready.",timer=6}
+      else runtime.dialogue={speaker=speaker,text="We can try the treatment again when you're ready.",timer=5} end
+      writeSave(); return true
   end
 
   local function talkToNPC()
@@ -165,13 +218,24 @@ local function new(context)
       end
       local mail=pendingMailHere()
       if mail then mail.complete=true; giveQuestReward("mail",mail.origin,mail.destination,Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]); writeSave(); return end
+      local helpRequest=currentHelpRequest()
+      if helpRequest and helpRequest.accepted and not helpRequest.complete then
+          if helpRequest.kind=="item" then itemHelp(helpRequest) else beginFirstAid(helpRequest) end
+          writeSave(); return
+      end
       local key=tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC); local layout=ensureStopLayout()
       -- Read the offer for the NPC being spoken to. A stop can have several
       -- critters, and their quest rolls must not leak between conversations.
       local kind=(layout.npcOffers and layout.npcOffers[runtime.saveData.currentNPC]) or "none"
       if not runtime.saveData.questAsked[key] and kind~="none" and runtime.saveData.location<50 then
           runtime.saveData.questAsked[key]=true; runtime.questOffer={kind=kind}
-          local text=kind=="mail" and Catalog.mailRequestLines[love.math.random(#Catalog.mailRequestLines)] or (kind=="ride" and Catalog.rideRequestLines[love.math.random(#Catalog.rideRequestLines)] or (kind=="supplies" and "Settlers farther west are hungry. Could you deliver some food for us?" or "I've got supplies to trade. Want to take a look?"))
+          local request=StopHelpProgression.request(layout,runtime.saveData.currentNPC)
+          local text
+          if kind=="mail" then text=Catalog.mailRequestLines[love.math.random(#Catalog.mailRequestLines)]
+          elseif kind=="ride" then text=Catalog.rideRequestLines[love.math.random(#Catalog.rideRequestLines)]
+          elseif kind=="supplies" then text="Settlers farther west are hungry. Could you deliver some food for us?"
+          elseif (kind=="item" or kind=="aid") and request then text=request.text
+          else text="I've got supplies to trade. Want to take a look?" end
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return
       end
       runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text=Catalog.dialogueLines[love.math.random(#Catalog.dialogueLines)],timer=6}
@@ -213,11 +277,16 @@ local function new(context)
     balanceAudit=function() return ProgressionBalance.audit(EngineUpgrades,TrainUpgradeBalance) end,
     upgradeBalanceAudit=function() return TrainUpgradeBalance.audit(EngineUpgrades) end,
     questBalanceAudit=function() return QuestProgression.audit(Catalog,LootProgression,Passengers,Inventory) end,
+    helpBalanceAudit=function()
+        local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.ready=result.ready and result.firstAid.ready
+        return result
+    end,
     questSummary=function() return QuestProgression.summary(runtime.saveData) end,
     processPassengerArrivals=processPassengerArrivals,
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,
     acceptQuest=acceptQuest,
+    resolveFirstAid=resolveFirstAid,
     talkToNPC=talkToNPC,
     enterStop=enterStop,
     attemptLeaveTrain=attemptLeaveTrain

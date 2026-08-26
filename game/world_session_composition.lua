@@ -32,6 +32,7 @@ local function new(context)
   local Passengers=required(context,"passengers","table")
   local Events=required(context,"events","table")
   local PlayerProgression=required(context,"playerProgression","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
   local getIsWeapon=required(context,"getIsWeapon","function")
 
   local worldScene=WorldScene.new({
@@ -47,6 +48,7 @@ local function new(context)
     filesystem=Filesystem,roster=Roster,house=House,catalog=Catalog,maintenance=Maintenance,
     engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,settlements=Settlements,
     playerProgression=PlayerProgression,
+    stopHelpProgression=StopHelpProgression,
     trainObjectBounds=platform.trainCarRuntime.objectBounds,trainFloorBounds=platform.trainCarRuntime.floorBounds,
     clampToTrainFloor=platform.trainCarRuntime.clampToFloor,isFurnitureItem=content.isFurnitureItem,
     resetStopSludges=worldScene.resetStopSludges,

@@ -28,7 +28,7 @@ local function new(context)
   -- pointer conversion from drifting apart as more overlays are added.
   local function worldCameraActive()
       return runtime.state=="game" and not runtime.travelConfirm and not maintenanceSession.open
-          and not ui.radioOpen and not ui.mobileMenuOpen and Camera:isActive()
+          and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and Camera:isActive()
   end
 
   local function viewportToGame(x,y)

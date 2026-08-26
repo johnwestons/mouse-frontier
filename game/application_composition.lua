@@ -68,7 +68,7 @@ local function new(context)
     persistenceRuntimeFactory=Modules.persistenceRuntime,audioRuntimeFactory=Modules.audioRuntime,
     trainCarRuntimeFactory=Modules.trainCarRuntime,presentationRuntimeFactory=Modules.presentationRuntime,
     mobileRuntimeFactory=Modules.mobileRuntime,runtime=runtime,ui=ui,session=session,save=Save,
-    maintenance=Maintenance,maintenanceSession=maintenanceSession,catalog=Catalog,audio=Audio,
+    maintenance=Maintenance,maintenanceSession=maintenanceSession,catalog=Catalog,audio=Audio,audioCatalog=Modules.audioCatalog,
     scenery=scenery,car=car,train=Train,width=W,height=H,screens=screens,viewport=Viewport,camera=Camera,
     engineUpgrades=EngineUpgrades,mobileControls=MobileControls,
     drawExitPrompt=function(...) return services.screenUI.drawExitPrompt(...) end,
@@ -83,6 +83,7 @@ local function new(context)
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
     playerProgression=Modules.playerProgression,
+    stopHelpProgression=Modules.stopHelpProgression,
     getIsWeapon=function() return services.inventoryActions.isWeapon end,
   })
   serviceRegistry.publishAll(world)
@@ -99,6 +100,7 @@ local function new(context)
     lootProgression=Modules.lootProgression,
     questProgression=Modules.questProgression,
     playerProgression=Modules.playerProgression,
+    stopHelpProgression=Modules.stopHelpProgression,firstAid=Modules.firstAid,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
@@ -130,6 +132,7 @@ local function new(context)
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     playerProgression=Modules.playerProgression,
+    stopHelpProgression=Modules.stopHelpProgression,firstAid=Modules.firstAid,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })
@@ -141,6 +144,7 @@ local function new(context)
     worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
     inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
+    firstAid=Modules.firstAid,resolveFirstAid=adventure.journeyRules.resolveFirstAid,
     intro=Modules.intro,interactions=Modules.interactions,
   })
   serviceRegistry.publishAll(input)
@@ -160,7 +164,7 @@ local function new(context)
     state={runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,
       session=session,screens=screens,car=car},
     domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,
-      assets=Assets,save=Save,maintenance=Maintenance,events=Events,battleRules=BattleRules,intro=Modules.intro},
+      assets=Assets,save=Save,maintenance=Maintenance,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid},
     services=services,
     graphs={content=content,views=views,adventure=adventure,platform=platform,input=input,
       world=world,startup=startup,serviceRegistry=serviceRegistry,applicationComposition=application},

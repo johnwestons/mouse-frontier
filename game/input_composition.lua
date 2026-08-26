@@ -29,6 +29,8 @@ local function new(context)
   local InteriorDoors=required(context,"interiorDoors","table")
   local Intro=required(context,"intro","table")
   local Interactions=required(context,"interactions","table")
+  local FirstAid=required(context,"firstAid","table")
+  local resolveFirstAid=required(context,"resolveFirstAid","function")
 
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
@@ -62,6 +64,7 @@ local function new(context)
     trainItemAt=views.worldRenderer.trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
+    firstAid=FirstAid,resolveFirstAid=resolveFirstAid,
   })
 
   local input={gameplayInput=gameplayInput}

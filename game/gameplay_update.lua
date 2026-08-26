@@ -84,6 +84,7 @@ local function new(context)
       runtime.actionTimer=math.max(0,runtime.actionTimer-dt)
       if runtime.actionTimer<=0 then runtime.actionHeldItem=nil; runtime.actionKind=nil end
       if screens:update(dt) then return end
+      if runtime.firstAid then return end
       updateWorldScene(dt)
       if runtime.travelTransition then
           local transition=runtime.travelTransition
@@ -93,8 +94,11 @@ local function new(context)
               -- Let the departure cue follow the train out, then release the
               -- channel before the arrival cue begins.
               local fade=math.max(0,math.min(1,(timing.depart-t)/(.55/EngineUpgrades.profile(runtime.saveData.engineLevel).speed)))
-              ui.departSource:setVolume((runtime.saveData.audio.sfxVolume or .55)*fade)
-              if t>=timing.change then ui.departSource:stop(); ui.departSource=nil end
+              local source=ui.departSource
+              local ok,playing=pcall(source.isPlaying,source)
+              if ok and playing then pcall(source.setVolume,source,(runtime.saveData.audio.sfxVolume or .55)*fade)
+              else ui.departSource=nil end
+              if ui.departSource and t>=timing.change then pcall(ui.departSource.stop,ui.departSource); ui.departSource=nil end
           end
           if t<timing.depart then speedFactor=(t/timing.depart)^2 elseif t<timing.arrive then speedFactor=1 else speedFactor=math.max(0,1-(t-timing.arrive)/timing.arrivalDuration)^2 end
           local sceneryDistance=(25+125*speedFactor)*EngineUpgrades.profile(runtime.saveData.engineLevel).speed*dt

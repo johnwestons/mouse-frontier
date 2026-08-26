@@ -16,6 +16,7 @@ local TRANSIENT_DEFAULTS = {
     chestOpen = false,
     editDragging = false,
     editMode = false,
+    firstAid = false,
     giftOpen = false,
     holdPickupTime = 0,
     inventoryDragActive = false,
@@ -102,6 +103,7 @@ function RuntimeState:resetForGameEntry()
     self.chestOpen=false
     self.activeChest=nil
     self.carTransition=nil
+    self.firstAid=nil
 end
 
 function RuntimeState:snapshot()

@@ -1,3 +1,5 @@
+local AudioCatalog = require("game.audio_catalog")
+
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"session bootstrap requires "..name)
@@ -25,6 +27,7 @@ local function new(context)
   local Events=required(context,"events","table")
   local Settlements=required(context,"settlements","table")
   local PlayerProgression=required(context,"playerProgression","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
   local trainObjectBounds=required(context,"trainObjectBounds","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
@@ -54,7 +57,7 @@ local function new(context)
           inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
           droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
           encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
-          choices = {}, stopLayouts = {}, stopSludges={}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={},
+          choices = {}, stopLayouts = {}, stopSludges={}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={}, goodwill=0, helpHistory={},
           maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0},
           inventoryCapacity=6, backpack=nil,
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
@@ -121,7 +124,7 @@ local function new(context)
       data.scrap=data.scrap or 0
       data.audio=data.audio or {station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false}
       data.audio.musicPaused=data.audio.musicPaused or false; data.audio.musicMuted=data.audio.musicMuted or false
-      data.audio.station=data.audio.station or "8bit"; if data.audio.musicVolume==nil then data.audio.musicVolume=.10 end; data.audio.sfxVolume=data.audio.sfxVolume or .55; data.audio.rainVolume=data.audio.rainVolume or .20
+      data.audio.station=AudioCatalog.normalizeStation(data.audio.station); if data.audio.musicVolume==nil then data.audio.musicVolume=.10 end; data.audio.sfxVolume=data.audio.sfxVolume or .55; data.audio.rainVolume=data.audio.rainVolume or .20
       if data.audio.rainEnabled==nil then data.audio.rainEnabled=data.audio.station=="chill" end
       data.trainCars=data.trainCars or {"living-car"}
       data.activeCar=math.max(1,math.min(#data.trainCars,data.activeCar or 1))
@@ -143,6 +146,7 @@ local function new(context)
       end
       data.health, data.maxHealth = data.health or 20, data.maxHealth or 20
       PlayerProgression.ensure(data)
+      StopHelpProgression.ensure(data)
       data.inventory = data.inventory or {}
       data.equipment = data.equipment or {}
       data.ammo=data.ammo or {}
@@ -158,10 +162,19 @@ local function new(context)
           data.starterChestAdded=true
       end
       for _,item in ipairs(data.droppedItems) do if Catalog.storageCapacities[item.name] then item.storage=item.storage or {} end end
-      if not data.radioAdded then
-          data.droppedItems[#data.droppedItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
-          data.radioAdded=true
+      local radioFound=false
+      for index=#data.droppedItems,1,-1 do
+          local item=data.droppedItems[index]
+          if item.name=="boombox-radio" then
+              if radioFound then table.remove(data.droppedItems,index)
+              else
+                  radioFound=true; item.scene="train"; item.carIndex=math.max(1,item.carIndex or 1)
+                  item.scale=item.scale or 1.15; item.rotation=item.rotation or 0; item.permanent=true
+              end
+          end
       end
+      if not radioFound then data.droppedItems[#data.droppedItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true} end
+      data.radioAdded=true
       local mailboxFound=false
       for _,item in ipairs(data.droppedItems) do
           if item.name=="mailbox-reward" and item.scene=="train" then

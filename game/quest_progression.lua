@@ -1,6 +1,6 @@
 local QuestProgression={}
 
-QuestProgression.offerOrder={"mail","ride","supplies","trade","none"}
+QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
 
 local function randomFloat(rng)
     return rng and rng() or love.math.random()
@@ -9,12 +9,14 @@ end
 function QuestProgression.offerWeights(location)
     local progress=(math.max(1,math.min(50,location or 1))-1)/49
     local result={
-        mail=.22-.08*progress,
-        ride=.18-.06*progress,
-        supplies=.18+.02*progress,
-        trade=.08+.08*progress,
+        mail=.10-.04*progress,
+        ride=.07-.03*progress,
+        supplies=.06-.01*progress,
+        trade=.04+.03*progress,
+        item=.06+.01*progress,
+        aid=.07,
     }
-    result.none=1-result.mail-result.ride-result.supplies-result.trade
+    result.none=1-result.mail-result.ride-result.supplies-result.trade-result.item-result.aid
     return result
 end
 
@@ -123,7 +125,8 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
     local totalEarly,totalLate=0,0
     for _,kind in ipairs(QuestProgression.offerOrder) do totalEarly=totalEarly+early[kind]; totalLate=totalLate+late[kind] end
     local ready=math.abs(totalEarly-1)<.0001 and math.abs(totalLate-1)<.0001
-        and early.mail>late.mail and late.trade>early.trade
+        and early.mail>late.mail and early.ride>late.ride and late.trade>early.trade
+        and early.none>=.5999 and late.none>=.6399 and early.item>0 and late.aid>0
         and far.scrap>near.scrap and far.xp>near.xp and diplomat.scrap>far.scrap
         and far.minimumRarity=="rare" and reward.item~=nil
         and greenhousePreferred.amount>greenhouseBase.amount and scavenger.kind=="scrap"
@@ -132,7 +135,8 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
         and ammoDelivery=="ammunition" and ammoData.ammo.rocks==2+(catalog.ammoPickupAmounts.rocks or 0)
     return {ready=ready,earlyWeights=early,lateWeights=late,nearReward=near,farReward=far,diplomatReward=diplomat,
         greenhouseBase=greenhouseBase,greenhousePreferred=greenhousePreferred,scavenger=scavenger,objectiveCount=#QuestProgression.activeObjectives(sample),
-        stockedRide=stockedRide,lowSupplyRide=lowSupplyRide,rewardItem=reward.item,mailboxDelivery=delivery,ammoDelivery=ammoDelivery,curve="quest-v2"}
+        stockedRide=stockedRide,lowSupplyRide=lowSupplyRide,rewardItem=reward.item,mailboxDelivery=delivery,ammoDelivery=ammoDelivery,
+        earlyRequestRate=1-early.none,lateRequestRate=1-late.none,curve="quest-v3"}
 end
 
 return QuestProgression

@@ -32,6 +32,8 @@ local function new(context)
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local PlayerProgression=required(context,"playerProgression","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local FirstAid=required(context,"firstAid","table")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Family=required(context,"family","table")
@@ -48,6 +50,7 @@ local function new(context)
     readSave=platform.persistenceRuntime.read,util=Util,catalog=Catalog,inventory=Inventory,eventUI=EventUI,
     canChooseEvent=adventure.eventRuntime.canChoose,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,
     playerProgression=PlayerProgression,
+    stopHelpProgression=StopHelpProgression,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
     ensureStopLayout=world.worldScene.ensureStopLayout,mobileEnabled=platform.mobileRuntime.isEnabled,
     drawLandscape=function(...) return worldRenderer.drawLandscape(...) end,
@@ -88,6 +91,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
     holdPickupSeconds=holdPickupSeconds,getCloudLayer=function() return startup.startupRuntime.cloudLayer() end,
     mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,clouds=Clouds,maintenance=Maintenance,util=Util,
+    firstAid=FirstAid,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,

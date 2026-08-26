@@ -33,6 +33,8 @@ local function new(context)
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local PlayerProgression=required(context,"playerProgression","table")
+  local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local FirstAid=required(context,"firstAid","table")
   local Maintenance=required(context,"maintenance","table")
   local Passengers=required(context,"passengers","table")
   local House=required(context,"house","table")
@@ -73,6 +75,7 @@ local function new(context)
     runtime=runtime,car=car,inventory=Inventory,catalog=Catalog,engineUpgrades=EngineUpgrades,
     progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,
     questProgression=QuestProgression,lootProgression=LootProgression,battleRules=BattleRules,
+    stopHelpProgression=StopHelpProgression,firstAid=FirstAid,
     maintenance=Maintenance,passengers=Passengers,util=Util,house=House,
     ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,writeSave=writeSave,
     beginEncounter=battleRuntime.beginEncounter,

@@ -84,6 +84,8 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 39. Loot and equipment now use one progression and economy policy. All 65 playable weapons span nine verified damage tiers, rarity improves across the route, shop and resale values reflect quality and condition, ammunition never unlocks after its weapon, and broken equipment requires a workshop repair.
 40. Quests and passengers now use one route-aware progression policy. Offer pacing changes across the trail, longer deliveries pay more scrap and XP, matching train cars improve passenger jobs, active objectives appear on the map, and full-backpack rewards route safely to the train mailbox.
 41. Player advancement now uses one capped, save-compatible progression policy. Twelve levels provide visible health, aim, armor, and movement gains; all 12 character abilities scale through four ranks; and the HUD, combat runtime, desktop smoke run, and mobile package consume the same authoritative rules.
+42. Stop help and morality now use one goodwill-only progression policy. Ordinary NPC requests are limited to one opportunity per stop and fall to a 36–40% combined rate; persistent item requests and a keyboard/touch first-aid activity award nonnegative goodwill; the HUD and ending expose the saved score; and all supplied ambient dialogue lines are in rotation.
+43. Audio playback now uses a validated catalog and lifecycle-aware runtime. Duplicate music copies and non-runtime mobile audio are excluded deterministically, playlists shuffle without immediate repeats, focus loss suspends active audio, invalid stations normalize safely, and slingshots and eagle attacks no longer route through firearm sounds.
 
 ## Definition of done for this migration wave
 
@@ -91,7 +93,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/application_composition.lua` is the only runtime graph builder; `game/app.lua` is a thin lifecycle adapter.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 61-check smoke run and full route to stop 50 pass.
+- The 63-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -99,8 +101,8 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 
 Verified on August 25, 2026:
 
-- 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 61 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, player progression, event, train-upgrade, loot/equipment, and quest/passenger balance, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
+- 15 Python architecture, audio-system, mobile-package, and Sprite Doctor tests passed.
+- The normal autonomous smoke playthrough passed all 63 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, deterministic travel, combat, player progression, event, train-upgrade, loot/equipment, quest/passenger balance, stop help, first aid, goodwill, and audio priority/lifecycle behavior, shared content-registry hydration, explicit view dependencies, immutable factory/service separation, grouped smoke composition, complete application-graph composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 65 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 68 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.
