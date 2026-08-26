@@ -21,6 +21,7 @@ return {
     inventoryActions = require("game.inventory_actions"),
     inventoryPresenter = require("game.inventory_presenter"),
     journeyRules = require("game.journey_rules"),
+    lootProgression = require("game.loot_progression"),
     mobileRuntime = require("game.mobile_runtime"),
     platformComposition = require("game.platform_composition"),
     persistenceRuntime = require("game.persistence_runtime"),

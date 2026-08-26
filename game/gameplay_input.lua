@@ -75,6 +75,7 @@ local function new(context)
   local skipIntro=required(context,"skipIntro","function")
   local interactionMouseAction=required(context,"interactionMouseAction","function")
   local interactionKeyAction=required(context,"interactionKeyAction","function")
+  local repairEquipped=required(context,"repairEquipped","function")
 
   local function startTravel()
       local status=travelStatus()
@@ -128,7 +129,7 @@ local function new(context)
       end
       for i,r in pairs(ui.tradeSell or {}) do
           if Util.pointIn(x,y,r) and runtime.saveData.inventory[i] then
-              local name=runtime.saveData.inventory[i]; local price=math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2))
+              local name=runtime.saveData.inventory[i]; local price=Inventory.resalePrice(name,Catalog,runtime.saveData)
               if (layout.tradeBudget or 0)>=price then layout.tradeBudget=layout.tradeBudget-price; runtime.saveData.scrap=runtime.saveData.scrap+price; runtime.saveData.inventory[i]=nil; writeSave() end
               return true
           end
@@ -174,6 +175,7 @@ local function new(context)
   function ui.handleUpgradeMousePressed(x,y)
       if not runtime.trainUpgradeOpen then return false end
       if Util.pointIn(x,y,ui.upgradeClose) then runtime.trainUpgradeOpen=false; return true end
+      if ui.weaponRepair and Util.pointIn(x,y,ui.weaponRepair) then repairEquipped(); return true end
       if Util.pointIn(x,y,ui.engineUpgrade) then
           local result=TrainUpgradeBalance.purchaseEngine(runtime.saveData,EngineUpgrades)
           if result.ok then runtime.dialogue={speaker="Train Workshop",text=result.entry.name.." installed! Future journeys use fewer supplies and finish faster.",timer=4}; writeSave() end

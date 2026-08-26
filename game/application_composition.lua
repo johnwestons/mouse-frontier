@@ -95,6 +95,7 @@ local function new(context)
     combatBalance=Modules.combatBalance,
     eventBalance=Modules.eventBalance,
     trainUpgradeBalance=Modules.trainUpgradeBalance,
+    lootProgression=Modules.lootProgression,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,

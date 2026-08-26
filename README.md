@@ -37,6 +37,7 @@ Android controls, installation, update flow, and device verification are documen
 - Train cars unlock across the route and provide shared storage, production, passenger, healing, or navigation benefits; the workshop shows when each upgrade becomes available.
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
+- Equipped weapons wear by one point on every attack attempt, including misses. Broken weapons cannot attack; repair the most damaged equipped weapon for scrap at the train workshop.
 - Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience.
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
@@ -72,6 +73,8 @@ Android controls, installation, update flow, and device verification are documen
 - `backgroundReferences/` — landscape references; the prototype currently scrolls the desert landscape
 
 LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder. Older saves are upgraded sequentially to the current schema on load, with the original retained as a backup; invalid primary files recover from a validated temporary file or backup when available.
+
+Loot rarity, weapon tiers, pricing, durability, repairs, ammunition availability, and resale rules are documented in [LOOT_EQUIPMENT_BALANCE.md](LOOT_EQUIPMENT_BALANCE.md).
 
 ## Automated smoke playthrough
 

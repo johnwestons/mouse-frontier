@@ -2,6 +2,7 @@ local LootProgression = {}
 
 LootProgression.rarityOrder={"common","uncommon","rare","legendary"}
 LootProgression.rarityRank={common=1,uncommon=2,rare=3,legendary=4}
+LootProgression.ammoUnlockTier={rocks=1,arrows=1,["ball-bearings"]=1,["22lr"]=3,["32-acp"]=3,["380-acp"]=4,["9mm"]=4,["45-cal"]=5,["30-carbine"]=5,["12-gauge"]=6,["556"]=7,["762x39"]=8,["8mm"]=8}
 
 local function randomFloat(rng)
     return rng and rng() or love.math.random()
@@ -84,9 +85,8 @@ function LootProgression.rollSupply(catalog,kind,location,rng)
 end
 
 function LootProgression.rollAmmo(catalog,location,rng)
-    local unlock={rocks=1,arrows=1,["ball-bearings"]=1,["22lr"]=3,["32-acp"]=3,["380-acp"]=4,["9mm"]=4,["45-cal"]=5,["30-carbine"]=5,["12-gauge"]=6,["556"]=7,["762x39"]=8,["8mm"]=8}
     local tier=LootProgression.locationTier(location); local candidates={}
-    for name in pairs(catalog.ammoPickupAmounts or {}) do if (unlock[name] or 9)<=tier then candidates[#candidates+1]=name end end
+    for name in pairs(catalog.ammoPickupAmounts or {}) do if (LootProgression.ammoUnlockTier[name] or 9)<=tier then candidates[#candidates+1]=name end end
     table.sort(candidates); return choice(candidates,rng)
 end
 
@@ -130,6 +130,79 @@ function LootProgression.qualityRarity(quality)
     return nil
 end
 
+function LootProgression.itemPrice(catalog,name)
+    local stats=catalog.weaponStats[name]
+    if stats then
+        local ranged=(catalog.weaponCombat[name] or {}).kind=="ranged" and 2 or 0
+        return 4+(stats.tier or 1)*3+ranged
+    end
+    if catalog.backpackUpgrades[name] then return math.floor(catalog.backpackUpgrades[name].capacity*2) end
+    local rarity=catalog.rarityFor(name)
+    local base=({common=3,uncommon=6,rare=11,legendary=18})[rarity] or 3
+    if catalog.ammoPickupAmounts[name] then return base+2 end
+    return base
+end
+
+function LootProgression.weaponCondition(durability)
+    durability=math.max(0,math.min(100,math.floor(tonumber(durability) or 100)))
+    if durability==0 then return {durability=0,label="broken",multiplier=0} end
+    if durability<25 then return {durability=durability,label="critical",multiplier=.65} end
+    if durability<50 then return {durability=durability,label="worn",multiplier=.78} end
+    if durability<75 then return {durability=durability,label="used",multiplier=.90} end
+    return {durability=durability,label="sound",multiplier=1}
+end
+
+function LootProgression.wearWeapon(data,name,amount)
+    if not name or name=="scratch" then return 100 end
+    data.weaponDurability=data.weaponDurability or {}
+    local before=data.weaponDurability[name]
+    if before==nil then before=100 end
+    data.weaponDurability[name]=math.max(0,before-math.max(0,math.floor(amount or 1)))
+    return data.weaponDurability[name]
+end
+
+function LootProgression.repairCost(catalog,name,durability)
+    local stats=catalog.weaponStats[name]
+    if not stats or name=="scratch" then return 0 end
+    durability=math.max(0,math.min(100,math.floor(tonumber(durability) or 100)))
+    if durability>=100 then return 0 end
+    return math.max(1,math.ceil((100-durability)/20)+math.ceil((stats.tier or 1)/2))
+end
+
+function LootProgression.repairStatus(data,catalog)
+    local candidate
+    for _,name in ipairs(data.equipment or {}) do
+        if name and name~="scratch" and catalog.weaponStats[name] then
+            local durability=(data.weaponDurability and data.weaponDurability[name]) or 100
+            if durability<100 and (not candidate or durability<candidate.durability) then
+                candidate={name=name,durability=durability,cost=LootProgression.repairCost(catalog,name,durability)}
+            end
+        end
+    end
+    if not candidate then return {needed=false,affordable=false} end
+    candidate.needed=true; candidate.affordable=(data.scrap or 0)>=candidate.cost
+    return candidate
+end
+
+function LootProgression.repairEquipped(data,catalog)
+    local status=LootProgression.repairStatus(data,catalog)
+    if not status.needed then return {ok=false,reason="ready",status=status} end
+    if not status.affordable then return {ok=false,reason="scrap",status=status} end
+    data.weaponDurability=data.weaponDurability or {}
+    data.scrap=data.scrap-status.cost
+    data.weaponDurability[status.name]=100
+    return {ok=true,name=status.name,cost=status.cost,status=LootProgression.repairStatus(data,catalog)}
+end
+
+function LootProgression.resalePrice(catalog,name,durability)
+    local price=LootProgression.itemPrice(catalog,name)
+    if catalog.weaponStats[name] then
+        local condition=LootProgression.weaponCondition(durability)
+        price=price*(.35+.65*condition.durability/100)
+    end
+    return math.max(1,math.floor(price*.45))
+end
+
 function LootProgression.validate(catalog)
     local errors={}; local seen={}; local previous=0
     for index,name in ipairs(catalog.weaponProgression or {}) do
@@ -150,7 +223,44 @@ function LootProgression.validate(catalog)
     for name in pairs(catalog.itemEffects or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="item missing rarity: "..name end end
     for name in pairs(catalog.backpackUpgrades or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="backpack missing rarity: "..name end end
     for name in pairs(catalog.ammoPickupAmounts or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end end
+    for name,combat in pairs(catalog.weaponCombat or {}) do
+        if combat.ammo and not catalog.ammoPickupAmounts[combat.ammo] then errors[#errors+1]="weapon ammunition has no pickup: "..name.." -> "..combat.ammo end
+        local stats=catalog.weaponStats[name]
+        if combat.ammo and stats and (LootProgression.ammoUnlockTier[combat.ammo] or 99)>(stats.tier or 0) then errors[#errors+1]="ammunition unlocks after weapon: "..name end
+    end
     return #errors==0,errors
+end
+
+function LootProgression.audit(catalog)
+    local valid,errors=LootProgression.validate(catalog)
+    local tierCounts,averages={},{}
+    for name,stats in pairs(catalog.weaponStats or {}) do
+        if name~="scratch" and not name:find("mob%-") then
+            tierCounts[stats.tier]=(tierCounts[stats.tier] or 0)+1
+            averages[stats.tier]=(averages[stats.tier] or 0)+(stats.min+stats.max)/2
+        end
+    end
+    local weaponCount,damageReady,previous=0,true,0
+    for tier=1,9 do
+        weaponCount=weaponCount+(tierCounts[tier] or 0)
+        local average=(averages[tier] or 0)/math.max(1,tierCounts[tier] or 0)
+        damageReady=damageReady and (tierCounts[tier] or 0)>0 and average>previous
+        previous=average
+    end
+    local early,late=LootProgression.rarityWeights(1),LootProgression.rarityWeights(50)
+    local repairData={equipment={"frontier-short-sword"},weaponDurability={["frontier-short-sword"]=40},scrap=20}
+    local repair=LootProgression.repairEquipped(repairData,catalog)
+    local broken=LootProgression.weaponCondition(0)
+    local ready=valid and weaponCount==65 and damageReady and early.common>late.common and late.rare>early.rare
+        and LootProgression.itemPrice(catalog,"frontier-longsword")>LootProgression.itemPrice(catalog,"trail-slingshot")
+        and LootProgression.itemPrice(catalog,"rose-heart-arrow")>LootProgression.itemPrice(catalog,"food-ration")
+        and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100
+        and LootProgression.resalePrice(catalog,"frontier-short-sword",25)<LootProgression.resalePrice(catalog,"frontier-short-sword",100)
+    return {ready=ready,valid=valid,errors=errors,weaponCount=weaponCount,tierCounts=tierCounts,damageReady=damageReady,
+        earlyWeights=early,lateWeights=late,brokenMultiplier=broken.multiplier,repairCost=repair.cost,
+        commonPrice=LootProgression.itemPrice(catalog,"food-ration"),legendaryPrice=LootProgression.itemPrice(catalog,"rose-heart-arrow"),
+        starterWeaponPrice=LootProgression.itemPrice(catalog,"trail-slingshot"),lateWeaponPrice=LootProgression.itemPrice(catalog,"frontier-longsword"),
+        wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v2"}
 end
 
 return LootProgression

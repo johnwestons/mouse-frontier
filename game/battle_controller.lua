@@ -178,14 +178,18 @@ end
 function Battle.resolve(c,attacker,target,weaponName)
     local b=c.battle; local C=c.Catalog; local d=c.saveData; local stats=C.weaponStats[weaponName] or C.weaponStats.scratch; local combat=C.weaponCombat[weaponName] or C.weaponCombat.scratch; local distance=c.BattleRules.distance(attacker,target); local range=c.BattleRules.weaponRange(C,weaponName)
     if distance>range then prompt(c,stats.name.." is out of range ("..range.." terrain spaces)."); return false end
+    local durability=attacker.team=="ally" and weaponName~="scratch" and (d.weaponDurability[weaponName] or 100) or 100
+    local condition=LootProgression.weaponCondition(durability)
+    if attacker.team=="ally" and weaponName~="scratch" and condition.multiplier==0 then msg(c,attacker.name.." cannot use "..stats.name.." because it is broken. Repair it in the train workshop."); return false end
     if combat.ammo and attacker.team=="ally" then local count=d.ammo[combat.ammo] or 0; if count<=0 then msg(c,attacker.name.." has no "..c.Util.titleFromFile(combat.ammo).." ammunition."); return false end; d.ammo[combat.ammo]=count-1 end
     attacker.action=combat.kind=="ranged" and "ranged" or "melee"; attacker.actionItem=weaponName; attacker.actionTimer=attacker.team=="enemy" and .68 or .45; c.playSfx(c.weaponSfx(weaponName,combat)); if combat.kind=="ranged" then b.projectile={fromQ=attacker.q,fromR=attacker.r,toQ=target.q,toR=target.r,ammo=combat.ammo or "rocks",weapon=weaponName,kind=combat.projectile,t=0,duration=attacker.team=="enemy" and .62 or .42} end
+    if attacker.team=="ally" and weaponName~="scratch" then LootProgression.wearWeapon(d,weaponName,1) end
+    local prof=0
+    if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
     local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local bonus=(attacker.aim or 0)+(attacker.id=="player" and math.floor((d.stats.level-1)/2) or 0); local defense=8+(target.armor or 0)+cover+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
     if not attacker.perfectAccuracy and (roll==1 or (roll~=20 and roll+bonus<defense)) then msg(c,attacker.name.." used "..name.." against "..target.name.." — MISS."); b.attackTimer=attacker.team=="enemy" and .90 or .45; advanceAttack(c,attacker); return true end
-    local durability=attacker.team=="ally" and weaponName~="scratch" and (d.weaponDurability[weaponName] or 100) or 100; local condition=durability<25 and .70 or (durability<50 and .82 or (durability<75 and .92 or 1)); local prof=0
-    if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
-    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition)-(target.armor or 0)); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
-    target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then d.health=target.hp end; if attacker.team=="ally" and weaponName~="scratch" then d.weaponDurability[weaponName]=math.max(0,durability-love.math.random(1,2)) end
+    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-(target.armor or 0)); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
+    target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then d.health=target.hp end
     msg(c,attacker.name.." used "..name.." on "..target.name.." — HIT for "..damage.." damage."); b.attackTimer=attacker.team=="enemy" and .95 or .45; b.hitFlash=.18; b.lastTarget=target.id; advanceAttack(c,attacker); return true
 end
 function Battle.enemyTurn(c)

@@ -1,3 +1,4 @@
+local LootProgression = require("game.loot_progression")
 local Inventory = {}
 
 function Inventory.inventorySlotRect(index)
@@ -24,11 +25,12 @@ function Inventory.chestSlotRect(index)
 end
 
 function Inventory.scrapPrice(name,catalog)
-    local stats=catalog.weaponStats[name]
-    if stats then return 3+(stats.tier or 1)*2 end
-    if catalog.backpackUpgrades[name] then return math.floor(catalog.backpackUpgrades[name].capacity*1.5) end
-    if catalog.itemEffects[name] then return 3 end
-    return 2
+    return LootProgression.itemPrice(catalog,name)
+end
+
+function Inventory.resalePrice(name,catalog,data)
+    local durability=data and data.weaponDurability and data.weaponDurability[name]
+    return LootProgression.resalePrice(catalog,name,durability)
 end
 
 function Inventory.firstEmptySlot(data)

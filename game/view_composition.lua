@@ -53,6 +53,7 @@ local function new(context)
     drawLocomotive=function(...) return worldRenderer.drawLocomotive(...) end,
     drawTrainCar=function(...) return worldRenderer.drawTrainCar(...) end,
     isWeapon=adventure.inventoryActions.isWeapon,travelCost=adventure.journeyRules.travelCost,
+    repairStatus=adventure.inventoryActions.repairStatus,
   })
 
   inventoryPresenter=InventoryPresenter.new({

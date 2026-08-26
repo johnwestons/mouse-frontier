@@ -57,6 +57,7 @@ local function install(context)
     local combatBalanceAudit=required(context,"combatBalanceAudit","function")
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
+    local lootBalanceAudit=required(context,"lootBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -170,6 +171,14 @@ local function install(context)
                         and result.passengerLoad==2 and result.arrival.food==2 and result.arrival.health==3
                         and result.navigatorSavings==1 and result.firstCarPurchase and result.firstEnginePurchase
                         and result.legacyOverflowPreserved and result.firstEngineUnlock==5
+                end},
+            {name="loot_equipment_balance",action=lootBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.valid and result.weaponCount==65 and result.damageReady
+                        and result.brokenMultiplier==0 and result.repairCost>0
+                        and result.lateWeaponPrice>result.starterWeaponPrice
+                        and result.legendaryPrice>result.commonPrice
+                        and result.wornResale<result.soundResale
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}

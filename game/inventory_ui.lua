@@ -86,7 +86,7 @@ function InventoryUI.draw(ctx)
         local stats,combat=Catalog.weaponStats[inspectName],Catalog.weaponCombat[inspectName] or {}; local durability=data.weaponDurability[inspectName] or 100
         ctx.drawMenuFrame(565,558,350,64,3,.92); love.graphics.setColor(ctx.colors.cream)
         love.graphics.print(stats.name.."  TIER "..stats.tier,582,568,0,.78,.78)
-        love.graphics.print("DMG "..stats.min.."-"..stats.max.."  "..string.upper(combat.kind or "melee").."  RANGE "..(combat.range or 1).."  DUR "..durability.."%",582,590,0,.60,.60)
+        love.graphics.print("DMG "..stats.min.."-"..stats.max.."  "..string.upper(combat.kind or "melee").."  RANGE "..(combat.range or 1).."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or ""),582,590,0,.60,.60)
         if combat.ammo then love.graphics.print(ctx.title(combat.ammo).." "..(data.ammo[combat.ammo] or 0),582,607,0,.55,.55) end
     elseif inspectName and Catalog.itemEffects[inspectName] and Catalog.itemEffects[inspectName].potion then
         local effect=Catalog.itemEffects[inspectName]

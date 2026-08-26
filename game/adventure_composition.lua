@@ -28,6 +28,7 @@ local function new(context)
   local CombatBalance=required(context,"combatBalance","table")
   local EventBalance=required(context,"eventBalance","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local LootProgression=required(context,"lootProgression","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local Maintenance=required(context,"maintenance","table")
@@ -61,7 +62,7 @@ local function new(context)
   })
 
   inventoryActions=InventoryActions.new({
-    runtime=runtime,inventory=Inventory,catalog=Catalog,util=Util,trainUpgradeBalance=TrainUpgradeBalance,writeSave=writeSave,
+    runtime=runtime,inventory=Inventory,catalog=Catalog,util=Util,trainUpgradeBalance=TrainUpgradeBalance,lootProgression=LootProgression,writeSave=writeSave,
     useBattleHealingItem=battleRuntime.useHealingItem,useBattlePotion=battleRuntime.usePotion,
   })
 

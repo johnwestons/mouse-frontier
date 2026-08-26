@@ -12,6 +12,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local LootProgression=required(context,"lootProgression","table")
   local writeSave=required(context,"writeSave","function")
   local useBattleHealingItem=required(context,"useBattleHealingItem","function")
   local useBattlePotion=required(context,"useBattlePotion","function")
@@ -164,6 +165,19 @@ local function new(context)
       return true
   end
 
+  local function repairStatus()
+      return LootProgression.repairStatus(runtime.saveData,Catalog)
+  end
+
+  local function repairEquipped()
+      local result=LootProgression.repairEquipped(runtime.saveData,Catalog)
+      if result.ok then
+          runtime.dialogue={speaker="Train Workshop",text=Util.titleFromFile(result.name).." repaired to 100% for "..result.cost.." scrap.",timer=3}
+          writeSave()
+      end
+      return result
+  end
+
   local function consumeBattleSelected()
       if not runtime.draggedSlot then return false end
       local name=containerValue(runtime.draggedSlot); if not name then return false end
@@ -190,6 +204,9 @@ local function new(context)
     pickUpNearby=pickUpNearby,
     addCoalToFire=addCoalToFire,
     giveWeaponToNearby=giveWeaponToNearby,
+    repairStatus=repairStatus,
+    repairEquipped=repairEquipped,
+    balanceAudit=function() return LootProgression.audit(Catalog) end,
     consumeBattleSelected=consumeBattleSelected
   }
 end

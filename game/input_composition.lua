@@ -61,6 +61,7 @@ local function new(context)
     requestExitPrompt=views.screenUI.requestExitPrompt,resolveExitPrompt=views.screenUI.resolveExitPrompt,
     trainItemAt=views.worldRenderer.trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
+    repairEquipped=adventure.inventoryActions.repairEquipped,
   })
 
   local input={gameplayInput=gameplayInput}

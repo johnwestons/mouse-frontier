@@ -141,7 +141,7 @@ function BattleUI.draw(ctx)
                 local durability=(w=="scratch") and 100 or (saveData.weaponDurability[w] or 100)
                 local details=string.format("%s  DMG %d-%d  %s  RANGE %d",stats.name,stats.min,stats.max,string.upper(combat.kind or "melee"),combat.range or 0)
                 if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
-                details=details.."  DUR "..durability.."%"
+                details=details.."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or "")
                 love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
                 love.graphics.setColor(colors.cream); love.graphics.printf(details,200,546,560,"center",0,.58,.58)
             end

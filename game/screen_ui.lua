@@ -34,6 +34,7 @@ local function new(context)
   local drawTrainCar=required(context,"drawTrainCar","function")
   local isWeapon=required(context,"isWeapon","function")
   local travelCost=required(context,"travelCost","function")
+  local repairStatus=required(context,"repairStatus","function")
 
   local function drawMenuFrame(x,y,w,h,kind,alpha)
       local frame=ui.menuFrames and ui.menuFrames[kind or 1]
@@ -220,7 +221,7 @@ local function new(context)
       ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
       for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=Inventory.scrapPrice(name,Catalog); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,runtime.saveData.scrap>=price and Inventory.firstEmptySlot(runtime.saveData)~=nil) end end
       love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..(layout.tradeBudget or 0).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-      local row=0; for i=1,(runtime.saveData.inventoryCapacity or 6) do local name=runtime.saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=isWeapon(name); ui.tradeSell[i]=button("SELL +"..math.max(1,math.floor(Inventory.scrapPrice(name,Catalog)/2)),mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,true); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
+      local row=0; for i=1,(runtime.saveData.inventoryCapacity or 6) do local name=runtime.saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=isWeapon(name); ui.tradeSell[i]=button("SELL +"..Inventory.resalePrice(name,Catalog,runtime.saveData),mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,true); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
       ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 590 or 605,mobile and 240 or 210,mobile and 64 or 40,true)
   end
 
@@ -319,7 +320,10 @@ local function new(context)
       ui.engineUpgrade=button(engineLabel,mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,engineStatus.affordable==true)
       ui.trainCars={}
       for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local status=TrainUpgradeBalance.carStatus(runtime.saveData,c); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7); love.graphics.setColor(colors.cream); love.graphics.printf(c.name.."  —  "..c.description,205,y+8,400,"left",0,.68,.68); local label=status.owned and "OWNED" or (status.locked and ("UNLOCK "..status.unlockStop) or c.cost.." SCRAP"); ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable) end
-      ui.upgradeClose=button("CLOSE",mobile and 390 or 405,mobile and 578 or 594,mobile and 180 or 150,mobile and 64 or 38,true)
+      local repair=repairStatus()
+      local repairLabel=repair.needed and ("REPAIR EQUIPPED  "..repair.cost.." SCRAP") or "EQUIPPED WEAPONS READY"
+      ui.weaponRepair=button(repairLabel,185,mobile and 578 or 594,mobile and 285 or 280,mobile and 64 or 38,repair.affordable==true)
+      ui.upgradeClose=button("CLOSE",mobile and 490 or 495,mobile and 578 or 594,mobile and 285 or 280,mobile and 64 or 38,true)
   end
 
   function ui.drawEditControls()
