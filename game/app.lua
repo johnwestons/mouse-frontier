@@ -49,7 +49,7 @@ local runtime = RuntimeState.new({
     transition = function(screen) screens:transition(screen) end,
 })
 local content=Systems.contentRegistry.new({filesystem=love.filesystem})
-local characters,characterImages,npcImages=content.characters,content.characterImages,content.npcImages
+local characters=content.characters
 local scenery,ui=content.scenery,content.ui
 local maintenanceSession = Maintenance.new()
 
@@ -88,48 +88,15 @@ Systems.persistenceRuntime,Systems.audioRuntime=platform.persistenceRuntime,plat
 Systems.trainCarRuntime,Systems.presentationRuntime=platform.trainCarRuntime,platform.presentationRuntime
 Systems.mobileRuntime=platform.mobileRuntime
 
-Systems.worldScene=Systems.worldScene.new({
-    runtime=runtime,
-    ui=ui,
-    scenery=scenery,
-    catalog=Catalog,
-    util=Util,
-    house=House,
-    stops=Stops,
-    family=Family,
-    settlements=Settlements,
-    wildlife=Wildlife,
-    mice=Mice,
-    stopSludges=StopSludges,
+local world=Systems.worldSessionComposition.new({
+    worldSceneFactory=Systems.worldScene,sessionBootstrapFactory=Systems.sessionBootstrap,
+    platform=platform,content=content,runtime=runtime,ui=ui,car=car,maintenanceSession=maintenanceSession,
+    filesystem=love.filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
+    family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
+    roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
     getIsWeapon=function() return Systems.inventoryActions.isWeapon end,
-    isFurnitureItem=content.isFurnitureItem,
-    writeSave=Systems.persistenceRuntime.schedule,
 })
-
-Systems.sessionBootstrap=Systems.sessionBootstrap.new({
-    saveSchema=SaveSchema,
-    characters=characters,
-    characterImages=characterImages,
-    npcImages=npcImages,
-    car=car,
-    ui=ui,
-    maintenanceSession=maintenanceSession,
-    runtime=runtime,
-    filesystem=love.filesystem,
-    roster=Roster,
-    house=House,
-    catalog=Catalog,
-    maintenance=Maintenance,
-    engineUpgrades=EngineUpgrades,
-    passengers=Passengers,
-    events=Events,
-    settlements=Settlements,
-    trainObjectBounds=Systems.trainCarRuntime.objectBounds,
-    trainFloorBounds=Systems.trainCarRuntime.floorBounds,
-    clampToTrainFloor=Systems.trainCarRuntime.clampToFloor,
-    isFurnitureItem=content.isFurnitureItem,
-    resetStopSludges=Systems.worldScene.resetStopSludges,
-})
+Systems.worldScene,Systems.sessionBootstrap=world.worldScene,world.sessionBootstrap
 local adventure=Systems.adventureComposition.new({
     battleRuntimeFactory=Systems.battleRuntime,inventoryActionsFactory=Systems.inventoryActions,
     journeyRulesFactory=Systems.journeyRules,eventRuntimeFactory=Systems.eventRuntime,
@@ -246,7 +213,7 @@ function App.installSmoke()
         maintenance=Maintenance,events=Events,battleRules=BattleRules,presentationRuntime=Systems.presentationRuntime,
         startupRuntime=Systems.startupRuntime,persistenceRuntime=Systems.persistenceRuntime,screenFlow=Systems.screenFlow,
         contentRegistry=content,viewComposition=views,adventureComposition=adventure,platformComposition=platform,
-        inputComposition=input,
+        inputComposition=input,worldSessionComposition=world,
         getMobileControls=function() return Systems.mobileRuntime.get() end,
         createIntro=function() return Systems.intro.new(10) end,
         newSave=Systems.sessionBootstrap.newSave,enterGame=Systems.sessionBootstrap.enterGame,

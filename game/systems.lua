@@ -31,6 +31,7 @@ return {
     startupRuntime = require("game.startup_runtime"),
     trainCarRuntime = require("game.train_car_runtime"),
     viewComposition = require("game.view_composition"),
+    worldSessionComposition = require("game.world_session_composition"),
     worldScene = require("game.world_scene"),
     worldRenderer = require("game.world_renderer"),
 }

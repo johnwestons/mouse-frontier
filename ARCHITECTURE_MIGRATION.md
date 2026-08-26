@@ -29,7 +29,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 | Smoke harness | `setfenv` plus a name-resolved application scope | Validated explicit runtime and service context | Complete |
 | Legacy module adapters | String-key dependency resolvers using `setfenv` | Explicit context objects and direct module APIs | All production gameplay adapters complete |
 | Application state | Session plus many application-local overlay fields | Coherent runtime state grouped by domain | Central session, gameplay, inventory, journey, screen, renderer, and HUD fields complete |
-| Composition root | Combat, world-scene, audio, inventory-presentation, event, train-car, mobile-control, frame-presentation, startup, persistence-lifecycle, screen-flow, content ownership, view construction, and input binding split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Content ownership plus ordered view, adventure, platform, and input compositions extracted; further domain extraction is incremental |
+| Composition root | Combat, world/session state, audio, inventory-presentation, event, train-car, mobile-control, frame-presentation, startup, persistence-lifecycle, screen-flow, content ownership, view construction, and input binding split across `game/app.lua` | `game/app.lua` wires dedicated domain services | Content ownership plus ordered view, adventure, platform, input, and world/session compositions extracted; further domain extraction is incremental |
 
 ## Execution sequence
 
@@ -71,6 +71,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 26. Adventure-service construction now lives behind a validated composition module. Battle orchestration, inventory actions, journey rules, and trail events are built as one explicit cyclic graph; internal operations use direct service references while only later startup and view services remain declared late-bound callbacks.
 27. Platform-service construction now lives behind a validated composition module. Persistence, audio, train-car geometry, frame presentation, and mobile controls are built as one explicit graph; focus/shutdown and presentation/mobile cycles are internal direct closures while later screen UI and gameplay input remain declared late-bound callbacks.
 28. Gameplay input construction now lives behind a validated command composition. Keyboard, pointer, inventory, battle, journey, train, camera, audio, and exit-prompt bindings consume the published platform, adventure, and view graphs; the former broad `Systems` dependency inside gameplay input is replaced by four focused capabilities.
+29. World and session construction now live behind a validated composition module. World-scene ownership is established first, then session bootstrap consumes its encounter reset operation and platform-owned train bounds; only the later inventory weapon predicate remains an explicit callback.
 
 ## Definition of done for this migration wave
 
@@ -78,7 +79,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 - `game/app.lua` is the only application composition root.
 - Shared values no longer originate in `main.lua`.
 - Architecture and sprite-tool tests pass.
-- The 48-check smoke run and full route to stop 50 pass.
+- The 49-check smoke run and full route to stop 50 pass.
 - The generated mobile package contains `game/app.lua`, `game/config.lua`, `game/save_schema.lua`, and `game/systems.lua` from the same commit.
 - All project source changes are committed; ignored generated output is not committed.
 
@@ -87,7 +88,7 @@ Move Mouse Frontier from a large entry script with implicit cross-module wiring 
 Verified on August 25, 2026:
 
 - 12 Python architecture and Sprite Doctor tests passed.
-- The normal autonomous smoke playthrough passed all 48 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, shared content-registry hydration, complete view, adventure, platform, and input composition, forced focus-loss persistence, and complete screen-flow installation.
+- The normal autonomous smoke playthrough passed all 49 checkpoints, including legacy migration, invalid-save rejection, backup recovery, overlay-aware presentation coordinates, startup-runtime readiness, shared content-registry hydration, complete view, adventure, platform, input, and world/session composition, forced focus-loss persistence, and complete screen-flow installation.
 - The full-route smoke playthrough reached the ending at stop 50.
-- The shared `.love` package built successfully and passed all 52 mobile checkpoints.
+- The shared `.love` package built successfully and passed all 53 mobile checkpoints.
 - Package inspection confirmed the lifecycle shell, application module, configuration, save schema, system manifest, and mobile adapter are present in the same archive.
