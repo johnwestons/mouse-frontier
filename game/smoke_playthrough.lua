@@ -63,6 +63,7 @@ local function install(context)
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
     local questBalanceAudit=required(context,"questBalanceAudit","function")
     local audioAudit=required(context,"audioAudit","function")
+    local finaleAudit=required(context,"finaleAudit","function")
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
@@ -223,6 +224,14 @@ local function install(context)
                         and result.points==5 and result.helpCount==2 and result.itemGoodwill==2 and result.aidGoodwill==3
                         and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
                         and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
+                end},
+            {name="positive_finale_progression",action=finaleAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.curve=="finale-v1" and result.choiceCount==3 and result.selected=="lifeline"
+                        and result.positiveOnly and result.low.tier=="HOME AT LAST"
+                        and result.middle.tier=="RAILWAY OF HOPE" and result.high.tier=="FRONTIER BEACON"
+                        and result.low.score<result.middle.score and result.middle.score<result.high.score
+                        and result.high.storyClues==10 and result.high.condition==96 and result.high.cars==7
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}
@@ -399,6 +408,10 @@ local function install(context)
             end,check=function(_,_,_,result) return result==true end},
             {name="retreat_battle_key",action=function() love.keypressed("r"); return "r" end,expect={state="game",scene="train",battleActive=false}},
             fixtureStep("ending"),
+            {name="finale_keyboard_choice",action=function()
+                ui.smokeDraw(); love.keypressed("3"); ui.smokeDraw()
+                return game.saveData.finale and game.saveData.finale.choice
+            end,check=function(_,_,snapshot,result) return snapshot.state=="ending" and result=="lifeline" and ui.endingButton~=nil end},
             {name="game_session_synchronized",action=function() return true end,expect={sessionSynchronized=true,screenManagerSynchronized=true}},
             {name="save_schema_migrates_legacy_copy",action=function()
                 local legacy={version=1,character=character,location=7,resources={food=3},inventory={},equipment={},droppedItems={}}

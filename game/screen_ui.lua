@@ -26,6 +26,8 @@ local function new(context)
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local FinaleProgression=required(context,"finaleProgression","table")
+  local Maintenance=required(context,"maintenance","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
@@ -379,16 +381,32 @@ local function new(context)
 
   local function drawEnding()
       drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",120,90,720,540,20,20)
-      love.graphics.setColor(colors.brass); love.graphics.printf("CALIFORNIA",120,135,720,"center",0,2.2,2.2)
-      love.graphics.setColor(colors.cream); love.graphics.printf("After 50 stops, the Mouse Frontier finally reaches the end of the line.",205,215,550,"center",0,1.15,1.15)
-      love.graphics.printf("You found your family. The old train became a lifeline for every critter you met along the way—and your journey west became a story they will tell for generations.",220,285,520,"center")
-      local goodwill=StopHelpProgression.status(runtime.saveData)
-      love.graphics.setColor(colors.brass); love.graphics.printf("GOODWILL "..goodwill.points.."  •  "..string.upper(goodwill.tier),220,370,520,"center",0,.92,.92)
-      love.graphics.setColor(colors.cream); love.graphics.printf(goodwill.ending,235,402,490,"center",0,.72,.72)
-      local family={runtime.saveData.character,(runtime.saveData.npcRoster or {})[1],(runtime.saveData.npcRoster or {})[2]}
-      for i,file in ipairs(family) do local img=characterImages[file] or npcImages[file]; if img then local s=math.min(105/img:getWidth(),145/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,360+(i-1)*120,475+math.sin(runtime.animationClock*3+i)*3,0,s,s,img:getWidth()/2,img:getHeight()/2) end end
-      ui.endingButton=button("RETURN TO SAVE FILES",350,560,260,48,true)
+      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",80,55,800,610,20,20)
+      local finale=FinaleProgression.evaluate(runtime.saveData,StopHelpProgression,Maintenance)
+      love.graphics.setColor(colors.brass); love.graphics.printf(finale.choice and finale.tier or "THE LAST SWITCH",80,88,800,"center",0,finale.choice and 1.65 or 1.85,finale.choice and 1.65 or 1.85)
+      love.graphics.setColor(colors.cream); love.graphics.printf(finale.reunion,170,155,620,"center",0,.86,.86)
+      love.graphics.setColor(colors.brass)
+      love.graphics.printf("GOODWILL "..finale.goodwill.."  •  FAMILY CLUES "..finale.storyClues.."/10  •  MYSTERY CLUES "..finale.mysteryClues.."/5",120,245,720,"center",0,.66,.66)
+      love.graphics.printf("HELP "..finale.helpCount.."  •  RIDES "..finale.rides.."  •  TRAIN "..finale.condition.."%  •  CARS "..finale.cars.."  •  LEVEL "..finale.level,120,271,720,"center",0,.66,.66)
+      if not finale.choice then
+          love.graphics.setColor(colors.cream); love.graphics.printf("Your family asks what comes next. Choose the legacy this journey leaves behind.",185,318,590,"center",0,.78,.78)
+          ui.endingChoices={}
+          for index,choice in ipairs(FinaleProgression.choices) do
+              local x=115+(index-1)*245
+              love.graphics.setColor(colors.cream); love.graphics.printf(choice.description,x,365,220,"center",0,.55,.55)
+              ui.endingChoices[index]=button(index.."  "..choice.title,x,440,220,58,true)
+              ui.endingChoices[index].id=choice.id
+          end
+          love.graphics.setColor(colors.cream); love.graphics.printf("All three paths are hopeful. Your choice changes the final legacy, never a good-or-evil alignment.",190,535,580,"center",0,.62,.62)
+          ui.endingButton=nil
+      else
+          ui.endingChoices=nil
+          love.graphics.setColor(colors.cream); love.graphics.printf(finale.outcome,175,325,610,"center",0,.82,.82)
+          love.graphics.setColor(colors.brass); love.graphics.printf(finale.tierText,185,405,590,"center",0,.70,.70)
+          local family={runtime.saveData.character,(runtime.saveData.npcRoster or {})[1],(runtime.saveData.npcRoster or {})[2]}
+          for i,file in ipairs(family) do local img=characterImages[file] or npcImages[file]; if img then local s=math.min(72/img:getWidth(),96/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,380+(i-1)*100,520+math.sin(runtime.animationClock*3+i)*3,0,s,s,img:getWidth()/2,img:getHeight()/2) end end
+          ui.endingButton=button("CAMPAIGN COMPLETE  •  RETURN",330,590,300,45,true)
+      end
   end
 
   return {

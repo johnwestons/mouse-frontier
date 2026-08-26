@@ -33,6 +33,7 @@ local function new(context)
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local FinaleProgression=required(context,"finaleProgression","table")
   local FirstAid=required(context,"firstAid","table")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
@@ -51,6 +52,7 @@ local function new(context)
     canChooseEvent=adventure.eventRuntime.canChoose,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,
     playerProgression=PlayerProgression,
     stopHelpProgression=StopHelpProgression,
+    finaleProgression=FinaleProgression,maintenance=Maintenance,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
     ensureStopLayout=world.worldScene.ensureStopLayout,mobileEnabled=platform.mobileRuntime.isEnabled,
     drawLandscape=function(...) return worldRenderer.drawLandscape(...) end,

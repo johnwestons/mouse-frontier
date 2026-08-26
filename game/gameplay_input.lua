@@ -78,6 +78,7 @@ local function new(context)
   local repairEquipped=required(context,"repairEquipped","function")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
+  local chooseFinale=required(context,"chooseFinale","function")
 
   local function startTravel()
       local status=travelStatus()
@@ -296,7 +297,12 @@ local function new(context)
       if button==2 and runtime.state=="battle" then ui.handleBattleMousePressed(x,y,true); return end
       if button~=1 then return end
       if runtime.state=="event" then handleEventClick(x,y); return end
-      if runtime.state=="ending" then if Util.pointIn(x,y,ui.endingButton) then writeSave(); runtime.state="slots" end; return end
+      if runtime.state=="ending" then
+          if not (runtime.saveData.finale and runtime.saveData.finale.choice) then
+              for _,control in ipairs(ui.endingChoices or {}) do if Util.pointIn(x,y,control) then chooseFinale(control.id); writeSave(); return end end
+          elseif Util.pointIn(x,y,ui.endingButton) then writeSave(); runtime.state="slots" end
+          return
+      end
       if runtime.travelConfirm then
           if Util.pointIn(x,y,ui.travelNo) then runtime.travelConfirm=false; return end
           if Util.pointIn(x,y,ui.travelYes) then startTravel() end
@@ -370,7 +376,13 @@ local function new(context)
           local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then chooseEvent(choice) end
           return
       end
-      if runtime.state=="ending" then if key=="return" or key=="space" then writeSave(); runtime.state="slots" end; return end
+      if runtime.state=="ending" then
+          if not (runtime.saveData.finale and runtime.saveData.finale.choice) then
+              local index=tonumber(key); local control=index and ui.endingChoices and ui.endingChoices[index]
+              if control then chooseFinale(control.id); writeSave() end
+          elseif key=="return" or key=="space" or key=="escape" then writeSave(); runtime.state="slots" end
+          return
+      end
       if runtime.state=="characters" and (key=="down" or key=="s" or key=="pagedown") then runtime.characterScroll=runtime.characterScroll+1; return end
       if runtime.state=="characters" and (key=="up" or key=="w" or key=="pageup") then runtime.characterScroll=math.max(0,runtime.characterScroll-1); return end
       if runtime.travelConfirm then if key=="escape" then runtime.travelConfirm=false elseif key=="return" or key=="e" then startTravel() end; return end

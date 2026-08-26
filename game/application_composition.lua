@@ -132,7 +132,7 @@ local function new(context)
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     playerProgression=Modules.playerProgression,
-    stopHelpProgression=Modules.stopHelpProgression,firstAid=Modules.firstAid,
+    stopHelpProgression=Modules.stopHelpProgression,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })
@@ -145,6 +145,7 @@ local function new(context)
     inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     firstAid=Modules.firstAid,resolveFirstAid=adventure.journeyRules.resolveFirstAid,
+    finaleProgression=Modules.finaleProgression,
     intro=Modules.intro,interactions=Modules.interactions,
   })
   serviceRegistry.publishAll(input)
@@ -165,7 +166,8 @@ local function new(context)
       session=session,screens=screens,car=car},
     domain={currentSaveVersion=SaveSchema.CURRENT_VERSION,saveSchema=SaveSchema,catalog=Catalog,
       assets=Assets,save=Save,maintenance=Maintenance,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
-      audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest},
+      audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
+      finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression},
     services=services,
     graphs={content=content,views=views,adventure=adventure,platform=platform,input=input,
       world=world,startup=startup,serviceRegistry=serviceRegistry,applicationComposition=application},

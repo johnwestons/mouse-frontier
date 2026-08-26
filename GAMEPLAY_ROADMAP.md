@@ -19,7 +19,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - Add medicine, water, repair-material, ammunition, and recovery deliveries with distinct requirements and rewards.
 - Keep active-objective, destination, reward-overflow, and mobile presentation behavior consistent.
 
-## 3. Endgame and family-story payoff
+## 3. Endgame and family-story payoff — Complete
 
 - Replace the generic stop-50 ending with a finale shaped by goodwill, clues, completed help, passengers, and train condition.
 - Add multiple positive ending tiers without an evil alignment.

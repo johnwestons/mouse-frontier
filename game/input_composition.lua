@@ -31,6 +31,7 @@ local function new(context)
   local Interactions=required(context,"interactions","table")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
+  local FinaleProgression=required(context,"finaleProgression","table")
 
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
@@ -65,6 +66,7 @@ local function new(context)
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
     firstAid=FirstAid,resolveFirstAid=resolveFirstAid,
+    chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
   })
 
   local input={gameplayInput=gameplayInput}

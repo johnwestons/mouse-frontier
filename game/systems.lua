@@ -13,6 +13,7 @@ return {
     contentRegistry = require("game.content_registry"),
     eventBalance = require("game.event_balance"),
     eventRuntime = require("game.event_runtime"),
+    finaleProgression = require("game.finale_progression"),
     firstAid = require("game.first_aid"),
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),

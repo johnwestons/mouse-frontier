@@ -58,7 +58,7 @@ local function new(context)
           droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
           encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
           choices = {}, stopLayouts = {}, stopSludges={}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={}, goodwill=0, helpHistory={},
-          maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0},
+          maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0}, finale={},
           inventoryCapacity=6, backpack=nil,
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
           specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,

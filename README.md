@@ -47,6 +47,7 @@ Android controls, installation, update flow, and device verification are documen
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
 - Battles and quests award experience. Levels improve maximum health, aim, armor, movement, and the player's four-rank special ability; the HUD shows every active bonus.
+- At stop 50, the family trail ends with a saved choice between building a haven, resting with family, or keeping the relief train running. The positive legacy tier and campaign report reflect goodwill, clues, completed help and rides, train condition, cars, and level.
 - Travel chests hold 10 persistent items. Stand nearby and press **E**, then drag items between chest and backpack slots.
 - The cowboy mouse uses dedicated left- and right-walking sprites while moving.
 - New houses receive a persistent randomized selection of four to six furniture pieces.
@@ -86,6 +87,8 @@ Quest offers, delivery distances, rewards, passenger jobs, objective tracking, a
 Level requirements, combat bonuses, the level cap, and all four special-ability ranks are documented in [PLAYER_PROGRESSION.md](PLAYER_PROGRESSION.md).
 
 Stop request pacing, item help, the first-aid activity, and the goodwill-only morality score are documented in [STOP_HELP_GOODWILL.md](STOP_HELP_GOODWILL.md).
+
+The stop-50 family reunion, final decision, positive legacy tiers, and campaign report are documented in [ENDGAME_FINALE.md](ENDGAME_FINALE.md).
 
 ## Automated smoke playthrough
 

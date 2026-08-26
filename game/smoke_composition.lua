@@ -36,6 +36,8 @@ local function new(context)
   local Audio=required(domain,"domain","audio","table")
   local AudioCatalog=required(domain,"domain","audioCatalog","table")
   local AudioSelfTest=required(domain,"domain","audioSelfTest","table")
+  local FinaleProgression=required(domain,"domain","finaleProgression","table")
+  local StopHelpProgression=required(domain,"domain","stopHelpProgression","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
@@ -74,6 +76,7 @@ local function new(context)
       startupComposition=startup,serviceRegistry=serviceRegistry,smokeComposition=composition,
       applicationComposition=applicationComposition,
       audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
+      finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
       getMobileControls=mobileRuntime.get,createIntro=function() return Intro.new(10) end,
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
