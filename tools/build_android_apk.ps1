@@ -46,13 +46,24 @@ if (-not (Test-Path -LiteralPath $sdkManager)) {
     Write-Output 'Downloading the verified Android command-line tools...'
     $commandToolsArchive = Join-Path $toolingRoot 'android-command-line-tools-12.zip'
     Get-VerifiedDownload -Uri 'https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip' -Destination $commandToolsArchive -Sha256 '3d2917302740f476999a091bc5558837c7a863c5'
-    # Extract directly into the versioned SDK directory. This avoids the deep
-    # recursive copy/remove operations that OneDrive can interrupt on Windows.
-    $versionedRoot = Join-Path $androidRoot 'cmdline-tools\12.0'
-    New-Item -ItemType Directory -Force -Path $versionedRoot | Out-Null
-    & tar.exe -xf $commandToolsArchive -C $versionedRoot --strip-components=1
-    if ($LASTEXITCODE -ne 0) { throw "Android command-tools extraction failed with exit code $LASTEXITCODE" }
-    $sdkManager = Join-Path $versionedRoot 'bin\sdkmanager.bat'
+    # Use a short temporary drive while extracting deep SDK dependency paths.
+    # Windows can otherwise silently omit files under a OneDrive project path.
+    $sdkExtractDrive = $null
+    foreach ($candidate in @('Q:','R:','S:','T:')) {
+        if (-not (Test-Path ($candidate + '\'))) {
+            & subst.exe $candidate $androidRoot
+            if ($LASTEXITCODE -eq 0) { $sdkExtractDrive = $candidate; break }
+        }
+    }
+    if (-not $sdkExtractDrive) { throw 'Could not allocate a temporary SDK extraction drive' }
+    try {
+        $versionedRoot = Join-Path ($sdkExtractDrive + '\') 'cmdline-tools\12.0'
+        New-Item -ItemType Directory -Force -Path $versionedRoot | Out-Null
+        & tar.exe -xf $commandToolsArchive -C $versionedRoot --strip-components=1
+        if ($LASTEXITCODE -ne 0) { throw "Android command-tools extraction failed with exit code $LASTEXITCODE" }
+    }
+    finally { & subst.exe $sdkExtractDrive /D | Out-Null }
+    $sdkManager = Join-Path $androidRoot 'cmdline-tools\12.0\bin\sdkmanager.bat'
 }
 
 $previousJavaHome = $env:JAVA_HOME
