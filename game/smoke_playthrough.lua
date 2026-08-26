@@ -599,37 +599,45 @@ local function install(context)
             local mobileSteps={
                 {name="mobile_joystick_move_and_run",action=function()
                     game.saveData=newSave(character); enterGame(game.saveData)
+                    ui.smokeDraw()
                     local before=game.player.x
-                    love.touchpressed("smoke-stick",116,604)
-                    love.touchmoved("smoke-stick",192,604,76,0)
+                    local stick=mobileControls.joystick; local targetX=stick.x+stick.radius
+                    love.touchpressed("smoke-stick",stick.x,stick.y)
+                    love.touchmoved("smoke-stick",targetX,stick.y,stick.radius,0)
                     local sprinting=mobileControls:isSprinting()
                     ui.smokeUpdate(.25)
-                    love.touchreleased("smoke-stick",192,604)
+                    love.touchreleased("smoke-stick",targetX,stick.y)
                     local axisX,axisY=mobileControls:movement()
-                    return {before=before,after=game.player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=mobileControls.joystick.x,actionX=mobileControls.primary.x}
+                    return {before=before,after=game.player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=stick.x,
+                        actionX=mobileControls.primary.x,joystickRadius=stick.radius}
                 end,check=function(_,_,_,result)
-                    return result.after>result.before and result.sprinting and result.axisX==0 and result.axisY==0 and result.stickX<=100 and result.actionX>=884
+                    return result.after>result.before and result.sprinting and result.axisX==0 and result.axisY==0
+                        and result.stickX<result.actionX and result.joystickRadius>=82
                 end},
                 {name="mobile_action_press_release",action=function()
                     ui.interaction=nil; game.dialogue=nil
-                    love.touchpressed("smoke-action",855,615)
+                    local actionControl=mobileControls.primary
+                    love.touchpressed("smoke-action",actionControl.x,actionControl.y)
                     local held=mobileControls:isHeld("e")
                     local action=game.actionKind
                     local feedback=mobileControls.feedback~=nil
-                    love.touchreleased("smoke-action",855,615)
+                    love.touchreleased("smoke-action",actionControl.x,actionControl.y)
                     return {held=held,released=not mobileControls:isHeld("e"),action=action,feedback=feedback,
                         primaryRadius=mobileControls.primary.radius,joystickRadius=mobileControls.joystick.radius}
                 end,check=function(_,_,_,result) return result.held and result.released and result.action=="use" and result.feedback
                     and result.primaryRadius>=58 and result.joystickRadius>=82 end},
                 {name="mobile_menu_touch",action=function()
                     ui.smokeDraw()
-                    love.touchpressed("smoke-menu-open",866,100); love.touchreleased("smoke-menu-open",866,100)
+                    local menuX=mobileControls.menu.x+mobileControls.menu.w/2; local menuY=mobileControls.menu.y+mobileControls.menu.h/2
+                    love.touchpressed("smoke-menu-open",menuX,menuY); love.touchreleased("smoke-menu-open",menuX,menuY)
                     ui.smokeDraw()
                     local menuOpened=ui.mobileMenuOpen and ui.backpack and ui.backpack.h>=64
-                    love.touchpressed("smoke-pack-open",437,259); love.touchreleased("smoke-pack-open",437,259)
+                    local packX=ui.backpack.x+ui.backpack.w/2; local packY=ui.backpack.y+ui.backpack.h/2
+                    love.touchpressed("smoke-pack-open",packX,packY); love.touchreleased("smoke-pack-open",packX,packY)
                     local opened=game.inventoryOpen and not ui.mobileMenuOpen
                     ui.smokeDraw()
-                    love.touchpressed("smoke-back",80,101); love.touchreleased("smoke-back",80,101)
+                    local backX=mobileControls.back.x+mobileControls.back.w/2; local backY=mobileControls.back.y+mobileControls.back.h/2
+                    love.touchpressed("smoke-back",backX,backY); love.touchreleased("smoke-back",backX,backY)
                     return {menuOpened=menuOpened,opened=opened,closed=not game.inventoryOpen}
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
                 {name="mobile_exit_home_touch",action=function()
