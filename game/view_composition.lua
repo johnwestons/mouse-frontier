@@ -30,6 +30,7 @@ local function new(context)
   local Util=required(context,"util","table")
   local EventUI=required(context,"eventUI","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Family=required(context,"family","table")
@@ -44,7 +45,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,scenery=content.scenery,
     characters=content.characters,characterImages=content.characterImages,npcImages=content.npcImages,
     readSave=platform.persistenceRuntime.read,util=Util,catalog=Catalog,inventory=Inventory,eventUI=EventUI,
-    canChooseEvent=adventure.eventRuntime.canChoose,engineUpgrades=EngineUpgrades,
+    canChooseEvent=adventure.eventRuntime.canChoose,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
     ensureStopLayout=world.worldScene.ensureStopLayout,mobileEnabled=platform.mobileRuntime.isEnabled,
     drawLandscape=function(...) return worldRenderer.drawLandscape(...) end,
@@ -82,7 +83,7 @@ local function new(context)
   gameplayHUD=GameplayHUD.new({
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
     holdPickupSeconds=holdPickupSeconds,getCloudLayer=function() return startup.startupRuntime.cloudLayer() end,
-    mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,clouds=Clouds,maintenance=Maintenance,util=Util,
+    mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,clouds=Clouds,maintenance=Maintenance,util=Util,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,

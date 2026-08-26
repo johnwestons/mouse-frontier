@@ -1,4 +1,5 @@
 local Catalog = {}
+local TrainUpgradeBalance = require("game.train_upgrade_balance")
 
 Catalog.characterTraitProfiles = {
     {name="Scrapper",combat=1,armor=0,coal=1.00,reward=1.25,description="Finds 25% more scrap and quest rewards."},
@@ -44,14 +45,7 @@ function Catalog.characterTrait(file)
     return byName["Scrapper"]
 end
 
-Catalog.trainCarCatalog = {
-    {id="coal-hauler",name="Coal Hauler",cost=20,description="Coal capacity +10"},
-    {id="greenhouse",name="Greenhouse",cost=28,description="Produces food while traveling"},
-    {id="sleeper",name="Sleeper Car",cost=24,description="Passengers consume less food"},
-    {id="storage",name="Storage Car",cost=22,description="Food and water capacity +10"},
-    {id="medical",name="Medical Car",cost=30,description="Heal after every journey"},
-    {id="navigator",name="Navigator Car",cost=34,description="Reveals terrain and route hazards"}
-}
+Catalog.trainCarCatalog = TrainUpgradeBalance.carCatalog
 
 Catalog.storageCapacities = {
     ["travel-chest"]=10, ["supply-crate"]=10, ["medicine-cabinet"]=10,

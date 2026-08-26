@@ -94,6 +94,7 @@ local function new(context)
     battleController=BattleController,battleUI=Modules.battleUI,engineUpgrades=EngineUpgrades,
     combatBalance=Modules.combatBalance,
     eventBalance=Modules.eventBalance,
+    trainUpgradeBalance=Modules.trainUpgradeBalance,
     progressionBalance=Modules.progressionBalance,
     maintenance=Maintenance,passengers=Passengers,house=House,eventUI=EventUI,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
@@ -113,7 +114,7 @@ local function new(context)
     maintenanceSession=maintenanceSession,screens=screens,graphics=Graphics,filesystem=Filesystem,
     assets=Assets,settlements=Settlements,clouds=Clouds,intro=Modules.intro,
     interactionRouter=Modules.interactions,interactions=Interactions,catalog=Catalog,interiorDoors=InteriorDoors,
-    engineUpgrades=EngineUpgrades,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
+    engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
   })
   serviceRegistry.publishAll(startup)
 
@@ -123,7 +124,7 @@ local function new(context)
     platform=platform,adventure=adventure,world=world,startup=startup,
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
-    inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,
+    inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })
@@ -133,7 +134,7 @@ local function new(context)
     gameplayInputFactory=Modules.gameplayInput,runtime=runtime,ui=ui,content=content,
     maintenanceSession=maintenanceSession,platform=platform,adventure=adventure,views=views,
     worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
-    inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,maintenance=Maintenance,
+    inventory=Inventory,catalog=Catalog,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     intro=Modules.intro,interactions=Modules.interactions,
   })

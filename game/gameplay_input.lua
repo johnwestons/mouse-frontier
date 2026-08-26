@@ -18,6 +18,7 @@ local function new(context)
   local readSave=required(context,"readSave","function")
   local removeSave=required(context,"removeSave","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local BattleRules=required(context,"battleRules","table")
   local Stops=required(context,"stops","table")
@@ -35,7 +36,6 @@ local function new(context)
   local isWeapon=required(context,"isWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
-  local ownsTrainCar=required(context,"ownsTrainCar","function")
   local moveEditedItem=required(context,"moveEditedItem","function")
   local attackStopSludge=required(context,"attackStopSludge","function")
   local acceptQuest=required(context,"acceptQuest","function")
@@ -175,11 +175,11 @@ local function new(context)
       if not runtime.trainUpgradeOpen then return false end
       if Util.pointIn(x,y,ui.upgradeClose) then runtime.trainUpgradeOpen=false; return true end
       if Util.pointIn(x,y,ui.engineUpgrade) then
-          local nextEngine=EngineUpgrades.next(runtime.saveData.engineLevel)
-          if nextEngine and runtime.saveData.scrap>=nextEngine.cost then runtime.saveData.scrap=runtime.saveData.scrap-nextEngine.cost; runtime.saveData.engineLevel=runtime.saveData.engineLevel+1; runtime.dialogue={speaker="Train Workshop",text=nextEngine.name.." installed! Future journeys use fewer supplies and finish faster.",timer=4}; writeSave() end
+          local result=TrainUpgradeBalance.purchaseEngine(runtime.saveData,EngineUpgrades)
+          if result.ok then runtime.dialogue={speaker="Train Workshop",text=result.entry.name.." installed! Future journeys use fewer supplies and finish faster.",timer=4}; writeSave() end
           return true
       end
-      for i,r in ipairs(ui.trainCars or {}) do if Util.pointIn(x,y,r) then local c=Catalog.trainCarCatalog[i]; if not ownsTrainCar(c.id) and runtime.saveData.scrap>=c.cost then runtime.saveData.scrap=runtime.saveData.scrap-c.cost; runtime.saveData.trainCars[#runtime.saveData.trainCars+1]=c.id; runtime.trainUpgradeOpen=false; runtime.dialogue={speaker="Train Workshop",text=c.name.." added to your train! "..c.description,timer=3}; writeSave() end; return true end end
+      for i,r in ipairs(ui.trainCars or {}) do if Util.pointIn(x,y,r) then local c=Catalog.trainCarCatalog[i]; local result=TrainUpgradeBalance.purchaseCar(runtime.saveData,c); if result.ok then runtime.trainUpgradeOpen=false; runtime.dialogue={speaker="Train Workshop",text=c.name.." added to your train! "..c.description,timer=3}; writeSave() end; return true end end
       return true
   end
 

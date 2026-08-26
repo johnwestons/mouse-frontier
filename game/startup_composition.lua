@@ -32,6 +32,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local InteriorDoors=required(context,"interiorDoors","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local Family=required(context,"family","table")
   local Util=required(context,"util","table")
@@ -51,7 +52,7 @@ local function new(context)
       inventoryActions=adventure.inventoryActions,journeyRules=adventure.journeyRules,catalog=Catalog,
       settlements=Settlements,interiorDoors=InteriorDoors,interactions=Interactions,
       updatePersistence=platform.persistenceRuntime.update,clouds=Clouds,screens=screens,
-      engineUpgrades=EngineUpgrades,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
+      engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
       screenToGame=platform.presentationRuntime.screenToGame,updateAudio=platform.audioRuntime.update,
       ensureStopLayout=world.worldScene.ensureStopLayout,updateWorldScene=world.worldScene.update,
       clampToTrainFloor=platform.trainCarRuntime.clampToFloor,itemIsHere=world.worldScene.itemIsHere,

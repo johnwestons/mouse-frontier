@@ -2,10 +2,10 @@ local EngineUpgrades = {}
 
 EngineUpgrades.tiers = {
     {name="Stock Engine",cost=0,coal=1.00,supplies=1.00,speed=1.00,description="Original patched-together locomotive."},
-    {name="Tuned Firebox",cost=15,coal=.90,supplies=.95,speed=1.08,description="10% less coal and shorter journeys."},
-    {name="Rebuilt Boiler",cost=28,coal=.80,supplies=.90,speed=1.18,description="20% less coal and 10% fewer provisions."},
-    {name="High-Pressure Drive",cost=45,coal=.68,supplies=.82,speed=1.30,description="32% less coal and 18% fewer provisions."},
-    {name="Frontier Express",cost=70,coal=.55,supplies=.72,speed=1.45,description="45% less coal and 28% fewer provisions."}
+    {name="Tuned Firebox",cost=15,unlockStop=5,coal=.90,supplies=.95,speed=1.08,description="10% less coal and shorter journeys."},
+    {name="Rebuilt Boiler",cost=28,unlockStop=14,coal=.80,supplies=.90,speed=1.18,description="20% less coal and 10% fewer provisions."},
+    {name="High-Pressure Drive",cost=45,unlockStop=26,coal=.68,supplies=.82,speed=1.30,description="32% less coal and 18% fewer provisions."},
+    {name="Frontier Express",cost=70,unlockStop=38,coal=.55,supplies=.72,speed=1.45,description="45% less coal and 28% fewer provisions."}
 }
 
 function EngineUpgrades.profile(level)

@@ -23,6 +23,7 @@ local function new(context)
   local EventUI=required(context,"eventUI","table")
   local canChooseEvent=required(context,"canChooseEvent","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
@@ -193,12 +194,13 @@ local function new(context)
   end
 
 
-  function ui.drawResource(name, value, x, color, width)
+  function ui.drawResource(name, value, x, color, width, capacity)
       width=width or 150
+      capacity=capacity or 20
       local barWidth=math.max(20,width-66)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,width,34,7,7)
-      love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(barWidth,value*barWidth/20)),16,4,4)
-      love.graphics.setColor(colors.cream); love.graphics.print(name.." "..value,x+6,28,0,.92,.92)
+      love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(barWidth,value*barWidth/capacity)),16,4,4)
+      love.graphics.setColor(colors.cream); love.graphics.print(name.." "..value.."/"..capacity,x+6,28,0,.78,.78)
   end
 
   function ui.drawHealthBar(label,value,maxValue,x,y,w)
@@ -287,7 +289,9 @@ local function new(context)
       local cost=travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(runtime.saveData.location+1),275,220,410,"center",0,1.5,1.5)
       love.graphics.printf("Distance, terrain, passengers, and train condition shape this leg.\nThis journey will consume:",300,275,360,"center")
       love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
-      love.graphics.printf("TERRAIN: "..string.upper(cost.terrain or "plains"),280,377,400,"center",0,.78,.78)
+      local terrain=TrainUpgradeBalance.revealsTerrain(runtime.saveData) and string.upper(cost.terrain or "plains") or "UNCHARTED — NAVIGATOR REQUIRED"
+      if (cost.navigatorSaved or 0)>0 then terrain=terrain.."  •  SAVES 1 COAL" end
+      love.graphics.printf("TERRAIN: "..terrain,280,377,400,"center",0,.78,.78)
       if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengerLoad.." food and water.",280,385,400,"center",0,0.82,0.82) end
       if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
       local enough=runtime.saveData.resources.food>=cost.food and runtime.saveData.resources.water>=cost.water and runtime.saveData.resources.coal>=cost.coal
@@ -300,20 +304,21 @@ local function new(context)
       ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},canChooseEvent)
   end
 
-  local function ownsTrainCar(id) for _,owned in ipairs(runtime.saveData.trainCars or {}) do if owned==id then return true end end return false end
+  local function ownsTrainCar(id) return TrainUpgradeBalance.owns(runtime.saveData,id) end
   function ui.drawTrainUpgrades()
       local mobile=mobileEnabled()
       love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
       love.graphics.setColor(colors.brass); love.graphics.printf("TRAIN WORKSHOP",150,95,660,"center",0,1.7,1.7)
-      local engine=EngineUpgrades.profile(runtime.saveData.engineLevel); local nextEngine=EngineUpgrades.next(runtime.saveData.engineLevel)
+      local engine=EngineUpgrades.profile(runtime.saveData.engineLevel); local engineStatus=TrainUpgradeBalance.engineStatus(runtime.saveData,EngineUpgrades); local nextEngine=engineStatus.entry
       love.graphics.setColor(colors.cream); love.graphics.printf("Scrap: "..runtime.saveData.scrap.."   •   Buy cars and improve your locomotive",170,132,620,"center")
       love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
       love.graphics.setColor(colors.brass); love.graphics.print("ENGINE  "..engine.name,205,166,0,.88,.88)
       love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%",205,190,0,.68,.68)
-      ui.engineUpgrade=button(nextEngine and (nextEngine.cost.." SCRAP") or "MAX LEVEL",mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,nextEngine and runtime.saveData.scrap>=nextEngine.cost or false)
+      local engineLabel=engineStatus.maximum and "MAX LEVEL" or (engineStatus.locked and ("UNLOCK "..engineStatus.unlockStop) or (nextEngine.cost.." SCRAP"))
+      ui.engineUpgrade=button(engineLabel,mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,engineStatus.affordable==true)
       ui.trainCars={}
-      for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local owned=ownsTrainCar(c.id); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7); love.graphics.setColor(colors.cream); love.graphics.print(c.name.."  —  "..c.description,205,y+9,0,.78,.78); ui.trainCars[i]=button(owned and "OWNED" or c.cost.." SCRAP",mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,not owned and runtime.saveData.scrap>=c.cost) end
+      for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local status=TrainUpgradeBalance.carStatus(runtime.saveData,c); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7); love.graphics.setColor(colors.cream); love.graphics.printf(c.name.."  —  "..c.description,205,y+8,400,"left",0,.68,.68); local label=status.owned and "OWNED" or (status.locked and ("UNLOCK "..status.unlockStop) or c.cost.." SCRAP"); ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable) end
       ui.upgradeClose=button("CLOSE",mobile and 390 or 405,mobile and 578 or 594,mobile and 180 or 150,mobile and 64 or 38,true)
   end
 

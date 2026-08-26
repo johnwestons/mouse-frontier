@@ -30,6 +30,7 @@ local function new(context)
   local Clouds=required(context,"clouds","table")
   local screens=required(context,"screens","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local Family=required(context,"family","table")
   local Util=required(context,"util","table")
@@ -107,10 +108,7 @@ local function new(context)
               -- destination stop map and would place the character outside the
               -- train until the next movement clamp corrected it.
               runtime.player.x,runtime.player.y=clampToTrainFloor(runtime.player.x,runtime.player.y)
-              for _,id in ipairs(runtime.saveData.trainCars or {}) do
-                  if id=="greenhouse" then runtime.saveData.resources.food=math.min(30,runtime.saveData.resources.food+1)
-                  elseif id=="medical" then runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+3) end
-              end
+              TrainUpgradeBalance.applyArrival(runtime.saveData)
               ensureStopLayout(); journeyRules.passengerContributions(); journeyRules.processPassengerArrivals(); writeSave()
           end
           if not transition.arriveSoundPlayed and transition.t>=timing.arrive then transition.arriveSoundPlayed=true; ui.playSfx("trainArrive") end

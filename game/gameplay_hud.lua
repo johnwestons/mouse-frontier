@@ -17,6 +17,7 @@ local function new(context)
   local getCloudLayer=required(context,"getCloudLayer","function")
   local mobileEnabled=required(context,"mobileEnabled","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
   local Util=required(context,"util","table")
@@ -55,8 +56,8 @@ local function new(context)
           love.graphics.pop()
       elseif runtime.scene=="house" then drawHouse() else drawStop() end
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
-      ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110)
-      ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110)
+      ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
+      ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,20)
       ui.drawJourneyHUD()
       local travel=travelStatus()
       local cost=travel.cost

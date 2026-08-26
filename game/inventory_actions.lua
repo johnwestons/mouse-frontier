@@ -11,6 +11,7 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local writeSave=required(context,"writeSave","function")
   local useBattleHealingItem=required(context,"useBattleHealingItem","function")
   local useBattlePotion=required(context,"useBattlePotion","function")
@@ -90,18 +91,20 @@ local function new(context)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
       if not effect then return false end
-      local capacity=20; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="storage" then capacity=30; break end end
-      local foodFull=effect.food and runtime.saveData.resources.food>=capacity
-      local waterFull=effect.water and runtime.saveData.resources.water>=capacity
-      local oilFull=effect.oil and runtime.saveData.resources.oil>=capacity
+      local foodCapacity=TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")
+      local waterCapacity=TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water")
+      local oilCapacity=TrainUpgradeBalance.resourceCapacity(runtime.saveData,"oil")
+      local foodFull=effect.food and runtime.saveData.resources.food>=foodCapacity
+      local waterFull=effect.water and runtime.saveData.resources.water>=waterCapacity
+      local oilFull=effect.oil and runtime.saveData.resources.oil>=oilCapacity
       if (effect.food or effect.water or effect.oil) and (not effect.food or foodFull) and (not effect.water or waterFull) and (not effect.oil or oilFull) then
           local fullName=oilFull and "Oil storage is full." or (foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full."))
           runtime.dialogue={speaker="Storage Full",text=fullName,timer=2.2}
           return false
       end
-      if effect.food then runtime.saveData.resources.food=math.min(capacity,runtime.saveData.resources.food+effect.food) end
-      if effect.water then runtime.saveData.resources.water=math.min(capacity,runtime.saveData.resources.water+effect.water) end
-      if effect.oil then runtime.saveData.resources.oil=math.min(capacity,runtime.saveData.resources.oil+effect.oil) end
+      if effect.food then TrainUpgradeBalance.addResource(runtime.saveData,"food",effect.food) end
+      if effect.water then TrainUpgradeBalance.addResource(runtime.saveData,"water",effect.water) end
+      if effect.oil then TrainUpgradeBalance.addResource(runtime.saveData,"oil",effect.oil) end
       if effect.health then runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+effect.health) end
       runtime.dialogue={speaker=Util.titleFromFile(name),text=effect.oil and ("Stored +"..effect.oil.." train oil.") or ("That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored.")),timer=1.4}
       setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
@@ -138,8 +141,7 @@ local function new(context)
   end
 
   local function addCoalToFire()
-      local coalCapacity=20
-      for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="coal-hauler" then coalCapacity=30; break end end
+      local coalCapacity=TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")
       if runtime.saveData.resources.coal>=coalCapacity then
           runtime.dialogue={speaker="Storage Full",text="Coal storage is full.",timer=2.2}
           return
@@ -148,8 +150,8 @@ local function new(context)
       if not slot then runtime.dialogue={speaker="Fire",text="Bring me coal from your backpack!",timer=2}; return end
       local amount=name=="coal-bucket" and 3 or 1
       runtime.saveData.inventory[slot]=nil
-      runtime.saveData.resources.coal=math.min(coalCapacity,runtime.saveData.resources.coal+amount)
-      runtime.dialogue={speaker="Fire",text="That's the good stuff!  +"..amount.." fuel",timer=2}
+      local gained=TrainUpgradeBalance.addResource(runtime.saveData,"coal",amount)
+      runtime.dialogue={speaker="Fire",text="That's the good stuff!  +"..gained.." fuel",timer=2}
       writeSave()
   end
 

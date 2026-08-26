@@ -27,6 +27,7 @@ local function new(context)
   local BattleUI=required(context,"battleUI","table")
   local CombatBalance=required(context,"combatBalance","table")
   local EventBalance=required(context,"eventBalance","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local ProgressionBalance=required(context,"progressionBalance","table")
   local Maintenance=required(context,"maintenance","table")
@@ -54,19 +55,19 @@ local function new(context)
     getCharacterAnimations=getCharacterAnimations,mobileEnabled=mobileEnabled,
     getWorldRenderer=getWorldRenderer,getScreenUI=getScreenUI,catalog=Catalog,util=Util,
     battleRules=BattleRules,events=Events,battleController=BattleController,battleUI=BattleUI,
-    combatBalance=CombatBalance,
+    combatBalance=CombatBalance,trainUpgradeBalance=TrainUpgradeBalance,
     writeSave=writeSave,screenToGame=screenToGame,pointerPosition=pointerPosition,
     enterStop=function(...) return journeyRules.enterStop(...) end,handleInventoryClick=handleInventoryClick,
   })
 
   inventoryActions=InventoryActions.new({
-    runtime=runtime,inventory=Inventory,catalog=Catalog,util=Util,writeSave=writeSave,
+    runtime=runtime,inventory=Inventory,catalog=Catalog,util=Util,trainUpgradeBalance=TrainUpgradeBalance,writeSave=writeSave,
     useBattleHealingItem=battleRuntime.useHealingItem,useBattlePotion=battleRuntime.usePotion,
   })
 
   journeyRules=JourneyRules.new({
     runtime=runtime,car=car,inventory=Inventory,catalog=Catalog,engineUpgrades=EngineUpgrades,
-    progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,
+    progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,
     maintenance=Maintenance,passengers=Passengers,util=Util,house=House,
     ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,writeSave=writeSave,
     beginEncounter=battleRuntime.beginEncounter,
@@ -75,7 +76,7 @@ local function new(context)
   })
 
   eventRuntime=EventRuntime.new({
-    runtime=runtime,ui=ui,events=Events,eventUI=EventUI,catalog=Catalog,combatBalance=CombatBalance,eventBalance=EventBalance,pointIn=Util.pointIn,
+    runtime=runtime,ui=ui,events=Events,eventUI=EventUI,catalog=Catalog,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,pointIn=Util.pointIn,
     writeSave=writeSave,beginEncounter=battleRuntime.beginEncounter,enterStop=journeyRules.enterStop,
   })
 

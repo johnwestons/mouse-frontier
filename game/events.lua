@@ -220,12 +220,15 @@ function Events.record(data,event,choiceIndex)
     if event.category=="mystery" then data.eventProgress.mystery=math.max(data.eventProgress.mystery or 0,event.artIndex) end
 end
 
-local function applyValues(data,values,sign)
+local function applyValues(data,values,sign,TrainUpgradeBalance)
     for name,amount in pairs(values or {}) do
         amount=amount*sign
         if name=="health" then data.health=math.max(1,math.min(data.maxHealth,data.health+amount))
         elseif name=="scrap" then data.scrap=math.max(0,(data.scrap or 0)+amount)
-        elseif data.resources[name]~=nil then data.resources[name]=math.max(0,math.min(30,data.resources[name]+amount)) end
+        elseif data.resources[name]~=nil then
+            if amount>0 then TrainUpgradeBalance.addResource(data,name,amount)
+            else data.resources[name]=math.max(0,data.resources[name]+amount) end
+        end
     end
 end
 
@@ -283,10 +286,10 @@ local function title(name)
     return (name or ""):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
 end
 
-function Events.resolve(data,catalog,event,choiceIndex,CombatBalance)
+function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgradeBalance)
     local choice=event and event.choices[choiceIndex]; if not choice then return {} end
     if not Events.canChoose(data,choice) then return {blocked=true} end
-    applyValues(data,choice.cost,-1); applyValues(data,choice.reward,1)
+    applyValues(data,choice.cost,-1,TrainUpgradeBalance); applyValues(data,choice.reward,1,TrainUpgradeBalance)
     local notes={}
     if choice.loseItem then for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then notes[#notes+1]="lost "..data.inventory[i]; data.inventory[i]=nil; break end end end
     local weapon

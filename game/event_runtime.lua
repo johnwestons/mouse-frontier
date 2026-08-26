@@ -14,6 +14,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local CombatBalance=required(context,"combatBalance","table")
   local EventBalance=required(context,"eventBalance","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local pointIn=required(context,"pointIn","function")
   local writeSave=required(context,"writeSave","function")
   local beginEncounter=required(context,"beginEncounter","function")
@@ -48,7 +49,7 @@ local function new(context)
   local function choose(index)
       local event=runtime.randomEvent
       if not event then return end
-      local result=Events.resolve(runtime.saveData,Catalog,event,index,CombatBalance)
+      local result=Events.resolve(runtime.saveData,Catalog,event,index,CombatBalance,TrainUpgradeBalance)
       ui.playSfx("menu")
       if result.blocked then return result end
       runtime.randomEvent=nil

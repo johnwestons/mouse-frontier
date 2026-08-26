@@ -71,7 +71,7 @@ local function new(context)
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
       beginEncounter=battleRuntime.beginEncounter,consumeSelected=inventoryActions.consumeSelected,
-      balanceAudit=journeyRules.balanceAudit,combatBalanceAudit=battleRuntime.balanceAudit,
+      balanceAudit=journeyRules.balanceAudit,combatBalanceAudit=battleRuntime.balanceAudit,upgradeBalanceAudit=journeyRules.upgradeBalanceAudit,
       beginRandomEvent=eventRuntime.beginRandom,eventBalanceAudit=eventRuntime.balanceAudit,
       resolveEventChoice=eventRuntime.choose,advanceBattleTurn=battleRuntime.advanceTurn,
       battleAttack=battleRuntime.attack,resolveBattleAttack=battleRuntime.resolveAttack,

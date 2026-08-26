@@ -35,6 +35,7 @@ local function new(context)
   local BattleController=required(context,"battleController","table")
   local BattleUI=required(context,"battleUI","table")
   local CombatBalance=required(context,"combatBalance","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local pointerPosition=required(context,"pointerPosition","function")
@@ -50,6 +51,7 @@ local function new(context)
           BattleRules=BattleRules,
           Events=Events,
           CombatBalance=CombatBalance,
+          TrainUpgradeBalance=TrainUpgradeBalance,
           BOARD_COLS=7,
           BOARD_ROWS=4,
           playSfx=ui.playSfx,

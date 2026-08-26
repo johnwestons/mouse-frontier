@@ -56,6 +56,7 @@ local function install(context)
     local balanceAudit=required(context,"balanceAudit","function")
     local combatBalanceAudit=required(context,"combatBalanceAudit","function")
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
+    local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local writeSave=persistenceRuntime.schedule
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
@@ -160,6 +161,15 @@ local function install(context)
                         and #result.blockedEvents==0 and result.encounterChance.easy==.48
                         and result.encounterChance.hard==.64 and result.earlyWeights.fortune>result.lateWeights.fortune
                         and result.lateWeights.mishap>result.earlyWeights.mishap and result.repeatAvoided
+                end},
+            {name="train_upgrade_balance",action=upgradeBalanceAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.carCount==6 and result.carCost==158 and result.engineCost==158
+                        and result.baseCapacity==20 and result.expandedCapacity.food==30
+                        and result.expandedCapacity.water==30 and result.expandedCapacity.coal==30
+                        and result.passengerLoad==2 and result.arrival.food==2 and result.arrival.health==3
+                        and result.navigatorSavings==1 and result.firstCarPurchase and result.firstEnginePurchase
+                        and result.legacyOverflowPreserved and result.firstEngineUnlock==5
                 end},
             {name="screen_flow_installed",action=function()
                 return {installed=screenFlow.isInstalled(),routes=screenFlow.count(),current=screens.current}

@@ -21,6 +21,7 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Util=required(context,"util","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
+  local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
   local Maintenance=required(context,"maintenance","table")
   local BattleRules=required(context,"battleRules","table")
   local Stops=required(context,"stops","table")
@@ -32,7 +33,7 @@ local function new(context)
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
     inventory=Inventory,catalog=Catalog,util=Util,readSave=platform.persistenceRuntime.read,
-    removeSave=platform.persistenceRuntime.remove,engineUpgrades=EngineUpgrades,maintenance=Maintenance,
+    removeSave=platform.persistenceRuntime.remove,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
     viewportToGame=platform.presentationRuntime.viewportToGame,cameraPanning=platform.presentationRuntime.isPanning,
@@ -40,7 +41,7 @@ local function new(context)
     endCameraPan=platform.presentationRuntime.endPan,zoomCamera=platform.presentationRuntime.wheel,
     pointerPosition=platform.mobileRuntime.pointerPosition,isWeapon=adventure.inventoryActions.isWeapon,
     isFurnitureItem=content.isFurnitureItem,ensureStopLayout=worldScene.ensureStopLayout,
-    ownsTrainCar=views.screenUI.ownsTrainCar,moveEditedItem=platform.trainCarRuntime.moveEditedItem,
+    moveEditedItem=platform.trainCarRuntime.moveEditedItem,
     attackStopSludge=worldScene.attackStopSludge,acceptQuest=adventure.journeyRules.acceptQuest,
     attemptLeaveTrain=adventure.journeyRules.attemptLeaveTrain,travelStatus=adventure.journeyRules.travelStatus,
     playTrainDepart=platform.audioRuntime.playTrainDepart,audioResetMusic=platform.audioRuntime.resetMusic,
