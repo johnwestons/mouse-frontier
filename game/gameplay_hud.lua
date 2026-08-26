@@ -42,7 +42,7 @@ local function new(context)
 
   local function drawGame()
       local cloudLayer=getCloudLayer()
-      ui.returnDoor=nil
+      ui.returnDoor,ui.exitHome=nil,nil
       if runtime.scene=="train" then
           drawLandscape(); drawTracks(); local tx=0
           if runtime.travelTransition then
@@ -68,7 +68,7 @@ local function new(context)
       local travelLabel=runtime.saveData.location>=50 and "JOURNEY COMPLETE"
         or ((travel.affordable and "TRAVEL" or "NEED").."  "..cost.food.."F  "..cost.water.."W  "..cost.coal.."C")
       local mobile=mobileEnabled()
-      ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack,ui.trainCarTabs=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
+      ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack,ui.trainCarTabs,ui.exitHome=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
       if mobile then
           if ui.mobileMenuOpen then
               love.graphics.setColor(0,0,0,.64); love.graphics.rectangle("fill",0,0,W,H)
@@ -101,6 +101,12 @@ local function new(context)
           ui.pose=button(runtime.poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
           ui.options=button(ui.optionsOpen and "CLOSE" or "OPTIONS",840,112,85,32,true)
           ui.stopAttack=runtime.scene=="stop" and button("ATTACK",790,650,135,38,true) or nil
+      end
+      local exitHomeVisible=runtime.scene=="house" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue
+          and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
+          and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not maintenanceSession.open
+      if exitHomeVisible then
+          ui.exitHome=mobile and button("EXIT HOME",700,150,238,66,true,.92) or button("EXIT HOME",790,194,135,38,true,.78)
       end
       local pendingMail=0; for _,mail in ipairs(runtime.saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
       if pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end

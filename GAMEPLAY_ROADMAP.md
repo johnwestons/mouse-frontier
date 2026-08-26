@@ -55,7 +55,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 
 - **Complete:** Attach melee and ranged weapons to per-character, per-frame hand points in battle and world attacks. Sprite Doctor generates, reviews, validates, and permits authored corrections to the shared desktop/mobile attachment list.
 - **Complete:** Redesign sludge creatures with mouse ears instead of antennae while preserving their established silhouette and animation contract. Four-frame idle/walk, attack, hit, and collapse atlases share one mouse-eared identity and render from the shared desktop/mobile source.
-- Add a clearly clickable `EXIT HOME` button inside every home on desktop and mobile.
+- **Complete:** Add a clearly clickable `EXIT HOME` button inside every home. The shared scene control has a compact desktop layout, a larger Android touch target, and uses the same save-safe exit action as the nearby-door shortcut.
 - Continue expanding settlement activities, environmental hazards, wildlife, and repeat protection.
 
 ## 9. NPC relationships and character identity

@@ -97,6 +97,14 @@ local function new(context)
       playTrainDepart(); writeSave(); return true
   end
 
+  local function exitHouse()
+      if runtime.scene~="house" then return false end
+      ui.playSfx("doors"); ensureStopLayout(); runtime.scene="stop"; runtime.saveData.activeHouseDoor=nil
+      local x,y=Settlements.doorPoint(runtime.saveData.location,runtime.saveData.lastStopDoor)
+      runtime.player.x,runtime.player.y=Settlements.clamp(x,y,runtime.saveData.location)
+      setupNPC(); writeSave(); return true
+  end
+
   function ui.offerGift(slot)
       local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.backpackUpgrades[name] or name=="coal-chunk" or name=="coal-bucket"
       if accepted then
@@ -235,6 +243,7 @@ local function new(context)
       if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; runtime.poseMenu=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if ui.handlePoseClick(x,y) then return true end
       if runtime.mapOpen then if Util.pointIn(x,y,ui.mapUp) then runtime.mapScroll=math.max(0,runtime.mapScroll-1) elseif Util.pointIn(x,y,ui.mapDown) then runtime.mapScroll=runtime.mapScroll+1 end; return true end
+      if runtime.scene=="house" and ui.exitHome and Util.pointIn(x,y,ui.exitHome) then exitHouse(); return true end
       if runtime.scene=="stop" and ui.stopAttack and Util.pointIn(x,y,ui.stopAttack) then
           ui.mobileMenuOpen=false
           local mx,my=pointerPosition(); mx,my=screenToGame(mx,my)
@@ -424,9 +433,7 @@ local function new(context)
       elseif action=="enterHouse" then
           runtime.saveData.lastStopDoor=arg; runtime.saveData.activeHouseDoor=arg; ui.playSfx("doors"); runtime.scene="house"
           local homeLayout=Stops.ensureDoor(runtime.saveData,Catalog,arg); ensureHouseItems(); runtime.player.x,runtime.player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
-      elseif action=="exitHouse" then
-          ui.playSfx("doors"); ensureStopLayout(); runtime.scene="stop"; runtime.saveData.activeHouseDoor=nil
-          local x,y=Settlements.doorPoint(runtime.saveData.location,runtime.saveData.lastStopDoor); runtime.player.x,runtime.player.y=Settlements.clamp(x,y,runtime.saveData.location); setupNPC(); writeSave()
+      elseif action=="exitHouse" then exitHouse()
       elseif action=="returnTrain" then
           enterTrain(true)
       elseif action=="give" then giveWeaponToNearby()

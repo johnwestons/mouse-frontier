@@ -426,6 +426,16 @@ local function install(context)
             fixtureStep("stop"),
             {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return "q" end,expect={state="game",scene="house"}},
             fixtureStep("house"),
+            {name="exit_home_button",action=function()
+                ui.smokeDraw()
+                local control=ui.exitHome
+                if not control then return false end
+                love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                return {width=control.w,height=control.h}
+            end,check=function(_,_,snapshot,result)
+                return result and result.width>=135 and result.height>=38 and snapshot.state=="game" and snapshot.scene=="stop"
+            end},
+            {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return true end,expect={state="game",scene="house"}},
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("q"); return "q" end,expect={state="game",scene="stop"}},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
             {name="battle_ui_mouse_routes",action=function()
@@ -555,6 +565,18 @@ local function install(context)
                     love.touchpressed("smoke-back",80,101); love.touchreleased("smoke-back",80,101)
                     return {menuOpened=menuOpened,opened=opened,closed=not game.inventoryOpen}
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
+                {name="mobile_exit_home_touch",action=function()
+                    game.saveData=newSave(character); enterGame(game.saveData)
+                    game.scene="stop"; game.saveData.scene="stop"; ui.interaction={kind="house",index=1}; love.keypressed("q")
+                    ui.smokeDraw()
+                    local control=ui.exitHome
+                    if not control then return false end
+                    local x,y=control.x+control.w/2,control.y+control.h/2
+                    love.touchpressed("smoke-exit-home",x,y); love.touchreleased("smoke-exit-home",x,y)
+                    return {width=control.w,height=control.h,scene=game.scene}
+                end,check=function(_,_,snapshot,result)
+                    return result and result.width>=220 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
+                end},
                 {name="mobile_pinch_zoom",action=function()
                     ui.mobileMenuOpen=false; game.inventoryOpen=false; game.mapOpen=false; game.dialogue=nil; presentationRuntime.setZoom(1)
                     love.touchpressed("smoke-pinch-a",400,350)
