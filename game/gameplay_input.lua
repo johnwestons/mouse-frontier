@@ -388,6 +388,11 @@ local function new(context)
           -- UI and modal layers always get first refusal. Only an unconsumed
           -- click in the stop world is allowed to become a sludge attack.
           if ui.handleGameMousePressed(x,y) then return end
+          local action,key=interactionMouseAction(ui.interaction,button)
+          if action=="routeKey" and ui.routeWorldInteraction(key) then
+              require("game.interaction_beacon").notifyActivated(ui.interaction)
+              return
+          end
           if runtime.scene=="stop" and attackStopSludge(x,y) then return end
       end
   end
@@ -563,7 +568,13 @@ local function new(context)
       end
       if key=="p" and runtime.state=="game" and ui.nearRadio and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.editMode then ui.radioOpen=not ui.radioOpen; ui.optionsOpen=false; runtime.poseMenu=false; ui.playSfx("menu"); return end
       if key=="e" and runtime.state=="game" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.editMode then runtime.actionKind="use"; runtime.actionTimer=.35 end
-      if (key=="q" or key=="g" or key=="e") and ui.routeWorldInteraction(key) then return end
+      if key=="q" or key=="g" or key=="e" then
+          local selected=ui.interaction
+          if ui.routeWorldInteraction(key) then
+              require("game.interaction_beacon").notifyActivated(selected)
+              return
+          end
+      end
   end
 
   local function keyreleased(key)

@@ -1,4 +1,5 @@
 local WeaponAttachment = require("game.weapon_attachment")
+local InteractionBeacon = require("game.interaction_beacon")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -271,15 +272,14 @@ local function new(context)
               love.graphics.setColor(1,1,1,.92)
               love.graphics.draw(image,trainX,trainY-8,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
           end
-          love.graphics.setColor(1,.78,.12,.78)
-          love.graphics.circle("line",trainX,trainY+math.sin(runtime.animationClock*3)*2,12)
-          love.graphics.setColor(colors.cream)
-          love.graphics.printf("Q",trainX-12,trainY-5,24,"center",0,.7,.7)
           drawStopActivity()
           drawDroppedItems()
           drawStopSludges(sludgeImages())
           drawWildlife(ensureStopLayout())
-          drawNPC(); drawPlayer(); return
+          InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          drawNPC(); drawPlayer()
+          InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          return
       end
       drawGround()
       local env=scenery.environment or {}
@@ -305,12 +305,13 @@ local function new(context)
       if treeB then local x=layout.treeB or 830; local s=180/treeB:getHeight(); local sway=math.sin(runtime.animationClock*.67+x*.019+1.7)*math.rad(.8); love.graphics.draw(treeB,x,495,sway,s,s,treeB:getWidth()/2,treeB:getHeight()) end
       if house then local s=280/house:getHeight(); love.graphics.draw(house,layout.houseX or 520,515,0,s,s,house:getWidth()/2,house:getHeight()) end
       if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
-      love.graphics.setColor(1,.78,.12,.72); love.graphics.circle("line",145,425+math.sin(runtime.animationClock*3)*2,11); love.graphics.setColor(colors.cream); love.graphics.printf("Q",133,421,24,"center",0,.7,.7)
       drawStopActivity()
       drawDroppedItems()
       drawStopSludges(sludgeImages())
       drawWildlife(layout)
+      InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
       drawNPC(); drawPlayer()
+      InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
   end
 
   local function drawHouse()
@@ -325,7 +326,10 @@ local function new(context)
           love.graphics.setColor(0.63,0.48,0.29); love.graphics.rectangle("fill",125,225,710,405)
           if scenery.homeTexture then love.graphics.setColor(1,1,1); love.graphics.draw(scenery.homeTexture,125,225,0,710/scenery.homeTexture:getWidth(),405/scenery.homeTexture:getHeight()) end
       end
-      drawDroppedItems(); drawNPC(); drawPlayer()
+      drawDroppedItems()
+      InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+      drawNPC(); drawPlayer()
+      InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
   end
   
   local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
@@ -335,7 +339,9 @@ local function new(context)
       end
       drawTrainCar(focusIndex); drawDroppedItems(focusIndex); drawPassengers(focusIndex)
       if playerCar==focusIndex then
+          InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
           love.graphics.push(); love.graphics.translate((playerX or runtime.player.x)-runtime.player.x,(playerY or runtime.player.y)-runtime.player.y); drawPlayer(); love.graphics.pop()
+          InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
       end
       love.graphics.pop()
   end

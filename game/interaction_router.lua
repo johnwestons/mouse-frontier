@@ -95,6 +95,12 @@ function InteractionRouter.keyAction(ctx,key)
 end
 
 function InteractionRouter.mouseAction(selected,button)
+    if button==1 and selected and selected.hovered then
+        local qKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,stopActivity=true,returnTrain=true}
+        local eKinds={mailbox=true,chest=true,item=true,fire=true}
+        if qKinds[selected.kind] then return "routeKey","q" end
+        if eKinds[selected.kind] then return "routeKey","e" end
+    end
     if button==2 and selected and (selected.kind=="chest" or selected.kind=="mailbox") then
         return "openStorage",selected.index
     end
