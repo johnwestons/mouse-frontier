@@ -4,6 +4,8 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 
 Latest completion: stop activities now gain settled-farm, drylands, and ashlands variants. Later regions require more successful decisions, the final region permits fewer mistakes, and the palettes plus target layouts change through the same shared desktop/mobile implementation.
 
+Goodwill for those authored activities now scales with their length: 1/2 points for successful/flawless early runs, 2/3 in the middle band, and 3/4 in the late band. Short instant chores keep their original rewards.
+
 ## 1. Stop activities, help requests, and goodwill — Complete
 
 - Give stops meaningful activities beyond looting.

@@ -276,12 +276,15 @@ local function install(context)
             end},
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
-                    and result.goodwill==1 and result.persistent and result.foodProtected and result.curve=="stop-world-variety-v2"
+                    and result.goodwill==1 and result.midGoodwill==2 and result.lateExceptional==4
+                    and result.persistent and result.foodProtected and result.curve=="stop-world-variety-v3"
                     and result.minigames.ready and result.minigames.registered==4 and result.minigames.curve=="activity-minigames-v3"
                     and result.minigames.difficulty.ready and result.minigames.difficulty.bands==3
                     and result.minigames.difficulty.earlyRounds==3 and result.minigames.difficulty.midRounds==4
                     and result.minigames.difficulty.lateRounds==5 and result.minigames.difficulty.lateMistakes==2
-                    and result.minigames.difficulty.visualVariants==3 and result.minigames.difficulty.curve=="activity-difficulty-v1"
+                    and result.minigames.difficulty.earlyGoodwill==1 and result.minigames.difficulty.midGoodwill==2
+                    and result.minigames.difficulty.lateGoodwill==3 and result.minigames.difficulty.lateExceptional==4
+                    and result.minigames.difficulty.visualVariants==3 and result.minigames.difficulty.curve=="activity-difficulty-v2"
                     and result.minigames.sludge.stages==3 and result.minigames.sludge.earlyAbsorbs==3
                     and result.minigames.sludge.lateAbsorbs==5 and result.minigames.sludge.lateMistakes==2
                     and result.minigames.sludge.persistent and result.minigames.sludge.keyboard and result.minigames.sludge.touch

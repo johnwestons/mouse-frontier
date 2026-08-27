@@ -4,6 +4,8 @@ Stop help now uses one persistent domain model across Windows and Android. Item 
 
 Authored community activities share a three-band progression profile. Stops 1–16 use three rounds and three allowed mistakes, stops 17–33 use four rounds and three mistakes, and stops 34–50 use five rounds with two allowed mistakes. Each band also supplies a regional palette and target arrangement, with mouse and touch hit areas following the visible positions. Sludge containment, track clearing, garden rescue, and wildlife trough care remain separate modules while consuming this one shared rule.
 
+Goodwill follows the added commitment: a completed authored minigame awards 1, 2, or 3 goodwill in the early, middle, or late band. A flawless completion adds one more point, producing exceptional rewards of 2, 3, or 4. Quick one-step community chores retain their original 1-point successful and 2-point exceptional rewards. Rewards remain positive-only and pass through the existing exactly-once claim guard.
+
 ## Lifecycle
 
 Every session moves through the same save-safe states:

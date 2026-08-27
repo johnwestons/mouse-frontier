@@ -1,5 +1,6 @@
 local Activities={}
 local HelpQuest=require("game.help_quest_session")
+local Difficulty=require("game.activity_difficulty")
 
 Activities.version=1
 Activities.order={"water-pump","community-garden","wildlife-trough","track-debris","sludge-seep"}
@@ -16,6 +17,14 @@ Activities.profiles={
 }
 
 local anchors={{x=315,y=505},{x=470,y=455},{x=625,y=520},{x=770,y=475},{x=545,y=600}}
+local minigames={
+    ["sludge-seep"]="sludge-containment",["track-debris"]="track-debris-clearing",
+    ["community-garden"]="garden-rescue",["wildlife-trough"]="wildlife-trough-care",
+}
+
+local function goodwillFor(kind,location)
+    return minigames[kind] and Difficulty.goodwill(location) or {assisted=1,successful=1,exceptional=2}
+end
 
 function Activities.kindFor(location)
     location=math.max(1,math.floor(tonumber(location) or 1))
@@ -34,7 +43,7 @@ function Activities.ensure(data,layout,location,settlements)
         if existingProfile then
             local quest=HelpQuest.ensure(data,{source="community-"..layout.worldActivity.kind,kind="settlement-activity",mode="minigame",
                 npc=layout.worldActivity.npc,location=location,title=existingProfile.label,objective=existingProfile.description,stageCount=3,
-                goodwill={assisted=1,successful=1,exceptional=2}})
+                goodwill=goodwillFor(layout.worldActivity.kind,location)})
             layout.worldActivity.sessionId=quest.id
             if layout.worldActivity.completed then HelpQuest.importResolved(data,quest.id,"successful",existingProfile.label.." was already completed.") end
         end
@@ -50,7 +59,7 @@ function Activities.ensure(data,layout,location,settlements)
         npc=layout.npcOutside or layout.npc or data.currentNPC}
     local profile=Activities.profiles[kind]
     local quest=HelpQuest.ensure(data,{source="community-"..kind,kind="settlement-activity",mode="minigame",npc=layout.worldActivity.npc,
-        location=location,title=profile.label,objective=profile.description,stageCount=3,goodwill={assisted=1,successful=1,exceptional=2}})
+        location=location,title=profile.label,objective=profile.description,stageCount=3,goodwill=goodwillFor(kind,location)})
     layout.worldActivity.sessionId=quest.id
     return layout.worldActivity
 end
@@ -79,10 +88,7 @@ function Activities.complete(data,layout,StopHelp,options)
             return {completed=false,missing=resource,message="This task needs "..amount.." "..resource.." supply.",session=session}
         end
     end
-    local minigameKind=activity.kind=="sludge-seep" and "sludge-containment"
-        or (activity.kind=="track-debris" and "track-debris-clearing")
-        or (activity.kind=="community-garden" and "garden-rescue")
-        or (activity.kind=="wildlife-trough" and "wildlife-trough-care") or nil
+    local minigameKind=minigames[activity.kind]
     if minigameKind and not (options and options.minigameComplete) then
         local objectives={
             ["sludge-containment"]="Place a downstream barrier around the seep.",
@@ -188,11 +194,19 @@ function Activities.audit(StopHelp)
     local supplied=Activities.complete(wildlifeData,wildlifeLayout,StopHelp,{minigameComplete=true})
     local foodProtected=wildlife.kind=="wildlife-trough" and missing.missing=="food" and not missing.requiresMinigame
         and offered.requiresMinigame=="wildlife-trough-care" and foodBeforeCompletion==1 and wildlifeData.resources.food==0 and supplied.completed
+    local midData={location=17,resources={food=1},scrap=0,health=6,goodwill=0,helpHistory={},currentNPC="mid.png"}
+    local midLayout={}; Activities.ensure(midData,midLayout,17,settlements)
+    local midResult=Activities.complete(midData,midLayout,StopHelp,{minigameComplete=true,grade="successful"})
+    local lateData={location=34,resources={food=1},scrap=0,health=6,goodwill=0,helpHistory={},currentNPC="late.png"}
+    local lateLayout={}; Activities.ensure(lateData,lateLayout,34,settlements)
+    local lateResult=Activities.complete(lateData,lateLayout,StopHelp,{minigameComplete=true,grade="exceptional"})
     return {ready=repeatProtected and slow<1 and secondSlow<1 and event and event.damage==1 and not secondEvent
             and data.health==5 and result.completed and result.gained==1 and data.goodwill==1 and persistent
-            and session and session.state=="resolved" and session.rewardClaimed and foodProtected,
+            and session and session.state=="resolved" and session.rewardClaimed and foodProtected
+            and midResult.gained==2 and midData.goodwill==2 and lateResult.gained==4 and lateData.goodwill==4,
         repeatProtected=repeatProtected,profileCount=#Activities.order,damage=event and event.damage,
-        goodwill=data.goodwill,persistent=persistent,foodProtected=foodProtected,curve="stop-world-variety-v2"}
+        goodwill=data.goodwill,midGoodwill=midResult.gained,lateExceptional=lateResult.gained,
+        persistent=persistent,foodProtected=foodProtected,curve="stop-world-variety-v3"}
 end
 
 return Activities
