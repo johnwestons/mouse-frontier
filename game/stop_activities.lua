@@ -1,4 +1,5 @@
 local Activities={}
+local HelpQuest=require("game.help_quest_session")
 
 Activities.version=1
 Activities.order={"water-pump","community-garden","wildlife-trough","track-debris","sludge-seep"}
@@ -29,6 +30,14 @@ function Activities.ensure(data,layout,location,settlements)
     if layout.worldActivity and layout.worldActivity.version==Activities.version then
         local existingProfile=Activities.profiles[layout.worldActivity.kind]
         layout.worldActivity.label=existingProfile and existingProfile.label or layout.worldActivity.label
+        layout.worldActivity.npc=layout.worldActivity.npc or layout.npcOutside or layout.npc or data.currentNPC
+        if existingProfile then
+            local quest=HelpQuest.ensure(data,{source="community-"..layout.worldActivity.kind,kind="settlement-activity",mode="minigame",
+                npc=layout.worldActivity.npc,location=location,title=existingProfile.label,objective=existingProfile.description,stageCount=3,
+                goodwill={assisted=1,successful=1,exceptional=2}})
+            layout.worldActivity.sessionId=quest.id
+            if layout.worldActivity.completed then HelpQuest.importResolved(data,quest.id,"successful",existingProfile.label.." was already completed.") end
+        end
         return layout.worldActivity
     end
     local kind=Activities.kindFor(location)
@@ -37,7 +46,12 @@ function Activities.ensure(data,layout,location,settlements)
     local offsetY=((location*23)%35)-17
     local x,y=anchor.x+offsetX,anchor.y+offsetY
     if settlements and settlements.clamp then x,y=settlements.clamp(x,y,location) end
-    layout.worldActivity={version=Activities.version,kind=kind,label=Activities.profiles[kind].label,x=x,y=y,completed=false,hazardTriggered=false}
+    layout.worldActivity={version=Activities.version,kind=kind,label=Activities.profiles[kind].label,x=x,y=y,completed=false,hazardTriggered=false,
+        npc=layout.npcOutside or layout.npc or data.currentNPC}
+    local profile=Activities.profiles[kind]
+    local quest=HelpQuest.ensure(data,{source="community-"..kind,kind="settlement-activity",mode="minigame",npc=layout.worldActivity.npc,
+        location=location,title=profile.label,objective=profile.description,stageCount=3,goodwill={assisted=1,successful=1,exceptional=2}})
+    layout.worldActivity.sessionId=quest.id
     return layout.worldActivity
 end
 
@@ -56,10 +70,13 @@ function Activities.complete(data,layout,StopHelp)
     local profile=Activities.profile(activity)
     if not activity or not profile then return {completed=false,message="There is no community task here."} end
     if activity.completed then return {completed=true,already=true,message="This community task is already finished."} end
+    local session=activity.sessionId and HelpQuest.get(data,activity.sessionId)
+    if session then HelpQuest.accept(data,session.id) end
     data.resources=data.resources or {}
     for resource,amount in pairs(profile.cost or {}) do
         if (data.resources[resource] or 0)<amount then
-            return {completed=false,missing=resource,message="This task needs "..amount.." "..resource.." supply."}
+            if session then HelpQuest.investigate(data,session.id,"Bring "..amount.." "..resource.." supply to this task.") end
+            return {completed=false,missing=resource,message="This task needs "..amount.." "..resource.." supply.",session=session}
         end
     end
     for resource,amount in pairs(profile.cost or {}) do data.resources[resource]=(data.resources[resource] or 0)-amount end
@@ -67,12 +84,20 @@ function Activities.complete(data,layout,StopHelp)
         if resource=="scrap" then data.scrap=math.max(0,tonumber(data.scrap) or 0)+amount
         else data.resources[resource]=math.max(0,tonumber(data.resources[resource]) or 0)+amount end
     end
+    if session then HelpQuest.activate(data,session.id,"Finish the community task.") end
     activity.completed=true; activity.completedAt=data.location; activity.hazardCleared=true
-    local gained,total=StopHelp.add(data,1,"settlement-activity",data.currentNPC,data.location)
+    local gained,total
+    if session then
+        HelpQuest.resolve(data,session.id,"successful",profile.label.." completed.")
+        local claimed=HelpQuest.claim(data,session.id,function(amount,kind,npc,questLocation)
+            return StopHelp.add(data,amount,kind,npc,questLocation)
+        end)
+        gained,total=claimed.gained,claimed.total
+    else gained,total=StopHelp.add(data,1,"settlement-activity",data.currentNPC,data.location) end
     local reward={}
     for resource,amount in pairs(profile.reward or {}) do reward[#reward+1]="+"..amount.." "..resource end
     local suffix=#reward>0 and ("  "..table.concat(reward,", ")) or ""
-    return {completed=true,gained=gained,total=total,kind=activity.kind,wildlife=profile.wildlife,
+    return {completed=true,gained=gained,total=total,kind=activity.kind,wildlife=profile.wildlife,session=session,
         message=profile.label.." complete. +"..gained.." goodwill"..suffix.."."}
 end
 
@@ -139,8 +164,10 @@ function Activities.audit(StopHelp)
     local secondSlow,secondEvent=Activities.update(data,layout,{x=activity.x,y=activity.y})
     local result=Activities.complete(data,layout,StopHelp)
     local persistent=Activities.ensure(data,layout,1,settlements)==activity and activity.completed
+    local session=HelpQuest.get(data,activity.sessionId)
     return {ready=repeatProtected and slow<1 and secondSlow<1 and event and event.damage==1 and not secondEvent
-            and data.health==5 and result.completed and result.gained==1 and data.goodwill==1 and persistent,
+            and data.health==5 and result.completed and result.gained==1 and data.goodwill==1 and persistent
+            and session and session.state=="resolved" and session.rewardClaimed,
         repeatProtected=repeatProtected,profileCount=#Activities.order,damage=event and event.damage,
         goodwill=data.goodwill,persistent=persistent,curve="stop-world-variety-v1"}
 end

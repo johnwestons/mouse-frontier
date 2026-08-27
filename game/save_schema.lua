@@ -1,8 +1,9 @@
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
+local HelpQuestSession = require("game.help_quest_session")
 
 local SaveSchema = {
-    CURRENT_VERSION = 29,
+    CURRENT_VERSION = 30,
     LEGACY_VERSION = 1,
 }
 
@@ -12,7 +13,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale",
+    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions",
 }
 
 local function finiteNumber(value)
@@ -41,6 +42,7 @@ local function validateShape(data)
     end
     if data.character~=nil and type(data.character)~="string" then return false,"character must be text" end
     if data.scene~=nil and type(data.scene)~="string" then return false,"scene must be text" end
+    if data.activeHelpQuestId~=nil and type(data.activeHelpQuestId)~="string" then return false,"activeHelpQuestId must be text" end
     for _,field in ipairs({"droppedItems","passengers"}) do
         for key,value in pairs(data[field] or {}) do
             if type(key)~="number" or type(value)~="table" then return false,field.." contains an invalid entry" end
@@ -110,6 +112,7 @@ local function ensureRootTables(data)
     data.audio.musicPaused=data.audio.musicPaused==true
     data.audio.musicMuted=data.audio.musicMuted==true
     Accessibility.ensure(data)
+    HelpQuestSession.ensureData(data)
     for _,item in pairs(data.droppedItems) do
         item.scene=type(item.scene)=="string" and item.scene or "train"
         if item.scene=="train" then item.carIndex=math.max(1,math.floor(nonnegative(item.carIndex,1)))

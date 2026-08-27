@@ -19,6 +19,8 @@ Run `BUILD_ANDROID.ps1` to derive the current shared game into a phone-sized pac
 
 Before a release, follow [FINAL_PARITY_AUDIT.md](FINAL_PARITY_AUDIT.md) to compare every shared desktop/mobile checkpoint, verify the full route, install the exact clean commit on Android, and confirm an on-device launch.
 
+Stop-help minigames and dialogue quests use the persistent lifecycle described in [HELP_QUEST_FRAMEWORK.md](HELP_QUEST_FRAMEWORK.md), including resumable progress and exactly-once goodwill rewards.
+
 Android controls, installation, update flow, and device verification are documented in [ANDROID_PORT.md](ANDROID_PORT.md). The deliberately small platform boundary is recorded in [MOBILE_ARCHITECTURE_DECISION.md](MOBILE_ARCHITECTURE_DECISION.md).
 
 ## Controls

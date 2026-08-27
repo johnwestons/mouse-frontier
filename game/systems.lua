@@ -20,6 +20,7 @@ return {
     gameplayHUD = require("game.gameplay_hud"),
     gameplayInput = require("game.gameplay_input"),
     gameplayUpdate = require("game.gameplay_update"),
+    helpQuestSession = require("game.help_quest_session"),
     inputComposition = require("game.input_composition"),
     interactions = require("game.interaction_router"),
     intro = require("game.intro_cinematic"),

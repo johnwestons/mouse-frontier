@@ -66,7 +66,7 @@ function Stops.ensure(data,catalog,scene)
             layout.npcOffers[npc]="trade"
         else layout.npcOffers[npc]=kind or "none" end
         local assigned=layout.npcOffers[npc]
-        if assigned=="item" or assigned=="aid" then StopHelpProgression.ensureRequest(layout,npc,assigned,data.location) end
+        if assigned=="item" or assigned=="aid" then StopHelpProgression.ensureRequest(layout,npc,assigned,data.location,data) end
     end
     if (layout.offerPolicyVersion or 0)<StopHelpProgression.policyVersion then
         layout.npcOffers={}; layout.helpRequests=layout.helpRequests or {}
@@ -76,7 +76,7 @@ function Stops.ensure(data,catalog,scene)
         if layout.npcOffers[layout.npcOutside]==nil then assignOffer(layout.npcOutside,offerRoll(data.location)) end
         if layout.npcOffers[layout.npcInside]==nil then assignOffer(layout.npcInside,"none") end
         for npc,kind in pairs(layout.npcOffers) do
-            if kind=="item" or kind=="aid" then StopHelpProgression.ensureRequest(layout,npc,kind,data.location) end
+            if kind=="item" or kind=="aid" then StopHelpProgression.ensureRequest(layout,npc,kind,data.location,data) end
         end
     end
     layout.offer=layout.npcOffers[layout.npcOutside] or layout.offer or "none"

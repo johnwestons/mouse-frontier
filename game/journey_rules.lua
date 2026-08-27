@@ -19,6 +19,7 @@ local function new(context)
   local QuestProgression=required(context,"questProgression","table")
   local LootProgression=required(context,"lootProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local HelpQuestSession=required(context,"helpQuestSession","table")
   local NpcRelationships=required(context,"npcRelationships","table")
   local FirstAid=required(context,"firstAid","table")
   local BattleRules=required(context,"battleRules","table")
@@ -128,12 +129,17 @@ local function new(context)
 
   local function beginFirstAid(request)
       request.accepted=true
+      local quest=request.sessionId and HelpQuestSession.get(runtime.saveData,request.sessionId)
+      if quest then HelpQuestSession.accept(runtime.saveData,quest.id) end
       local slot,name=StopHelpProgression.medicalItem(runtime.saveData,Catalog)
       if not slot then
+          if quest then HelpQuestSession.investigate(runtime.saveData,quest.id,"Find a medical supply and return to the wounded critter.") end
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text="I still need help, but you need a bandage, salve, tonic, splint, or medkit to treat this wound.",timer=6}
           return false
       end
-      runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location})
+      if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Treat the wound without using all three attempts.") end
+      runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location,
+          helpQuestId=quest and quest.id,progress=quest and quest.progress})
       runtime.dialogue=nil
       return true
   end
@@ -185,8 +191,13 @@ local function new(context)
           local result=StopHelpProgression.completeAid(runtime.saveData,request,session,session.npc,session.location)
           if result.completed then runtime.dialogue={speaker=speaker,text="You patched me up. I won't forget this. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
           else runtime.dialogue={speaker=speaker,text="The medical supply went missing before the treatment was finished. We can try again.",timer=6} end
-      elseif outcome=="failed" then runtime.dialogue={speaker=speaker,text="That did not work, but thank you for trying. We can try again when you're ready.",timer=6}
-      else runtime.dialogue={speaker=speaker,text="We can try the treatment again when you're ready.",timer=5} end
+      elseif outcome=="failed" then
+          if session.helpQuestId then HelpQuestSession.retry(runtime.saveData,session.helpQuestId,"Return to the wounded critter to try treatment again.") end
+          runtime.dialogue={speaker=speaker,text="That did not work, but thank you for trying. We can try again when you're ready.",timer=6}
+      else
+          if session.helpQuestId then HelpQuestSession.pause(runtime.saveData,session.helpQuestId,"Return to the wounded critter to continue treatment.") end
+          runtime.dialogue={speaker=speaker,text="We can continue the treatment when you're ready.",timer=5}
+      end
       writeSave(); return true
   end
 
@@ -272,11 +283,19 @@ local function new(context)
     upgradeBalanceAudit=function() return TrainUpgradeBalance.audit(EngineUpgrades) end,
     questBalanceAudit=function() return QuestProgression.audit(Catalog,LootProgression,Passengers,Inventory) end,
     helpBalanceAudit=function()
-        local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.ready=result.ready and result.firstAid.ready
+        local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.session=HelpQuestSession.audit()
+        result.ready=result.ready and result.firstAid.ready and result.session.ready
         return result
     end,
     relationshipAudit=function() return NpcRelationships.audit() end,
-    questSummary=function() return QuestProgression.summary(runtime.saveData) end,
+    questSummary=function()
+        local ordinary=QuestProgression.summary(runtime.saveData)
+        local help=HelpQuestSession.summary(runtime.saveData)
+        local objectives={}
+        for _,session in ipairs(help.sessions) do objectives[#objectives+1]={kind="help",destination=session.location,label=session.title..": "..session.objective,sessionId=session.id} end
+        for _,objective in ipairs(ordinary.objectives) do objectives[#objectives+1]=objective end
+        return {count=#objectives,first=objectives[1] and objectives[1].label or nil,objectives=objectives,help=help}
+    end,
     processPassengerArrivals=processPassengerArrivals,
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,

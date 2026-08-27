@@ -9,18 +9,28 @@ FirstAid.sequences={{1,2,3},{2,3,1},{3,1,2},{1,3,2},{2,1,3},{3,2,1}}
 
 function FirstAid.new(options)
     options=options or {}; local location=math.max(1,math.floor(tonumber(options.location) or 1))
+    local progress=type(options.progress)=="table" and options.progress or {}
+    progress.stage=math.max(1,math.floor(tonumber(progress.stage) or 1))
+    progress.misses=math.max(0,math.floor(tonumber(progress.misses) or 0))
     return {npc=options.npc,itemName=options.itemName,itemSlot=options.itemSlot,location=location,
-        sequence=FirstAid.sequences[((location-1)%#FirstAid.sequences)+1],stage=1,misses=0,maximumMisses=3}
+        helpQuestId=options.helpQuestId,progress=progress,sequence=FirstAid.sequences[((location-1)%#FirstAid.sequences)+1],
+        stage=progress.stage,misses=progress.misses,maximumMisses=3}
+end
+
+local function sync(session)
+    if session and session.progress then session.progress.stage=session.stage; session.progress.misses=session.misses end
 end
 
 function FirstAid.choose(session,index)
     if not session then return nil end
     if index==session.sequence[session.stage] then
         session.stage=session.stage+1
+        sync(session)
         if session.stage>#session.sequence then return "complete" end
         return "progress"
     end
     session.misses=session.misses+1
+    sync(session)
     if session.misses>=session.maximumMisses then return "failed" end
     return "miss"
 end
@@ -32,6 +42,7 @@ function FirstAid.mousepressed(session,x,y)
         if dx*dx+dy*dy<=46*46 then return FirstAid.choose(session,index) end
     end
     session.misses=session.misses+1
+    sync(session)
     return session.misses>=session.maximumMisses and "failed" or "miss"
 end
 

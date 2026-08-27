@@ -1,6 +1,6 @@
 # Accessibility and Mobile Controls
 
-Mouse Frontier uses one accessibility system in the shared Windows and Android Lua source. Preferences are stored with each journey and are added safely to older saves by save schema version 29.
+Mouse Frontier uses one accessibility system in the shared Windows and Android Lua source. Preferences were added safely in save schema version 29 and remain preserved by the current version 30 schema.
 
 ## Settings
 

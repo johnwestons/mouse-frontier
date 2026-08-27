@@ -1,4 +1,5 @@
 local Relationships=require("game.npc_relationships")
+local HelpQuest=require("game.help_quest_session")
 local StopHelp={}
 
 StopHelp.policyVersion=3
@@ -20,6 +21,7 @@ function StopHelp.ensure(data)
     data.goodwill=math.max(0,math.floor(tonumber(data.goodwill) or 0))
     data.helpHistory=type(data.helpHistory)=="table" and data.helpHistory or {}
     Relationships.ensureData(data)
+    HelpQuest.ensureData(data)
     return data.goodwill,data.helpHistory
 end
 
@@ -45,7 +47,7 @@ function StopHelp.add(data,amount,kind,npc,location)
     return gained,data.goodwill,StopHelp.tier(data.goodwill)
 end
 
-function StopHelp.ensureRequest(layout,npc,kind,location)
+function StopHelp.ensureRequest(layout,npc,kind,location,data)
     layout.helpRequests=layout.helpRequests or {}
     if kind~="item" and kind~="aid" then return nil end
     local request=layout.helpRequests[npc]
@@ -60,6 +62,17 @@ function StopHelp.ensureRequest(layout,npc,kind,location)
             request.goodwill=3
         end
         layout.helpRequests[npc]=request
+    end
+    if data then
+        local title=kind=="aid" and "TREAT A WOUNDED CRITTER" or "BRING A NEEDED ITEM"
+        local objective=kind=="aid" and "Talk to the wounded critter and offer treatment."
+            or ("Find "..(request.label or request.item or "the requested item")..".")
+        local quest=HelpQuest.ensure(data,{source=kind=="aid" and "first-aid" or "item-request",kind=kind,mode=kind=="aid" and "minigame" or "dialogue",
+            npc=npc,location=location,title=title,objective=objective,stageCount=kind=="aid" and 4 or 3,
+            goodwill={assisted=1,successful=request.goodwill or (kind=="aid" and 3 or 2),exceptional=(request.goodwill or 2)+1}})
+        request.sessionId=quest.id
+        if request.complete then HelpQuest.importResolved(data,quest.id,"successful","This critter was already helped.")
+        elseif request.accepted then HelpQuest.investigate(data,quest.id,objective) end
     end
     return request
 end
@@ -88,33 +101,56 @@ end
 
 function StopHelp.completeItem(data,request,npc,location)
     if not request or request.complete then return {completed=request and request.complete==true,gained=0} end
+    local session=request.sessionId and HelpQuest.get(data,request.sessionId)
+    if session then HelpQuest.accept(data,session.id) end
     local slot=StopHelp.findItem(data,request.item)
-    if not slot then return {completed=false,missing=request.item,label=request.label} end
+    if not slot then
+        if session then HelpQuest.investigate(data,session.id,"Find "..(request.label or request.item).." and return to this critter.") end
+        return {completed=false,missing=request.item,label=request.label,session=session}
+    end
+    if session then HelpQuest.activate(data,session.id,"Give the requested item to the critter.") end
     data.inventory[slot]=nil; request.accepted=true; request.complete=true
-    local gained,total,tier=StopHelp.add(data,request.goodwill or 2,"item",npc,location)
-    return {completed=true,gained=gained,total=total,tier=tier.name,item=request.item}
+    local gained,total,tier
+    if session then
+        HelpQuest.resolve(data,session.id,"successful","The requested item was delivered.")
+        local claimed=HelpQuest.claim(data,session.id,function(amount,kind,questNpc,questLocation)
+            return StopHelp.add(data,amount,kind,questNpc,questLocation)
+        end)
+        gained,total,tier=claimed.gained,claimed.total,claimed.tier
+    else gained,total,tier=StopHelp.add(data,request.goodwill or 2,"item",npc,location) end
+    return {completed=true,gained=gained,total=total,tier=tier and tier.name,item=request.item,session=session}
 end
 
 function StopHelp.completeAid(data,request,session,npc,location)
     if not request or request.complete then return {completed=request and request.complete==true,gained=0} end
     if not session or not consume(data,session.itemSlot,session.itemName) then return {completed=false,missing=session and session.itemName} end
     request.accepted=true; request.complete=true
-    local gained,total,tier=StopHelp.add(data,request.goodwill or 3,"first-aid",npc,location)
-    return {completed=true,gained=gained,total=total,tier=tier.name,item=session.itemName}
+    local quest=request.sessionId and HelpQuest.get(data,request.sessionId)
+    local gained,total,tier
+    if quest then
+        HelpQuest.resolve(data,quest.id,"successful","The wounded critter was treated.")
+        local claimed=HelpQuest.claim(data,quest.id,function(amount,kind,questNpc,questLocation)
+            return StopHelp.add(data,amount,kind,questNpc,questLocation)
+        end)
+        gained,total,tier=claimed.gained,claimed.total,claimed.tier
+    else gained,total,tier=StopHelp.add(data,request.goodwill or 3,"first-aid",npc,location) end
+    return {completed=true,gained=gained,total=total,tier=tier and tier.name,item=session.itemName,session=quest}
 end
 
 function StopHelp.audit(catalog)
-    local layout={}; local itemRequest=StopHelp.ensureRequest(layout,"settler.png","item",4)
-    local aidRequest=StopHelp.ensureRequest(layout,"medic.png","aid",7)
-    local data={inventory={itemRequest.item,"field-bandage-roll"},inventoryCapacity=2,goodwill=0,helpHistory={}}
+    local layout={}; local data={inventoryCapacity=2,goodwill=0,helpHistory={},helpQuestSessions={}}
+    local itemRequest=StopHelp.ensureRequest(layout,"settler.png","item",4,data)
+    local aidRequest=StopHelp.ensureRequest(layout,"medic.png","aid",7,data)
+    data.inventory={itemRequest.item,"field-bandage-roll"}
     local itemResult=StopHelp.completeItem(data,itemRequest,"settler.png",4)
     local aidResult=StopHelp.completeAid(data,aidRequest,{itemSlot=2,itemName="field-bandage-roll"},"medic.png",7)
     local status=StopHelp.status(data); local noEvil=StopHelp.add(data,-99,"refused","nobody",1)==0 and data.goodwill==5
     local ready=itemResult.completed and aidResult.completed and status.points==5 and status.helpCount==2
         and status.tier=="Helping Hand" and data.inventory[1]==nil and data.inventory[2]==nil and noEvil
         and catalog.itemEffects["field-bandage-roll"].health>0
+        and itemResult.session and itemResult.session.rewardClaimed and aidResult.session and aidResult.session.rewardClaimed
     return {ready=ready,points=status.points,tier=status.tier,helpCount=status.helpCount,itemGoodwill=itemResult.gained,
-        aidGoodwill=aidResult.gained,noNegativeAlignment=noEvil,policyVersion=StopHelp.policyVersion,curve="goodwill-v1"}
+        aidGoodwill=aidResult.gained,noNegativeAlignment=noEvil,sessionReady=ready,policyVersion=StopHelp.policyVersion,curve="goodwill-v1"}
 end
 
 return StopHelp

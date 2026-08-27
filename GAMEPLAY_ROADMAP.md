@@ -75,6 +75,13 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Complete:** Require the full route to reach stop 50, package from a clean tracked commit, verify the APK contents and signature, install on a connected Android device, and confirm the game reaches its startup marker.
 - **Complete:** Keep the release gate repeatable with `tools/audit_platform_parity.py` and document it in `FINAL_PARITY_AUDIT.md`.
 
+## 12. Deeper help quests and authored minigames — In progress
+
+- **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and community activities now share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
+- **Planned:** Replace the placeholder first-aid sequence with wound inspection, tool choice, cleaning, pressure, treatment, and bandaging interactions.
+- **Planned:** Add sprite-driven water-pump repair, sludge containment, track-debris clearing, garden rescue, and wildlife-trough activities.
+- **Planned:** Add branching investigation and conversation quests with persistent evidence, compassionate choices, relationship-aware follow-ups, and multiple positive resolutions.
+
 ## Mobile parity contract
 
 Android is not a later port. `BUILD_ANDROID.ps1` packages the same tracked Lua tree used by the desktop build. Each completed target must produce a package report whose `sourceCommit` matches the new commit and whose `sourceDirty` value is `false`.

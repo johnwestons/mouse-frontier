@@ -66,6 +66,7 @@ local function install(context)
     local audioAudit=required(context,"audioAudit","function")
     local finaleAudit=required(context,"finaleAudit","function")
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
+    local helpQuestAudit=required(context,"helpQuestAudit","function")
     local trainPresentationAudit=required(context,"trainPresentationAudit","function")
     local stopActivityAudit=required(context,"stopActivityAudit","function")
     local relationshipAudit=required(context,"relationshipAudit","function")
@@ -262,7 +263,12 @@ local function install(context)
                         and result.points==5 and result.helpCount==2 and result.itemGoodwill==2 and result.aidGoodwill==3
                         and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
                         and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
+                        and result.session.ready and result.session.rewardOnce and result.session.persistent
                 end},
+            {name="help_quest_session_lifecycle",action=helpQuestAudit,check=function(_,_,_,result)
+                return result.ready and result.states==5 and result.grades==3 and result.persistent
+                    and result.rewardOnce and result.curve=="help-session-v1"
+            end},
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
                     and result.goodwill==1 and result.persistent and result.curve=="stop-world-variety-v1"
