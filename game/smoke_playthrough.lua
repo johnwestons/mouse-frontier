@@ -277,9 +277,13 @@ local function install(context)
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
                     and result.goodwill==1 and result.persistent and result.curve=="stop-world-variety-v1"
-                    and result.sludge.ready and result.sludge.stages==3 and result.sludge.maximumMistakes==3
-                    and result.sludge.persistent and result.sludge.keyboard and result.sludge.touch
-                    and result.sludge.curve=="sludge-containment-v1"
+                    and result.minigames.ready and result.minigames.registered==2 and result.minigames.curve=="activity-minigames-v1"
+                    and result.minigames.sludge.stages==3 and result.minigames.sludge.maximumMistakes==3
+                    and result.minigames.sludge.persistent and result.minigames.sludge.keyboard and result.minigames.sludge.touch
+                    and result.minigames.sludge.curve=="sludge-containment-v1"
+                    and result.minigames.track.stages==3 and result.minigames.track.decisions==9
+                    and result.minigames.track.maximumMistakes==3 and result.minigames.track.persistent
+                    and result.minigames.track.keyboard and result.minigames.track.touch and result.minigames.track.curve=="track-debris-v1"
             end},
             {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
                 return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10

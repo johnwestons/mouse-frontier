@@ -82,8 +82,8 @@ local function new(context)
   local repairEquipped=required(context,"repairEquipped","function")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
-  local SludgeContainment=required(context,"sludgeContainment","table")
-  local resolveSludgeContainment=required(context,"resolveSludgeContainment","function")
+  local ActivityMinigames=required(context,"activityMinigames","table")
+  local resolveActivityMinigame=required(context,"resolveActivityMinigame","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local chooseFinale=required(context,"chooseFinale","function")
   local completeStopActivity=required(context,"completeStopActivity","function")
@@ -344,10 +344,10 @@ local function new(context)
           end
           return
       end
-      if runtime.sludgeContainment then
+      if runtime.activityMinigame then
           if button==1 then
-              local sludgeX,sludgeY=screenToGame(x,y); local outcome=SludgeContainment.mousepressed(runtime.sludgeContainment,sludgeX,sludgeY)
-              if outcome then resolveSludgeContainment(outcome) end
+              local activityX,activityY=screenToGame(x,y); local outcome=ActivityMinigames.mousepressed(runtime.activityMinigame,activityX,activityY)
+              if outcome then resolveActivityMinigame(outcome) end
           end
           return
       end
@@ -443,9 +443,9 @@ local function new(context)
           if outcome=="complete" or outcome=="failed" or outcome=="cancelled" then resolveFirstAid(outcome) end
           return true
       end
-      if runtime.sludgeContainment then
-          local outcome=SludgeContainment.keypressed(runtime.sludgeContainment,key)
-          if outcome then resolveSludgeContainment(outcome) end
+      if runtime.activityMinigame then
+          local outcome=ActivityMinigames.keypressed(runtime.activityMinigame,key)
+          if outcome then resolveActivityMinigame(outcome) end
           return true
       end
       if maintenanceSession.open then

@@ -54,6 +54,9 @@ local function new(context)
   local content=Modules.contentRegistry.new({filesystem=Filesystem})
   local scenery,ui=content.scenery,content.ui
   local maintenanceSession=Maintenance.new()
+  local activityMinigames=Modules.stopActivityMinigames.new({helpQuestSession=Modules.helpQuestSession,
+    sludgeContainment=Modules.sludgeContainment,trackDebrisClearing=Modules.trackDebrisClearing,
+    atlases={["sludge-containment"]=scenery.sludgeContainmentAtlas,["track-debris-clearing"]=scenery.trackDebrisAtlas}})
 
   services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,ui=ui,screens=screens,intro=Modules.intro,scenery=scenery,colors=colors,
@@ -81,7 +84,7 @@ local function new(context)
     platform=platform,content=content,runtime=runtime,ui=ui,car=car,maintenanceSession=maintenanceSession,
     filesystem=Filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
-    stopActivities=Modules.stopActivities,sludgeContainment=Modules.sludgeContainment,helpQuestSession=Modules.helpQuestSession,
+    stopActivities=Modules.stopActivities,activityMinigames=activityMinigames,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
     playerProgression=Modules.playerProgression,
     stopHelpProgression=Modules.stopHelpProgression,
@@ -136,7 +139,7 @@ local function new(context)
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     playerProgression=Modules.playerProgression,
     stopHelpProgression=Modules.stopHelpProgression,npcRelationships=Modules.npcRelationships,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,
-    sludgeContainment=Modules.sludgeContainment,
+    activityMinigames=activityMinigames,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
     clouds=Clouds,maintenance=Maintenance,
   })
@@ -149,7 +152,7 @@ local function new(context)
     inventory=Inventory,catalog=Catalog,npcRelationships=Modules.npcRelationships,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     firstAid=Modules.firstAid,resolveFirstAid=adventure.journeyRules.resolveFirstAid,chooseHelpDialogue=adventure.journeyRules.chooseHelpDialogue,
-    sludgeContainment=Modules.sludgeContainment,resolveSludgeContainment=world.worldScene.resolveSludgeContainment,
+    activityMinigames=activityMinigames,resolveActivityMinigame=world.worldScene.resolveActivityMinigame,
     finaleProgression=Modules.finaleProgression,
     intro=Modules.intro,interactions=Modules.interactions,
   })
@@ -173,7 +176,7 @@ local function new(context)
       assets=Assets,save=Save,maintenance=Maintenance,train=Train,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
       audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
       finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression,helpQuestSession=Modules.helpQuestSession,helpDialogueQuests=Modules.helpDialogueQuests,
-      stopActivities=Modules.stopActivities,sludgeContainment=Modules.sludgeContainment},
+      stopActivities=Modules.stopActivities,activityMinigames=activityMinigames},
     services=services,
     graphs={content=content,views=views,adventure=adventure,platform=platform,input=input,
       world=world,startup=startup,serviceRegistry=serviceRegistry,applicationComposition=application},

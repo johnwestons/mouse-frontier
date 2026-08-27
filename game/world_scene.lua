@@ -20,8 +20,7 @@ local function new(context)
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
   local StopActivities=required(context,"stopActivities","table")
-  local SludgeContainment=required(context,"sludgeContainment","table")
-  local HelpQuestSession=required(context,"helpQuestSession","table")
+  local ActivityMinigames=required(context,"activityMinigames","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
   local getIsWeapon=required(context,"getIsWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
@@ -129,33 +128,28 @@ local function new(context)
       local layout=ensureStopLayout(); local activity=layout.worldActivity
       if not StopActivities.near(activity,runtime.player.x,runtime.player.y) then return false end
       local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression)
-      if result.requiresMinigame=="sludge-containment" then
-          runtime.sludgeContainment=SludgeContainment.new({location=runtime.saveData.location,helpQuestId=activity.sessionId,
-              progress=result.session and result.session.progress})
-          if result.session then HelpQuestSession.activate(runtime.saveData,result.session.id,SludgeContainment.objective(runtime.sludgeContainment)) end
-      end
+      if result.requiresMinigame then runtime.activityMinigame=ActivityMinigames.begin(runtime.saveData,activity,result) end
       activityMessage=result.message; activityMessageTimer=3.2
       if result.completed then runtime.stopHazardSlow=1 end
       writeSave(); return result
   end
 
-  local function resolveSludgeContainment(outcome)
-      local minigame=runtime.sludgeContainment
+  local function resolveActivityMinigame(outcome)
+      local minigame=runtime.activityMinigame
       if not minigame then return false end
-      local layout=ensureStopLayout(); local id=minigame.helpQuestId
+      local layout=ensureStopLayout()
       if outcome=="complete" then
           local grade=minigame.progress.mistakes==0 and "exceptional" or "successful"
-          local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression,{contained=true,grade=grade})
-          activityMessage=result.message; activityMessageTimer=4; runtime.stopHazardSlow=1; runtime.sludgeContainment=nil
+          local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression,{minigameComplete=true,grade=grade})
+          activityMessage=result.message; activityMessageTimer=4; runtime.stopHazardSlow=1; runtime.activityMinigame=nil
       elseif outcome=="failed" then
-          if id then HelpQuestSession.retry(runtime.saveData,id,"Return to the seep to try containment again.") end
-          activityMessage="The barrier slipped. The supplies were recovered; try again."; activityMessageTimer=4; runtime.sludgeContainment=nil
+          ActivityMinigames.retry(runtime.saveData,minigame)
+          activityMessage=minigame.failureMessage or "The attempt ended safely. Try again."; activityMessageTimer=4; runtime.activityMinigame=nil
       elseif outcome=="cancelled" then
-          if id then HelpQuestSession.pause(runtime.saveData,id,"Return to the seep to continue containment.") end
-          activityMessage="Containment paused. Your progress is saved."; activityMessageTimer=3; runtime.sludgeContainment=nil
+          ActivityMinigames.pause(runtime.saveData,minigame)
+          activityMessage=minigame.pauseMessage or "Activity paused. Your progress is saved."; activityMessageTimer=3; runtime.activityMinigame=nil
       else
-          if id then HelpQuestSession.progress(runtime.saveData,id,minigame.phase,SludgeContainment.objective(minigame),{
-              phase=minigame.progress.phase,step=minigame.progress.step,mistakes=minigame.progress.mistakes,barrierTarget=minigame.progress.barrierTarget}) end
+          ActivityMinigames.sync(runtime.saveData,minigame)
       end
       writeSave(); return true
   end
@@ -188,7 +182,7 @@ local function new(context)
       drawStopActivity=drawStopActivity,
       currentStopActivity=currentStopActivity,
       completeStopActivity=completeStopActivity,
-      resolveSludgeContainment=resolveSludgeContainment,
+      resolveActivityMinigame=resolveActivityMinigame,
       drawWildlife=drawWildlife,
   }
 end

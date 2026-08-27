@@ -24,8 +24,7 @@ local function new(context)
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
   local FirstAid=required(context,"firstAid","table")
-  local SludgeContainment=required(context,"sludgeContainment","table")
-  local sludgeContainmentAtlas=context.sludgeContainmentAtlas
+  local ActivityMinigames=required(context,"activityMinigames","table")
   local Util=required(context,"util","table")
   local Train=required(context,"train","table")
   local button=required(context,"button","function")
@@ -269,7 +268,7 @@ local function new(context)
           Maintenance.draw(maintenanceSession,runtime.saveData)
       end
       if runtime.firstAid then FirstAid.draw(runtime.firstAid,colors) end
-      if runtime.sludgeContainment then SludgeContainment.draw(runtime.sludgeContainment,colors,sludgeContainmentAtlas,runtime.animationClock) end
+      if runtime.activityMinigame then ActivityMinigames.draw(runtime.activityMinigame,colors,runtime.animationClock) end
   end
 
   return {draw=drawGame}

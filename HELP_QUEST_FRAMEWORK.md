@@ -43,6 +43,14 @@ The sludge-seep stop activity now opens a three-stage visual session instead of 
 
 Correct steps and mistakes are written into the session after every input. **1–3**, mouse clicks, and touch activate the same targets; **Q/Escape** pauses without discarding progress. Three mistakes end that attempt but consume no resources or goodwill and leave the quest available for a clean retry. Completion clears the damaging slow hazard and awards the normal activity reward exactly once; a mistake-free containment earns the exceptional two-goodwill grade.
 
+## Track-debris clearing
+
+Sharp track debris also uses a three-stage visual session. First, the player marks three unstable piles from the pulsing safe edge inward. Next, each obstruction must be matched to work gloves, a pry bar, or the magnetic spike sweep. Finally, recovered timber, metal, and sharps are routed to their safe destinations before the path reopens. This produces nine decisions rather than an instant completion.
+
+Inspection order, current obstruction, sorting progress, and mistakes persist after every input. The same **1–3**, mouse, touch, pause, retry, exceptional-grade, hazard-clearing, and exactly-once reward rules used by sludge containment apply here. Its generated transparent atlas contains the gloves, pry bar, magnetic sweep, and salvage cart.
+
+Both activities are independent rule/render modules registered through `stop_activity_minigames.lua`. World, HUD, and input code talk only to that coordinator, keeping activity-specific logic out of `main.lua` and preventing a new platform branch for each future minigame.
+
 ## Verification
 
-The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies all three sludge stages, persistence, clean completion, the three-mistake retry boundary, keyboard input, and touch input. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.
+The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies all three sludge and track-clearing stages, nine track decisions, persistence, clean completion, the three-mistake retry boundary, keyboard input, touch input, and both coordinator registrations. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.

@@ -44,7 +44,7 @@ local function new(context)
   local StopHelpProgression=required(domain,"domain","stopHelpProgression","table")
   local HelpQuestSession=required(domain,"domain","helpQuestSession","table")
   local StopActivities=required(domain,"domain","stopActivities","table")
-  local SludgeContainment=required(domain,"domain","sludgeContainment","table")
+  local ActivityMinigames=required(domain,"domain","activityMinigames","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
@@ -86,8 +86,8 @@ local function new(context)
       trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
       stopActivityAudit=function()
-        local result=StopActivities.audit(StopHelpProgression); result.sludge=SludgeContainment.audit()
-        result.ready=result.ready and result.sludge.ready
+        local result=StopActivities.audit(StopHelpProgression); result.minigames=ActivityMinigames.audit()
+        result.ready=result.ready and result.minigames.ready
         return result
       end,
       helpQuestAudit=function() return HelpQuestSession.audit() end,

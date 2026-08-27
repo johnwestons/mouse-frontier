@@ -23,6 +23,8 @@ return {
     helpQuestSession = require("game.help_quest_session"),
     helpDialogueQuests = require("game.help_dialogue_quests"),
     sludgeContainment = require("game.sludge_containment"),
+    trackDebrisClearing = require("game.track_debris_clearing"),
+    stopActivityMinigames = require("game.stop_activity_minigames"),
     inputComposition = require("game.input_composition"),
     interactions = require("game.interaction_router"),
     intro = require("game.intro_cinematic"),

@@ -364,6 +364,7 @@ function Assets.load(targets)
         death=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-death.png",2,2,4),
     }
     scenery.sludgeContainmentAtlas=loadImage("assets/sprites/props/sludge-containment-tools-atlas.png")
+    scenery.trackDebrisAtlas=loadImage("assets/sprites/props/track-debris-tools-atlas.png")
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
         loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end

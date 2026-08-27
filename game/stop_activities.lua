@@ -72,9 +72,11 @@ function Activities.complete(data,layout,StopHelp,options)
     if activity.completed then return {completed=true,already=true,message="This community task is already finished."} end
     local session=activity.sessionId and HelpQuest.get(data,activity.sessionId)
     if session then HelpQuest.accept(data,session.id) end
-    if activity.kind=="sludge-seep" and not (options and options.contained) then
-        if session then HelpQuest.investigate(data,session.id,"Place a downstream barrier around the seep.") end
-        return {completed=false,requiresMinigame="sludge-containment",message="Contain the seep before collecting it.",session=session}
+    local minigameKind=activity.kind=="sludge-seep" and "sludge-containment" or (activity.kind=="track-debris" and "track-debris-clearing" or nil)
+    if minigameKind and not (options and options.minigameComplete) then
+        local objective=minigameKind=="sludge-containment" and "Place a downstream barrier around the seep." or "Inspect the debris from a safe edge."
+        if session then HelpQuest.investigate(data,session.id,objective) end
+        return {completed=false,requiresMinigame=minigameKind,message=profile.description,session=session}
     end
     data.resources=data.resources or {}
     for resource,amount in pairs(profile.cost or {}) do
@@ -166,7 +168,8 @@ function Activities.audit(StopHelp)
     local layout={}; local activity=Activities.ensure(data,layout,1,settlements)
     local slow,event=Activities.update(data,layout,{x=activity.x,y=activity.y})
     local secondSlow,secondEvent=Activities.update(data,layout,{x=activity.x,y=activity.y})
-    local result=Activities.complete(data,layout,StopHelp,activity.kind=="sludge-seep" and {contained=true} or nil)
+    local minigame=activity.kind=="sludge-seep" or activity.kind=="track-debris"
+    local result=Activities.complete(data,layout,StopHelp,minigame and {minigameComplete=true} or nil)
     local persistent=Activities.ensure(data,layout,1,settlements)==activity and activity.completed
     local session=HelpQuest.get(data,activity.sessionId)
     return {ready=repeatProtected and slow<1 and secondSlow<1 and event and event.damage==1 and not secondEvent

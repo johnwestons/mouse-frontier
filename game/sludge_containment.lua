@@ -22,8 +22,9 @@ function SludgeContainment.new(options)
     progress.step=math.max(1,math.floor(tonumber(progress.step) or 1))
     progress.mistakes=math.max(0,math.floor(tonumber(progress.mistakes) or 0))
     progress.barrierTarget=clampIndex(progress.barrierTarget or (((tonumber(options.location) or 1)-1)%3)+1)
-    return {version=SludgeContainment.version,location=options.location or 1,helpQuestId=options.helpQuestId,
-        progress=progress,phase=progress.phase,maximumMistakes=SludgeContainment.maximumMistakes,message=nil}
+    return {version=SludgeContainment.version,kind="sludge-containment",location=options.location or 1,helpQuestId=options.helpQuestId,
+        progress=progress,phase=progress.phase,maximumMistakes=SludgeContainment.maximumMistakes,message=nil,
+        failureMessage="The barrier slipped. The supplies were recovered; try again.",pauseMessage="Containment paused. Your progress is saved."}
 end
 
 function SludgeContainment.objective(session)
