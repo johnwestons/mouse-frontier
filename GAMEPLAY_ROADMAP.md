@@ -6,6 +6,8 @@ Latest completion: stop activities now gain settled-farm, drylands, and ashlands
 
 Goodwill for those authored activities now scales with their length: 1/2 points for successful/flawless early runs, 2/3 in the middle band, and 3/4 in the late band. Short instant chores keep their original rewards.
 
+Latest visual polish: every help-minigame stage now presents its authored full-color atlas art instead of stage-one line placeholders. The locomotive presentation is 40% larger, desktop car selectors no longer cover the exit control, long battle weapon/item labels are compacted into their buttons, and the two Ferret Scout idle frames have repaired crops and baselines.
+
 ## 1. Stop activities, help requests, and goodwill — Complete
 
 - Give stops meaningful activities beyond looting.

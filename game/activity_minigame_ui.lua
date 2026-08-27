@@ -16,6 +16,7 @@ function UI.sprite(image,index,x,y,size)
     if not image then return end
     local iw,ih=image:getDimensions(); local sw,sh=iw/2,ih/2; local column=(index-1)%2; local row=math.floor((index-1)/2)
     local quad=love.graphics.newQuad(column*sw,row*sh,sw,sh,iw,ih); local scale=size/math.max(sw,sh)
+    love.graphics.setColor(1,1,1,1)
     love.graphics.draw(image,quad,x,y,0,scale,scale,sw/2,sh/2)
 end
 

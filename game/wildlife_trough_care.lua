@@ -40,12 +40,12 @@ function Wildlife.draw(session,colors,image,clock)
     love.graphics.setColor(session.difficulty.palette.ground); love.graphics.rectangle("fill",255,245,450,190,18,18)
     local zones=UI.variantZones(Wildlife.zones,session)
     if session.phase==1 then
-        local active=trackTarget(session); for i,z in ipairs(zones) do love.graphics.setColor(i==active and brass or {.55,.48,.3,.8}); love.graphics.ellipse("line",z.x,z.y,i==active and 47*pulse or 37,i==active and 30*pulse or 24); love.graphics.setColor(cream); love.graphics.print(tostring(i),z.x-5,z.y+42) end
+        local active=trackTarget(session); for i,z in ipairs(zones) do love.graphics.setColor(i==active and brass or {.55,.48,.3,.8}); love.graphics.ellipse("line",z.x,z.y,i==active and 47*pulse or 37,i==active and 30*pulse or 24); UI.sprite(image,4,z.x,z.y,i==active and 112 or 92); love.graphics.setColor(cream); love.graphics.print(tostring(i),z.x-5,z.y+42) end
     elseif session.phase==2 then
-        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,i==1 and 1 or i,z.x,z.y,92); love.graphics.setColor(cream); love.graphics.printf(i.."  "..cleaning[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
+        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,i,z.x,z.y,116); love.graphics.setColor(cream); love.graphics.printf(i.."  "..cleaning[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
     else
         love.graphics.setColor(cream); love.graphics.printf("VISITORS:  "..visitor(session).name,270,220,420,"center",0,.78,.78)
-        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,i==3 and 4 or 1,z.x,z.y,88); love.graphics.setColor(cream); love.graphics.printf(i.."  "..portions[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
+        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,1,z.x,z.y,76+i*14); love.graphics.setColor(cream); love.graphics.printf(i.."  "..portions[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
     end
     UI.footer(session,cream,brass,"Observe quietly. Mistakes end the attempt without consuming food.")
 end

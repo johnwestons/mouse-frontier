@@ -80,12 +80,7 @@ function SludgeContainment.mousepressed(session,x,y)
 end
 
 local function drawAtlasSprite(image,index,x,y,size)
-    if not image then return end
-    local iw,ih=image:getDimensions(); local sw,sh=iw/2,ih/2
-    local column=(index-1)%2; local row=math.floor((index-1)/2)
-    local quad=love.graphics.newQuad(column*sw,row*sh,sw,sh,iw,ih)
-    local scale=size/math.max(sw,sh)
-    love.graphics.draw(image,quad,x,y,0,scale,scale,sw/2,sh/2)
+    UI.sprite(image,index,x,y,size)
 end
 
 function SludgeContainment.draw(session,colors,image,clock)
@@ -99,7 +94,7 @@ function SludgeContainment.draw(session,colors,image,clock)
         love.graphics.setColor(.15,.9,.88,.9); love.graphics.line(480,340,target.x,target.y)
         for index,zone in ipairs(zones) do
             love.graphics.setColor(index==session.progress.barrierTarget and {.15,.95,.88,1} or {.95,.72,.30,1})
-            love.graphics.circle("line",zone.x,zone.y,48); drawAtlasSprite(image,1,zone.x,zone.y,82)
+            love.graphics.circle("line",zone.x,zone.y,52); drawAtlasSprite(image,1,zone.x,zone.y,118)
             love.graphics.setColor(cream); love.graphics.print(tostring(index),zone.x-5,zone.y+50)
         end
     elseif session.phase==2 then
@@ -107,13 +102,13 @@ function SludgeContainment.draw(session,colors,image,clock)
         for index,zone in ipairs(UI.variantZones(SludgeContainment.absorbZones,session)) do
             love.graphics.setColor(index==target and {.2,.98,.86,1} or {.5,.72,.58,.8})
             love.graphics.circle("line",zone.x,zone.y,index==target and 48*pulse or 38)
-            drawAtlasSprite(image,2,zone.x,zone.y,72)
+            drawAtlasSprite(image,2,zone.x,zone.y,104)
             love.graphics.setColor(cream); love.graphics.print(tostring(index),zone.x-5,zone.y+45)
         end
     else
         love.graphics.setColor(session.progress.step==1 and {.2,.98,.86,1} or {.95,.72,.30,1}); love.graphics.circle("line",395,425,58)
         love.graphics.setColor(session.progress.step==2 and {.2,.98,.86,1} or {.95,.72,.30,1}); love.graphics.circle("line",565,425,58)
-        drawAtlasSprite(image,3,395,425,105); drawAtlasSprite(image,4,565,425,105)
+        drawAtlasSprite(image,3,395,425,128); drawAtlasSprite(image,4,565,425,128)
         love.graphics.setColor(cream); love.graphics.printf("1  SEAL",335,486,120,"center",0,.7,.7); love.graphics.printf("2  SCOOP",505,486,120,"center",0,.7,.7)
     end
     UI.footer(session,cream,brass,"Choose carefully. Mistakes end the attempt for a safe retry.")

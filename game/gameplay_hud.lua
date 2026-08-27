@@ -156,16 +156,17 @@ local function new(context)
       end
       if runtime.scene=="train" and #(runtime.saveData.trainCars or {})>1 and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.editMode and not ui.mobileMenuOpen then
           local active=runtime.saveData.activeCar or 1
-          ui.trainCarTabs=Train.consistLayout(W,#runtime.saveData.trainCars)
+          ui.trainCarTabs=Train.consistLayout(W,#runtime.saveData.trainCars,{mobile=mobile})
           for index,tab in ipairs(ui.trainCarTabs) do
               local selected=index==active
               love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",tab.x,tab.y,tab.w,tab.h,7,7)
               love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 3 or 1)
               love.graphics.rectangle("line",tab.x,tab.y,tab.w,tab.h,7,7)
-              love.graphics.printf(tostring(index),tab.x,tab.y+12,tab.w,"center",0,.78,.78)
+              local numberScale=mobile and .78 or .55
+              love.graphics.printf(tostring(index),tab.x,tab.y+(mobile and 18 or 7),tab.w,"center",0,numberScale,numberScale)
           end
           love.graphics.setLineWidth(1); love.graphics.setColor(colors.cream)
-          love.graphics.printf("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),430,240,W-455,"center",0,.68,.68)
+          love.graphics.printf("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),430,mobile and 210 or 187,mobile and W-455 or 300,"center",0,.58,.58)
       end
       ui.pickup = runtime.nearbyItem and not nearbyFurniture and not runtime.editMode and not ui.mobileMenuOpen and button("PICK UP  [E]",390,650,180,38,true) or nil
       if runtime.inventoryOpen then if runtime.chestOpen then ui.drawChestInventory() end; ui.drawInventory() end

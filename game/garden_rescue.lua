@@ -42,12 +42,12 @@ function Garden.draw(session,colors,image,clock)
     local zones=UI.variantZones(Garden.zones,session)
     for x=295,665,74 do love.graphics.setColor(.42,.26,.12); love.graphics.rectangle("fill",x,265,38,145,10,10) end
     if session.phase==1 then
-        local active=target(session); for i,z in ipairs(zones) do love.graphics.setColor(i==active and brass or {.4,.68,.25,.8}); love.graphics.circle("line",z.x,z.y,i==active and 50*pulse or 39); love.graphics.setColor(cream); love.graphics.print(tostring(i),z.x-5,z.y+48) end
+        local active=target(session); for i,z in ipairs(zones) do love.graphics.setColor(i==active and brass or {.4,.68,.25,.8}); love.graphics.circle("line",z.x,z.y,i==active and 50*pulse or 39); UI.sprite(image,3,z.x,z.y,i==active and 112 or 92); love.graphics.setColor(cream); love.graphics.print(tostring(i),z.x-5,z.y+48) end
     elseif session.phase==2 then
         love.graphics.setColor(cream); love.graphics.printf("CURRENT:  "..current(session).name,270,220,420,"center",0,.78,.78)
-        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,i,z.x,z.y,92); love.graphics.setColor(cream); love.graphics.printf(i.."  "..toolNames[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
+        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,i,z.x,z.y,116); love.graphics.setColor(cream); love.graphics.printf(i.."  "..toolNames[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
     else
-        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,4,z.x,z.y,88); love.graphics.setColor(cream); love.graphics.printf(i.."  "..restoration[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
+        for i,z in ipairs(zones) do love.graphics.setColor(brass); love.graphics.circle("line",z.x,z.y,55); UI.sprite(image,4,z.x,z.y,116); love.graphics.setColor(cream); love.graphics.printf(i.."  "..restoration[i],z.x-72,z.y+60,144,"center",0,.58,.58) end
     end
     UI.footer(session,cream,brass,"Protect healthy growth. Mistakes end the attempt for a safe retry.")
 end

@@ -21,7 +21,7 @@ local Train = {
     engineStaticCouplerX=1537,
     -- Width from the visible engine edge to the rear coupler. This larger
     -- scale matches the reference proportions beside the enlarged car.
-    engineTargetWidth=300
+    engineTargetWidth=420
 }
 
 function Train.carScale(car,image)
@@ -94,7 +94,10 @@ function Train.drawLocomotive(image,frameIndex,car)
     local scale=Train.engineTargetWidth/(couplerX-visibleLeft)
     love.graphics.setColor(1,1,1)
     local rightEdge=car and car.x+8 or 280
-    local x=rightEdge-couplerX*scale
+    -- The locomotive is intentionally 40% larger than the previous 300px
+    -- presentation. Keep its visible nose on-screen and let the car, which is
+    -- drawn afterward, hide the extra coupler overlap.
+    local x=math.max(8,rightEdge-couplerX*scale)
     love.graphics.draw(image,x,Train.railY-wheelY*scale,0,scale,scale)
 end
 
@@ -106,10 +109,13 @@ function Train.drawCarImage(image,car)
     return true
 end
 
-function Train.consistLayout(width,count)
+function Train.consistLayout(width,count,options)
+    options=options or {}
     count=math.max(1,math.floor(count or 1))
-    local left,right,gap,height,y=430,(width or 960)-25,4,42,194
-    local cellWidth=math.min(76,math.floor((right-left-gap*(count-1))/count))
+    local left,right,gap,height,y
+    if options.mobile then left,right,gap,height,y=250,(width or 960)-25,6,58,140
+    else left,right,gap,height,y=430,730,4,28,154 end
+    local cellWidth=math.min(options.mobile and 76 or 48,math.floor((right-left-gap*(count-1))/count))
     local total=cellWidth*count+gap*(count-1)
     local start=right-total
     local result={}
@@ -120,15 +126,15 @@ end
 function Train.audit(car,width)
     width=width or 960
     local engineRight=car.x+8
-    local engineLeft=engineRight-Train.engineTargetWidth
+    local engineLeft=8
     local carRight=car.x+car.w
     local tabs=Train.consistLayout(width,7)
     local aligned=car.x>=0 and carRight<=width and engineLeft>=0 and engineRight<=width
     local tabsFit=#tabs==7 and tabs[1].x>=0 and tabs[#tabs].x+tabs[#tabs].w<=width
     local floorLeft,floorRight=Train.characterBounds(car,nil,30)
     return {ready=aligned and tabsFit and floorLeft>=car.x and floorRight<=carRight,
-        engineLeft=engineLeft,carRight=carRight,tabs=#tabs,tabsFit=tabsFit,aligned=aligned,
-        transitionDistance=width,curve="train-presentation-v1"}
+        engineLeft=engineLeft,engineWidth=Train.engineTargetWidth,carRight=carRight,tabs=#tabs,tabsFit=tabsFit,aligned=aligned,
+        transitionDistance=width,curve="train-presentation-v2"}
 end
 
 return Train

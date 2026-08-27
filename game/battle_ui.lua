@@ -6,6 +6,12 @@ local Grid = require("game.battle_grid")
 local Accessibility = require("game.accessibility")
 
 local BattleUI = {}
+local function weaponButtonLabel(Catalog,Util,item)
+    local name=(Catalog.weaponStats[item] and Catalog.weaponStats[item].name) or Util.titleFromFile(item)
+    name=name:gsub("^Frontier%s+",""):gsub("%s+Pocket%s+"," ")
+    if #name>19 then name=name:gsub("%s+Pistol$"," P."):gsub("%s+Revolver$"," REV.") end
+    return name
+end
 local function boardToScreen(ctx,q,r)
     return Grid.boardToScreen(1,q,r)
 end
@@ -174,7 +180,7 @@ function BattleUI.draw(ctx)
         local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
         for i,w in ipairs(options) do
             local bx=20+(i-1)*(mobile and 210 or 174)
-            ui.battleWeapons[i]=button((i).."  "..(Catalog.weaponStats[w] and Catalog.weaponStats[w].name or Util.titleFromFile(w)),bx,mobile and 506 or 592,mobile and 200 or 166,mobile and 54 or 34,true,.66)
+            ui.battleWeapons[i]=button((i).."  "..weaponButtonLabel(Catalog,Util,w),bx,mobile and 506 or 592,mobile and 200 or 166,mobile and 54 or 34,true,mobile and .62 or .56)
             local mx,my=screenToGame(ctx.pointerPosition())
             if Util.pointIn(mx,my,ui.battleWeapons[i]) then
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
@@ -195,13 +201,13 @@ function BattleUI.draw(ctx)
         local abilityProfile=ctx.playerProgression.abilityProfile(abilityBase.kind,abilityLevel)
         ui.battleAbility=button("ABILITY R"..abilityProfile.rank,mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.60)
         ui.battleInventory=button("BACKPACK",20,mobile and 634 or 638,mobile and 200 or 105,mobile and 54 or 34,true,.68)
-        if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",138,629,0,.48,.48) end
+        if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("QUICK ITEMS",135,628,0,.44,.44) end
         local potionIndex=0
         for i=1,(saveData.inventoryCapacity or 6) do
             local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
             if not mobile and effect and effect.potion and potionIndex<5 then
-                potionIndex=potionIndex+1; local px=135+(potionIndex-1)*80
-                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,638,74,34,true,.52),name=item}
+                potionIndex=potionIndex+1; local px=135+(potionIndex-1)*100
+                ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,642,92,30,true,.44),name=item}
             end
         end
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
@@ -215,7 +221,6 @@ function BattleUI.draw(ctx)
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
             love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
         end
-        love.graphics.setColor(colors.cream); love.graphics.print(active.name.."  HP "..active.hp.."/"..active.maxHP.."  MOVE "..active.move.."  ARMOR "..active.armor,65,115)
     end
     if battle.intro then
         local p=math.min(1,battle.intro/battle.introDuration)

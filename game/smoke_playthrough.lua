@@ -187,8 +187,8 @@ local function install(context)
             {name="responsive_train_presentation",action=trainPresentationAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.aligned and result.tabsFit and result.tabs==7
-                        and result.engineLeft==23 and result.carRight==935 and result.transitionDistance==960
-                        and result.curve=="train-presentation-v1"
+                        and result.engineLeft==8 and result.engineWidth==420 and result.carRight==935 and result.transitionDistance==960
+                        and result.curve=="train-presentation-v2"
                 end},
             {name="maintenance_route_balance",action=Maintenance.audit,
                 check=function(_,_,_,result)

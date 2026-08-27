@@ -81,10 +81,7 @@ function TrackDebris.mousepressed(session,x,y)
 end
 
 local function drawAtlasSprite(image,index,x,y,size)
-    if not image then return end
-    local iw,ih=image:getDimensions(); local sw,sh=iw/2,ih/2; local column=(index-1)%2; local row=math.floor((index-1)/2)
-    local quad=love.graphics.newQuad(column*sw,row*sh,sw,sh,iw,ih); local scale=size/math.max(sw,sh)
-    love.graphics.draw(image,quad,x,y,0,scale,scale,sw/2,sh/2)
+    UI.sprite(image,index,x,y,size)
 end
 
 function TrackDebris.draw(session,colors,image,clock)
@@ -97,20 +94,20 @@ function TrackDebris.draw(session,colors,image,clock)
         local target=scanTarget(session)
         for index,zone in ipairs(UI.variantZones(TrackDebris.scanZones,session)) do
             love.graphics.setColor(index==target and {.98,.68,.2,1} or {.65,.48,.28,.85}); love.graphics.circle("line",zone.x,zone.y,index==target and 48*pulse or 38)
-            love.graphics.line(zone.x-25,zone.y-12,zone.x+22,zone.y+15); love.graphics.line(zone.x-18,zone.y+18,zone.x+24,zone.y-16)
+            UI.sprite(image,4,zone.x,zone.y,index==target and 108 or 88)
             love.graphics.setColor(cream); love.graphics.print(tostring(index),zone.x-5,zone.y+48)
         end
     elseif session.phase==2 then
         local item=currentDebris(session); love.graphics.setColor(cream); love.graphics.printf("CURRENT:  "..item.name,270,220,420,"center",0,.78,.78)
         for index,zone in ipairs(UI.variantZones(TrackDebris.toolZones,session)) do
             love.graphics.setColor(.82,.62,.32,1); love.graphics.circle("line",zone.x,zone.y,55)
-            drawAtlasSprite(image,index,zone.x,zone.y,92); love.graphics.setColor(cream); love.graphics.printf(index.."  "..toolNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
+            drawAtlasSprite(image,index,zone.x,zone.y,116); love.graphics.setColor(cream); love.graphics.printf(index.."  "..toolNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
         end
     else
         local item=currentDebris(session); love.graphics.setColor(cream); love.graphics.printf("SORT:  "..item.name,270,220,420,"center",0,.78,.78)
         for index,zone in ipairs(UI.variantZones(TrackDebris.sortZones,session)) do
             love.graphics.setColor(.82,.62,.32,1); love.graphics.circle("line",zone.x,zone.y,55)
-            drawAtlasSprite(image,4,zone.x,zone.y,88); love.graphics.setColor(cream); love.graphics.printf(index.."  "..sortNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
+            drawAtlasSprite(image,4,zone.x,zone.y,112); love.graphics.setColor(cream); love.graphics.printf(index.."  "..sortNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
         end
     end
     UI.footer(session,cream,brass,"Work from a stable edge. Mistakes end the attempt for a safe retry.")
