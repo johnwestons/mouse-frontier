@@ -45,6 +45,7 @@ Android controls, installation, update flow, and device verification are documen
 - First aid uses three highlighted treatment markers and supports mouse, touch, number keys **1–3**, and cancel/back.
 - Sludge seep activities use a three-stage containment screen: follow the flow to place a barrier, pack the pulsing leaks, then seal and scoop. Use mouse/touch or **1–3**; **Q/Escape** pauses with progress saved.
 - Track debris activities now require safe inspection, the correct gloves/pry bar/magnetic sweep, and responsible material sorting. They use the same mouse, touch, **1–3**, and pause/resume controls.
+- Garden rescue protects healthy vines while clearing thorns, supporting seedlings, and restoring soil. Wildlife-trough care identifies visitors, cleans safely, and measures food without consuming the supply until completion. Both use the shared **1–3**, mouse/touch, and pause/resume controls.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
 - Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
 - Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.

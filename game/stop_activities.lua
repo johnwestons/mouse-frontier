@@ -72,18 +72,27 @@ function Activities.complete(data,layout,StopHelp,options)
     if activity.completed then return {completed=true,already=true,message="This community task is already finished."} end
     local session=activity.sessionId and HelpQuest.get(data,activity.sessionId)
     if session then HelpQuest.accept(data,session.id) end
-    local minigameKind=activity.kind=="sludge-seep" and "sludge-containment" or (activity.kind=="track-debris" and "track-debris-clearing" or nil)
-    if minigameKind and not (options and options.minigameComplete) then
-        local objective=minigameKind=="sludge-containment" and "Place a downstream barrier around the seep." or "Inspect the debris from a safe edge."
-        if session then HelpQuest.investigate(data,session.id,objective) end
-        return {completed=false,requiresMinigame=minigameKind,message=profile.description,session=session}
-    end
     data.resources=data.resources or {}
     for resource,amount in pairs(profile.cost or {}) do
         if (data.resources[resource] or 0)<amount then
             if session then HelpQuest.investigate(data,session.id,"Bring "..amount.." "..resource.." supply to this task.") end
             return {completed=false,missing=resource,message="This task needs "..amount.." "..resource.." supply.",session=session}
         end
+    end
+    local minigameKind=activity.kind=="sludge-seep" and "sludge-containment"
+        or (activity.kind=="track-debris" and "track-debris-clearing")
+        or (activity.kind=="community-garden" and "garden-rescue")
+        or (activity.kind=="wildlife-trough" and "wildlife-trough-care") or nil
+    if minigameKind and not (options and options.minigameComplete) then
+        local objectives={
+            ["sludge-containment"]="Place a downstream barrier around the seep.",
+            ["track-debris-clearing"]="Inspect the debris from a safe edge.",
+            ["garden-rescue"]="Mark thorn clusters without disturbing healthy vines.",
+            ["wildlife-trough-care"]="Read the freshest animal tracks from a distance.",
+        }
+        local objective=objectives[minigameKind]
+        if session then HelpQuest.investigate(data,session.id,objective) end
+        return {completed=false,requiresMinigame=minigameKind,message=profile.description,session=session}
     end
     for resource,amount in pairs(profile.cost or {}) do data.resources[resource]=(data.resources[resource] or 0)-amount end
     for resource,amount in pairs(profile.reward or {}) do
@@ -168,15 +177,22 @@ function Activities.audit(StopHelp)
     local layout={}; local activity=Activities.ensure(data,layout,1,settlements)
     local slow,event=Activities.update(data,layout,{x=activity.x,y=activity.y})
     local secondSlow,secondEvent=Activities.update(data,layout,{x=activity.x,y=activity.y})
-    local minigame=activity.kind=="sludge-seep" or activity.kind=="track-debris"
+    local minigame=activity.kind=="sludge-seep" or activity.kind=="track-debris" or activity.kind=="community-garden" or activity.kind=="wildlife-trough"
     local result=Activities.complete(data,layout,StopHelp,minigame and {minigameComplete=true} or nil)
     local persistent=Activities.ensure(data,layout,1,settlements)==activity and activity.completed
     local session=HelpQuest.get(data,activity.sessionId)
+    local wildlifeData={location=2,resources={food=0},scrap=0,health=6,goodwill=0,helpHistory={},currentNPC="ranger.png"}
+    local wildlifeLayout={}; local wildlife=Activities.ensure(wildlifeData,wildlifeLayout,2,settlements)
+    local missing=Activities.complete(wildlifeData,wildlifeLayout,StopHelp)
+    wildlifeData.resources.food=1; local offered=Activities.complete(wildlifeData,wildlifeLayout,StopHelp); local foodBeforeCompletion=wildlifeData.resources.food
+    local supplied=Activities.complete(wildlifeData,wildlifeLayout,StopHelp,{minigameComplete=true})
+    local foodProtected=wildlife.kind=="wildlife-trough" and missing.missing=="food" and not missing.requiresMinigame
+        and offered.requiresMinigame=="wildlife-trough-care" and foodBeforeCompletion==1 and wildlifeData.resources.food==0 and supplied.completed
     return {ready=repeatProtected and slow<1 and secondSlow<1 and event and event.damage==1 and not secondEvent
             and data.health==5 and result.completed and result.gained==1 and data.goodwill==1 and persistent
-            and session and session.state=="resolved" and session.rewardClaimed,
+            and session and session.state=="resolved" and session.rewardClaimed and foodProtected,
         repeatProtected=repeatProtected,profileCount=#Activities.order,damage=event and event.damage,
-        goodwill=data.goodwill,persistent=persistent,curve="stop-world-variety-v1"}
+        goodwill=data.goodwill,persistent=persistent,foodProtected=foodProtected,curve="stop-world-variety-v2"}
 end
 
 return Activities

@@ -26,7 +26,7 @@ local function new(context)
       if runtime.state~="game" then
           return runtime.state..(runtime.state=="battle" and runtime.inventoryOpen and ":inventory" or "")
       end
-      local overlay=runtime.exitPrompt and "exit" or runtime.firstAid and "first-aid" or runtime.travelConfirm and "travel"
+      local overlay=runtime.exitPrompt and "exit" or runtime.firstAid and "first-aid" or runtime.activityMinigame and "activity-minigame" or runtime.travelConfirm and "travel"
           or maintenanceSession.open and "maintenance" or ui.radioOpen and "radio" or runtime.inventoryOpen and "inventory"
           or runtime.mapOpen and "map" or runtime.tradeOpen and "trade" or runtime.trainUpgradeOpen and "upgrades"
           or runtime.editMode and "editor" or runtime.poseMenu and "pose" or ui.optionsOpen and "options"
@@ -39,7 +39,7 @@ local function new(context)
   end
 
   local function focus()
-      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not runtime.firstAid and not runtime.travelConfirm
+      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not runtime.firstAid and not runtime.activityMinigame and not runtime.travelConfirm
           and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen
           and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode and not runtime.poseMenu
           and not ui.optionsOpen and not ui.mobileMenuOpen and not runtime.dialogue

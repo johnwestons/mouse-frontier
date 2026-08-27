@@ -6,6 +6,8 @@ function Coordinator.new(options)
     local registry={
         ["sludge-containment"]=assert(options.sludgeContainment,"stop activity minigames require sludge containment"),
         ["track-debris-clearing"]=assert(options.trackDebrisClearing,"stop activity minigames require track debris clearing"),
+        ["garden-rescue"]=assert(options.gardenRescue,"stop activity minigames require garden rescue"),
+        ["wildlife-trough-care"]=assert(options.wildlifeTroughCare,"stop activity minigames require wildlife trough care"),
     }
     local atlases=options.atlases or {}
     local service={}
@@ -40,9 +42,9 @@ function Coordinator.new(options)
 
     function service.sync(data,session)
         if not session or not session.helpQuestId then return end
-        HelpQuest.progress(data,session.helpQuestId,session.phase,service.objective(session),{
-            phase=session.progress.phase,step=session.progress.step,mistakes=session.progress.mistakes,
-            barrierTarget=session.progress.barrierTarget,scanStart=session.progress.scanStart})
+        local values={}
+        for key,value in pairs(session.progress or {}) do if type(value)=="string" or type(value)=="number" or type(value)=="boolean" then values[key]=value end end
+        HelpQuest.progress(data,session.helpQuestId,session.phase,service.objective(session),values)
     end
 
     function service.pause(data,session)
@@ -55,7 +57,9 @@ function Coordinator.new(options)
 
     function service.audit()
         local sludge=registry["sludge-containment"].audit(); local track=registry["track-debris-clearing"].audit()
-        return {ready=sludge.ready and track.ready,sludge=sludge,track=track,registered=2,curve="activity-minigames-v1"}
+        local garden=registry["garden-rescue"].audit(); local wildlife=registry["wildlife-trough-care"].audit()
+        return {ready=sludge.ready and track.ready and garden.ready and wildlife.ready,sludge=sludge,track=track,garden=garden,wildlife=wildlife,
+            registered=4,curve="activity-minigames-v2"}
     end
 
     return service

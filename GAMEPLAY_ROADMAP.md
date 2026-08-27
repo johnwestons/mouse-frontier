@@ -81,7 +81,8 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Planned:** Replace the placeholder first-aid sequence with wound inspection, tool choice, cleaning, pressure, treatment, and bandaging interactions.
 - **Complete:** Replace sludge seep's instant interaction with a sprite-driven containment activity: read the flow, anchor a downstream barrier, pack three active leaks, seal the source, and collect the sludge. Progress and mistakes persist, clean work earns exceptional goodwill, and keyboard, mouse, and Android touch share the same rules.
 - **Complete:** Replace track debris's instant interaction with a sprite-driven clearing activity: inspect loose piles from a safe edge, match gloves/pry bar/magnetic sweep to each hazard, and sort wood, metal, and sharps. Nine decisions persist through pause/resume, clean work earns exceptional goodwill, and all platforms use one shared minigame coordinator.
-- **Planned:** Add sprite-driven water-pump repair, garden rescue, and wildlife-trough activities.
+- **Complete:** Add shared-component garden rescue and wildlife-trough care. Each has three persistent stages and nine decisions; garden work protects healthy vines and restores soil, while wildlife care observes tracks, sanitizes the trough, and measures visitor-specific portions without consuming food on failed or paused attempts.
+- **Planned:** Add the sprite-driven water-pump repair activity.
 - **Complete:** Add the first four branching investigation and conversation quests: Missing Family Trail, Crop Dispute, Bandit Warning, and Broken Promise. Choices and evidence persist, every conclusion remains constructive, stronger investigation can earn exceptional goodwill, and NPC follow-ups reflect the saved relationship.
 - **Planned:** Expand the authored dialogue pool beyond the first four quests and connect later-stop variants to regional characters and world-state consequences.
 

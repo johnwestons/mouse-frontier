@@ -365,6 +365,8 @@ function Assets.load(targets)
     }
     scenery.sludgeContainmentAtlas=loadImage("assets/sprites/props/sludge-containment-tools-atlas.png")
     scenery.trackDebrisAtlas=loadImage("assets/sprites/props/track-debris-tools-atlas.png")
+    scenery.gardenRescueAtlas=loadImage("assets/sprites/props/garden-rescue-tools-atlas.png")
+    scenery.wildlifeTroughAtlas=loadImage("assets/sprites/props/wildlife-trough-tools-atlas.png")
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
         loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end

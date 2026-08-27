@@ -56,7 +56,9 @@ local function new(context)
   local maintenanceSession=Maintenance.new()
   local activityMinigames=Modules.stopActivityMinigames.new({helpQuestSession=Modules.helpQuestSession,
     sludgeContainment=Modules.sludgeContainment,trackDebrisClearing=Modules.trackDebrisClearing,
-    atlases={["sludge-containment"]=scenery.sludgeContainmentAtlas,["track-debris-clearing"]=scenery.trackDebrisAtlas}})
+    gardenRescue=Modules.gardenRescue,wildlifeTroughCare=Modules.wildlifeTroughCare,
+    atlases={["sludge-containment"]=scenery.sludgeContainmentAtlas,["track-debris-clearing"]=scenery.trackDebrisAtlas,
+      ["garden-rescue"]=scenery.gardenRescueAtlas,["wildlife-trough-care"]=scenery.wildlifeTroughAtlas}})
 
   services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,ui=ui,screens=screens,intro=Modules.intro,scenery=scenery,colors=colors,

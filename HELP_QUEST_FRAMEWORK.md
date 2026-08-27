@@ -51,6 +51,12 @@ Inspection order, current obstruction, sorting progress, and mistakes persist af
 
 Both activities are independent rule/render modules registered through `stop_activity_minigames.lua`. World, HUD, and input code talk only to that coordinator, keeping activity-specific logic out of `main.lua` and preventing a new platform branch for each future minigame.
 
+## Garden rescue and wildlife care
+
+Garden rescue asks the player to distinguish pulsing thorn clusters from healthy growth, match pruning shears, protective gloves, and support stakes to damaged plants, then restore the bed with compost, water, and mulch in root-safe order. The wildlife activity reads three fresh track approaches, removes old feed, scrubs and rinses the trough, then measures small, medium, or large portions for songbirds, field mice, rabbits, and deer.
+
+Each activity contains three stages and nine decisions. Both use `activity_minigame_ui.lua` for hit targets, atlas sprites, panels, feedback, and the shared mistake footer, while their rules remain isolated in dedicated modules. Wildlife food is verified before the session opens and consumed only after successful completion; pausing, mistakes, and retries never waste it. Completing the trough activates the existing wildlife gathering behavior.
+
 ## Verification
 
-The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies all three sludge and track-clearing stages, nine track decisions, persistence, clean completion, the three-mistake retry boundary, keyboard input, touch input, and both coordinator registrations. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.
+The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies all four authored activity modules, their three stages, nine-decision flows where applicable, persistence, clean completion, three-mistake retry boundaries, keyboard/touch input, protected wildlife food, and all coordinator registrations. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.
