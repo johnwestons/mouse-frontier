@@ -1,6 +1,6 @@
 local QuestProgression={}
 
-QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
+QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","dialogue","none"}
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
 
 local deliveryProfiles={
@@ -23,14 +23,15 @@ end
 function QuestProgression.offerWeights(location)
     local progress=(math.max(1,math.min(50,location or 1))-1)/49
     local result={
-        mail=.10-.04*progress,
-        ride=.07-.03*progress,
+        mail=.08-.04*progress,
+        ride=.06-.03*progress,
         supplies=.06-.01*progress,
         trade=.04+.03*progress,
-        item=.06+.01*progress,
-        aid=.07,
+        item=.03+.01*progress,
+        aid=.04,
+        dialogue=.08,
     }
-    result.none=1-result.mail-result.ride-result.supplies-result.trade-result.item-result.aid
+    result.none=1-result.mail-result.ride-result.supplies-result.trade-result.item-result.aid-result.dialogue
     return result
 end
 
@@ -244,7 +245,7 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
     for _,kind in ipairs(QuestProgression.offerOrder) do totalEarly=totalEarly+early[kind]; totalLate=totalLate+late[kind] end
     local ready=math.abs(totalEarly-1)<.0001 and math.abs(totalLate-1)<.0001
         and early.mail>late.mail and early.ride>late.ride and late.trade>early.trade
-        and early.none>=.5999 and late.none>=.6399 and early.item>0 and late.aid>0
+        and early.none>=.5999 and late.none>=.6399 and early.item>0 and late.aid>0 and early.dialogue==.08 and late.dialogue==.08
         and far.scrap>near.scrap and far.xp>near.xp and diplomat.scrap>far.scrap
         and far.minimumRarity=="rare" and reward.item~=nil
         and greenhousePreferred.amount>greenhouseBase.amount and scavenger.kind=="scrap"
@@ -267,7 +268,7 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
         foodInventoryUsed=cargoResult.inventoryUsed,foodStorageUsed=cargoResult.resourceUsed,atomicShortage=not shortageResult.completed,
         legacyStorageUsed=legacyResult.resourceUsed,waterMixed=waterResult.completed,medicineReady=medicineResult.completed,
         repairMixed=repairResult.completed,ammunitionReady=ammoResult.completed,recoveryGated=not recoveryBlocked.completed and recoveryResult.completed,
-        curve="quest-v4"}
+        curve="quest-v5"}
 end
 
 return QuestProgression

@@ -16,6 +16,7 @@ local TRANSIENT_DEFAULTS = {
     editDragging = false,
     editMode = false,
     firstAid = false,
+    helpDialogue = false,
     characterPreviewFile = false,
     giftOpen = false,
     holdPickupTime = 0,
@@ -105,6 +106,7 @@ function RuntimeState:resetForGameEntry()
     self.activeChest=nil
     self.carTransition=nil
     self.firstAid=nil
+    self.helpDialogue=nil
     self.characterPreviewFile=nil
     self.optionsPage="audio"
 end

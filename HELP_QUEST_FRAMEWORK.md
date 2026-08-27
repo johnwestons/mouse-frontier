@@ -31,6 +31,12 @@ New sprite minigames and dialogue quests should call `HelpQuest.ensure` when aut
 
 The trail-map objective summary places accepted help before ordinary deliveries and passengers. Both desktop and Android read the same saved session; minigame views may differ in layout, but they may not create platform-specific quest state.
 
+## First branching dialogue quests
+
+Four authored conversations now use that contract: **Missing Family Trail**, **Crop Dispute**, **Bandit Warning**, and **Broken Promise**. Each has three stages, two or three choices per stage, persistent evidence flags, and more than one helpful resolution. Listening carefully and combining relevant evidence can earn an exceptional result; direct compassionate help still produces a successful result, so the player is never forced into a cruel choice.
+
+The assigned NPC remembers the session between conversations and after a save reload. Pausing returns to the stop without erasing choices, completed NPCs provide relationship-aware follow-up dialogue, and goodwill is awarded once through the shared claim guard. Use **1–3** or the large on-screen choices; **Escape/Q** or the pause button safely closes an unfinished conversation. Mouse and Android touch use those same controls and quest state.
+
 ## Verification
 
-The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. Existing item-help, first-aid, stop-activity, save-migration, full-route, and packaged-mobile checks remain required.
+The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. Existing item-help, first-aid, stop-activity, save-migration, full-route, and packaged-mobile checks remain required.

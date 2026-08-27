@@ -2,6 +2,7 @@ local Stops = {}
 local LootProgression = require("game.loot_progression")
 local QuestProgression = require("game.quest_progression")
 local StopHelpProgression = require("game.stop_help_progression")
+local HelpDialogueQuests = require("game.help_dialogue_quests")
 
 local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree","autumn-tree","white-birch","dead-white-tree","dead-brown-tree","tall-stump","mossy-stump","flowering-shrub","white-flower-shrub","red-berry-bush","fern-cluster","tall-reeds","red-mushrooms","brown-mushrooms","wild-herb-patch","butterfly-flowers","mossy-boulders","fallen-log","hollow-log","branch-pile","broken-fence","signpost","straight-fence","stone-fire-ring","lit-campfire","patched-tent","rusty-barrel","wooden-barrel","supply-crate","reinforced-crate","old-stone-well","weathered-gravestone","loose-stones"}
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
@@ -67,16 +68,19 @@ function Stops.ensure(data,catalog,scene)
         else layout.npcOffers[npc]=kind or "none" end
         local assigned=layout.npcOffers[npc]
         if assigned=="item" or assigned=="aid" then StopHelpProgression.ensureRequest(layout,npc,assigned,data.location,data) end
+        if assigned=="dialogue" then HelpDialogueQuests.ensure(data,layout,npc,data.location) end
     end
     if (layout.offerPolicyVersion or 0)<StopHelpProgression.policyVersion then
         layout.npcOffers={}; layout.helpRequests=layout.helpRequests or {}
         assignOffer(layout.npcOutside,offerRoll(data.location)); assignOffer(layout.npcInside,"none")
+        if layout.npcOffers[layout.npcOutside]=="dialogue" then data.questAsked[tostring(data.location)..":"..tostring(layout.npcOutside)]=nil end
         layout.offerPolicyVersion=StopHelpProgression.policyVersion
     else
         if layout.npcOffers[layout.npcOutside]==nil then assignOffer(layout.npcOutside,offerRoll(data.location)) end
         if layout.npcOffers[layout.npcInside]==nil then assignOffer(layout.npcInside,"none") end
         for npc,kind in pairs(layout.npcOffers) do
             if kind=="item" or kind=="aid" then StopHelpProgression.ensureRequest(layout,npc,kind,data.location,data) end
+            if kind=="dialogue" then HelpDialogueQuests.ensure(data,layout,npc,data.location) end
         end
     end
     layout.offer=layout.npcOffers[layout.npcOutside] or layout.offer or "none"

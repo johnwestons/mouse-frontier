@@ -317,6 +317,26 @@ local function new(context)
   function ui.drawDialogue()
       if not runtime.dialogue then return end
       local textScale=Accessibility.textScale(runtime.saveData)
+      if runtime.helpDialogue then
+          local view=runtime.helpDialogue; local mobile=mobileEnabled(); local x,y,w,h=145,66,670,590
+          drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
+          love.graphics.setColor(colors.brass); love.graphics.printf(view.title or "HELP A CRITTER",x+24,y+26,w-48,"center",0,1.35,1.35)
+          love.graphics.setColor(colors.cream); love.graphics.printf("OBJECTIVE  •  "..(view.objective or "Listen and choose a thoughtful response."),x+35,y+72,w-70,"center",0,.68,.68)
+          love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",x+45,y+104,w-90,3)
+          love.graphics.setColor(colors.cream)
+          local bodyScale=math.min(1.02,.82*textScale)
+          love.graphics.printf(view.text or runtime.dialogue.text,x+48,y+128,w-96,"left",0,bodyScale,bodyScale)
+          ui.helpDialogueChoices={}
+          local buttonHeight=mobile and 62 or 48; local gap=mobile and 12 or 10; local startY=y+318
+          for index,choice in ipairs(view.choices or {}) do
+              ui.helpDialogueChoices[index]=button(index.."  •  "..choice.label,x+45,startY+(index-1)*(buttonHeight+gap),w-90,buttonHeight,true,mobile and .76 or .72)
+          end
+          ui.helpDialoguePause=button("PAUSE AND CONTINUE LATER",x+185,y+h-55,300,mobile and 48 or 36,true,.68)
+          love.graphics.setColor(colors.cream); love.graphics.printf(mobile and "Tap a response" or "Press 1, 2, or 3 to choose",x+45,y+h-82,w-90,"center",0,.62,.62)
+          ui.questAccept,ui.questDecline=nil,nil
+          return
+      end
+      ui.helpDialogueChoices,ui.helpDialoguePause=nil,nil
       local x,y,w,h=230,115,500,textScale>1.15 and 140 or 118
       drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
       love.graphics.setColor(colors.cream); love.graphics.print(runtime.dialogue.speaker or "Traveler",x+20,y+17,0,1.15*math.min(textScale,1.15),1.15*math.min(textScale,1.15)); love.graphics.printf(runtime.dialogue.text,x+20,y+52,w-40,"left",0,textScale,textScale)

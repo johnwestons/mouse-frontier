@@ -20,6 +20,7 @@ local function new(context)
   local LootProgression=required(context,"lootProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
   local HelpQuestSession=required(context,"helpQuestSession","table")
+  local HelpDialogueQuests=required(context,"helpDialogueQuests","table")
   local NpcRelationships=required(context,"npcRelationships","table")
   local FirstAid=required(context,"firstAid","table")
   local BattleRules=required(context,"battleRules","table")
@@ -115,6 +116,40 @@ local function new(context)
       return StopHelpProgression.request(layout,runtime.saveData.currentNPC),layout
   end
 
+  local function currentDialogueRequest()
+      local layout=ensureStopLayout()
+      return HelpDialogueQuests.request(layout,runtime.saveData.currentNPC),layout
+  end
+
+  local function showDialogueQuest(view)
+      if not view then return false end
+      runtime.helpDialogue=view
+      runtime.dialogue={speaker=Util.titleFromFile(view.request.npc or runtime.saveData.currentNPC or "Traveler"),text=view.text,timer=120}
+      return true
+  end
+
+  local function beginDialogueQuest(request)
+      return showDialogueQuest(HelpDialogueQuests.begin(runtime.saveData,request))
+  end
+
+  local function chooseHelpDialogue(index)
+      local active=runtime.helpDialogue; local request=active and active.request
+      if not request then return false end
+      if not index then
+          HelpDialogueQuests.pause(runtime.saveData,request); runtime.helpDialogue=nil; runtime.dialogue=nil; writeSave(); return true
+      end
+      local result=HelpDialogueQuests.choose(runtime.saveData,request,index,function(amount,kind,npc,location)
+          return StopHelpProgression.add(runtime.saveData,amount,kind,npc,location)
+      end)
+      if result.completed then
+          runtime.helpDialogue=nil
+          local relationship=result.relationship or NpcRelationships.status(runtime.saveData,request.npc)
+          runtime.dialogue={speaker=Util.titleFromFile(request.npc or "Traveler").." • "..relationship.name,
+              text=result.text.."\n\n+"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=14}
+      elseif result.view then showDialogueQuest(result.view) end
+      writeSave(); return result
+  end
+
   local function itemHelp(request)
       request.accepted=true
       local result=StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
@@ -169,6 +204,9 @@ local function new(context)
       elseif kind=="aid" then
           local request=currentHelpRequest()
           if request then beginFirstAid(request) end
+      elseif kind=="dialogue" then
+          local request=currentDialogueRequest()
+          if request then beginDialogueQuest(request) end
       elseif kind=="supplies" then
           local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local cargoKind=(runtime.questOffer and runtime.questOffer.deliveryKind) or QuestProgression.rollDelivery(runtime.saveData.location)
@@ -223,6 +261,13 @@ local function new(context)
           if helpRequest.kind=="item" then itemHelp(helpRequest) else beginFirstAid(helpRequest) end
           writeSave(); return
       end
+      local dialogueRequest=currentDialogueRequest()
+      if dialogueRequest and dialogueRequest.accepted and not dialogueRequest.complete then beginDialogueQuest(dialogueRequest); writeSave(); return end
+      if dialogueRequest and dialogueRequest.complete then
+          local followup=HelpDialogueQuests.followup(runtime.saveData,dialogueRequest)
+          local status=NpcRelationships.status(runtime.saveData,runtime.saveData.currentNPC)
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC).." • "..status.name,text=followup,timer=8}; writeSave(); return
+      end
       local key=tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC); local layout=ensureStopLayout()
       -- Read the offer for the NPC being spoken to. A stop can have several
       -- critters, and their quest rolls must not leak between conversations.
@@ -237,6 +282,7 @@ local function new(context)
               runtime.questOffer.deliveryKind=QuestProgression.rollDelivery(runtime.saveData.location)
               text=QuestProgression.deliveryProfile(runtime.questOffer.deliveryKind).request
           elseif (kind=="item" or kind=="aid") and request then text=request.text
+          elseif kind=="dialogue" and dialogueRequest then text=HelpDialogueQuests.offer(dialogueRequest)
           else text="I've got supplies to trade. Want to take a look?" end
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return
       end
@@ -283,8 +329,8 @@ local function new(context)
     upgradeBalanceAudit=function() return TrainUpgradeBalance.audit(EngineUpgrades) end,
     questBalanceAudit=function() return QuestProgression.audit(Catalog,LootProgression,Passengers,Inventory) end,
     helpBalanceAudit=function()
-        local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.session=HelpQuestSession.audit()
-        result.ready=result.ready and result.firstAid.ready and result.session.ready
+        local result=StopHelpProgression.audit(Catalog); result.firstAid=FirstAid.audit(); result.session=HelpQuestSession.audit(); result.dialogue=HelpDialogueQuests.audit()
+        result.ready=result.ready and result.firstAid.ready and result.session.ready and result.dialogue.ready
         return result
     end,
     relationshipAudit=function() return NpcRelationships.audit() end,
@@ -300,6 +346,7 @@ local function new(context)
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,
     acceptQuest=acceptQuest,
+    chooseHelpDialogue=chooseHelpDialogue,
     resolveFirstAid=resolveFirstAid,
     talkToNPC=talkToNPC,
     enterStop=enterStop,

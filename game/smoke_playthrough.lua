@@ -241,7 +241,7 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.earlyWeights.mail>result.lateWeights.mail
                         and result.lateWeights.trade>result.earlyWeights.trade
-                        and result.curve=="quest-v4" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
+                        and result.curve=="quest-v5" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
                         and result.farReward.scrap>result.nearReward.scrap
                         and result.farReward.xp>result.nearReward.xp
                         and result.diplomatReward.scrap>result.farReward.scrap
@@ -259,7 +259,7 @@ local function install(context)
                     return result
                 end,
                 check=function(_,_,_,result)
-                    return result.ready and result.curve=="goodwill-v1" and result.policyVersion==3
+                    return result.ready and result.curve=="goodwill-v1" and result.policyVersion==4
                         and result.points==5 and result.helpCount==2 and result.itemGoodwill==2 and result.aidGoodwill==3
                         and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
                         and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
@@ -268,6 +268,11 @@ local function install(context)
             {name="help_quest_session_lifecycle",action=helpQuestAudit,check=function(_,_,_,result)
                 return result.ready and result.states==5 and result.grades==3 and result.persistent
                     and result.rewardOnce and result.curve=="help-session-v1"
+            end},
+            {name="branching_help_dialogue_quests",action=helpBalanceAudit,check=function(_,_,_,result)
+                local dialogue=result.dialogue
+                return result.ready and dialogue.ready and dialogue.definitions==4 and dialogue.completed==4 and dialogue.branchChoices>=8
+                    and dialogue.totalGoodwill>=8 and dialogue.rewardOnce and dialogue.curve=="branching-dialogue-v1"
             end},
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1

@@ -40,6 +40,7 @@ Android controls, installation, update flow, and device verification are documen
 - Stand beside the engine fire and press **E** to add a coal chunk or coal bucket from the backpack.
 - Stand near an NPC and press **E** to talk. NPCs idle and wander near their homes.
 - Some NPCs ask for a needed item or first aid. Helping awards goodwill; declining or missing an attempt never creates a negative alignment.
+- Four stop NPCs can begin branching dialogue quests about a missing family, disputed crops, a bandit warning, or a broken promise. Choices and discovered evidence persist; use **1–3** or the large choice buttons, and **Escape/Q** or **Pause** to resume later.
 - NPCs remember personal help, rides, gifts, conversations, and trades. Familiar travelers recognize the player, passengers discuss their work and destination, and goodwill plus friendship improve merchant prices and buying budgets.
 - First aid uses three highlighted treatment markers and supports mouse, touch, number keys **1–3**, and cancel/back.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.

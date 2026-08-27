@@ -82,6 +82,7 @@ local function new(context)
   local repairEquipped=required(context,"repairEquipped","function")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
+  local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local chooseFinale=required(context,"chooseFinale","function")
   local completeStopActivity=required(context,"completeStopActivity","function")
 
@@ -266,6 +267,13 @@ local function new(context)
           return true
       end
       if ui.handleRadioMousePressed(x,y) then return true end
+      if runtime.helpDialogue then
+          for index,choice in ipairs(ui.helpDialogueChoices or {}) do
+              if Util.pointIn(x,y,choice) then chooseHelpDialogue(index); return true end
+          end
+          if ui.helpDialoguePause and Util.pointIn(x,y,ui.helpDialoguePause) then chooseHelpDialogue(nil); return true end
+          return true
+      end
       if runtime.inventoryOpen then
           if Util.pointIn(x,y,ui.backpack) then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave() else handleInventoryClick(x,y,ui.offerGift) end
           return true
@@ -415,6 +423,12 @@ local function new(context)
 
   local function keypressedGlobal(key)
       if ui.mobileMenuOpen and key=="escape" then ui.mobileMenuOpen=false; return true end
+      if runtime.helpDialogue then
+          local index=tonumber(key)
+          if index and index>=1 and index<=#(runtime.helpDialogue.choices or {}) then chooseHelpDialogue(index)
+          elseif key=="escape" or key=="q" then chooseHelpDialogue(nil) end
+          return true
+      end
       if runtime.firstAid then
           local outcome=FirstAid.keypressed(runtime.firstAid,key)
           if outcome=="complete" or outcome=="failed" or outcome=="cancelled" then resolveFirstAid(outcome) end

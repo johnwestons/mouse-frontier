@@ -80,7 +80,8 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 - **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and community activities now share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
 - **Planned:** Replace the placeholder first-aid sequence with wound inspection, tool choice, cleaning, pressure, treatment, and bandaging interactions.
 - **Planned:** Add sprite-driven water-pump repair, sludge containment, track-debris clearing, garden rescue, and wildlife-trough activities.
-- **Planned:** Add branching investigation and conversation quests with persistent evidence, compassionate choices, relationship-aware follow-ups, and multiple positive resolutions.
+- **Complete:** Add the first four branching investigation and conversation quests: Missing Family Trail, Crop Dispute, Bandit Warning, and Broken Promise. Choices and evidence persist, every conclusion remains constructive, stronger investigation can earn exceptional goodwill, and NPC follow-ups reflect the saved relationship.
+- **Planned:** Expand the authored dialogue pool beyond the first four quests and connect later-stop variants to regional characters and world-state consequences.
 
 ## Mobile parity contract
 

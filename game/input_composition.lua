@@ -32,6 +32,7 @@ local function new(context)
   local Interactions=required(context,"interactions","table")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
+  local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local FinaleProgression=required(context,"finaleProgression","table")
 
   local gameplayInput=GameplayInput.new({
@@ -67,7 +68,7 @@ local function new(context)
     trainItemAt=views.worldRenderer.trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
-    firstAid=FirstAid,resolveFirstAid=resolveFirstAid,
+    firstAid=FirstAid,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
     completeStopActivity=worldScene.completeStopActivity,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
   })

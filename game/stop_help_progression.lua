@@ -2,7 +2,7 @@ local Relationships=require("game.npc_relationships")
 local HelpQuest=require("game.help_quest_session")
 local StopHelp={}
 
-StopHelp.policyVersion=3
+StopHelp.policyVersion=4
 StopHelp.itemRequests={
     {item="water-bottle",label="a bottle of clean water",text="Our well tastes like rust. Could you spare a bottle of clean water?"},
     {item="food-ration",label="a food ration",text="We have a hungry youngster here. Could you spare a food ration?"},
