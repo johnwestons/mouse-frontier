@@ -1,0 +1,152 @@
+# Local Audio Asset Placeholders
+
+Audio binaries are intentionally omitted from this private repository so it can preserve and share the complete code history.
+Keep licensed audio locally at the exact paths below. These files are ignored by Git and remain available in the original working copy.
+
+Expected local audio files: 145
+
+- sounds/music/battle/Pixel Clash.wav
+- sounds/music/battle/Pixel Clash2.wav
+- sounds/music/battle/Pixel Duel.wav
+- sounds/music/battle/Pixel Duel2.wav
+- sounds/music/battle/Pixel War.wav
+- sounds/music/battle/Pixel War2.wav
+- sounds/music/battle/Rainy Battle Romance.wav
+- sounds/music/battle/Rainy Battle Romance2.wav
+- sounds/music/bossFight/Final Boss Byte.wav
+- sounds/music/bossFight/Final Boss Byte2.wav
+- sounds/music/bossFight/Nemesis Appears.wav
+- sounds/music/bossFight/Nemesis Appears2.wav
+- sounds/music/chill/dark Window.wav
+- sounds/music/chill/dark Window2.wav
+- sounds/music/chill/Left off the hook.wav
+- sounds/music/chill/Left off the hook2.wav
+- sounds/music/chill/Out of Track.wav
+- sounds/music/chill/Out of Track2.wav
+- sounds/music/chill/Rain on Glass.wav
+- sounds/music/chill/Rain on Glass1.wav
+- sounds/music/chill/Rain on the Window.wav
+- sounds/music/chill/Rain on the Window1.wav
+- sounds/music/chill/Rainlit Shelter.mp3
+- sounds/music/chill/Rainlit Shelter1.wav
+- sounds/music/chill/RainViolin1.wav
+- sounds/music/chill/RainViolin2.wav
+- sounds/music/chill/Rainy Hearth.wav
+- sounds/music/chill/Rainy Hearth2.wav
+- sounds/music/chill/reading in my room.wav
+- sounds/music/chill/reading in my room2.wav
+- sounds/music/endingHappy/Pixel Heart Quest.wav
+- sounds/music/endingHappy/Pixel Heart Quest2.wav
+- sounds/music/endingHappy/Pixel Homecoming2 (1).wav
+- sounds/music/endingHappy/Pixel Homecoming2.wav
+- sounds/music/insideHomes/Cozy Pixel Home.wav
+- sounds/music/insideHomes/Cozy Pixel Home2.wav
+- sounds/music/insideHomes/Cozy Save Room.wav
+- sounds/music/insideHomes/Warm Pixel Rain2.wav
+- sounds/music/stops/Pixel Forest Path.wav
+- sounds/music/stops/Pixel Forest Path2.wav
+- sounds/music/stops/Pixel Meadow.wav
+- sounds/music/stops/Pixel Meadow2.wav
+- sounds/music/stops/Rainy Pixel Woods.wav
+- sounds/music/stops/Rainy Pixel Woods2.wav
+- sounds/music/stops/Rainy Soup Garden.wav
+- sounds/music/stops/Rainy Soup Garden2.wav
+- sounds/music/train/Midnight Train.wav
+- sounds/music/train/Midnight Train2.wav
+- sounds/music/train/Pixel Train Ride.wav
+- sounds/music/train/Pixel Train Ride2.wav
+- sounds/music/train/Rainy Cartridge.wav
+- sounds/music/train/Rainy Cartridge2.wav
+- sounds/music/train/Rainy Save Point.wav
+- sounds/music/train/Rainy Save Point2.wav
+- sounds/music/vibes/Blood Red (8-Bit Boss Battle Mix).wav
+- sounds/music/vibes/Blood Red (8-Bit Boss Battle Mix)2.wav
+- sounds/music/vibes/Downpour (8-Bit Game Instrumental).wav
+- sounds/music/vibes/Downpour (8-Bit Game Instrumental)2.wav
+- sounds/music/vibes/Go in Peace (8-Bit Quest Mix).wav
+- sounds/music/vibes/Go in Peace (8-Bit Quest Mix)2.wav
+- sounds/music/vibes/Pixel Memory (8-Bit Journey).wav
+- sounds/music/vibes/Pixel Memory (8-Bit Journey)2.wav
+- sounds/music/vibes/Pull Back the Veil (8-Bit Boss Battle Mix).wav
+- sounds/music/vibes/Pull Back the Veil (8-Bit Boss Battle Mix)2.wav
+- sounds/music/vibes/Simplicity (8-Bit Night Drive).wav
+- sounds/music/vibes/Simplicity (8-Bit Night Drive)2.wav
+- sounds/music/vibes/This Is Not Your Song (8-Bit Boss Battle Mix).wav
+- sounds/music/vibes/This Is Not Your Song (8-Bit Boss Battle Mix)2.wav
+- sounds/music/vibes/Time Time (8-Bit Night Drive).wav
+- sounds/music/vibes/Time Time (8-Bit Night Drive)2.wav
+- sounds/soundEffects/bow/179996__calvarychurchatlanta__arrow-release-and-hit.wav
+- sounds/soundEffects/bow/394179__saturdaysoundguy__longbow-release-2.wav
+- sounds/soundEffects/bow/536068__eminyildirim__bow-release-hit.wav
+- sounds/soundEffects/bow/649335__sonofxaudio__arrow_loose01.wav
+- sounds/soundEffects/doors/15419__pagancow__dorm-door-opening.wav
+- sounds/soundEffects/doors/398750__anthousai__door-open-01.wav
+- sounds/soundEffects/doors/400329__n-razm__door_open.wav
+- sounds/soundEffects/doors/418215__bowen707__door-opening-1.mp3
+- sounds/soundEffects/doors/463779__supersnd__door-opening10.wav
+- sounds/soundEffects/doors/609733__theplax__door-open-2.wav
+- sounds/soundEffects/gunshot/147901__tcawte__gunshot.mp3
+- sounds/soundEffects/gunshot/171236__alukahn__gunshot2.wav
+- sounds/soundEffects/gunshot/385811__morganpurkis__single-pistol-gunshot-3.wav
+- sounds/soundEffects/gunshot/391328__morganpurkis__single-pistol-gunshot-4.wav
+- sounds/soundEffects/gunshot/391846__morganpurkis__single-pistol-gunshot-42.wav
+- sounds/soundEffects/gunshot/392229__morganpurkis__single-pistol-gunshot-33.wav
+- sounds/soundEffects/gunshot/427594__michorvath__22-magnum-pistol-shot.wav
+- sounds/soundEffects/gunshot/427598__michorvath__ar15-pistol-shot.wav
+- sounds/soundEffects/gunshot/569174__coolabc__makarov-shoot.wav
+- sounds/soundEffects/gunshot/615028__zreimbach__designed-gunshot.wav
+- sounds/soundEffects/gunshot/718174__tb0y298__pistol-shot-1.wav
+- sounds/soundEffects/gunshot/718965__tb0y298__pistol-shot-2.wav
+- sounds/soundEffects/gunshot/773867__mrgungus__gunshot-4.wav
+- sounds/soundEffects/hurtMale/188568__deleted_user_3330286__hurt00thm_adventure.mp3
+- sounds/soundEffects/hurtMale/342229__christopherderp__hurt-1-male.wav
+- sounds/soundEffects/hurtMale/413186__micahlg__male_hurt9.ogg
+- sounds/soundEffects/hurtMale/515623__mrickey13__playerhurt1.wav
+- sounds/soundEffects/hurtMale/745185__mrechobot__hurt1.wav
+- sounds/soundEffects/hurtMale/840222__kreha__hurt-light-1.wav
+- sounds/soundEffects/hurtMale/853661__k27k_mike__mc-hurt-2.wav
+- sounds/soundEffects/hurtMob/103533__tschapajew__pain_scream_serious_2.wav
+- sounds/soundEffects/hurtMob/221625__moodpie__creature.wav
+- sounds/soundEffects/hurtMob/442966__qubodup__dragon-hurt.wav
+- sounds/soundEffects/hurtMob/555426__tonsil5__zombie-pain-5.wav
+- sounds/soundEffects/hurtMob/571974__soundmast123__monster-pain.wav
+- sounds/soundEffects/hurtMob/738437__qubodup__orc-grunt-1.wav
+- sounds/soundEffects/hurtMob/738439__qubodup__orc-grunt-3.wav
+- sounds/soundEffects/hurtMob/851777__scorpion67890__decayed-zombie-hurt-2.ogg
+- sounds/soundEffects/menu/733769__slv443__click-menu.wav
+- sounds/soundEffects/nature/386507__glennm__bird_chirping_edit.wav
+- sounds/soundEffects/nature/386523__glennm__thunder_edit.wav
+- sounds/soundEffects/nature/386539__glennm__water_stream.wav
+- sounds/soundEffects/nature/386540__glennm__water_rain_light.wav
+- sounds/soundEffects/nature/765399__donnydb__midnight-ambiance-in-kwazulu-natal-recorded-with-zoom-h6.wav
+- sounds/soundEffects/rain/864445__hadonella__rain-and-birds-singing-ambient.wav
+- sounds/soundEffects/rain/864802__newlocknew__rain_downpourgardenunder-the-treegrassleavesgreenhousevari-intensity.flac
+- sounds/soundEffects/rain/864916__newlocknew__20260626_1108_thunder-fs-864809-benson_arizona.mp3
+- sounds/soundEffects/rain/865261__robo9418__rain-hitting-window.wav
+- sounds/soundEffects/rain/865596__krozanski__rainstorm-on-aluminium-balcony-heavy-rain-drops-and-thunder-atmosphere.wav
+- sounds/soundEffects/rain/Rainlit Shelter.mp3
+- sounds/soundEffects/slash/35213__abyssmal__slashkut.wav
+- sounds/soundEffects/slash/420674__sypherzent__deep-cut-slash-gash.wav
+- sounds/soundEffects/slash/420675__sypherzent__cut-through-armor-slice-clang.wav
+- sounds/soundEffects/slash/442903__qubodup__slash.wav
+- sounds/soundEffects/slash/574820__wenpire__slash2.ogg
+- sounds/soundEffects/slash/580307__colorscrimsontears__slash-rpg.wav
+- sounds/soundEffects/slash/766480__rtyrtyrtyrtyrtyrtyrtyrty__knife-slash-spike-trap-sharp-sound-4.mp3
+- sounds/soundEffects/sword/180828__32cheeseman32__swordclash09.wav
+- sounds/soundEffects/sword/326868__johnbuhr__sword_clash-7.wav
+- sounds/soundEffects/sword/334169__loudernoises__sword-clash.wav
+- sounds/soundEffects/sword/344131__thebuilder15__sword-slice.wav
+- sounds/soundEffects/sword/364530__christopherderp__swords-clash-high-quality-2.wav
+- sounds/soundEffects/talking/742403__noisyredfox__hmvoice-talking.ogg
+- sounds/soundEffects/train/trainArrive/854736__kevp888__260425_160902_fr_steam_train_stopping_at_st-valery.wav
+- sounds/soundEffects/train/traindepart/39413__gadzooks__steam2.wav
+- sounds/soundEffects/train/trainDoor/134715__joedeshon__sliding_door_opening.wav
+- sounds/soundEffects/train/trainTraveling/133099__allh__steam-train-interior.mp3
+- sounds/soundEffects/train/trainTraveling/854275__kevp888__260425_123758_fr_steam_train_travelling.wav
+- sounds/soundEffects/train/trainTraveling/854675__kevp888__260425_153749_fr_steam_train_travelling.wav
+- sounds/soundEffects/train/trainTraveling/855145__kevp888__260426_103231_fr_steam_train_travelling.wav
+- sounds/soundEffects/train/trainTraveling/855304__kevp888__260426_112308_fr_steam_train_travelling.wav
+- sounds/soundEffects/walkingSteps/386519__glennm__left_foot_stone.wav
+- sounds/soundEffects/walkingSteps/386520__glennm__right_foot_gravel.wav
+- sounds/soundEffects/walkingSteps/386522__glennm__left_foot_gravel.wav
+- sounds/soundEffects/walkingSteps/386525__glennm__right_foot_stone.wav

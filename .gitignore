@@ -12,3 +12,7 @@ save*.json
 # OS/editor noise
 Thumbs.db
 .DS_Store
+
+# Local audio library (intentionally omitted from the remote history)
+sounds/*
+!sounds/AUDIO_ASSETS.md
