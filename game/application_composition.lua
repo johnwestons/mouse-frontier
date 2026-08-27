@@ -55,6 +55,7 @@ local function new(context)
   local scenery,ui=content.scenery,content.ui
   local maintenanceSession=Maintenance.new()
   local activityMinigames=Modules.stopActivityMinigames.new({helpQuestSession=Modules.helpQuestSession,
+    activityDifficulty=Modules.activityDifficulty,
     sludgeContainment=Modules.sludgeContainment,trackDebrisClearing=Modules.trackDebrisClearing,
     gardenRescue=Modules.gardenRescue,wildlifeTroughCare=Modules.wildlifeTroughCare,
     atlases={["sludge-containment"]=scenery.sludgeContainmentAtlas,["track-debris-clearing"]=scenery.trackDebrisAtlas,

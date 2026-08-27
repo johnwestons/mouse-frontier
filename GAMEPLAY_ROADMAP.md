@@ -2,6 +2,8 @@
 
 This roadmap orders the remaining work by dependency and gameplay impact. Every target must preserve existing saves, use the shared Windows/Android Lua source, pass desktop and full-route smoke checks, pass the packaged mobile smoke checks, and end in a clean Git commit.
 
+Latest completion: stop activities now gain settled-farm, drylands, and ashlands variants. Later regions require more successful decisions, the final region permits fewer mistakes, and the palettes plus target layouts change through the same shared desktop/mobile implementation.
+
 ## 1. Stop activities, help requests, and goodwill — Complete
 
 - Give stops meaningful activities beyond looting.

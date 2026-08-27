@@ -277,20 +277,25 @@ local function install(context)
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
                     and result.goodwill==1 and result.persistent and result.foodProtected and result.curve=="stop-world-variety-v2"
-                    and result.minigames.ready and result.minigames.registered==4 and result.minigames.curve=="activity-minigames-v2"
-                    and result.minigames.sludge.stages==3 and result.minigames.sludge.maximumMistakes==3
+                    and result.minigames.ready and result.minigames.registered==4 and result.minigames.curve=="activity-minigames-v3"
+                    and result.minigames.difficulty.ready and result.minigames.difficulty.bands==3
+                    and result.minigames.difficulty.earlyRounds==3 and result.minigames.difficulty.midRounds==4
+                    and result.minigames.difficulty.lateRounds==5 and result.minigames.difficulty.lateMistakes==2
+                    and result.minigames.difficulty.visualVariants==3 and result.minigames.difficulty.curve=="activity-difficulty-v1"
+                    and result.minigames.sludge.stages==3 and result.minigames.sludge.earlyAbsorbs==3
+                    and result.minigames.sludge.lateAbsorbs==5 and result.minigames.sludge.lateMistakes==2
                     and result.minigames.sludge.persistent and result.minigames.sludge.keyboard and result.minigames.sludge.touch
-                    and result.minigames.sludge.curve=="sludge-containment-v1"
-                    and result.minigames.track.stages==3 and result.minigames.track.decisions==9
-                    and result.minigames.track.maximumMistakes==3 and result.minigames.track.persistent
-                    and result.minigames.track.keyboard and result.minigames.track.touch and result.minigames.track.curve=="track-debris-v1"
-                    and result.minigames.garden.stages==3 and result.minigames.garden.decisions==9
-                    and result.minigames.garden.maximumMistakes==3 and result.minigames.garden.persistent
-                    and result.minigames.garden.keyboard and result.minigames.garden.touch and result.minigames.garden.curve=="garden-rescue-v1"
-                    and result.minigames.wildlife.stages==3 and result.minigames.wildlife.decisions==9
-                    and result.minigames.wildlife.maximumMistakes==3 and result.minigames.wildlife.persistent
+                    and result.minigames.sludge.curve=="sludge-containment-v2"
+                    and result.minigames.track.stages==3 and result.minigames.track.earlyDecisions==9
+                    and result.minigames.track.lateDecisions==15 and result.minigames.track.lateMistakes==2 and result.minigames.track.persistent
+                    and result.minigames.track.keyboard and result.minigames.track.touch and result.minigames.track.curve=="track-debris-v2"
+                    and result.minigames.garden.stages==3 and result.minigames.garden.earlyDecisions==9
+                    and result.minigames.garden.lateDecisions==15 and result.minigames.garden.lateMistakes==2 and result.minigames.garden.persistent
+                    and result.minigames.garden.keyboard and result.minigames.garden.touch and result.minigames.garden.curve=="garden-rescue-v2"
+                    and result.minigames.wildlife.stages==3 and result.minigames.wildlife.earlyDecisions==9
+                    and result.minigames.wildlife.lateDecisions==15 and result.minigames.wildlife.lateMistakes==2 and result.minigames.wildlife.persistent
                     and result.minigames.wildlife.foodProtected and result.minigames.wildlife.keyboard and result.minigames.wildlife.touch
-                    and result.minigames.wildlife.curve=="wildlife-trough-v1"
+                    and result.minigames.wildlife.curve=="wildlife-trough-v2"
             end},
             {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
                 return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10

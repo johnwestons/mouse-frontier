@@ -1,3 +1,5 @@
+local UI=require("game.activity_minigame_ui")
+local Difficulty=require("game.activity_difficulty")
 local TrackDebris={}
 
 TrackDebris.version=1
@@ -27,9 +29,9 @@ function TrackDebris.new(options)
     progress.phase=clampPhase(progress.phase); progress.step=math.max(1,math.floor(tonumber(progress.step) or 1))
     progress.mistakes=math.max(0,math.floor(tonumber(progress.mistakes) or 0))
     progress.scanStart=math.max(1,math.min(3,math.floor(tonumber(progress.scanStart) or (((tonumber(options.location) or 1)-1)%3)+1)))
-    return {version=TrackDebris.version,kind="track-debris-clearing",location=options.location or 1,helpQuestId=options.helpQuestId,
-        progress=progress,phase=progress.phase,maximumMistakes=TrackDebris.maximumMistakes,message=nil,
-        failureMessage="The debris shifted. Step back and begin another safe attempt.",pauseMessage="Track clearing paused. Your inspection marks are saved."}
+    return Difficulty.apply({version=TrackDebris.version,kind="track-debris-clearing",location=options.location or 1,helpQuestId=options.helpQuestId,
+        progress=progress,phase=progress.phase,message=nil,failureMessage="The debris shifted. Step back and begin another safe attempt.",
+        pauseMessage="Track clearing paused. Your inspection marks are saved."},options.location)
 end
 
 function TrackDebris.objective(session) return objectives[(session and session.phase) or 1] end
@@ -51,19 +53,19 @@ function TrackDebris.choose(session,index)
     if session.phase==1 then
         if index~=scanTarget(session) then return miss(session,"That pile may shift. Mark the brighter loose edge first.") end
         session.progress.step=session.progress.step+1
-        if session.progress.step>3 then return advance(session,2,"Inspection complete. Use the safest tool for each marked obstruction.") end
+        if session.progress.step>session.rounds then return advance(session,2,"Inspection complete. Use the safest tool for each marked obstruction.") end
         session.message="Marked. Continue inward from the newly safe edge."; return "progress"
     elseif session.phase==2 then
         local item=currentDebris(session)
         if index~=item.tool then return miss(session,"That tool could scatter the "..item.name:lower()..". Match the tool to the hazard.") end
         session.progress.step=session.progress.step+1
-        if session.progress.step>3 then return advance(session,3,"The path is clear. Sort the recovered material before reopening the track.") end
+        if session.progress.step>session.rounds then return advance(session,3,"The path is clear. Sort the recovered material before reopening the track.") end
         session.message="Removed safely. Choose a tool for the next obstruction."; return "progress"
     end
     local item=currentDebris(session)
     if index~=item.sort then return miss(session,"That destination is unsafe for "..item.name:lower()..".") end
     session.progress.step=session.progress.step+1
-    if session.progress.step>3 then return "complete" end
+    if session.progress.step>session.rounds then return "complete" end
     session.message="Load sorted. Place the next recovered material."; return "progress"
 end
 
@@ -75,7 +77,7 @@ end
 
 function TrackDebris.mousepressed(session,x,y)
     local zones=session.phase==1 and TrackDebris.scanZones or (session.phase==2 and TrackDebris.toolZones or TrackDebris.sortZones)
-    for index,zone in ipairs(zones) do local dx,dy=x-zone.x,y-zone.y; if dx*dx+dy*dy<=58*58 then return TrackDebris.choose(session,index) end end
+    return (function(index) return index and TrackDebris.choose(session,index) end)(UI.hit(UI.variantZones(zones,session),x,y,58))
 end
 
 local function drawAtlasSprite(image,index,x,y,size)
@@ -87,51 +89,45 @@ end
 
 function TrackDebris.draw(session,colors,image,clock)
     if not session then return end
-    local panel=colors.panel or {.08,.055,.035}; local cream=colors.cream or {1,.92,.74}; local brass=colors.brass or {.86,.57,.22}; local pulse=1+math.sin((clock or 0)*5)*.08
-    love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,960,720)
-    love.graphics.setColor(panel); love.graphics.rectangle("fill",145,64,670,592,12,12)
-    love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",145,64,670,592,12,12)
-    love.graphics.setColor(cream); love.graphics.printf("CLEAR THE TRACK",185,90,590,"center",0,1.25,1.25)
-    love.graphics.printf("STAGE "..session.phase.." OF 3  •  "..TrackDebris.objective(session),190,138,580,"center",0,.68,.68)
-    love.graphics.setColor(.28,.23,.18); love.graphics.rectangle("fill",260,255,440,145,10,10)
+    local cream,brass=UI.begin(colors,"CLEAR THE TRACK",session,TrackDebris.objective(session)); local pulse=1+math.sin((clock or 0)*5)*.08
+    love.graphics.setColor(session.difficulty.palette.ground); love.graphics.rectangle("fill",260,255,440,145,10,10)
     love.graphics.setColor(.7,.62,.48); love.graphics.rectangle("fill",270,282,420,14); love.graphics.rectangle("fill",270,360,420,14)
     for x=292,668,47 do love.graphics.setColor(.38,.25,.16); love.graphics.rectangle("fill",x,267,13,116) end
     if session.phase==1 then
         local target=scanTarget(session)
-        for index,zone in ipairs(TrackDebris.scanZones) do
+        for index,zone in ipairs(UI.variantZones(TrackDebris.scanZones,session)) do
             love.graphics.setColor(index==target and {.98,.68,.2,1} or {.65,.48,.28,.85}); love.graphics.circle("line",zone.x,zone.y,index==target and 48*pulse or 38)
             love.graphics.line(zone.x-25,zone.y-12,zone.x+22,zone.y+15); love.graphics.line(zone.x-18,zone.y+18,zone.x+24,zone.y-16)
             love.graphics.setColor(cream); love.graphics.print(tostring(index),zone.x-5,zone.y+48)
         end
     elseif session.phase==2 then
         local item=currentDebris(session); love.graphics.setColor(cream); love.graphics.printf("CURRENT:  "..item.name,270,220,420,"center",0,.78,.78)
-        for index,zone in ipairs(TrackDebris.toolZones) do
+        for index,zone in ipairs(UI.variantZones(TrackDebris.toolZones,session)) do
             love.graphics.setColor(.82,.62,.32,1); love.graphics.circle("line",zone.x,zone.y,55)
             drawAtlasSprite(image,index,zone.x,zone.y,92); love.graphics.setColor(cream); love.graphics.printf(index.."  "..toolNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
         end
     else
         local item=currentDebris(session); love.graphics.setColor(cream); love.graphics.printf("SORT:  "..item.name,270,220,420,"center",0,.78,.78)
-        for index,zone in ipairs(TrackDebris.sortZones) do
+        for index,zone in ipairs(UI.variantZones(TrackDebris.sortZones,session)) do
             love.graphics.setColor(.82,.62,.32,1); love.graphics.circle("line",zone.x,zone.y,55)
             drawAtlasSprite(image,4,zone.x,zone.y,88); love.graphics.setColor(cream); love.graphics.printf(index.."  "..sortNames[index],zone.x-72,zone.y+60,144,"center",0,.58,.58)
         end
     end
-    love.graphics.setColor(cream); love.graphics.printf(session.message or "Work from a stable edge. Three mistakes end the attempt for a safe retry.",205,535,550,"center",0,.7,.7)
-    love.graphics.setColor(brass); love.graphics.printf("MISTAKES  "..session.progress.mistakes.." / "..session.maximumMistakes.."     •     1–3 / TAP     •     Q / BACK TO PAUSE",205,596,550,"center",0,.62,.62)
-    love.graphics.setLineWidth(1); love.graphics.setColor(1,1,1,1)
+    UI.footer(session,cream,brass,"Work from a stable edge. Mistakes end the attempt for a safe retry.")
 end
 
 function TrackDebris.audit()
-    local clean=TrackDebris.new({location=4,progress={}}); local progressed=true
-    for _=1,3 do progressed=progressed and TrackDebris.choose(clean,scanTarget(clean))=="progress" end
-    for _=1,3 do progressed=progressed and TrackDebris.choose(clean,currentDebris(clean).tool)=="progress" end
-    local complete
-    for _=1,3 do complete=TrackDebris.choose(clean,currentDebris(clean).sort) end
-    local restored=TrackDebris.new({location=clean.location,progress=clean.progress})
-    local failed=TrackDebris.new({location=1,progress={}}); local failure
-    for _=1,3 do failure=TrackDebris.choose(failed,scanTarget(failed)%3+1) end
-    return {ready=progressed and complete=="complete" and failure=="failed" and restored.phase==3 and restored.progress.step==4,
-        stages=3,decisions=9,maximumMistakes=3,persistent=true,keyboard=true,touch=true,curve="track-debris-v1"}
+    local function complete(location)
+        local s=TrackDebris.new({location=location,progress={}}); local ok=true
+        for _=1,s.rounds do ok=ok and TrackDebris.choose(s,scanTarget(s))=="progress" end
+        for _=1,s.rounds do ok=ok and TrackDebris.choose(s,currentDebris(s).tool)=="progress" end
+        local done; for _=1,s.rounds do done=TrackDebris.choose(s,currentDebris(s).sort) end
+        return s,ok and done=="complete"
+    end
+    local early,earlyOK=complete(4); local late,lateOK=complete(45); local restored=TrackDebris.new({location=45,progress=late.progress})
+    local bad=TrackDebris.new({location=45,progress={}}); local failure; for _=1,bad.maximumMistakes do failure=TrackDebris.choose(bad,scanTarget(bad)%3+1) end
+    return {ready=earlyOK and lateOK and failure=="failed" and restored.phase==3 and restored.progress.step==late.rounds+1,stages=3,
+        earlyDecisions=early.rounds*3,lateDecisions=late.rounds*3,lateMistakes=late.maximumMistakes,persistent=true,keyboard=true,touch=true,curve="track-debris-v2"}
 end
 
 return TrackDebris

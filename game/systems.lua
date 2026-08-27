@@ -26,6 +26,7 @@ return {
     trackDebrisClearing = require("game.track_debris_clearing"),
     stopActivityMinigames = require("game.stop_activity_minigames"),
     activityMinigameUI = require("game.activity_minigame_ui"),
+    activityDifficulty = require("game.activity_difficulty"),
     gardenRescue = require("game.garden_rescue"),
     wildlifeTroughCare = require("game.wildlife_trough_care"),
     inputComposition = require("game.input_composition"),

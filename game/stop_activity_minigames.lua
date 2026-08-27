@@ -3,6 +3,7 @@ local Coordinator={}
 function Coordinator.new(options)
     assert(type(options)=="table","stop activity minigames require explicit dependencies")
     local HelpQuest=assert(options.helpQuestSession,"stop activity minigames require help quest sessions")
+    local Difficulty=assert(options.activityDifficulty,"stop activity minigames require activity difficulty")
     local registry={
         ["sludge-containment"]=assert(options.sludgeContainment,"stop activity minigames require sludge containment"),
         ["track-debris-clearing"]=assert(options.trackDebrisClearing,"stop activity minigames require track debris clearing"),
@@ -58,8 +59,9 @@ function Coordinator.new(options)
     function service.audit()
         local sludge=registry["sludge-containment"].audit(); local track=registry["track-debris-clearing"].audit()
         local garden=registry["garden-rescue"].audit(); local wildlife=registry["wildlife-trough-care"].audit()
-        return {ready=sludge.ready and track.ready and garden.ready and wildlife.ready,sludge=sludge,track=track,garden=garden,wildlife=wildlife,
-            registered=4,curve="activity-minigames-v2"}
+        local difficulty=Difficulty.audit()
+        return {ready=difficulty.ready and sludge.ready and track.ready and garden.ready and wildlife.ready,difficulty=difficulty,
+            sludge=sludge,track=track,garden=garden,wildlife=wildlife,registered=4,curve="activity-minigames-v3"}
     end
 
     return service

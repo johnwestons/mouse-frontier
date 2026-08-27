@@ -2,6 +2,8 @@
 
 Stop help now uses one persistent domain model across Windows and Android. Item requests, first aid, and community activities no longer own separate reward or lifecycle rules.
 
+Authored community activities share a three-band progression profile. Stops 1–16 use three rounds and three allowed mistakes, stops 17–33 use four rounds and three mistakes, and stops 34–50 use five rounds with two allowed mistakes. Each band also supplies a regional palette and target arrangement, with mouse and touch hit areas following the visible positions. Sludge containment, track clearing, garden rescue, and wildlife trough care remain separate modules while consuming this one shared rule.
+
 ## Lifecycle
 
 Every session moves through the same save-safe states:

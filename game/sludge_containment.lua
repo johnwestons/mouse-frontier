@@ -1,3 +1,5 @@
+local UI=require("game.activity_minigame_ui")
+local Difficulty=require("game.activity_difficulty")
 local SludgeContainment={}
 
 SludgeContainment.version=1
@@ -22,9 +24,9 @@ function SludgeContainment.new(options)
     progress.step=math.max(1,math.floor(tonumber(progress.step) or 1))
     progress.mistakes=math.max(0,math.floor(tonumber(progress.mistakes) or 0))
     progress.barrierTarget=clampIndex(progress.barrierTarget or (((tonumber(options.location) or 1)-1)%3)+1)
-    return {version=SludgeContainment.version,kind="sludge-containment",location=options.location or 1,helpQuestId=options.helpQuestId,
-        progress=progress,phase=progress.phase,maximumMistakes=SludgeContainment.maximumMistakes,message=nil,
-        failureMessage="The barrier slipped. The supplies were recovered; try again.",pauseMessage="Containment paused. Your progress is saved."}
+    return Difficulty.apply({version=SludgeContainment.version,kind="sludge-containment",location=options.location or 1,helpQuestId=options.helpQuestId,
+        progress=progress,phase=progress.phase,message=nil,failureMessage="The barrier slipped. The supplies were recovered; try again.",
+        pauseMessage="Containment paused. Your progress is saved."},options.location)
 end
 
 function SludgeContainment.objective(session)
@@ -53,7 +55,7 @@ function SludgeContainment.choose(session,index)
         local target=((session.location+session.progress.step-2)%3)+1
         if index~=target then return miss(session,"That pocket is stable. Find the brighter pulsing leak.") end
         session.progress.step=session.progress.step+1
-        if session.progress.step>3 then return advance(session,3,"The spread has stopped. Seal the source before collecting it.") end
+        if session.progress.step>session.rounds then return advance(session,3,"The spread has stopped. Seal the source before collecting it.") end
         session.message="Leak packed. Find the next pulsing pocket."
         return "progress"
     end
@@ -73,10 +75,8 @@ end
 function SludgeContainment.mousepressed(session,x,y)
     local zones=session.phase==2 and SludgeContainment.absorbZones or SludgeContainment.barrierZones
     if session.phase==3 then zones={{x=395,y=425},{x=565,y=425}} end
-    for index,zone in ipairs(zones) do
-        local dx,dy=x-zone.x,y-zone.y
-        if dx*dx+dy*dy<=58*58 then return SludgeContainment.choose(session,index) end
-    end
+    if session.phase<3 then zones=UI.variantZones(zones,session) end
+    local index=UI.hit(zones,x,y,58); return index and SludgeContainment.choose(session,index)
 end
 
 local function drawAtlasSprite(image,index,x,y,size)
@@ -90,26 +90,21 @@ end
 
 function SludgeContainment.draw(session,colors,image,clock)
     if not session then return end
-    local panel=colors.panel or {.08,.055,.035}; local cream=colors.cream or {1,.92,.74}; local brass=colors.brass or {.86,.57,.22}
-    love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,960,720)
-    love.graphics.setColor(panel); love.graphics.rectangle("fill",155,70,650,580,12,12)
-    love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",155,70,650,580,12,12)
-    love.graphics.setColor(cream); love.graphics.printf("CONTAIN THE SLUDGE",190,94,580,"center",0,1.25,1.25)
-    love.graphics.printf("STAGE "..session.phase.." OF 3  •  "..SludgeContainment.objective(session),195,142,570,"center",0,.68,.68)
-    love.graphics.setColor(.04,.42,.45,.78); love.graphics.ellipse("fill",480,340,175,82)
+    local cream,brass=UI.begin(colors,"CONTAIN THE SLUDGE",session,SludgeContainment.objective(session))
+    love.graphics.setColor(session.difficulty.palette.ground); love.graphics.ellipse("fill",480,340,175,82)
     love.graphics.setColor(.12,.88,.84,.9); love.graphics.setLineWidth(3); love.graphics.ellipse("line",480,340,175,82)
     local pulse=1+math.sin((clock or 0)*5)*.08
     if session.phase==1 then
-        local target=SludgeContainment.barrierZones[session.progress.barrierTarget]
+        local zones=UI.variantZones(SludgeContainment.barrierZones,session); local target=zones[session.progress.barrierTarget]
         love.graphics.setColor(.15,.9,.88,.9); love.graphics.line(480,340,target.x,target.y)
-        for index,zone in ipairs(SludgeContainment.barrierZones) do
+        for index,zone in ipairs(zones) do
             love.graphics.setColor(index==session.progress.barrierTarget and {.15,.95,.88,1} or {.95,.72,.30,1})
             love.graphics.circle("line",zone.x,zone.y,48); drawAtlasSprite(image,1,zone.x,zone.y,82)
             love.graphics.setColor(cream); love.graphics.print(tostring(index),zone.x-5,zone.y+50)
         end
     elseif session.phase==2 then
         local target=((session.location+session.progress.step-2)%3)+1
-        for index,zone in ipairs(SludgeContainment.absorbZones) do
+        for index,zone in ipairs(UI.variantZones(SludgeContainment.absorbZones,session)) do
             love.graphics.setColor(index==target and {.2,.98,.86,1} or {.5,.72,.58,.8})
             love.graphics.circle("line",zone.x,zone.y,index==target and 48*pulse or 38)
             drawAtlasSprite(image,2,zone.x,zone.y,72)
@@ -121,24 +116,22 @@ function SludgeContainment.draw(session,colors,image,clock)
         drawAtlasSprite(image,3,395,425,105); drawAtlasSprite(image,4,565,425,105)
         love.graphics.setColor(cream); love.graphics.printf("1  SEAL",335,486,120,"center",0,.7,.7); love.graphics.printf("2  SCOOP",505,486,120,"center",0,.7,.7)
     end
-    love.graphics.setColor(cream); love.graphics.printf(session.message or "Choose carefully. Three mistakes end the attempt for a safe retry.",205,535,550,"center",0,.7,.7)
-    love.graphics.setColor(brass); love.graphics.printf("MISTAKES  "..session.progress.mistakes.." / "..session.maximumMistakes.."     •     1–3 / TAP     •     Q / BACK TO PAUSE",205,592,550,"center",0,.62,.62)
-    love.graphics.setLineWidth(1); love.graphics.setColor(1,1,1,1)
+    UI.footer(session,cream,brass,"Choose carefully. Mistakes end the attempt for a safe retry.")
 end
 
 function SludgeContainment.audit()
-    local clean=SludgeContainment.new({location=2,progress={}})
-    local barrier=clean.progress.barrierTarget
-    local first=SludgeContainment.choose(clean,barrier)
-    local packed=true
-    for _=1,3 do local target=((clean.location+clean.progress.step-2)%3)+1; packed=packed and SludgeContainment.choose(clean,target)=="progress" end
-    local sealed=SludgeContainment.choose(clean,1); local completed=SludgeContainment.choose(clean,2)
-    local failed=SludgeContainment.new({location=1,progress={}}); local wrong=failed.progress.barrierTarget%3+1; local failure
-    for _=1,failed.maximumMistakes do failure=SludgeContainment.choose(failed,wrong) end
-    local restored=SludgeContainment.new({location=clean.location,progress=clean.progress})
-    return {ready=first=="progress" and packed and sealed=="progress" and completed=="complete" and failure=="failed"
-            and restored.phase==3 and restored.progress.step==2,stages=3,maximumMistakes=3,persistent=true,keyboard=true,touch=true,
-        curve="sludge-containment-v1"}
+    local function complete(location)
+        local s=SludgeContainment.new({location=location,progress={}}); local ok=SludgeContainment.choose(s,s.progress.barrierTarget)=="progress"
+        for _=1,s.rounds do local target=((s.location+s.progress.step-2)%3)+1; ok=ok and SludgeContainment.choose(s,target)=="progress" end
+        local sealed=SludgeContainment.choose(s,1); local done=SludgeContainment.choose(s,2)
+        return s,ok and sealed=="progress" and done=="complete"
+    end
+    local early,earlyOK=complete(2); local late,lateOK=complete(45); local restored=SludgeContainment.new({location=45,progress=late.progress})
+    local bad=SludgeContainment.new({location=45,progress={}}); local wrong=bad.progress.barrierTarget%3+1; local failure
+    for _=1,bad.maximumMistakes do failure=SludgeContainment.choose(bad,wrong) end
+    return {ready=earlyOK and lateOK and failure=="failed" and restored.phase==3 and restored.progress.step==2,stages=3,
+        earlyAbsorbs=early.rounds,lateAbsorbs=late.rounds,lateMistakes=late.maximumMistakes,persistent=true,keyboard=true,touch=true,
+        curve="sludge-containment-v2"}
 end
 
 return SludgeContainment
