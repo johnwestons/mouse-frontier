@@ -277,6 +277,9 @@ local function install(context)
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
                 return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
                     and result.goodwill==1 and result.persistent and result.curve=="stop-world-variety-v1"
+                    and result.sludge.ready and result.sludge.stages==3 and result.sludge.maximumMistakes==3
+                    and result.sludge.persistent and result.sludge.keyboard and result.sludge.touch
+                    and result.sludge.curve=="sludge-containment-v1"
             end},
             {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
                 return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10

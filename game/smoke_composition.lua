@@ -44,6 +44,7 @@ local function new(context)
   local StopHelpProgression=required(domain,"domain","stopHelpProgression","table")
   local HelpQuestSession=required(domain,"domain","helpQuestSession","table")
   local StopActivities=required(domain,"domain","stopActivities","table")
+  local SludgeContainment=required(domain,"domain","sludgeContainment","table")
 
   local presentationRuntime=required(services,"services","presentationRuntime","table")
   local startupRuntime=required(services,"services","startupRuntime","table")
@@ -84,7 +85,11 @@ local function new(context)
       audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
       trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
-      stopActivityAudit=function() return StopActivities.audit(StopHelpProgression) end,
+      stopActivityAudit=function()
+        local result=StopActivities.audit(StopHelpProgression); result.sludge=SludgeContainment.audit()
+        result.ready=result.ready and result.sludge.ready
+        return result
+      end,
       helpQuestAudit=function() return HelpQuestSession.audit() end,
       relationshipAudit=function() return NpcRelationships.audit() end,
       characterIdentityAudit=function() return Catalog.characterIdentityAudit(characters,Roster) end,

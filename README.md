@@ -43,6 +43,7 @@ Android controls, installation, update flow, and device verification are documen
 - Four stop NPCs can begin branching dialogue quests about a missing family, disputed crops, a bandit warning, or a broken promise. Choices and discovered evidence persist; use **1–3** or the large choice buttons, and **Escape/Q** or **Pause** to resume later.
 - NPCs remember personal help, rides, gifts, conversations, and trades. Familiar travelers recognize the player, passengers discuss their work and destination, and goodwill plus friendship improve merchant prices and buying budgets.
 - First aid uses three highlighted treatment markers and supports mouse, touch, number keys **1–3**, and cancel/back.
+- Sludge seep activities use a three-stage containment screen: follow the flow to place a barrier, pack the pulsing leaks, then seal and scoop. Use mouse/touch or **1–3**; **Q/Escape** pauses with progress saved.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
 - Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
 - Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.

@@ -65,13 +65,17 @@ function Activities.near(activity,x,y,radius)
     return dx*dx+dy*dy<=(radius or 76)^2
 end
 
-function Activities.complete(data,layout,StopHelp)
+function Activities.complete(data,layout,StopHelp,options)
     local activity=layout and layout.worldActivity
     local profile=Activities.profile(activity)
     if not activity or not profile then return {completed=false,message="There is no community task here."} end
     if activity.completed then return {completed=true,already=true,message="This community task is already finished."} end
     local session=activity.sessionId and HelpQuest.get(data,activity.sessionId)
     if session then HelpQuest.accept(data,session.id) end
+    if activity.kind=="sludge-seep" and not (options and options.contained) then
+        if session then HelpQuest.investigate(data,session.id,"Place a downstream barrier around the seep.") end
+        return {completed=false,requiresMinigame="sludge-containment",message="Contain the seep before collecting it.",session=session}
+    end
     data.resources=data.resources or {}
     for resource,amount in pairs(profile.cost or {}) do
         if (data.resources[resource] or 0)<amount then
@@ -88,7 +92,7 @@ function Activities.complete(data,layout,StopHelp)
     activity.completed=true; activity.completedAt=data.location; activity.hazardCleared=true
     local gained,total
     if session then
-        HelpQuest.resolve(data,session.id,"successful",profile.label.." completed.")
+        HelpQuest.resolve(data,session.id,(options and options.grade) or "successful",profile.label.." completed.")
         local claimed=HelpQuest.claim(data,session.id,function(amount,kind,npc,questLocation)
             return StopHelp.add(data,amount,kind,npc,questLocation)
         end)
@@ -162,7 +166,7 @@ function Activities.audit(StopHelp)
     local layout={}; local activity=Activities.ensure(data,layout,1,settlements)
     local slow,event=Activities.update(data,layout,{x=activity.x,y=activity.y})
     local secondSlow,secondEvent=Activities.update(data,layout,{x=activity.x,y=activity.y})
-    local result=Activities.complete(data,layout,StopHelp)
+    local result=Activities.complete(data,layout,StopHelp,activity.kind=="sludge-seep" and {contained=true} or nil)
     local persistent=Activities.ensure(data,layout,1,settlements)==activity and activity.completed
     local session=HelpQuest.get(data,activity.sessionId)
     return {ready=repeatProtected and slow<1 and secondSlow<1 and event and event.damage==1 and not secondEvent

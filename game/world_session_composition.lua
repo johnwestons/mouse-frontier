@@ -27,6 +27,8 @@ local function new(context)
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
   local StopActivities=required(context,"stopActivities","table")
+  local SludgeContainment=required(context,"sludgeContainment","table")
+  local HelpQuestSession=required(context,"helpQuestSession","table")
   local Roster=required(context,"roster","table")
   local Maintenance=required(context,"maintenance","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
@@ -39,6 +41,7 @@ local function new(context)
   local worldScene=WorldScene.new({
     runtime=runtime,ui=ui,scenery=content.scenery,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,stopActivities=StopActivities,
+    sludgeContainment=SludgeContainment,helpQuestSession=HelpQuestSession,
     stopHelpProgression=StopHelpProgression,
     getIsWeapon=getIsWeapon,isFurnitureItem=content.isFurnitureItem,
     writeSave=platform.persistenceRuntime.schedule,

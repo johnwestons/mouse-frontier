@@ -37,6 +37,12 @@ Four authored conversations now use that contract: **Missing Family Trail**, **C
 
 The assigned NPC remembers the session between conversations and after a save reload. Pausing returns to the stop without erasing choices, completed NPCs provide relationship-aware follow-up dialogue, and goodwill is awarded once through the shared claim guard. Use **1–3** or the large on-screen choices; **Escape/Q** or the pause button safely closes an unfinished conversation. Mouse and Android touch use those same controls and quest state.
 
+## Sludge containment
+
+The sludge-seep stop activity now opens a three-stage visual session instead of resolving with one button. The player reads the animated flow direction to anchor a canvas barrier, packs absorbent moss into three pulsing leaks, then uses the seal and collection tools in a safe order. The generated four-prop atlas is shared by the desktop and Android packages.
+
+Correct steps and mistakes are written into the session after every input. **1–3**, mouse clicks, and touch activate the same targets; **Q/Escape** pauses without discarding progress. Three mistakes end that attempt but consume no resources or goodwill and leave the quest available for a clean retry. Completion clears the damaging slow hazard and awards the normal activity reward exactly once; a mistake-free containment earns the exceptional two-goodwill grade.
+
 ## Verification
 
-The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. Existing item-help, first-aid, stop-activity, save-migration, full-route, and packaged-mobile checks remain required.
+The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies all three sludge stages, persistence, clean completion, the three-mistake retry boundary, keyboard input, and touch input. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.

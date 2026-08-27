@@ -32,6 +32,8 @@ local function new(context)
   local Interactions=required(context,"interactions","table")
   local FirstAid=required(context,"firstAid","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
+  local SludgeContainment=required(context,"sludgeContainment","table")
+  local resolveSludgeContainment=required(context,"resolveSludgeContainment","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local FinaleProgression=required(context,"finaleProgression","table")
 
@@ -69,6 +71,7 @@ local function new(context)
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
     firstAid=FirstAid,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
+    sludgeContainment=SludgeContainment,resolveSludgeContainment=resolveSludgeContainment,
     completeStopActivity=worldScene.completeStopActivity,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
   })

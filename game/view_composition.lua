@@ -36,6 +36,7 @@ local function new(context)
   local NpcRelationships=required(context,"npcRelationships","table")
   local FinaleProgression=required(context,"finaleProgression","table")
   local FirstAid=required(context,"firstAid","table")
+  local SludgeContainment=required(context,"sludgeContainment","table")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Family=required(context,"family","table")
@@ -94,7 +95,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
     holdPickupSeconds=holdPickupSeconds,getCloudLayer=function() return startup.startupRuntime.cloudLayer() end,
     mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,clouds=Clouds,maintenance=Maintenance,util=Util,train=Train,
-    firstAid=FirstAid,
+    firstAid=FirstAid,sludgeContainment=SludgeContainment,sludgeContainmentAtlas=content.scenery.sludgeContainmentAtlas,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,
