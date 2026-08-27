@@ -908,6 +908,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertFalse(list((ROOT / "mobile").rglob("*.lua")), "mobile must not contain a copied Lua gameplay tree")
         self.assertIn("build_file_index.txt", apk_builder)
         self.assertIn("Invalidating native cache tied to a previous temporary build drive", apk_builder)
+        self.assertIn("File]::ReadAllText($gameActivityPath,[System.Text.Encoding]::UTF8)", apk_builder)
 
 
 if __name__ == "__main__":

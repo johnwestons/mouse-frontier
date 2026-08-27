@@ -104,7 +104,11 @@ try {
     # startup on recent Android releases. Keep this patch local to the Android
     # wrapper so the shared desktop game stays resizable.
     $gameActivityPath = Join-Path $loveAndroidRoot 'love\src\main\java\org\love2d\android\GameActivity.java'
-    $gameActivity = Get-Content -Raw -LiteralPath $gameActivityPath
+    # Windows PowerShell 5 decodes Get-Content with the active ANSI code page.
+    # GameActivity contains the word "LÖVE", so repeated build-and-rewrite
+    # cycles otherwise expand that text into mojibake until javac rejects the
+    # oversized string constant. Keep this boundary explicitly UTF-8.
+    $gameActivity = [System.IO.File]::ReadAllText($gameActivityPath,[System.Text.Encoding]::UTF8)
     if ($gameActivity -notmatch 'MOUSE_FRONTIER_LANDSCAPE_LOCK') {
         $landscapeOverride = @'
 public class GameActivity extends SDLActivity {
