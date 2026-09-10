@@ -215,12 +215,8 @@ function Audio:installGunPools()
     self.sfx.gunshotHeavy={"sounds/soundEffects/gunshot/427598__michorvath__ar15-pistol-shot.wav","sounds/soundEffects/gunshot/615028__zreimbach__designed-gunshot.wav"}
 end
 
-function Audio:playSfx(kind,settings,battle)
-    if self.suspended then return nil end
-    local pool=self.sfx[kind]
-    if not pool or #pool==0 then report(self,"No sound files registered for "..tostring(kind)); return nil end
-    local path=battle and battle.soundChoices and battle.soundChoices[kind] or pool[self.random(#pool)]
-    if battle then battle.soundChoices=battle.soundChoices or {}; battle.soundChoices[kind]=path end
+function Audio:playSfxPath(path,settings,options)
+    if self.suspended or not path then return nil end
     local prototype=self.sfxCache[path]
     if not prototype then prototype=loadSource(self,path,"static"); if prototype then self.sfxCache[path]=prototype end end
     local source
@@ -229,9 +225,24 @@ function Audio:playSfx(kind,settings,battle)
         source=ok and clone or loadSource(self,path,"static")
     end
     if not source then return nil end
-    source:setVolume(settings.sfxVolume or .55)
-    if kind=="trainArrive" then source:seek(13); source:setLooping(false); self.arrivalSource=source end
+    options=options or {}
+    source:setVolume((settings.sfxVolume or .55)*(options.volume or 1))
+    if options.pitch then safeCall(source,"setPitch",options.pitch) end
+    if options.seek then safeCall(source,"seek",options.seek) end
+    if options.looping~=nil then safeCall(source,"setLooping",options.looping) end
     source:play(); self.activeSfx[#self.activeSfx+1]=source
+    return source
+end
+
+function Audio:playSfx(kind,settings,battle)
+    if self.suspended then return nil end
+    local pool=self.sfx[kind]
+    if not pool or #pool==0 then report(self,"No sound files registered for "..tostring(kind)); return nil end
+    local path=battle and battle.soundChoices and battle.soundChoices[kind] or pool[self.random(#pool)]
+    if battle then battle.soundChoices=battle.soundChoices or {}; battle.soundChoices[kind]=path end
+    local options=kind=="trainArrive" and {seek=13,looping=false} or nil
+    local source=self:playSfxPath(path,settings,options)
+    if kind=="trainArrive" then self.arrivalSource=source end
     return source
 end
 

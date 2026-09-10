@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "character": "scholar-mouse",
+  "source_root": "output/character-motion/scholar-mouse/source",
+  "runtime_root": "output/character-motion/scholar-mouse/runtime",
+  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458, "horizontal_anchor": "core" },
+  "idle_sets": [
+    {
+      "source": "idle-direction-study-v4-reviewed.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [0, 1],
+      "source_indices": [0, 1, 2, 3],
+      "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png", "idle_northwest.png"]
+    },
+    {
+      "source": "idle-direction-study-v4-reviewed.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [2, 3],
+      "source_indices": [0, 1, 2, 3],
+      "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"]
+    }
+  ],
+  "walks": {
+    "walk.png": {
+      "source": "candidates/walk-east-v9-passing-palette.png",
+      "source_columns": 4,
+      "rows": 2,
+      "drop_boundary_spill": true,
+      "frame_adjustments": {
+        "4": { "scale_x": 0.96, "scale_y": 0.96 }
+      },
+      "frame_sources": [
+        null,
+        null,
+        {
+          "source": "candidates/walk-east-frame3-v16-passing.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-east-frame4-v15-depth.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        {
+          "source": "candidates/walk-east-frame7-v11-passing.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    },
+    "walk_northeast.png": {
+      "source": "candidates/walk-northeast-v5-bare-eye.png",
+      "source_columns": 4,
+      "rows": 2,
+      "drop_boundary_spill": true,
+      "frame_adjustments": {
+        "1": { "scale_x": 0.97, "scale_y": 0.97 },
+        "2": { "scale_x": 0.99, "scale_y": 0.99 },
+        "3": { "scale_x": 0.985, "scale_y": 0.985 },
+        "5": { "scale_x": 1.03, "scale_y": 1.03 },
+        "6": { "scale_x": 1.02, "scale_y": 1.02 },
+        "7": { "scale_x": 1.015, "scale_y": 1.015 }
+      },
+      "frame_sources": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-northeast-frame7-v6-no-gold.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    },
+    "walk_north.png": { "source": "walk-north-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northwest.png": { "source": "walk-northwest-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_west.png": {
+      "source": "candidates/walk-west-v9-natural-palette.png",
+      "source_columns": 4,
+      "rows": 2,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        {
+          "source": "candidates/walk-west-frame3-v11-recolor.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-west-frame4-v12-depth.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        {
+          "source": "candidates/walk-west-frame7-v8-passing.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-west-frame8-v12-depth.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk_southwest.png": {
+      "source": "candidates/walk-southwest-v5-natural-palette.png",
+      "source_columns": 4,
+      "rows": 2,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        {
+          "source": "candidates/walk-southwest-frame3-v7-recolor.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-southwest-frame7-v4-passing.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    },
+    "walk_south.png": { "source": "walk-south-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southeast.png": {
+      "source": "candidates/walk-southeast-v6-natural-palette.png",
+      "source_columns": 4,
+      "rows": 2,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-southeast-frame7-v8-passing.png",
+          "resolution_normalization": {
+            "mode": "reviewed_visible_height",
+            "source_visible_height": 730,
+            "target_visible_height": 387
+          }
+        },
+        null
+      ]
+    }
+  }
+}

@@ -1,4 +1,18 @@
 local AudioCatalog = require("game.audio_catalog")
+local ExpeditionBattleState = require("game.expedition_battle_state")
+
+local TRAIN_OBJECT_LAYOUT_VERSION=4
+local trainObjectStarts={
+  -- Captured from the user's final in-game editor placement in slot 3.
+  ["boombox-radio"]={x=115.9,y=289.4},
+  ["travel-chest"]={x=312.1,y=268.0},
+  ["mailbox-reward"]={x=394.9,y=230.9},
+}
+
+local function trainObjectPosition(car,name)
+  local start=trainObjectStarts[name]
+  return car.x+start.x,car.y+start.y
+end
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -28,11 +42,58 @@ local function new(context)
   local Settlements=required(context,"settlements","table")
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local CrowCaravans=required(context,"crowCaravans","table")
+  local CrowCaravanArea=required(context,"crowCaravanArea","table")
+  local ShootingRange=required(context,"shootingRange","table")
   local trainObjectBounds=required(context,"trainObjectBounds","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local resetStopSludges=required(context,"resetStopSludges","function")
+  local resetExpedition=required(context,"resetExpedition","function")
+  local prepareExpeditionBattleAssets=required(context,"prepareExpeditionBattleAssets","function")
+  local ExpeditionAreas=required(context,"expeditionAreas","table")
+  local scheduleSave=type(context.writeSave)=="function" and context.writeSave or nil
+
+  local function caravanScheduleOptions(data)
+      local excluded={[1]=true,[50]=true}
+      for _,stop in ipairs(ShootingRange.hostStops or {}) do excluded[stop]=true end
+      for _,stop in ipairs(Events.storyStops or {}) do excluded[stop]=true end
+      for _,stop in ipairs((data and data.mysteryStops) or {}) do excluded[stop]=true end
+      for stop=1,50 do if ExpeditionAreas.availableAtStop(stop) then excluded[stop]=true end end
+      for stop=1,50 do if not CrowCaravanArea.hasStopGate(stop) then excluded[stop]=true end end
+      return {excludedStops=excluded}
+  end
+
+  local function caravanNeedsInitialSchedule(data)
+      local state=type(data and data.crowCaravans)=="table" and data.crowCaravans or {}
+      return math.max(0,math.floor(tonumber(state.scheduleVersion) or 0))<CrowCaravans.version
+  end
+
+  local function mysteryStopsNeedRepair(data)
+      if type(data.mysteryStops)~="table" or #data.mysteryStops~=5 then return true end
+      local bossStops={[15]=true,[35]=true,[47]=true}
+      for _,stop in ipairs(data.mysteryStops) do if bossStops[tonumber(stop)] then return true end end
+      return false
+  end
+
+  local function ensureDeterministicMigrationMysteries(data)
+      if not mysteryStopsNeedRepair(data) then return end
+      local rng=CrowCaravans.deterministicRng(data,"legacy-mystery-stops")
+      local occupied={[15]=true,[35]=true,[47]=true}
+      for _,stop in ipairs(Events.storyStops or {}) do occupied[stop]=true end
+      local result={}
+      for _,band in ipairs({{4,10},{11,19},{20,29},{30,39},{40,47}}) do
+          local choices={}
+          for stop=band[1],band[2] do if not occupied[stop] then choices[#choices+1]=stop end end
+          local index=1+math.floor(rng()*#choices)
+          local selected=choices[math.max(1,math.min(#choices,index))]
+          result[#result+1]=selected
+          occupied[selected]=true
+      end
+      table.sort(result)
+      data.mysteryStops=result
+  end
 
   local function newSave(character)
       local npcRoster, seen = {}, {}
@@ -44,9 +105,12 @@ local function new(context)
       end
       table.sort(npcRoster)
       local worldItems = {}
-      worldItems[#worldItems+1]={name="travel-chest",x=car.x+275,y=car.y+255,scene="train",carIndex=1,scale=1,rotation=0,storage={}}
-      worldItems[#worldItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
-      worldItems[#worldItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
+      local chestX,chestY=trainObjectPosition(car,"travel-chest")
+      local radioX,radioY=trainObjectPosition(car,"boombox-radio")
+      local mailboxX,mailboxY=trainObjectPosition(car,"mailbox-reward")
+      worldItems[#worldItems+1]={name="travel-chest",x=chestX,y=chestY,scene="train",carIndex=1,scale=1,rotation=0,storage={}}
+      worldItems[#worldItems+1]={name="boombox-radio",x=radioX,y=radioY,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
+      worldItems[#worldItems+1]={name="mailbox-reward",x=mailboxX,y=mailboxY,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
       local result={
           version = SaveSchema.CURRENT_VERSION, character = character, location = 1, scene = "train", stopped = true,
           npcRoster = npcRoster, currentNPC = npcRoster[1],
@@ -57,23 +121,27 @@ local function new(context)
           inventory = {"orange-rose-vase", "cowboy-hat", nil, nil, nil, nil},
           droppedItems = worldItems, visitedStops = {[1] = true}, houseInitialized = {}, houseLayoutsArranged = {}, npcStates = {},
           encounters = {}, weaponDropsAdded = true, starterChestAdded=true, medicalDropsAdded=true, ammoDropsAdded=true,
-          choices = {}, stopLayouts = {}, stopSludges={}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={}, goodwill=0, helpHistory={},relationships={},helpQuestSessions={},
+          choices = {}, stopLayouts = {}, stopSludges={}, expeditions={}, crowCaravans={version=1,scheduleVersion=0,scheduledStops={},camps={}}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={}, goodwill=0, helpHistory={},relationships={},helpQuestSessions={},lastStand={},
           maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0}, finale={},
           inventoryCapacity=6, backpack=nil,
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
           specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,
+          trainObjectLayoutVersion=TRAIN_OBJECT_LAYOUT_VERSION,
           audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false},
           accessibility={version=1,textSize=1,highContrast=false,reducedMotion=false,controlHints=true,touchFeedback=true,largeTouchTargets=true},
           playerX = car.x + 300, playerY = car.y + 285
       }
       for i,name in ipairs({"coal-bucket","pickaxe","potted-sprout","flower-pot","potted-flowers"}) do House.storeLoot(result,Catalog,name,i) end
+      Events.ensure(result)
+      local caravanState,caravanError=CrowCaravans.ensureSchedule(result,caravanScheduleOptions(result))
+      assert(caravanState,caravanError)
       return result
   end
 
   local function enterGame(data)
       if type(data)~="table" then return false end
-      local migrated,migrationError=SaveSchema.migrate(data)
-      if not migrated then return false,migrationError end
+      local migrated,migrationInfo=SaveSchema.migrate(data)
+      if not migrated then return false,migrationInfo end
       data=migrated
       Maintenance.close(maintenanceSession)
       ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1; ui.itemOrderCache={}
@@ -101,6 +169,7 @@ local function new(context)
       data.npcStates = data.npcStates or {}
       data.stopLayouts = data.stopLayouts or {}
       data.stopSludges = data.stopSludges or {}
+      ExpeditionAreas.ensure(data)
       data.events = data.events or {}
       Maintenance.ensure(data)
       data.weaponDurability=data.weaponDurability or {}
@@ -160,7 +229,7 @@ local function new(context)
       if not data.weaponDropsAdded then data.weaponDropsAdded=true end
       if not data.starterChestAdded then
           local found=false; for _,item in ipairs(data.droppedItems) do if item.name=="travel-chest" and item.scene=="train" then item.storage=item.storage or {}; found=true end end
-          if not found then data.droppedItems[#data.droppedItems+1]={name="travel-chest",x=car.x+165,y=car.y+285,scene="train",scale=1,rotation=0,storage={}} end
+          if not found then local x,y=trainObjectPosition(car,"travel-chest"); data.droppedItems[#data.droppedItems+1]={name="travel-chest",x=x,y=y,scene="train",carIndex=1,scale=1,rotation=0,storage={}} end
           data.starterChestAdded=true
       end
       for _,item in ipairs(data.droppedItems) do if Catalog.storageCapacities[item.name] then item.storage=item.storage or {} end end
@@ -172,13 +241,14 @@ local function new(context)
               else
                   radioFound=true; item.scene="train"; item.carIndex=math.max(1,item.carIndex or 1)
                   local left,right,top,bottom=trainObjectBounds()
-                  item.x=math.max(left,math.min(right,tonumber(item.x) or car.x+470))
-                  item.y=math.max(top,math.min(bottom,tonumber(item.y) or car.y+285))
+                  local defaultX,defaultY=trainObjectPosition(car,"boombox-radio")
+                  item.x=math.max(left,math.min(right,tonumber(item.x) or defaultX))
+                  item.y=math.max(top,math.min(bottom,tonumber(item.y) or defaultY))
                   item.scale=item.scale or 1.15; item.rotation=item.rotation or 0; item.permanent=true
               end
           end
       end
-      if not radioFound then data.droppedItems[#data.droppedItems+1]={name="boombox-radio",x=car.x+470,y=car.y+285,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true} end
+      if not radioFound then local x,y=trainObjectPosition(car,"boombox-radio"); data.droppedItems[#data.droppedItems+1]={name="boombox-radio",x=x,y=y,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true} end
       data.radioAdded=true
       local mailboxFound=false
       for _,item in ipairs(data.droppedItems) do
@@ -187,10 +257,25 @@ local function new(context)
           end
       end
       if not mailboxFound then
-          data.droppedItems[#data.droppedItems+1]={name="mailbox-reward",x=car.x+560,y=car.y+270,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
+          local x,y=trainObjectPosition(car,"mailbox-reward")
+          data.droppedItems[#data.droppedItems+1]={name="mailbox-reward",x=x,y=y,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
+      end
+      if (data.trainObjectLayoutVersion or 0)<TRAIN_OBJECT_LAYOUT_VERSION then
+          local chestMoved=false
+          for _,item in ipairs(data.droppedItems) do
+              local start=trainObjectStarts[item.name]
+              local starterChest=item.name=="travel-chest" and item.scene=="train" and (item.carIndex or 1)==1 and not item.droppedByPlayer and not chestMoved
+              local permanent=item.name~="travel-chest" and item.scene=="train" and (item.carIndex or 1)==1
+              if start and (starterChest or permanent) then
+                  item.x,item.y=car.x+start.x,car.y+start.y
+                  item.carIndex=1
+                  if starterChest then chestMoved=true end
+              end
+          end
+          data.trainObjectLayoutVersion=TRAIN_OBJECT_LAYOUT_VERSION
       end
       for _,item in ipairs(data.droppedItems) do
-          if item.name=="travel-chest" and item.scene=="train" and (item.x<car.x+35 or item.x>car.x+car.w-35) then item.x,item.y=car.x+165,car.y+285 end
+          if item.name=="travel-chest" and item.scene=="train" and (item.x<car.x+35 or item.x>car.x+car.w-35) then item.x,item.y=trainObjectPosition(car,"travel-chest") end
       end
       if not data.medicalDropsAdded then data.medicalDropsAdded=true end
       if not data.lootContainerMigration then
@@ -209,7 +294,17 @@ local function new(context)
       data.encounters = data.encounters or {}
       local loadedNpcCandidates={}
       for file in pairs(npcImages) do loadedNpcCandidates[#loadedNpcCandidates+1]=file end
+      local needsInitialCaravanSchedule=caravanNeedsInitialSchedule(data)
+      if needsInitialCaravanSchedule then ensureDeterministicMigrationMysteries(data) end
       Events.ensure(data)
+      local scheduleOptions=caravanScheduleOptions(data)
+      if needsInitialCaravanSchedule then
+          scheduleOptions.futureOnly=true
+          scheduleOptions.currentLocation=data.location
+          scheduleOptions.rng=CrowCaravans.deterministicRng(data,"legacy-future-schedule")
+      end
+      local caravanState,caravanError,caravanScheduleChanged=CrowCaravans.ensureSchedule(data,scheduleOptions)
+      if not caravanState then return false,caravanError end
       -- Older saves may have selected a character that is now a mob-only asset.
       -- Keep the save usable by moving that selection to the first valid hero.
       if not Roster.isPlayable(data.character) or not characterImages[data.character] then
@@ -220,15 +315,49 @@ local function new(context)
       for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
       if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
       resetStopSludges()
+      local pendingBattle,expeditionRecovered=ExpeditionBattleState.recover(data,Catalog)
       local image = characterImages[data.character]
       local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
+      local restoredFacing=1
       if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end
       if data.scene=="stop" then restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
+      if data.scene==ExpeditionAreas.SCENE then
+          if not ExpeditionAreas.isArea(data.activeExpeditionArea) then
+              data.scene="train"; data.activeExpeditionArea=nil
+              restoredX,restoredY=clampToTrainFloor(car.x+90,car.y+180)
+          else restoredX,restoredY=ExpeditionAreas.clamp(data,data.activeExpeditionArea,restoredX,restoredY) end
+      end
+      if data.scene==CrowCaravanArea.SCENE then
+          local campSession=CrowCaravanArea.restore(data)
+          if not campSession then
+              data.scene="stop"
+              if data.crowCaravans then data.crowCaravans.activeCampId=nil end
+              restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location)
+          else
+              local savedX,savedY=CrowCaravanArea.spawn(campSession,"saved")
+              restoredX,restoredY=CrowCaravanArea.clamp(savedX or restoredX,savedY or restoredY)
+              restoredFacing=(campSession.state and campSession.state.playerFacing) or restoredFacing
+          end
+      elseif data.crowCaravans then data.crowCaravans.activeCampId=nil end
       local activePlayer={x = restoredX, y = restoredY, speed = 185,
-          image = image, facing = 1, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1}
+          image = image, facing = restoredFacing, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1,
+          velocityX=0,velocityY=0,intentX=restoredFacing,intentY=0,animationDistance=0,idleClock=0,
+          gaitSpeedMultiplier=1,gaitAccelerationMultiplier=1,blocked=false}
       runtime:activate(data,activePlayer)
       runtime:resetForGameEntry()
-      return true
+      runtime.battle=nil
+      resetExpedition()
+      runtime.expeditionGraceTimer=data.scene==ExpeditionAreas.SCENE and 1.5 or 0
+      if pendingBattle then
+          prepareExpeditionBattleAssets()
+          runtime.battle=pendingBattle
+          runtime.state="battle"
+      end
+      -- Hosts that provide the normal debounced save callback persist a newly
+      -- migrated roll immediately. The standard shutdown/focus save remains a
+      -- fallback, and deterministic generation makes crash-before-save safe.
+      if (caravanScheduleChanged or expeditionRecovered) and scheduleSave then scheduleSave() end
+      return true,nil,{migration=migrationInfo,caravanScheduleChanged=caravanScheduleChanged==true,expeditionRecovered=expeditionRecovered==true}
   end
 
   return {newSave=newSave,enterGame=enterGame}

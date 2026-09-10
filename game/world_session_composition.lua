@@ -27,7 +27,9 @@ local function new(context)
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
   local StopActivities=required(context,"stopActivities","table")
-  local ActivityMinigames=required(context,"activityMinigames","table")
+  local ShootingRange=required(context,"shootingRange","table")
+  local CrowCaravans=required(context,"crowCaravans","table")
+  local CrowCaravanArea=required(context,"crowCaravanArea","table")
   local Roster=required(context,"roster","table")
   local Maintenance=required(context,"maintenance","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
@@ -35,14 +37,26 @@ local function new(context)
   local Events=required(context,"events","table")
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local ExpeditionAreas=required(context,"expeditionAreas","table")
+  local ExpeditionRuntime=required(context,"expeditionRuntime","table")
+  local RoamingMobs=required(context,"roamingMobs","table")
   local getIsWeapon=required(context,"getIsWeapon","function")
+  local getBeginEncounter=required(context,"getBeginEncounter","function")
+  local W=required(context,"width","number")
+  local H=required(context,"height","number")
 
   local worldScene=WorldScene.new({
     runtime=runtime,ui=ui,scenery=content.scenery,catalog=Catalog,util=Util,house=House,stops=Stops,
-    family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,stopActivities=StopActivities,
-    activityMinigames=ActivityMinigames,
+    family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,stopActivities=StopActivities,shootingRange=ShootingRange,
+    events=Events,
     stopHelpProgression=StopHelpProgression,
+    crowCaravans=CrowCaravans,crowCaravanArea=CrowCaravanArea,
     getIsWeapon=getIsWeapon,isFurnitureItem=content.isFurnitureItem,
+    expeditionAreas=ExpeditionAreas,expeditionRuntime=ExpeditionRuntime,roamingMobs=RoamingMobs,
+    getBeginEncounter=getBeginEncounter,width=W,height=H,
+    mobImages=content.mobImages,mobIdleImages=content.mobIdleImages,mobWalkImages=content.mobWalkImages,
+    mobAttackImages=content.mobAttackImages,mobHitImages=content.mobHitImages,
+    mobDeathImages=content.mobDeathImages,mobRangedImages=content.mobRangedImages,
     writeSave=platform.persistenceRuntime.schedule,
   })
 
@@ -53,9 +67,13 @@ local function new(context)
     engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,settlements=Settlements,
     playerProgression=PlayerProgression,
     stopHelpProgression=StopHelpProgression,
+    expeditionAreas=ExpeditionAreas,
+    crowCaravans=CrowCaravans,crowCaravanArea=CrowCaravanArea,
+    shootingRange=ShootingRange,
     trainObjectBounds=platform.trainCarRuntime.objectBounds,trainFloorBounds=platform.trainCarRuntime.floorBounds,
     clampToTrainFloor=platform.trainCarRuntime.clampToFloor,isFurnitureItem=content.isFurnitureItem,
-    resetStopSludges=worldScene.resetStopSludges,
+    resetStopSludges=worldScene.resetStopSludges,writeSave=platform.persistenceRuntime.schedule,
+    resetExpedition=worldScene.resetExpedition,prepareExpeditionBattleAssets=worldScene.prepareExpeditionBattleAssets,
   })
 
   local world={worldScene=worldScene,sessionBootstrap=sessionBootstrap}

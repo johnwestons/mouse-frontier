@@ -19,6 +19,7 @@ local function new(context)
   local holdPickupSeconds=required(context,"holdPickupSeconds","number")
   local ui=required(context,"ui","table")
   local car=required(context,"car","table")
+  local landscape=required(context,"landscape","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local screens=required(context,"screens","table")
   local Graphics=required(context,"graphics","table")
@@ -37,6 +38,8 @@ local function new(context)
   local Family=required(context,"family","table")
   local Util=required(context,"util","table")
   local Passengers=required(context,"passengers","table")
+  local FirstAid=required(context,"firstAid","table")
+  local ShootingRange=required(context,"shootingRange","table")
 
   local startupRuntime=StartupRuntime.new({
     ui=ui,scenery=content.scenery,graphics=Graphics,filesystem=Filesystem,assets=Assets,
@@ -45,7 +48,7 @@ local function new(context)
     createIntro=function() return Intro.new(10) end,assetTargets=content.assetTargets,
     legacyAnimationTables=content.legacyAnimationTables,
     gameplayContext={
-      runtime=runtime,width=W,holdPickupSeconds=holdPickupSeconds,ui=ui,car=car,scenery=content.scenery,
+      runtime=runtime,width=W,holdPickupSeconds=holdPickupSeconds,ui=ui,car=car,landscape=landscape,scenery=content.scenery,
       maintenanceSession=maintenanceSession,mobileEnabled=platform.mobileRuntime.isEnabled,
       mobileMovement=platform.mobileRuntime.movement,mobileHeld=platform.mobileRuntime.isHeld,
       mobileSprinting=platform.mobileRuntime.isSprinting,interactionRouter=interactionRouter,
@@ -53,11 +56,15 @@ local function new(context)
       settlements=Settlements,interiorDoors=InteriorDoors,interactions=Interactions,
       updatePersistence=platform.persistenceRuntime.update,clouds=Clouds,screens=screens,
       engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
-      screenToGame=platform.presentationRuntime.screenToGame,updateAudio=platform.audioRuntime.update,
+      screenToGame=platform.presentationRuntime.screenToWorld,updateAudio=platform.audioRuntime.update,
       ensureStopLayout=world.worldScene.ensureStopLayout,updateWorldScene=world.worldScene.update,currentStopActivity=world.worldScene.currentStopActivity,
+      currentShootingRange=world.worldScene.currentShootingRange,handleShootingRange=world.worldScene.handleShootingRange,
       clampToTrainFloor=platform.trainCarRuntime.clampToFloor,itemIsHere=world.worldScene.itemIsHere,
       setupNPC=world.worldScene.setupNPC,trainFloorBounds=platform.trainCarRuntime.floorBounds,
+      moveExpedition=world.worldScene.moveExpedition,currentExpeditionInteraction=world.worldScene.currentExpeditionInteraction,
+      moveCaravan=world.worldScene.moveCaravan,currentCaravanInteraction=world.worldScene.currentCaravanInteraction,
       updateCarTransition=platform.trainCarRuntime.updateTransition,writeSave=platform.persistenceRuntime.schedule,
+      firstAid=FirstAid,shootingRange=ShootingRange,
     },
   })
 

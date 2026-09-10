@@ -20,6 +20,7 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local NpcRelationships=required(context,"npcRelationships","table")
+  local MerchantTrade=required(context,"merchantTrade","table")
   local Util=required(context,"util","table")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
@@ -31,26 +32,29 @@ local function new(context)
   local Intro=required(context,"intro","table")
   local Interactions=required(context,"interactions","table")
   local FirstAid=required(context,"firstAid","table")
+  local ShootingRange=required(context,"shootingRange","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
-  local ActivityMinigames=required(context,"activityMinigames","table")
-  local resolveActivityMinigame=required(context,"resolveActivityMinigame","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local FinaleProgression=required(context,"finaleProgression","table")
 
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
-    inventory=Inventory,catalog=Catalog,npcRelationships=NpcRelationships,util=Util,readSave=platform.persistenceRuntime.read,
+    inventory=Inventory,catalog=Catalog,npcRelationships=NpcRelationships,merchantTrade=MerchantTrade,util=Util,readSave=platform.persistenceRuntime.read,
     removeSave=platform.persistenceRuntime.remove,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
+    worldCoordinates=platform.presentationRuntime.worldCoordinates,
     cameraPanning=platform.presentationRuntime.isPanning,
     beginCameraPan=platform.presentationRuntime.beginPan,moveCameraPan=platform.presentationRuntime.movePan,
     endCameraPan=platform.presentationRuntime.endPan,zoomCamera=platform.presentationRuntime.wheel,
     resetCamera=platform.presentationRuntime.resetCamera,panCamera=platform.presentationRuntime.panCamera,
     pointerPosition=platform.mobileRuntime.pointerPosition,isWeapon=adventure.inventoryActions.isWeapon,
     isFurnitureItem=content.isFurnitureItem,ensureStopLayout=worldScene.ensureStopLayout,
+    currentTradeSource=worldScene.currentTradeSource,
     moveEditedItem=platform.trainCarRuntime.moveEditedItem,
-    attackStopSludge=worldScene.attackStopSludge,acceptQuest=adventure.journeyRules.acceptQuest,
+    attackStopSludge=worldScene.attackStopSludge,attackExpeditionMob=worldScene.attackExpeditionMob,
+    activateExpeditionInteraction=worldScene.activateExpeditionInteraction,acceptQuest=adventure.journeyRules.acceptQuest,
+    activateCaravanInteraction=worldScene.activateCaravanInteraction,returnFromCaravan=worldScene.returnFromCaravan,
     attemptLeaveTrain=adventure.journeyRules.attemptLeaveTrain,travelStatus=adventure.journeyRules.travelStatus,
     playTrainDepart=platform.audioRuntime.playTrainDepart,audioResetMusic=platform.audioRuntime.resetMusic,
     audioPreviousTrack=platform.audioRuntime.previousTrack,audioTogglePause=platform.audioRuntime.togglePause,
@@ -61,6 +65,7 @@ local function new(context)
     handleBattleMouse=adventure.battleRuntime.handleMouse,battleAttack=adventure.battleRuntime.attack,
     battleHeal=adventure.battleRuntime.heal,battleGuard=adventure.battleRuntime.guard,
     advanceBattleTurn=adventure.battleRuntime.advanceTurn,setBattlePrompt=adventure.battleRuntime.setPrompt,
+    finishBattle=adventure.battleRuntime.finishBattle,
     beginCarTransition=platform.trainCarRuntime.beginTransition,talkToNPC=adventure.journeyRules.talkToNPC,
     ensureHouseItems=worldScene.ensureHouseItems,setupNPC=worldScene.setupNPC,
     giveWeaponToNearby=adventure.inventoryActions.giveWeaponToNearby,
@@ -70,9 +75,9 @@ local function new(context)
     trainItemAt=views.worldRenderer.trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
-    firstAid=FirstAid,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
-    activityMinigames=ActivityMinigames,resolveActivityMinigame=resolveActivityMinigame,
+    firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
     completeStopActivity=worldScene.completeStopActivity,
+    beginShootingRange=worldScene.beginShootingRange,handleShootingRange=worldScene.handleShootingRange,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
   })
 

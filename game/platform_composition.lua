@@ -33,6 +33,7 @@ local function new(context)
   local MobileControls=required(context,"mobileControls","table")
   local drawExitPrompt=required(context,"drawExitPrompt","function")
   local getGameplayInput=required(context,"getGameplayInput","function")
+  local getWorldOffset=required(context,"getWorldOffset","function")
 
   local persistenceRuntime,audioRuntime,trainCarRuntime,presentationRuntime,mobileRuntime
   persistenceRuntime=PersistenceRuntime.new({
@@ -53,6 +54,7 @@ local function new(context)
     runtime=runtime,ui=ui,screens=screens,maintenanceSession=maintenanceSession,
     viewport=Viewport,camera=Camera,engineUpgrades=EngineUpgrades,maintenance=Maintenance,width=W,height=H,
     drawExitPrompt=drawExitPrompt,drawMobileControls=function(...) return mobileRuntime.draw(...) end,
+    getWorldOffset=getWorldOffset,
   })
 
   mobileRuntime=MobileRuntime.new({

@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import subprocess
+import zipfile
 from pathlib import Path
 
 
@@ -26,6 +27,8 @@ EXPECTED_MOBILE_ONLY = {
     "mobile_menu_touch",
     "mobile_pinch_zoom",
     "mobile_settlement_help_touch",
+    "mobile_return_to_train_touch",
+    "mobile_shooting_range_aim_then_fire",
 }
 
 
@@ -130,12 +133,37 @@ def audit(
         raise AuditError(f"Android APK is missing: {installed_apk}")
     if apk.get("signed") is not True:
         raise AuditError("Android APK signature was not verified")
-    if apk.get("embeddedGameBytes") != build.get("packageBytes"):
+    if apk.get("identityVerified") is not True:
+        raise AuditError("Android APK identity was not verified")
+    for field in ("applicationId", "versionName", "versionCode", "sourceCommit", "sourceDirty"):
+        if apk.get(field) != build.get(field):
+            raise AuditError(f"APK and game package disagree on {field}")
+    if package.stat().st_size != build.get("packageBytes") or apk.get("embeddedGameBytes") != build.get("packageBytes"):
         raise AuditError("APK does not contain the audited shared game package")
+    actual_package_sha = sha256(package)
+    if build.get("packageSha256") != actual_package_sha:
+        raise AuditError("Game package checksum does not match its build report")
     actual_apk_sha = sha256(installed_apk)
     if apk.get("sha256") != actual_apk_sha:
         raise AuditError("APK checksum does not match its build report")
-    if apk.get("connectedAndroidDevices", 0) < 1:
+    with zipfile.ZipFile(installed_apk) as archive:
+        try:
+            with archive.open("assets/game.love") as stream:
+                digest = hashlib.sha256()
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            embedded_sha = digest.hexdigest()
+        except KeyError as exc:
+            raise AuditError("APK is missing its embedded game package") from exc
+        if embedded_sha != actual_package_sha or apk.get("embeddedGameSha256") != embedded_sha:
+            raise AuditError("APK embedded game checksum does not match the audited package")
+        expected_abis = {"arm64-v8a", "armeabi-v7a", "x86_64"}
+        if set(apk.get("verifiedAbis", [])) != expected_abis:
+            raise AuditError("APK architecture verification is incomplete")
+        for abi in expected_abis:
+            if f"lib/{abi}/liblove.so" not in archive.namelist():
+                raise AuditError(f"APK is missing its {abi} engine")
+    if require_device and apk.get("connectedAndroidDevices", 0) < 1:
         raise AuditError("No connected Android device was recorded")
     if require_device and apk.get("deviceLaunchVerified") is not True:
         raise AuditError("Installed game did not pass the on-device startup check")
@@ -152,6 +180,8 @@ def audit(
         "reachedStop50": True,
         "apk": str(installed_apk),
         "apkSha256": actual_apk_sha,
+        "packageSha256": actual_package_sha,
+        "verifiedAbis": sorted(expected_abis),
         "signed": True,
         "connectedAndroidDevices": apk.get("connectedAndroidDevices"),
         "deviceLaunchVerified": apk.get("deviceLaunchVerified") is True,
@@ -177,7 +207,7 @@ def main() -> int:
             args.apk_report,
             args.require_device,
         )
-    except (AuditError, OSError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+    except (AuditError, OSError, subprocess.CalledProcessError, json.JSONDecodeError, zipfile.BadZipFile) as exc:
         print(f"PARITY_AUDIT_FAILED: {exc}")
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)

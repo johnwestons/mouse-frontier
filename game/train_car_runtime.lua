@@ -95,10 +95,15 @@ local function new(context)
 
   local function enterTrain(playDoorSound)
       if playDoorSound then ui.playSfx("trainDoor") end
-      local _,right,top,bottom=floorBounds()
+      local left,right,top,bottom=floorBounds()
       runtime.scene="train"
       runtime.npcActor=nil
-      runtime.player.x,runtime.player.y=right,(top+bottom)/2
+      -- Return to the usable floor's center, clear of the right-hand touch
+      -- action button, with the perspective floor still enforcing safe footing.
+      runtime.player.x,runtime.player.y=clampToFloor(math.min((left+right)/2,W-56),(top+bottom)/2)
+      runtime.player.velocityX,runtime.player.velocityY=0,0
+      runtime.player.moving=false
+      ui.interaction=nil; runtime.nearExpedition=false
       writeSave()
       return true
   end

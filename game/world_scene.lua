@@ -20,13 +20,31 @@ local function new(context)
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
   local StopActivities=required(context,"stopActivities","table")
-  local ActivityMinigames=required(context,"activityMinigames","table")
+  local ShootingRange=required(context,"shootingRange","table")
+  local Events=required(context,"events","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
+  local CrowCaravans=required(context,"crowCaravans","table")
+  local CrowCaravanArea=required(context,"crowCaravanArea","table")
+  local ExpeditionAreas=required(context,"expeditionAreas","table")
+  local ExpeditionRuntime=required(context,"expeditionRuntime","table")
+  local RoamingMobs=required(context,"roamingMobs","table")
+  local getBeginEncounter=required(context,"getBeginEncounter","function")
   local getIsWeapon=required(context,"getIsWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local writeSave=required(context,"writeSave","function")
   local activeStopSludges=StopSludges.new()
+  local caravanSession=nil
   local activityMessage,activityMessageTimer=nil,0
+  local expedition=ExpeditionRuntime.new({
+      runtime=runtime,ui=ui,catalog=Catalog,areas=ExpeditionAreas,roamingMobs=RoamingMobs,
+      getIsWeapon=getIsWeapon,getBeginEncounter=getBeginEncounter,writeSave=writeSave,
+      clampToStop=function(x,y) return Settlements.clamp(x,y,runtime.saveData.location) end,
+      width=required(context,"width","number"),height=required(context,"height","number"),
+      mobImages=required(context,"mobImages","table"),mobIdleImages=required(context,"mobIdleImages","table"),
+      mobWalkImages=required(context,"mobWalkImages","table"),mobAttackImages=required(context,"mobAttackImages","table"),
+      mobHitImages=required(context,"mobHitImages","table"),mobDeathImages=required(context,"mobDeathImages","table"),
+      mobRangedImages=required(context,"mobRangedImages","table"),
+  })
 
   local function isWeapon(name)
       local check=getIsWeapon()
@@ -42,6 +60,7 @@ local function new(context)
   local function ensureStopLayout()
       local layout=Stops.ensure(runtime.saveData,Catalog,runtime.scene)
       StopActivities.ensure(runtime.saveData,layout,runtime.saveData.location,Settlements)
+      ShootingRange.ensure(layout,runtime.saveData.location,Settlements)
       return layout
   end
 
@@ -53,11 +72,16 @@ local function new(context)
       if item.scene~=runtime.scene then return false end
       if runtime.scene=="train" then return (item.carIndex or 1)==(runtime.saveData.activeCar or 1) end
       if runtime.scene=="house" then return item.location==runtime.saveData.location and (item.houseDoor or 1)==(runtime.saveData.activeHouseDoor or 1) end
+      if runtime.scene==ExpeditionAreas.SCENE then return item.expeditionAreaId==runtime.saveData.activeExpeditionArea end
+      if runtime.scene==CrowCaravanArea.SCENE then
+          local root=runtime.saveData.crowCaravans
+          return type(root)=="table" and item.caravanCampId==root.activeCampId
+      end
       return item.location==runtime.saveData.location
   end
 
   local function setupNPC()
-      if runtime.scene=="train" then runtime.npcActor=nil; return end
+      if runtime.scene=="train" or runtime.scene==ExpeditionAreas.SCENE or runtime.scene==CrowCaravanArea.SCENE then runtime.npcActor=nil; return end
       local layout=ensureStopLayout()
       runtime.saveData.currentNPC=(runtime.scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
       local key=Util.sceneKey(runtime.scene,runtime.saveData.location)..(runtime.scene=="house" and (":"..tostring(runtime.saveData.activeHouseDoor or 1)) or "")
@@ -75,6 +99,169 @@ local function new(context)
       runtime.saveData.npcStates[key]=saved
       runtime.npcActor=saved
       Family.ensure(runtime.npcActor,runtime.saveData.currentNPC)
+  end
+
+  local function caravanScheduleOptions()
+      local excluded={[1]=true,[50]=true}
+      for _,stop in ipairs(ShootingRange.hostStops or {}) do excluded[stop]=true end
+      for _,stop in ipairs(Events.storyStops or {}) do excluded[stop]=true end
+      for _,stop in ipairs((runtime.saveData and runtime.saveData.mysteryStops) or {}) do excluded[stop]=true end
+      for stop=1,50 do if ExpeditionAreas.availableAtStop(stop) then excluded[stop]=true end end
+      for stop=1,50 do if not CrowCaravanArea.hasStopGate(stop) then excluded[stop]=true end end
+      return {excludedStops=excluded}
+  end
+
+  local function caravanGatePoint()
+      if runtime.scene~="stop" or not runtime.saveData then return nil end
+      local gate=CrowCaravanArea.stopGate(runtime.saveData.location)
+      if not gate then return nil end
+      return gate.x,gate.y
+  end
+
+  local function currentCaravanSession()
+      if runtime.scene~=CrowCaravanArea.SCENE or not runtime.saveData then return nil end
+      local activeId=runtime.saveData.crowCaravans and runtime.saveData.crowCaravans.activeCampId
+      if caravanSession and caravanSession.id==activeId and caravanSession.data==runtime.saveData then return caravanSession end
+      caravanSession=CrowCaravanArea.restore(runtime.saveData)
+      return caravanSession
+  end
+
+  local function currentCaravanInteraction()
+      if not runtime.saveData or not runtime.player then return nil end
+      if runtime.scene=="stop" then
+          local available=CrowCaravans.isScheduled(runtime.saveData,runtime.saveData.location,caravanScheduleOptions())
+          if not available then return nil end
+          local camp=CrowCaravans.lookup(runtime.saveData,runtime.saveData.location)
+          if camp and not CrowCaravans.isActive(camp) then return nil end
+          local x,y=caravanGatePoint()
+          if not x then return nil end
+          return CrowCaravanArea.stopEntrance(runtime.saveData.location,{x=x,y=y,label="VISIT CROW CARAVAN"})
+      end
+      if runtime.scene==CrowCaravanArea.SCENE then return CrowCaravanArea.interaction(currentCaravanSession(),runtime.player) end
+      return nil
+  end
+
+  local function enterCaravan(selected)
+      if runtime.scene~="stop" or not runtime.saveData or not runtime.player then return false end
+      local location=runtime.saveData.location
+      if selected and selected.stop and selected.stop~=location then return false end
+      local camp,errorMessage=CrowCaravans.ensureCamp(runtime.saveData,Catalog,location,caravanScheduleOptions())
+      if not camp then
+          runtime.dialogue={speaker="Crow Caravan",text=errorMessage=="not-scheduled" and "Only wagon tracks remain here." or "The caravan cannot make camp here yet.",timer=3.5}
+          return false
+      end
+      local firstVisit=camp.visited~=true
+      local session,x,y=CrowCaravanArea.enter(runtime.saveData,location,
+          {x=runtime.player.x,y=runtime.player.y,facing=runtime.player.facing},{camp=camp})
+      if not session then return false end
+      caravanSession=session
+      runtime.scene=CrowCaravanArea.SCENE
+      runtime.player.x,runtime.player.y=x,y
+      runtime.player.velocityX,runtime.player.velocityY=0,0
+      runtime.npcActor=nil
+      runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
+      local root=runtime.saveData.crowCaravans
+      if firstVisit then root.meetings=math.max(0,math.floor(tonumber(root.meetings) or 0))+1 end
+      local meeting=root.meetings or 1
+      local greeting=firstVisit and (meeting==1 and "Warm your paws. Three wagons, three trades, and no trouble inside the firelight."
+          or (meeting==2 and "The rails cross our road again. The flock saved its better crates for you."
+          or "There you are, rail-friend. See what the Rookery gathered beyond the next bend."))
+          or "Back for another look? The wagons have not rolled on yet."
+      runtime.dialogue={speaker="The Rookery Caravan",text=greeting,timer=5}
+      ui.playSfx("doors"); writeSave(); return true
+  end
+
+  local function returnFromCaravan()
+      if runtime.scene~=CrowCaravanArea.SCENE or not runtime.saveData or not runtime.player then return false end
+      local session=currentCaravanSession()
+      if not session then runtime.scene="stop"; setupNPC(); return false end
+      CrowCaravanArea.savePosition(session,runtime.player)
+      local x,y,facing=CrowCaravanArea.leave(runtime.saveData,session)
+      runtime.scene="stop"
+      runtime.player.x,runtime.player.y=Settlements.clamp(x or 480,y or 620,runtime.saveData.location)
+      if facing~=nil then runtime.player.facing=facing end
+      runtime.player.velocityX,runtime.player.velocityY=0,0
+      runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
+      runtime.dialogue=nil; caravanSession=nil
+      setupNPC(); ui.playSfx("doors"); writeSave(); return true
+  end
+
+  local function activateCaravanInteraction(selected)
+      selected=selected or currentCaravanInteraction()
+      if not selected or selected.kind~=CrowCaravanArea.KIND then return false end
+      if selected.action=="enterCaravan" then return enterCaravan(selected) end
+      if selected.action=="returnStop" then return returnFromCaravan() end
+      if selected.action=="trade" then
+          local session=currentCaravanSession()
+          local camp=session and session.state
+          local merchant=session and CrowCaravanArea.merchant(session,selected.merchantId)
+          if not merchant then return false end
+          runtime.tradeMerchantId=selected.merchantId
+          runtime.tradeNPC=camp.relationshipKey or CrowCaravans.relationshipKey
+          runtime.tradeBuyPage=0; runtime.tradeSellPage=0; runtime.tradeMessage=nil; runtime.tradeOpen=true; runtime.dialogue=nil
+          ui.playSfx("menu"); return true
+      end
+      return false
+  end
+
+  local function currentTradeSource()
+      if runtime.scene==CrowCaravanArea.SCENE and runtime.tradeMerchantId then
+          local session=currentCaravanSession(); local camp=session and session.state
+          local merchant=camp and CrowCaravans.merchant(camp,runtime.tradeMerchantId)
+          if not merchant then return nil end
+          local root=runtime.saveData.crowCaravans
+          camp.purchaseHistory=type(camp.purchaseHistory)=="table" and camp.purchaseHistory or {}
+          return {
+              kind="caravan",title=string.upper(merchant.name).."  •  THE ROOKERY CARAVAN",
+              merchant=CrowCaravans.relationshipKey,relationshipId=camp.relationshipKey or root.groupRelationshipId or CrowCaravans.relationshipKey,
+              stock=CrowCaravans.tradeListings(camp,merchant.id,Catalog),allowGifts=false,directAmmo=true,mailboxOverflow=true,
+              availableBudget=function(terms) return CrowCaravans.availableBudget(camp,terms) end,
+              spendBudget=function(amount,terms) return CrowCaravans.spendBudget(camp,amount,terms) end,
+              onPurchase=function(_,name,delivery,listing)
+                  root.trades=math.max(0,math.floor(tonumber(root.trades) or 0))+1
+                  camp.purchaseHistory[#camp.purchaseHistory+1]={merchantId=merchant.id,item=name,delivery=delivery,stop=camp.stop,listingId=listing and listing.id}
+              end,
+              onSale=function(_,name,price)
+                  root.trades=math.max(0,math.floor(tonumber(root.trades) or 0))+1
+                  local resale=CrowCaravans.addResaleListing(camp,merchant.id,name,Catalog,nil,price)
+                  camp.purchaseHistory[#camp.purchaseHistory+1]={merchantId=merchant.id,item=name,soldToCaravan=true,price=price,
+                      stop=camp.stop,resaleListingId=resale and resale.id or nil}
+              end,
+          }
+      end
+      if runtime.tradeOpen then
+          local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
+          local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
+          return {kind="stop",title=Util.titleFromFile(merchant).."'S TRADING POST",merchant=merchant,relationshipId=merchant,
+              stock=layout.tradeStock,budgetOwner=layout,budgetKey="tradeBudget",allowGifts=true,directAmmo=false,mailboxOverflow=false}
+      end
+      return nil
+  end
+
+  local function moveCaravan(oldX,oldY,newX,newY)
+      if not currentCaravanSession() then return oldX,oldY end
+      return CrowCaravanArea.move(oldX,oldY,newX,newY)
+  end
+
+  local function drawCaravan(options)
+      local session=currentCaravanSession()
+      if session then CrowCaravanArea.draw(session,options or {}) end
+  end
+
+  local function drawCaravanGate()
+      if runtime.scene~="stop" or not currentCaravanInteraction() then return end
+      local x,y=caravanGatePoint(); if not x then return end
+      local caravanAssets=scenery.crowCaravanAssets
+      local banner=caravanAssets and caravanAssets.crowBanner
+      assert(banner,"The Rookery Caravan requires its crow banner sprite")
+      local width,height=banner:getDimensions()
+      assert(width>0 and height>0,"The Rookery Caravan crow banner sprite has invalid dimensions")
+      local scale=94/height
+      local settings=runtime.saveData and runtime.saveData.accessibility
+      local still=settings and settings.reducedMotion==true
+      local sway=still and 0 or math.sin((runtime.animationClock or 0)*1.7)*math.rad(1.6)
+      love.graphics.setColor(1,1,1,1)
+      love.graphics.draw(banner,x,y+12,sway,scale,scale,width/2,height)
   end
 
   local function updateStopSludges(dt)
@@ -116,6 +303,11 @@ local function new(context)
       updateStopActivity(dt)
       updateStopSludges(dt)
       updateWildlife(dt)
+      expedition.update(dt)
+      if runtime.scene==CrowCaravanArea.SCENE then
+          local session=currentCaravanSession()
+          if session then CrowCaravanArea.update(session,dt); CrowCaravanArea.savePosition(session,runtime.player) end
+      end
   end
 
   local function currentStopActivity()
@@ -123,39 +315,58 @@ local function new(context)
       return ensureStopLayout().worldActivity
   end
 
+  local function currentShootingRange()
+      if runtime.scene~="stop" or not runtime.saveData then return nil end
+      return ensureStopLayout().shootingRange
+  end
+
+  local function beginShootingRange()
+      if runtime.scene~="stop" or not runtime.player then return false end
+      local spot=currentShootingRange()
+      if not ShootingRange.near(spot,runtime.player.x,runtime.player.y) then return false end
+      local session,message=ShootingRange.new(runtime.saveData,spot,Catalog,{npc=runtime.saveData.currentNPC})
+      if not session then
+          runtime.dialogue={speaker="Target Range",text=message,timer=6}
+          return false
+      end
+      runtime.dialogue=nil; runtime.shootingRange=session
+      return true
+  end
+
+  local function handleShootingRange(outcome)
+      local session=runtime.shootingRange
+      if not session then return nil end
+      if outcome=="complete" then
+          local result=ShootingRange.complete(session,runtime.saveData,currentShootingRange(),StopHelpProgression)
+          writeSave(); return result
+      end
+      if outcome=="close" then
+          ShootingRange.releaseWeaponViews(scenery.shootingRangeAssets)
+          runtime.shootingRange=nil; writeSave(); return true
+      end
+      if outcome=="shot" or outcome=="purchase" then writeSave() end
+      return outcome
+  end
+
   local function completeStopActivity()
       if runtime.scene~="stop" or not runtime.player then return false end
       local layout=ensureStopLayout(); local activity=layout.worldActivity
       if not StopActivities.near(activity,runtime.player.x,runtime.player.y) then return false end
       local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression)
-      if result.requiresMinigame then runtime.activityMinigame=ActivityMinigames.begin(runtime.saveData,activity,result) end
       activityMessage=result.message; activityMessageTimer=3.2
       if result.completed then runtime.stopHazardSlow=1 end
       writeSave(); return result
   end
 
-  local function resolveActivityMinigame(outcome)
-      local minigame=runtime.activityMinigame
-      if not minigame then return false end
-      local layout=ensureStopLayout()
-      if outcome=="complete" then
-          local grade=minigame.progress.mistakes==0 and "exceptional" or "successful"
-          local result=StopActivities.complete(runtime.saveData,layout,StopHelpProgression,{minigameComplete=true,grade=grade})
-          activityMessage=result.message; activityMessageTimer=4; runtime.stopHazardSlow=1; runtime.activityMinigame=nil
-      elseif outcome=="failed" then
-          ActivityMinigames.retry(runtime.saveData,minigame)
-          activityMessage=minigame.failureMessage or "The attempt ended safely. Try again."; activityMessageTimer=4; runtime.activityMinigame=nil
-      elseif outcome=="cancelled" then
-          ActivityMinigames.pause(runtime.saveData,minigame)
-          activityMessage=minigame.pauseMessage or "Activity paused. Your progress is saved."; activityMessageTimer=3; runtime.activityMinigame=nil
-      else
-          ActivityMinigames.sync(runtime.saveData,minigame)
-      end
-      writeSave(); return true
-  end
-
   local function drawStopActivity()
       if runtime.scene=="stop" then StopActivities.draw(ensureStopLayout(),runtime.animationClock,activityMessage,activityMessageTimer) end
+  end
+
+  local function drawShootingRangeSpot()
+      if runtime.scene=="stop" then
+          local spot=currentShootingRange()
+          ShootingRange.drawSpot(spot,scenery.shootingRangeAssets and scenery.shootingRangeAssets.entrance,runtime.animationClock)
+      end
   end
 
   local function drawStopSludges(images)
@@ -178,11 +389,34 @@ local function new(context)
       setupNPC=setupNPC,
       update=update,
       attackStopSludge=attackStopSludge,
+      attackExpeditionMob=expedition.attack,
+      moveExpedition=expedition.move,
+      currentExpeditionInteraction=expedition.currentInteraction,
+      activateExpeditionInteraction=expedition.activateInteraction,
+      drawExpedition=expedition.draw,
+      resetExpedition=expedition.reset,
+      prepareExpeditionBattleAssets=expedition.ensureAssets,
+      expeditionObjective=expedition.objective,
+      drawExpeditionLocalMap=expedition.drawLocalMap,
+      drawExpeditionTrailhead=expedition.drawTrailhead,
+      expeditionCameraOffset=expedition.cameraOffset,
+      expeditionAudit=expedition.audit,
+      moveCaravan=moveCaravan,
+      currentCaravanInteraction=currentCaravanInteraction,
+      activateCaravanInteraction=activateCaravanInteraction,
+      returnFromCaravan=returnFromCaravan,
+      currentTradeSource=currentTradeSource,
+      drawCaravan=drawCaravan,
+      drawCaravanGate=drawCaravanGate,
+      caravanAudit=CrowCaravanArea.audit,
       drawStopSludges=drawStopSludges,
       drawStopActivity=drawStopActivity,
       currentStopActivity=currentStopActivity,
       completeStopActivity=completeStopActivity,
-      resolveActivityMinigame=resolveActivityMinigame,
+      currentShootingRange=currentShootingRange,
+      beginShootingRange=beginShootingRange,
+      handleShootingRange=handleShootingRange,
+      drawShootingRangeSpot=drawShootingRangeSpot,
       drawWildlife=drawWildlife,
   }
 end

@@ -1,4 +1,5 @@
 local Accessibility=require("game.accessibility")
+local ExpeditionBattleState=require("game.expedition_battle_state")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -45,9 +46,45 @@ local function new(context)
   local pointerPosition=required(context,"pointerPosition","function")
   local enterStop=required(context,"enterStop","function")
   local handleInventoryClick=required(context,"handleInventoryClick","function")
+  local returnToTrain=required(context,"returnToTrain","function")
+  local syncExpeditionEnemies
+
+  local function turnSignature(battle)
+      if not ExpeditionBattleState.isExpedition(battle) then return nil end
+      local values={tostring(battle.active),tostring(battle.round),tostring(battle.phase),tostring(battle.finished)}
+      for _,unit in ipairs(battle.units or {}) do
+          values[#values+1]=table.concat({unit.hp or 0,unit.q or 0,unit.r or 0},":")
+      end
+      return table.concat(values,"|")
+  end
+
+  local function applyExpeditionDestination(battle,outcome)
+      if battle.expeditionDestinationApplied then return end
+      local destination=ExpeditionBattleState.settle(runtime.saveData,Catalog,battle,outcome)
+      if not destination then return end
+      runtime.npcActor=nil
+      runtime.player.velocityX,runtime.player.velocityY=0,0
+      runtime.player.moving=false
+      if destination.scene=="expedition" then
+          runtime.scene="expedition"; runtime.saveData.activeExpeditionArea=destination.areaId
+          runtime.player.x,runtime.player.y=destination.x,destination.y
+          runtime.expeditionGraceTimer=1.5
+      else
+          runtime.saveData.activeExpeditionArea=nil; returnToTrain(false)
+      end
+  end
+
+  local function writeBattleSave(battle)
+      battle=battle or runtime.battle
+      if ExpeditionBattleState.isExpedition(battle) then
+          if battle.finished then applyExpeditionDestination(battle,battle.finished)
+          else ExpeditionBattleState.capture(runtime.saveData,battle) end
+      end
+      return writeSave()
+  end
 
   local function controllerContext()
-      return {
+      local controller={
           battle=runtime.battle,
           saveData=runtime.saveData,
           Catalog=Catalog,
@@ -62,17 +99,19 @@ local function new(context)
           BattleGrid=BattleGrid,
           playSfx=ui.playSfx,
           weaponSfx=ui.weaponSfx,
-          writeSave=writeSave,
       }
+      controller.writeSave=function() return writeBattleSave(controller.battle) end
+      return controller
   end
 
   local function beginEncounter(encounter)
+      runtime.battle=nil
       runtime.battle=BattleController.begin(controllerContext(),encounter)
       runtime.state="battle"
       runtime.inventoryOpen=false
       runtime.mapOpen=false
       runtime.dialogue=nil
-      writeSave()
+      writeBattleSave()
   end
 
   local function balanceAudit() return CombatBalance.audit() end
@@ -80,18 +119,27 @@ local function new(context)
   local function playerBalanceAudit() return PlayerProgression.audit() end
 
   local function setPrompt(text) BattleController.prompt(controllerContext(),text) end
-  local function advanceTurn() BattleController.advance(controllerContext()) end
-  local function resolveAttack(attacker,target,weaponName) return BattleController.resolve(controllerContext(),attacker,target,weaponName) end
+  local function advanceTurn() BattleController.advance(controllerContext()); writeBattleSave() end
+  local function resolveAttack(attacker,target,weaponName)
+      local result=BattleController.resolve(controllerContext(),attacker,target,weaponName)
+      writeBattleSave(); return result
+  end
   local function attack(weaponName) BattleController.attack(controllerContext(),weaponName) end
-  local function moveTo(q,r) BattleController.move(controllerContext(),q,r) end
-  local function heal() BattleController.heal(controllerContext()) end
-  local function guard() BattleController.guard(controllerContext()) end
-  local function useAbility(kind) BattleController.ability(controllerContext(),kind) end
+  local function moveTo(q,r) BattleController.move(controllerContext(),q,r); writeBattleSave() end
+  local function heal() BattleController.heal(controllerContext()); writeBattleSave() end
+  local function guard() BattleController.guard(controllerContext()); writeBattleSave() end
+  local function useAbility(kind) BattleController.ability(controllerContext(),kind); writeBattleSave() end
   local function usePotion(name) return BattleController.usePotion(controllerContext(),name) end
   local function useHealingItem(name) return BattleController.useHealingItem(controllerContext(),name) end
 
   local function update(dt)
+      local before=turnSignature(runtime.battle)
       if runtime.battle then BattleController.update(controllerContext(),dt*Accessibility.motionSpeed(runtime.saveData)) end
+      if ExpeditionBattleState.isExpedition(runtime.battle) then
+          if (runtime.battle.finished and not runtime.battle.expeditionDestinationApplied) or before~=turnSignature(runtime.battle) then
+              writeBattleSave()
+          end
+      end
       return true
   end
 
@@ -119,13 +167,34 @@ local function new(context)
 
   local function draw() BattleUI.draw(uiContext()) end
 
+  syncExpeditionEnemies=function(battle)
+      return ExpeditionBattleState.syncEnemies(runtime.saveData,Catalog,battle)
+  end
+
+  local function finishBattle(outcome)
+      local battle=runtime.battle
+      local encounter=battle and battle.encounter
+      syncExpeditionEnemies(battle)
+      if ExpeditionBattleState.isExpedition(battle) then applyExpeditionDestination(battle,outcome) end
+      runtime.battle=nil; runtime.state="game"; runtime.inventoryOpen=false
+      if encounter and encounter.source=="expedition" then
+          runtime.saveData.expeditionBattle=nil
+          if outcome=="win" then runtime.expeditionGraceTimer=1.5 end
+      elseif outcome=="win" then
+          enterStop()
+      else
+          runtime.saveData.activeExpeditionArea=nil; returnToTrain(false)
+      end
+      writeSave()
+      return outcome
+  end
+
   local function handleMouse(x,y,rightClick)
       local result=BattleUI.handleMouse(uiContext(),x,y,rightClick)
       if result=="missing" then runtime.state="game"
-      elseif result=="continue_win" then runtime.battle=nil; runtime.state="game"; enterStop()
-      elseif result=="continue_loss" or result=="retreat" then
-          runtime.battle=nil; runtime.state="game"; runtime.scene="train"; runtime.npcActor=nil; writeSave()
-      end
+      elseif result=="continue_win" then finishBattle("win")
+      elseif result=="continue_loss" then finishBattle("loss")
+      elseif result=="retreat" then finishBattle("retreat") end
       return result
   end
 
@@ -144,6 +213,7 @@ local function new(context)
       update=update,
       draw=draw,
       handleMouse=handleMouse,
+      finishBattle=finishBattle,
   }
 end
 

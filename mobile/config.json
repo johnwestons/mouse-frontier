@@ -1,14 +1,15 @@
 {
   "applicationId": "com.mousefrontier.game",
   "applicationName": "Mouse Frontier",
-  "versionName": "0.7.0-mobile.1",
-  "versionCode": 1,
+  "versionName": "0.7.0-mobile.5",
+  "versionCode": 5,
   "loveVersion": "11.5",
   "imagePaletteColors": 256,
   "fullscreenImageWidth": 960,
   "fullscreenImageHeight": 720,
   "generalImageWidth": 2048,
   "generalImageHeight": 1024,
+  "characterAnimationFrameSize": 256,
   "musicVorbisQuality": 3,
   "soundEffectVorbisQuality": 2
 }

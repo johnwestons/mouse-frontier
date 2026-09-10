@@ -1,0 +1,35 @@
+local Tuning={
+    holdSeconds=180,
+    requiredKills=15,
+    assistanceSeconds=240,
+    withdrawalSeconds=5,
+    suppressionInterval=8,
+    phaseMoraleLoss=6,
+    phases={
+        {start=0,name="Finding the rhythm",active=2},
+        {start=45,name="Crossfire",active=3,intermission=true,
+            line="Guard Fox: That bought us a breath. Check your ammunition and anyone in the yard."},
+        {start=105,name="Holding under pressure",active=5,intermission=true,
+            line="Gecko Ranger: They are moving shooters through the loading bays. The upper floor is still their best angle."},
+        {start=165,name="Breaking their nerve",active=4},
+    },
+}
+
+function Tuning.phase(elapsed)
+    for index=#Tuning.phases,1,-1 do
+        if elapsed>=Tuning.phases[index].start then return index,Tuning.phases[index].name end
+    end
+    return 1,Tuning.phases[1].name
+end
+
+function Tuning.pressure(morale)
+    local remaining=math.max(0,math.min(100,tonumber(morale) or 100))/100
+    return .2+.8*remaining
+end
+
+function Tuning.spawnDelay(morale)
+    local remaining=math.max(0,math.min(100,tonumber(morale) or 100))/100
+    return .25+1.75*(1-remaining)
+end
+
+return Tuning

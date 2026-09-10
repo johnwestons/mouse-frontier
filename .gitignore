@@ -4,6 +4,8 @@ tmp/
 output/
 __pycache__/
 *.pyc
+.codex-remote-attachments/
+.tmp-*/
 
 # Local runtime save data
 saves/

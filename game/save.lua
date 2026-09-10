@@ -99,7 +99,10 @@ end
 function Save.update(dt)
     for slot,entry in pairs(pending) do
         entry.remaining=entry.remaining-(tonumber(dt) or 0)
-        if entry.remaining<=0 then Save.write(slot,entry.data); pending[slot]=nil end
+        if entry.remaining<=0 then
+            if Save.write(slot,entry.data) then pending[slot]=nil
+            else entry.remaining=debounceSeconds end
+        end
     end
 end
 

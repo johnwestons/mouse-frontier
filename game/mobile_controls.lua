@@ -34,6 +34,7 @@ function MobileControls.new(options)
     self.moveCameraPan=options.moveCameraPan or function() end
     self.endCameraPan=options.endCameraPan or function() end
     self.cameraGesturesActive=options.cameraGesturesActive or function() return true end
+    self.shootingRangeActive=options.shootingRangeActive or function() return false end
     self.backVisible=options.backVisible or function() return false end
     self.backLabel=options.backLabel or function() return "BACK" end
     self.menuVisible=options.menuVisible or function() return false end
@@ -43,8 +44,8 @@ function MobileControls.new(options)
     self.touches={}
     self.axisX,self.axisY=0,0
     self.lastPointerX,self.lastPointerY=nil,nil
-    self.joystick={x=116,y=self.height-116,radius=76,knob=30}
-    self.primary={x=self.width-105,y=self.height-105,radius=52}
+    self.joystick={x=116,y=self.height-116,radius=76,knob=30,edgeInsetX=120,edgeInsetY=96}
+    self.primary={x=self.width-105,y=self.height-105,radius=52,edgeInsetX=142,edgeInsetY=120}
     self.secondary={x=self.width-218,y=self.height-72,radius=38}
     self.back={x=22,y=68,w=126,h=66}
     self.menu={x=self.width-166,y=68,w=144,h=66}
@@ -73,12 +74,12 @@ function MobileControls:_updateCornerLayout()
     local right,bottom=self.toGame(windowWidth,windowHeight)
     -- Anchor thumb controls to the actual phone edges rather than the centered
     -- 960-wide game canvas. Wide phones otherwise pull both controls inward.
-    self.joystick.x=left+self.joystick.radius+24
-    self.joystick.y=bottom-self.joystick.radius-20
-    self.primary.x=right-self.primary.radius-24
-    self.primary.y=bottom-self.primary.radius-24
-    self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-24
-    self.secondary.y=bottom-self.secondary.radius-22
+    self.joystick.x=left+self.joystick.radius+self.joystick.edgeInsetX
+    self.joystick.y=bottom-self.joystick.radius-self.joystick.edgeInsetY
+    self.primary.x=right-self.primary.radius-self.primary.edgeInsetX
+    self.primary.y=bottom-self.primary.radius-self.primary.edgeInsetY
+    self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-28
+    self.secondary.y=self.primary.y
 end
 
 function MobileControls:_feedback(x,y)
@@ -144,6 +145,16 @@ function MobileControls:touchpressed(id,x,y)
     if self.menuVisible() and gx>=self.menu.x and gx<=self.menu.x+self.menu.w and gy>=self.menu.y and gy<=self.menu.y+self.menu.h then
         self:_feedback(gx,gy); self.touches[id]={kind="menu"}; self.menuAction(); return true
     end
+    if self.shootingRangeActive() then
+        if distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
+            self:_feedback(gx,gy); self.touches[id]={kind="key",key="space"}; self.pressKey("space"); return true
+        end
+        -- Button 4 is the range's touch-only aiming pointer. It lets taps and
+        -- drags move the weapon without sharing the desktop left-click trigger.
+        self.touches[id]={kind="rangePointer",button=4}
+        self.pressPointer(x,y,4)
+        return true
+    end
     if self:isGameplayActive() then
         local stick=self.joystick
         if not self.joystickTouch and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7 then
@@ -175,6 +186,8 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
     if touch.kind=="joystick" then
         local gx,gy=self.toGame(x,y)
         self:_updateJoystick(gx,gy)
+    elseif touch.kind=="rangePointer" then
+        self.movePointer(x,y,dx or 0,dy or 0)
     elseif touch.kind=="canvasPointer" then
         touch.x,touch.y=x,y
         if self.pinch then
@@ -201,6 +214,7 @@ function MobileControls:touchreleased(id,x,y)
     if touch.kind=="joystick" then
         if self.joystickTouch==id then self.joystickTouch=nil; self.axisX,self.axisY=0,0 end
     elseif touch.kind=="key" then self.releaseKey(touch.key)
+    elseif touch.kind=="rangePointer" then self.releasePointer(x,y,touch.button)
     elseif touch.kind=="canvasPointer" then
         if touch.pressed then self.releasePointer(x,y,1)
         elseif not touch.pinching then local gx,gy=self.toGame(x,y); self:_feedback(gx,gy); self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
@@ -232,7 +246,10 @@ local function drawButton(button,label,active,textScale)
     love.graphics.circle("line",button.x,button.y,button.radius)
     love.graphics.setColor(1,.93,.75,.96)
     local scale=math.min(.98,.72*(textScale or 1))
-    love.graphics.printf(label,button.x-button.radius,button.y-8*scale,button.radius*2,"center",0,scale,scale)
+    local font=love.graphics.getFont()
+    local width=button.radius*2-14
+    scale=math.min(scale,width/math.max(1,font:getWidth(label)))
+    love.graphics.printf(label,button.x-width/2,button.y-font:getHeight()*scale/2,width/scale,"center",0,scale,scale)
 end
 
 local function drawRectButton(button,label,active,textScale)
@@ -243,7 +260,7 @@ local function drawRectButton(button,label,active,textScale)
     love.graphics.rectangle("line",button.x,button.y,button.w,button.h,12,12)
     love.graphics.setColor(1,.93,.75,.98)
     local scale=math.min(1.12,.92*(textScale or 1))
-    love.graphics.printf(label,button.x+6,button.y+button.h/2-9*scale,button.w-12,"center",0,scale,scale)
+    love.graphics.printf(label,button.x+6,button.y+button.h/2-9*scale,(button.w-12)/scale,"center",0,scale,scale)
 end
 
 function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
@@ -270,6 +287,8 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
         drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey),textScale)
         local secondaryKey,secondaryLabel=self.secondaryAction()
         if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey),textScale) end
+    elseif self.shootingRangeActive() then
+        drawButton(self.primary,"FIRE",self:isHeld("space"),textScale)
     end
     if self.backVisible() then drawRectButton(self.back,self.backLabel(),false,textScale) end
     if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false,textScale) end

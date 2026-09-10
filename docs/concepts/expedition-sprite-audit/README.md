@@ -1,0 +1,19 @@
+# Expedition sprite runtime review
+
+The original six-action source atlases remain unchanged in `assets/sprites/Mobs/expedition/`. Selected walk sources are `sludge-bandit-walk-v5.png` and `sludge-badger-boss-walk-v4.png`, each 1774×887 RGB with a 4×2 layout. Unselected generated walk sources are preserved in `source-iterations/` so mobile packages do not include drafts. Other images in this folder are LÖVE-rendered inspection exports from the actual runtime loader; the game does not load these inspection files.
+
+`game.expedition_sprites` splits all original pixels, including the uneven 4×2 boundaries of the 1774×887 walk sheets. It removes only bright neutral background connected to an atlas-cell border or to manually reviewed seed points inside closed tendril/tail loops. It preserves enclosed white highlights rather than globally deleting light colors. Seeds are source-specific: review them again if the source artwork changes.
+
+All action and walk frames use a 512×512 transparent canvas and the same `(256,492)` ground anchor. One scale applies to the entire action set, and one matching scale to the entire walk set; individual gait poses are not stretched to equal height. Defeat poses retain their crouched proportions. The renderer advances walk frames from collision-resolved distance, returns to idle when that distance stops changing, and keeps the attack windup visible despite damage flashes.
+
+The hidden-window LÖVE harness in `tools/expedition-sprite-runtime-test` checks highlight preservation, 6 action/8 walk frames per host, baseline equality, stopped-versus-moving rendering, native facing, player/mob depth ordering, windup rings matching the actual 90/132-pixel contact range, and explicit GPU-resource release. It exports `runtime-contact-sheet.png`, horizontal normalized strips, and `runtime-report.txt`. Final-source verification passes; 29,360,128 bytes of sprite GPU textures return to zero after idempotent release.
+
+Targeted built-in ImageGen edits repaired the bandit's changing arm identity, both hosts' opposite-foot phases, the boss walk's camera mismatch, and the bandit's missing frame-7 tail. Exact prompts are recorded in `V3_CORRECTION_PROMPTS.md` and `V4_V5_CORRECTION_PROMPTS.md`. Final-source and normalized contact sheets were visually inspected after the last correction. These remain a single-view pilot, not a completed eight-direction gait set. Remaining limits are:
+
+- Only one camera view and one neutral idle are authored per host. The bandit faces right natively and the boss faces left natively. Opposite horizontal movement mirrors that asymmetric view as a pilot compromise; six other views and directional idle strips remain unmade.
+- Boss original action frames 5–6 and bandit walk frames 4, 7, and 8 contain source-edge contacts or close boundary pixels. Normalized frames have safe margins, but normalization does not reconstruct cropped source artwork. The runtime report preserves this warning.
+- Gait speed and acceleration remain the expedition's ordinary movement values; this repair adds distance-driven frames, not a full gait-modulated movement overhaul.
+
+The motion specifications deliberately expose missing directions and idle coverage and name the reviewed healthy/infected-leg half steps. Their audit reports must not be presented as full gait acceptance. The report GIFs are for inspecting the actual loop and its seam; the runtime does not synthesize missing phases or hide phase errors with timing changes.
+
+The final motion-auditor run reports 10 coverage errors and zero image warnings per host: six missing directions, two non-directional idle mappings, and the two minimum-authored-view coverage requirements. Its nonzero exit code is expected for this explicitly limited pilot; it is not a full-overhaul pass.

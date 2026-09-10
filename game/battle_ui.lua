@@ -43,7 +43,9 @@ function BattleUI.draw(ctx)
         local hint=mobile and "TAP A UNIT OR HIGHLIGHTED TILE  •  PINCH TO ZOOM" or "CLICK A UNIT OR HIGHLIGHTED TILE  •  RIGHT CLICK INSPECT  •  WHEEL ZOOMS"
         love.graphics.setColor(colors.cream); love.graphics.printf(hint,145,119,670,"center",0,.52*math.min(textScale,1.18),.52*math.min(textScale,1.18))
     end
-    local active=BattleRules.selectedUnit(battle)
+    -- Inspecting a unit changes its information card, never who owns the turn.
+    local active=BattleRules.activeUnit(battle)
+    local inspected=BattleRules.selectedUnit(battle)
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
     if terrainAtlas then
         local reachableSpaces=active and active.team=="ally" and BattleRules.reachable(battle,active,active.move) or {}
@@ -109,7 +111,12 @@ function BattleUI.draw(ctx)
         local actionPhase=(u.actionTimer or 0)>0 and math.max(0,.45-u.actionTimer) or animationClock+i*.13
         local attachedWeapon=false
         local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase)
-        if not animated and img then local s=math.min(76/img:getWidth(),96/img:getHeight()); if battle.lastTarget==u.id and battle.hitFlash>0 then love.graphics.setColor(1,.3,.25) else love.graphics.setColor(1,1,1) end; love.graphics.draw(img,x,y+10+bob,0,s*facing,s,img:getWidth()/2,img:getHeight()) end
+        if not animated and img then
+            local spriteW,spriteH=u.boss and 108 or 76,u.boss and 132 or 96
+            local s=math.min(spriteW/img:getWidth(),spriteH/img:getHeight())
+            if battle.lastTarget==u.id and battle.hitFlash>0 then love.graphics.setColor(1,.3,.25) else love.graphics.setColor(1,1,1) end
+            love.graphics.draw(img,x,y+10+bob,0,s*facing,s,img:getWidth()/2,img:getHeight())
+        end
         if animated and u.team=="ally" and (action=="melee" or action=="ranged") and (u.actionTimer or 0)>0 and u.actionItem and u.actionItem~="scratch" then
             local combat=Catalog.weaponCombat[u.actionItem] or {}
             local sprite=WeaponAttachment.itemSprite(ui,u.actionItem)
@@ -152,30 +159,39 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
-    love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); love.graphics.rectangle("fill",185,488,590,82,8,8)
-    love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",205,497,0,.72,.72)
+    -- Paint the controls backing before the card/feed so mobile actions never
+    -- cover the current unit's health or the most recent combat result.
+    if not battle.finished and active and active.team=="ally" then
+        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,mobile and 488 or 575,944,mobile and 220 or 105,9,9)
+    end
+    local feedX,feedY,feedW,feedH=mobile and 20 or 185,mobile and 438 or 488,mobile and 920 or 590,mobile and 50 or 82
+    love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); love.graphics.rectangle("fill",feedX,feedY,feedW,feedH,8,8)
+    love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",feedX+20,feedY+9,0,.72,.72)
     local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
-    local newest=#log-offset; local first=math.max(1,newest-2); local row=0
-    local feedScale=.67*math.min(textScale,1.22)
-    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],210,516+row*(16*math.min(textScale,1.15)),520,"left",0,feedScale,feedScale); row=row+1 end
+    local newest=#log-(mobile and 0 or offset); local first=math.max(1,newest-(mobile and 0 or 2)); local row=0
+    local feedScale=(mobile and .80 or .67)*math.min(textScale,1.22)
+    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],feedX+25,feedY+28+row*(16*math.min(textScale,1.15)),mobile and (feedW-50)/feedScale or 520,"left",0,feedScale,feedScale); row=row+1 end
     if mobile then ui.battleLogUp=nil; ui.battleLogDown=nil
     else ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0) end
     ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
     if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
-    if active then
+    if inspected then
         -- Character card occupies the lower-left corner between the battle
         -- feed and the attack controls, leaving the tactical map unobstructed.
-        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",8,488,168,82,8,8)
-        love.graphics.setColor(colors.brass); love.graphics.printf("ACTIVE",14,495,52,"left",0,.62,.62)
-        local portrait=active.team=="enemy" and mobImages[active.file] or (characterImages[active.file] or npcImages[active.file])
-        if portrait then local portraitScale=math.min(42/portrait:getWidth(),48/portrait:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(portrait,42,552,0,portraitScale,portraitScale,portrait:getWidth()/2,portrait:getHeight()) end
-        love.graphics.setColor(colors.cream); love.graphics.printf(active.name,68,503,100,"left",0,.54,.54)
-        love.graphics.print("HP "..active.hp.."/"..active.maxHP,68,523,0,.56,.56)
-        love.graphics.print("MOVE "..active.move.."  ARM "..active.armor,68,541,0,.52,.52)
+        local cardX,cardY=mobile and 660 or 8,mobile and 506 or 488
+        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",cardX,cardY,mobile and 282 or 168,mobile and 54 or 82,8,8)
+        love.graphics.setColor(colors.brass); love.graphics.printf(inspected==active and "ACTIVE" or "INSPECT",cardX+6,cardY+7,80,"left",0,.62,.62)
+        local portrait=inspected.team=="enemy" and mobImages[inspected.file] or (characterImages[inspected.file] or npcImages[inspected.file])
+        if portrait then local portraitScale=math.min(42/portrait:getWidth(),(mobile and 34 or 48)/portrait:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(portrait,cardX+34,cardY+(mobile and 51 or 64),0,portraitScale,portraitScale,portrait:getWidth()/2,portrait:getHeight()) end
+        love.graphics.setColor(colors.cream); love.graphics.printf(inspected.name,cardX+60,cardY+(mobile and 6 or 15),mobile and 220 or 100,"left",0,mobile and .68 or .54,mobile and .68 or .54)
+        love.graphics.print("HP "..inspected.hp.."/"..inspected.maxHP,cardX+60,cardY+(mobile and 23 or 35),0,mobile and .68 or .56,mobile and .68 or .56)
+        love.graphics.print("MOVE "..inspected.move.."  ARM "..inspected.armor,cardX+60,cardY+(mobile and 39 or 53),0,.52,.52)
     end
-    if battle.finished then ui.battleContinue=button(battle.finished=="win" and "CONTINUE TO STOP" or "RETURN TO TRAIN",mobile and 300 or 330,mobile and 585 or 605,mobile and 360 or 300,mobile and 70 or 45,true)
+    if battle.finished then
+        local expedition=battle.encounter and battle.encounter.source=="expedition"
+        local label=battle.finished=="win" and (expedition and "RETURN TO AREA" or "CONTINUE TO STOP") or "RETURN TO TRAIN"
+        ui.battleContinue=button(label,mobile and 300 or 330,mobile and 585 or 605,mobile and 360 or 300,mobile and 70 or 45,true)
     elseif active and active.team=="ally" then
-        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,mobile and 488 or 575,944,mobile and 220 or 105,9,9)
         if not mobile then love.graphics.setColor(colors.brass); love.graphics.print("ATTACK",20,578,0,.54,.54); love.graphics.print("ACTIONS",548,578,0,.54,.54) end
         local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
         for i,w in ipairs(options) do
@@ -213,8 +229,9 @@ function BattleUI.draw(ctx)
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
         ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
         if mobile and Accessibility.enabled(saveData,"controlHints") then
-            love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",210,450,730,32,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." R"..abilityProfile.rank.."  •  "..abilityProfile.description,220,458,710,"center",0,.55*math.min(textScale,1.15),.55*math.min(textScale,1.15))
+            local hintScale=.68*math.min(textScale,1.15)
+            love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",240,634,200,54,5,5)
+            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." R"..abilityProfile.rank.."  •  "..abilityProfile.description,246,640,188/hintScale,"center",0,hintScale,hintScale)
         end
         local mx,my=screenToGame(ctx.pointerPosition())
         if Util.pointIn(mx,my,ui.battleAbility) then
@@ -256,12 +273,16 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
         return battle.finished=="win" and "continue_win" or "continue_loss"
     end
     if battle.finished then return "handled" end
-    if Util.pointIn(x,y,ui.battleInventory) then ctx.setInventoryOpen(true); ctx.resetInventoryDrag(); ui.playSfx("menu"); return "handled" end
     if rightClick then
         local q,r=BattleUI.screenToBoardSpace(ctx,x,y); local clicked=q and BattleRules.unitAt(battle,q,r)
         if clicked then battle.selected=clicked.id; ui.playSfx("menu") end
         return "handled"
     end
+    local active=BattleRules.activeUnit(battle)
+    -- A click can arrive after a turn changes and before the next draw clears
+    -- the old button rectangles. Do not let stale controls skip an enemy turn.
+    if not active or active.team~="ally" or active.hp<=0 then return "handled" end
+    if Util.pointIn(x,y,ui.battleInventory) then ctx.setInventoryOpen(true); ctx.resetInventoryDrag(); ui.playSfx("menu"); return "handled" end
     for i,r in ipairs(ui.battleWeapons or {}) do if Util.pointIn(x,y,r) then ui.playSfx("menu"); ctx.battleAttack(battle.options[i]); return "handled" end end
     if Util.pointIn(x,y,ui.battleMove) and not battle.moveUsed then ui.playSfx("menu"); battle.phase="move"; ctx.setBattlePrompt("Choose a highlighted terrain piece to move."); return "handled" end
     if Util.pointIn(x,y,ui.battleHeal) then ui.playSfx("menu"); ctx.battleHeal(); return "handled" end
@@ -276,7 +297,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     end
     if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); ctx.advanceBattleTurn(); return "handled" end
     if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); ctx.saveData.battlePotionLootChance=nil; return "retreat" end
-    local q,r=BattleUI.screenToBoardSpace(ctx,x,y); local active=BattleRules.activeUnit(battle)
+    local q,r=BattleUI.screenToBoardSpace(ctx,x,y)
     if q then
         local clicked=BattleRules.unitAt(battle,q,r)
         if clicked and battle.phase=="target" and clicked.team=="enemy" then

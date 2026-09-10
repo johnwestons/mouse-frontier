@@ -1,0 +1,182 @@
+{
+  "spec_version": 1,
+  "character": "sludge-bandit-pilot",
+  "spec": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\Mouse Frontier 8.10\\docs\\concepts\\expedition-sprite-audit\\sludge-bandit-motion.json",
+  "project_root": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\Mouse Frontier 8.10",
+  "motion_profile": {
+    "pose_order": [
+      "healthy_contact",
+      "healthy_down",
+      "infected_passing",
+      "infected_up",
+      "infected_contact",
+      "infected_down",
+      "healthy_passing",
+      "healthy_up"
+    ],
+    "speed_multipliers_average": 1.0,
+    "acceleration_multipliers_average": 1.0,
+    "nominal_pose_ms": 129,
+    "nominal_cycle_seconds": 1.0323
+  },
+  "summary": {
+    "errors": 10,
+    "warnings": 0
+  },
+  "issues": [
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: north"
+    },
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: northeast"
+    },
+    {
+      "severity": "error",
+      "code": "direction_not_idle",
+      "message": "east references a non-directional idle animation: idle"
+    },
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: southeast"
+    },
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: south"
+    },
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: southwest"
+    },
+    {
+      "severity": "error",
+      "code": "direction_not_idle",
+      "message": "west references a non-directional idle animation: idle"
+    },
+    {
+      "severity": "error",
+      "code": "missing_direction",
+      "message": "direction is not mapped: northwest"
+    },
+    {
+      "severity": "error",
+      "code": "insufficient_walk_direction_coverage",
+      "message": "eight-sector motion requires at least five authored walk views"
+    },
+    {
+      "severity": "error",
+      "code": "insufficient_idle_direction_coverage",
+      "message": "eight-sector motion requires at least five authored idle views"
+    }
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "path": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\Mouse Frontier 8.10\\docs\\concepts\\expedition-sprite-audit\\sludge-bandit-idle.png",
+      "frames": [
+        {
+          "frame": 1,
+          "bbox": [
+            55,
+            64,
+            458,
+            493
+          ],
+          "visible_pixels": 97438
+        }
+      ]
+    },
+    {
+      "name": "walk_east",
+      "path": "C:\\Users\\johnw\\OneDrive\\Documents\\ChatGPT\\Mouse Frontier 8.10\\docs\\concepts\\expedition-sprite-audit\\sludge-bandit-walk.png",
+      "frames": [
+        {
+          "frame": 1,
+          "bbox": [
+            45,
+            68,
+            468,
+            493
+          ],
+          "visible_pixels": 98226
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            56,
+            74,
+            457,
+            493
+          ],
+          "visible_pixels": 91475
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            50,
+            70,
+            463,
+            493
+          ],
+          "visible_pixels": 91170
+        },
+        {
+          "frame": 4,
+          "bbox": [
+            44,
+            55,
+            469,
+            493
+          ],
+          "visible_pixels": 96721
+        },
+        {
+          "frame": 5,
+          "bbox": [
+            34,
+            75,
+            479,
+            493
+          ],
+          "visible_pixels": 95691
+        },
+        {
+          "frame": 6,
+          "bbox": [
+            50,
+            88,
+            463,
+            493
+          ],
+          "visible_pixels": 90260
+        },
+        {
+          "frame": 7,
+          "bbox": [
+            12,
+            80,
+            500,
+            493
+          ],
+          "visible_pixels": 86762
+        },
+        {
+          "frame": 8,
+          "bbox": [
+            42,
+            81,
+            471,
+            493
+          ],
+          "visible_pixels": 93718
+        }
+      ]
+    }
+  ]
+}

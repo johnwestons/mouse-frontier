@@ -1,4 +1,5 @@
 local Accessibility=require("game.accessibility")
+local WorldPause=require("game.world_pause")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -17,6 +18,7 @@ local function new(context)
   local Inventory=required(context,"inventory","table")
   local Catalog=required(context,"catalog","table")
   local NpcRelationships=required(context,"npcRelationships","table")
+  local MerchantTrade=required(context,"merchantTrade","table")
   local Util=required(context,"util","table")
   local readSave=required(context,"readSave","function")
   local removeSave=required(context,"removeSave","function")
@@ -29,6 +31,7 @@ local function new(context)
   local InteriorDoors=required(context,"interiorDoors","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
+  local worldCoordinates=required(context,"worldCoordinates","function")
   local cameraPanning=required(context,"cameraPanning","function")
   local beginCameraPan=required(context,"beginCameraPan","function")
   local moveCameraPan=required(context,"moveCameraPan","function")
@@ -40,8 +43,13 @@ local function new(context)
   local isWeapon=required(context,"isWeapon","function")
   local isFurnitureItem=required(context,"isFurnitureItem","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
+  local currentTradeSource=required(context,"currentTradeSource","function")
   local moveEditedItem=required(context,"moveEditedItem","function")
   local attackStopSludge=required(context,"attackStopSludge","function")
+  local attackExpeditionMob=required(context,"attackExpeditionMob","function")
+  local activateExpeditionInteraction=required(context,"activateExpeditionInteraction","function")
+  local activateCaravanInteraction=required(context,"activateCaravanInteraction","function")
+  local returnFromCaravan=required(context,"returnFromCaravan","function")
   local acceptQuest=required(context,"acceptQuest","function")
   local attemptLeaveTrain=required(context,"attemptLeaveTrain","function")
   local travelStatus=required(context,"travelStatus","function")
@@ -64,6 +72,7 @@ local function new(context)
   local battleGuard=required(context,"battleGuard","function")
   local advanceBattleTurn=required(context,"advanceBattleTurn","function")
   local setBattlePrompt=required(context,"setBattlePrompt","function")
+  local finishBattle=required(context,"finishBattle","function")
   local beginCarTransition=required(context,"beginCarTransition","function")
   local talkToNPC=required(context,"talkToNPC","function")
   local ensureHouseItems=required(context,"ensureHouseItems","function")
@@ -81,12 +90,31 @@ local function new(context)
   local interactionKeyAction=required(context,"interactionKeyAction","function")
   local repairEquipped=required(context,"repairEquipped","function")
   local FirstAid=required(context,"firstAid","table")
+  local ShootingRange=required(context,"shootingRange","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
-  local ActivityMinigames=required(context,"activityMinigames","table")
-  local resolveActivityMinigame=required(context,"resolveActivityMinigame","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local chooseFinale=required(context,"chooseFinale","function")
   local completeStopActivity=required(context,"completeStopActivity","function")
+  local beginShootingRange=required(context,"beginShootingRange","function")
+  local handleShootingRange=required(context,"handleShootingRange","function")
+
+  local function processRangeOutcome(outcome)
+      if outcome=="shot" then
+          local profile=ShootingRange.soundProfile(runtime.shootingRange,Catalog)
+          if profile and ui.playSfxPath then ui.playSfxPath(profile.path,profile) else ui.playSfx(ShootingRange.sound(runtime.shootingRange,Catalog)) end
+      end
+      if outcome=="shot" or outcome=="complete" or outcome=="close" then handleShootingRange(outcome) end
+      if outcome=="start" or outcome=="reload" or outcome=="select" then ui.playSfx("menu") end
+      return outcome
+  end
+
+  local function quickAttackPoint()
+      local player=runtime.player
+      local dx,dy=player.intentX or player.facing or 1,player.intentY or 0
+      local length=math.sqrt(dx*dx+dy*dy)
+      if length<.01 then dx,dy,length=player.facing or 1,0,1 end
+      return player.x+dx/length*100,player.y+dy/length*100
+  end
 
   local function chooseCharacter(file)
       if not file then return false end
@@ -151,29 +179,40 @@ local function new(context)
   end
 
   function ui.handleTradeClick(x,y)
-      local layout=ensureStopLayout()
-      if Util.pointIn(x,y,ui.tradeClose) then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave(); return true end
+      local source=currentTradeSource()
+      if Util.pointIn(x,y,ui.tradeClose) then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; writeSave(); return true end
+      if not source then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; return true end
+      if Util.pointIn(x,y,ui.tradeBuyPrev) then runtime.tradeBuyPage=math.max(0,(runtime.tradeBuyPage or 0)-1); return true end
+      if Util.pointIn(x,y,ui.tradeBuyNext) then runtime.tradeBuyPage=(runtime.tradeBuyPage or 0)+1; return true end
+      if Util.pointIn(x,y,ui.tradePrev) then runtime.tradeSellPage=math.max(0,(runtime.tradeSellPage or 0)-1); return true end
+      if Util.pointIn(x,y,ui.tradeNext) then runtime.tradeSellPage=(runtime.tradeSellPage or 0)+1; return true end
       for i,r in pairs(ui.tradeBuy or {}) do
           if Util.pointIn(x,y,r) then
-              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
-              local name=layout.tradeStock and layout.tradeStock[i]; local base=name and Inventory.scrapPrice(name,Catalog) or 999
-              local price=NpcRelationships.buyPrice(runtime.saveData,merchant,base); local slot=Inventory.firstEmptySlot(runtime.saveData)
-              if slot and runtime.saveData.scrap>=price then runtime.saveData.scrap=runtime.saveData.scrap-price; runtime.saveData.inventory[slot]=name; layout.tradeStock[i]=nil; NpcRelationships.recordTrade(runtime.saveData,merchant); writeSave() end
+              local result=MerchantTrade.buy(runtime.saveData,Catalog,source,i)
+              if result.ok then
+                  runtime.tradeMessage=result.delivery=="train" and (Util.titleFromFile(result.name).." sent to the train mailbox.")
+                      or (result.delivery=="ammo" and (Util.titleFromFile(result.name).." added to ammunition reserves.")
+                      or ("Purchased "..Util.titleFromFile(result.name).."."))
+                  writeSave()
+              else
+                  runtime.tradeMessage=result.reason=="scrap" and "Not enough scrap."
+                      or (result.reason=="space" and (source.mailboxOverflow and "Your backpack and train mailbox are full." or "Your backpack is full.")
+                      or "That item is no longer available.")
+              end
               return true
           end
       end
       for i,r in pairs(ui.tradeSell or {}) do
           if Util.pointIn(x,y,r) and runtime.saveData.inventory[i] then
-              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
-              local name=runtime.saveData.inventory[i]; local base=Inventory.resalePrice(name,Catalog,runtime.saveData)
-              local price,terms=NpcRelationships.sellPrice(runtime.saveData,merchant,base)
-              if (layout.tradeBudget or 0)+terms.budgetBonus>=price then layout.tradeBudget=(layout.tradeBudget or 0)-price; runtime.saveData.scrap=runtime.saveData.scrap+price; runtime.saveData.inventory[i]=nil; NpcRelationships.recordTrade(runtime.saveData,merchant); writeSave() end
+              local result=MerchantTrade.sell(runtime.saveData,Catalog,source,i)
+              if result.ok then runtime.tradeMessage="Sold "..Util.titleFromFile(result.name).." for "..result.price.." scrap."; writeSave()
+              else runtime.tradeMessage=source.kind=="caravan" and "The caravan cannot afford that item." or "This merchant cannot afford that item." end
               return true
           end
       end
       for i,r in pairs(ui.tradeGive or {}) do
-          if Util.pointIn(x,y,r) and isWeapon(runtime.saveData.inventory[i]) then
-              local merchant=runtime.tradeNPC or runtime.saveData.currentNPC; local weapon=runtime.saveData.inventory[i]
+          if source.allowGifts and Util.pointIn(x,y,r) and isWeapon(runtime.saveData.inventory[i]) then
+              local layout=ensureStopLayout(); local merchant=source.merchant or runtime.tradeNPC or runtime.saveData.currentNPC; local weapon=runtime.saveData.inventory[i]
               layout.npcWeapon=weapon; if runtime.npcActor then runtime.npcActor.weapon=layout.npcWeapon end
               NpcRelationships.recordGift(runtime.saveData,merchant,weapon,"weapon"); runtime.saveData.inventory[i]=nil; writeSave(); return true
           end
@@ -262,7 +301,29 @@ local function new(context)
       runtime.editedItem=trainItemAt(x,y); runtime.editDragging=runtime.editedItem~=nil; return true
   end
 
+  local function clearCaravanExitOverlays()
+      Maintenance.close(maintenanceSession)
+      runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil
+      runtime.draggedSlot=nil; runtime.inventoryDragActive=false; runtime.giftOpen=false; runtime.giftSlot=nil
+      runtime.mapOpen=false; runtime.dialogue=nil; runtime.helpDialogue=nil; runtime.questOffer=nil
+      runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
+      runtime.editMode=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil
+      runtime.trainUpgradeOpen=false; runtime.poseMenu=false; runtime.firstAid=nil; runtime.shootingRange=nil
+      runtime.travelConfirm=false; runtime.exitPrompt=nil
+      ui.optionsOpen=false; ui.radioOpen=false; ui.mobileMenuOpen=false
+  end
+
+  local function activateCaravanReturnControl()
+      if runtime.state~="game" or runtime.scene~="caravan" then return false end
+      clearCaravanExitOverlays()
+      returnFromCaravan()
+      return true
+  end
+
   function ui.handleGameMousePressed(x,y)
+      if runtime.scene=="caravan" and ui.returnStop and Util.pointIn(x,y,ui.returnStop) then
+          return activateCaravanReturnControl()
+      end
       if maintenanceSession.open then
           local result=Maintenance.mousepressed(maintenanceSession,x,y,runtime.saveData)
           if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
@@ -286,13 +347,21 @@ local function new(context)
       if runtime.poseMenu then if Util.pointIn(x,y,ui.options) then runtime.poseMenu=false; ui.optionsOpen=true; runtime.optionsPage=runtime.optionsPage or "audio"; ui.playSfx("menu") else ui.handlePoseClick(x,y) end; return true end
       if Util.pointIn(x,y,ui.options) then ui.optionsOpen=true; runtime.optionsPage=runtime.optionsPage or "audio"; runtime.poseMenu=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if ui.handlePoseClick(x,y) then return true end
-      if runtime.mapOpen then if Util.pointIn(x,y,ui.mapUp) then runtime.mapScroll=math.max(0,runtime.mapScroll-1) elseif Util.pointIn(x,y,ui.mapDown) then runtime.mapScroll=runtime.mapScroll+1 end; return true end
+      if runtime.mapOpen then
+          if Util.pointIn(x,y,ui.map) or Util.pointIn(x,y,ui.expeditionMapClose) then runtime.mapOpen=false
+          elseif runtime.scene~="expedition" and Util.pointIn(x,y,ui.mapUp) then runtime.mapScroll=math.max(0,runtime.mapScroll-1)
+          elseif runtime.scene~="expedition" and Util.pointIn(x,y,ui.mapDown) then runtime.mapScroll=runtime.mapScroll+1 end
+          return true
+      end
       if runtime.scene=="house" and ui.exitHome and Util.pointIn(x,y,ui.exitHome) then exitHouse(); return true end
-      if runtime.scene=="stop" and ui.stopAttack and Util.pointIn(x,y,ui.stopAttack) then
+      if runtime.scene=="stop" and ui.returnTrain and Util.pointIn(x,y,ui.returnTrain) then
+          ui.mobileMenuOpen=false; enterTrain(true); return true
+      end
+      if (runtime.scene=="stop" or runtime.scene=="expedition") and ui.stopAttack and Util.pointIn(x,y,ui.stopAttack) then
           ui.mobileMenuOpen=false
-          local mx,my=pointerPosition(); mx,my=screenToGame(mx,my)
-          if not mx or not my or (math.abs(mx-runtime.player.x)<35 and math.abs(my-runtime.player.y)<35) then mx,my=runtime.player.x+(runtime.player.facing or 1)*100,runtime.player.y end
-          attackStopSludge(mx,my); return true
+          local mx,my=quickAttackPoint()
+          if runtime.scene=="expedition" then attackExpeditionMob(mx,my) else attackStopSludge(mx,my) end
+          return true
       end
       if runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then
           if Util.pointIn(x,y,ui.questAccept) then acceptQuest(runtime.questOffer.kind)
@@ -328,6 +397,20 @@ local function new(context)
 
   local function mousepressed(x,y,button)
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
+      -- Check the persistent campsite exit before any modal input capture. This
+      -- lets it dismiss inventory, trade, settings, dialogue, and even stale
+      -- overlay state in one tap/click.
+      if button==1 and runtime.state=="game" and runtime.scene=="caravan" and ui.returnStop then
+          local returnX,returnY=screenToGame(x,y)
+          if Util.pointIn(returnX,returnY,ui.returnStop) then activateCaravanReturnControl(); return end
+      end
+      if runtime.shootingRange then
+          if button==1 or button==2 or button==4 then
+              local rangeX,rangeY=screenToGame(x,y)
+              processRangeOutcome(ShootingRange.mousepressed(runtime.shootingRange,rangeX,rangeY,runtime.saveData,Catalog,button))
+          end
+          return
+      end
       if button==3 then beginCameraPan(x,y); return end
       if runtime.exitPrompt then
           if button==1 then
@@ -344,16 +427,9 @@ local function new(context)
           end
           return
       end
-      if runtime.activityMinigame then
-          if button==1 then
-              local activityX,activityY=screenToGame(x,y); local outcome=ActivityMinigames.mousepressed(runtime.activityMinigame,activityX,activityY)
-              if outcome then resolveActivityMinigame(outcome) end
-          end
-          return
-      end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and runtime.carTransition then return end
-      if button==2 and runtime.state=="game" and not maintenanceSession.open and not runtime.editMode and not runtime.mapOpen and not runtime.tradeOpen and not runtime.inventoryOpen and not runtime.dialogue and not runtime.travelConfirm and not runtime.trainUpgradeOpen and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen then
+      if button==2 and not WorldPause.isPaused(runtime,ui,maintenanceSession) then
           local action,index=interactionMouseAction(ui.interaction,button)
           if action=="openStorage" then runtime.activeChest=runtime.saveData.droppedItems[index]; runtime.activeChest.storage=runtime.activeChest.storage or {}; if runtime.activeChest.mailbox then runtime.activeChest.mailUnread=false; writeSave() end; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false end
           return
@@ -388,16 +464,28 @@ local function new(context)
           -- UI and modal layers always get first refusal. Only an unconsumed
           -- click in the stop world is allowed to become a sludge attack.
           if ui.handleGameMousePressed(x,y) then return end
+          if WorldPause.isPaused(runtime,ui,maintenanceSession) then return end
           local action,key=interactionMouseAction(ui.interaction,button)
           if action=="routeKey" and ui.routeWorldInteraction(key) then
               require("game.interaction_beacon").notifyActivated(ui.interaction)
               return
           end
-          if runtime.scene=="stop" and attackStopSludge(x,y) then return end
+          local worldX,worldY=worldCoordinates(x,y)
+          if runtime.scene=="stop" and attackStopSludge(worldX,worldY) then return end
+          if runtime.scene=="expedition" and attackExpeditionMob(worldX,worldY) then return end
       end
   end
 
   local function mousemoved(x,y)
+      if runtime.shootingRange then
+          x,y=screenToGame(x,y); ShootingRange.mousemoved(runtime.shootingRange,x,y); return
+      end
+      if runtime.firstAid then
+          x,y=screenToGame(x,y)
+          local outcome=FirstAid.mousemoved(runtime.firstAid,x,y)
+          if outcome=="complete" then resolveFirstAid(outcome) end
+          return
+      end
       if cameraPanning() then
           moveCameraPan(x,y); return
       end
@@ -412,12 +500,21 @@ local function new(context)
   local function mousereleased(x,y,button)
       if button==3 then endCameraPan(); return end
       x,y=screenToGame(x,y)
+      if runtime.shootingRange then
+          if button==2 then ShootingRange.setAim(runtime.shootingRange,false) end
+          return
+      end
+      if runtime.firstAid then
+          if button==1 then FirstAid.mousereleased(runtime.firstAid,x,y) end
+          return
+      end
       if button==1 and ui.editSliderDrag then ui.updateEditColorSlider(x); ui.editSliderDrag=nil; writeSave(); return end
       if button==1 and runtime.editDragging then runtime.editDragging=false; writeSave() end
       if runtime.state=="game" or (runtime.state=="battle" and runtime.inventoryOpen) then handleInventoryRelease(x,y,button) end
   end
 
   local function wheelmoved(_,y)
+      if runtime.shootingRange then return end
       local mouseX,mouseY=pointerPosition()
       local shifted=love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lshift","rshift")
       if runtime.state=="battle" and runtime.battle then
@@ -448,11 +545,6 @@ local function new(context)
           if outcome=="complete" or outcome=="failed" or outcome=="cancelled" then resolveFirstAid(outcome) end
           return true
       end
-      if runtime.activityMinigame then
-          local outcome=ActivityMinigames.keypressed(runtime.activityMinigame,key)
-          if outcome then resolveActivityMinigame(outcome) end
-          return true
-      end
       if maintenanceSession.open then
           local result=Maintenance.keypressed(maintenanceSession,key,runtime.saveData)
           if result=="serviced" then ui.playSfx("menu") elseif result=="completed" then ui.playSfx("trainArrive"); writeSave() end
@@ -474,7 +566,7 @@ local function new(context)
           end
           return true
       end
-      if runtime.tradeOpen then if key=="escape" or key=="q" then runtime.tradeOpen=false; runtime.tradeNPC=nil; writeSave() end; return end
+      if runtime.tradeOpen then if key=="escape" or key=="q" then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; writeSave() end; return end
       if runtime.state=="characters" and runtime.characterPreviewFile then
           if key=="return" or key=="kpenter" or key=="e" then chooseCharacter(runtime.characterPreviewFile)
           elseif key=="escape" or key=="q" then runtime.characterPreviewFile=nil end
@@ -495,17 +587,21 @@ local function new(context)
       if runtime.state=="characters" and (key=="up" or key=="w" or key=="pageup") then runtime.characterScroll=math.max(0,runtime.characterScroll-1); return end
       if runtime.travelConfirm then if key=="escape" then runtime.travelConfirm=false elseif key=="return" or key=="e" then startTravel() end; return end
       if runtime.state=="battle" then
+          local battle=runtime.battle
+          if not battle then return true end
+          local active=BattleRules.activeUnit(battle)
           if runtime.inventoryOpen then
               if key=="i" or key=="escape" then runtime.inventoryOpen=false; runtime.draggedSlot=nil; runtime.inventoryDragActive=false end
-          elseif not runtime.battle.finished and key=="i" and BattleRules.activeUnit(runtime.battle) and BattleRules.activeUnit(runtime.battle).team=="ally" then runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; ui.playSfx("menu")
           elseif runtime.battle.finished and (key=="return" or key=="space" or key=="e") then
-              local outcome=runtime.battle.finished; runtime.battle=nil; runtime.state="game"; if outcome=="win" then enterStop() else runtime.scene="train"; writeSave() end
+              finishBattle(runtime.battle.finished)
+          elseif runtime.battle.finished or runtime.battle.intro or not active or active.team~="ally" or active.hp<=0 then return true
+          elseif key=="i" then runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; ui.playSfx("menu")
           elseif not runtime.battle.finished and tonumber(key) and runtime.battle.options and runtime.battle.options[tonumber(key)] then battleAttack(runtime.battle.options[tonumber(key)])
           elseif not runtime.battle.finished and key=="h" then battleHeal()
           elseif not runtime.battle.finished and key=="m" and not runtime.battle.moveUsed then runtime.battle.phase="move"; setBattlePrompt("Choose a highlighted terrain piece to move.")
           elseif not runtime.battle.finished and key=="g" then battleGuard()
           elseif not runtime.battle.finished and key=="space" then advanceBattleTurn()
-          elseif not runtime.battle.finished and (key=="r" or key=="escape") then runtime.battle=nil; runtime.state="game"; runtime.scene="train"; writeSave() end
+          elseif not runtime.battle.finished and (key=="r" or key=="escape") then finishBattle("retreat") end
           return
       end
       if runtime.state=="game" and runtime.inventoryOpen and key=="e" then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; if runtime.giftOpen then runtime.giftOpen=false; runtime.giftSlot=nil end; writeSave(); return true end
@@ -516,7 +612,7 @@ local function new(context)
 
   function ui.routeWorldInteraction(key)
       local action,arg=interactionKeyAction({selected=ui.interaction,dialogue=runtime.dialogue,
-          blocked=runtime.state~="game" or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.editMode or runtime.carTransition,
+          blocked=WorldPause.isPaused(runtime,ui,maintenanceSession,{allowDialogue=true}),
           isFurniture=function(index) local item=runtime.saveData.droppedItems[index]; return isFurnitureItem(item and item.name) end},key)
       if not action then return false end
       if action=="closeDialogue" then runtime.dialogue=nil
@@ -530,6 +626,9 @@ local function new(context)
           local homeLayout=Stops.ensureDoor(runtime.saveData,Catalog,arg); ensureHouseItems(); runtime.player.x,runtime.player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
       elseif action=="exitHouse" then exitHouse()
       elseif action=="stopActivity" then completeStopActivity()
+      elseif action=="shootingRange" then beginShootingRange()
+      elseif action=="expedition" then activateExpeditionInteraction(arg)
+      elseif action=="caravan" then activateCaravanInteraction(arg)
       elseif action=="returnTrain" then
           enterTrain(true)
       elseif action=="give" then giveWeaponToNearby()
@@ -542,6 +641,10 @@ local function new(context)
 
   local function keypressed(key)
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
+      if runtime.shootingRange then
+          processRangeOutcome(ShootingRange.keypressed(runtime.shootingRange,key,runtime.saveData,Catalog))
+          return
+      end
       if key=="=" or key=="+" or key=="kp+" then zoomCamera(1); return end
       if key=="-" or key=="kp-" then zoomCamera(-1); return end
       if key=="0" or key=="kp0" then resetCamera(false); return end
@@ -557,8 +660,12 @@ local function new(context)
       if keypressedGlobal(key) then return end
       if key=="escape" then if ui.radioOpen then ui.radioOpen=false; return elseif runtime.state=="game" and (runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or runtime.poseMenu or ui.optionsOpen or runtime.trainUpgradeOpen) then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.mapOpen=false; runtime.dialogue=nil; runtime.questOffer=nil; runtime.editMode=false; runtime.editedItem=nil; runtime.draggedSlot=nil; runtime.giftOpen=false; runtime.giftSlot=nil; runtime.poseMenu=false; ui.optionsOpen=false; runtime.trainUpgradeOpen=false; writeSave() elseif runtime.state~="slots" then requestExitPrompt("title") else requestExitPrompt("quit") end end
       if key=="i" and runtime.state=="game" and not runtime.editMode then
-          if runtime.nearChest or runtime.nearMailbox then runtime.activeChest=runtime.saveData.droppedItems[runtime.nearChest or runtime.nearMailbox]; if runtime.activeChest then runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.activeChest.mailUnread=false; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; writeSave() end
-          else runtime.inventoryOpen=not runtime.inventoryOpen; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil end
+          if runtime.inventoryOpen then
+              runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+          elseif runtime.nearChest or runtime.nearMailbox then
+              runtime.activeChest=runtime.saveData.droppedItems[runtime.nearChest or runtime.nearMailbox]
+              if runtime.activeChest then runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.activeChest.mailUnread=false; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; writeSave() end
+          else runtime.inventoryOpen=true; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil end
       end
       if key=="m" and runtime.state=="game" then runtime.mapOpen=not runtime.mapOpen; if runtime.mapOpen then runtime.mapScroll=math.max(0,math.floor((runtime.saveData.location-1)/6)-2) end; runtime.inventoryOpen=false; runtime.dialogue=nil end
       if runtime.state=="game" and runtime.mapOpen then if key=="down" or key=="s" then runtime.mapScroll=runtime.mapScroll+1 elseif key=="up" or key=="w" then runtime.mapScroll=math.max(0,runtime.mapScroll-1) end; return end
@@ -568,6 +675,9 @@ local function new(context)
       end
       if key=="p" and runtime.state=="game" and ui.nearRadio and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.editMode then ui.radioOpen=not ui.radioOpen; ui.optionsOpen=false; runtime.poseMenu=false; ui.playSfx("menu"); return end
       if key=="e" and runtime.state=="game" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.editMode then runtime.actionKind="use"; runtime.actionTimer=.35 end
+      if key=="f" and runtime.scene=="expedition" and not WorldPause.isPaused(runtime,ui,maintenanceSession) then
+          attackExpeditionMob(quickAttackPoint()); return
+      end
       if key=="q" or key=="g" or key=="e" then
           local selected=ui.interaction
           if ui.routeWorldInteraction(key) then

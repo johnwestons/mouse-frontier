@@ -169,6 +169,38 @@ class SpriteDoctorTests(unittest.TestCase):
         )
         self.assertTrue(any(issue.action == "walk" and issue.code == "frame_count_mismatch" for issue in modern.issues))
 
+    def test_directional_contract_requires_complete_eight_frame_gaits_and_idles(self) -> None:
+        directory = self.add_character("directional-mouse", (145, 100, 55, 255))
+        neutral = frame((145, 100, 55, 255))
+        assemble_strip([neutral] * 8).save(directory / "walk.png")
+        for action in ("walk_north", "walk_northeast", "walk_southeast", "walk_south"):
+            assemble_strip([neutral] * 8).save(directory / f"{action}.png")
+        for action in ("idle_north", "idle_northeast", "idle_southeast", "idle_south"):
+            assemble_strip([neutral] * 2).save(directory / f"{action}.png")
+
+        complete = self.doctor().audit(["directional-mouse"], identity=False)
+        self.assertEqual(8, complete.inspections[("directional-mouse", "walk")].expected_count)
+        self.assertEqual(8, complete.inspections[("directional-mouse", "walk_north")].actual_count)
+        self.assertFalse(any(
+            issue.severity == "error" and issue.action and (
+                issue.action.startswith("walk_") or issue.action.startswith("idle_")
+            ) for issue in complete.issues
+        ))
+
+        for action in ("walk_west", "walk_northwest", "walk_southwest"):
+            assemble_strip([neutral] * 8).save(directory / f"{action}.png")
+        for action in ("idle_west", "idle_northwest", "idle_southwest"):
+            assemble_strip([neutral] * 2).save(directory / f"{action}.png")
+        authored_west = self.doctor().audit(["directional-mouse"], identity=False)
+        self.assertEqual(8, authored_west.inspections[("directional-mouse", "walk_west")].actual_count)
+
+        (directory / "idle_south.png").unlink()
+        partial = self.doctor().audit(["directional-mouse"], identity=False)
+        self.assertTrue(any(
+            issue.action == "idle_south" and issue.code == "missing_sheet"
+            for issue in partial.issues
+        ))
+
     def test_detached_opaque_fragment_is_reported_instead_of_silently_deleted(self) -> None:
         directory = self.add_character("fragment-mouse", (120, 180, 70, 255))
         contaminated = frame((120, 180, 70, 255))
@@ -183,6 +215,37 @@ class SpriteDoctorTests(unittest.TestCase):
 
         plan = doctor.plan_repairs(audit)
         self.assertTrue(any(issue.code == "detached_fragment" for issue in plan.unresolved))
+
+    def test_ferret_style_fragments_are_found_when_basic_geometry_passes(self) -> None:
+        directory = self.add_character("ferret-scout", (205, 105, 45, 255))
+        clean = frame((205, 105, 45, 255), (64, 139, 449, 458))
+        bad_three = clean.copy()
+        bad_four = clean.copy()
+        ImageDraw.Draw(bad_three).rectangle((205, 97, 219, 112), fill=(235, 120, 35, 255))
+        ImageDraw.Draw(bad_four).rectangle((205, 94, 219, 109), fill=(235, 120, 35, 255))
+        assemble_strip([clean, clean, bad_three, bad_four, clean, clean]).save(directory / "walk.png")
+
+        inspection = self.doctor().inspect_sheet("ferret-scout", "walk")
+        codes = {issue.code for issue in inspection.issues}
+        fragment_frames = {
+            issue.frame for issue in inspection.issues if issue.code == "detached_fragment"
+        }
+        self.assertEqual({3, 4}, fragment_frames)
+        self.assertIn("top_bound_jitter", codes)
+        self.assertIn("adjacent_scale_jump", codes)
+        self.assertNotIn("scale_mismatch", codes)
+        self.assertNotIn("center_mismatch", codes)
+        self.assertNotIn("baseline_mismatch", codes)
+
+    def test_substantial_fragment_entering_panel_boundary_is_reported(self) -> None:
+        directory = self.add_character("boundary-mouse", (95, 145, 205, 255))
+        contaminated = frame((95, 145, 205, 255), (64, 73, 449, 458))
+        ImageDraw.Draw(contaminated).rectangle((0, 210, 23, 233), fill=(225, 115, 45, 255))
+        assemble_strip([contaminated] * 3).save(directory / "use.png")
+        codes = {
+            issue.code for issue in self.doctor().inspect_sheet("boundary-mouse", "use").issues
+        }
+        self.assertIn("panel_boundary_fragment", codes)
 
     def test_green_screen_cleanup_preserves_small_green_edge_art(self) -> None:
         screen = Image.new("RGBA", (200, 120), (20, 235, 25, 255))

@@ -2,11 +2,11 @@
 
 This roadmap orders the remaining work by dependency and gameplay impact. Every target must preserve existing saves, use the shared Windows/Android Lua source, pass desktop and full-route smoke checks, pass the packaged mobile smoke checks, and end in a clean Git commit.
 
-Latest completion: stop activities now gain settled-farm, drylands, and ashlands variants. Later regions require more successful decisions, the final region permits fewer mistakes, and the palettes plus target layouts change through the same shared desktop/mobile implementation.
+Current content: the shooting range, Last Stand rescue, crow-caravan trading camps, and the stop-6 surface/dungeon expedition are integrated into the shared game, with persistent progress and return paths.
 
-Goodwill for those authored activities now scales with their length: 1/2 points for successful/flawless early runs, 2/3 in the middle band, and 3/4 in the late band. Short instant chores keep their original rewards.
+First aid now uses cut inspection and five treatment steps. Water-pump repair remains a short instant chore. The four retired community minigames and their regional variants are absent from this release; their redesign remains future content work.
 
-Latest visual polish: every help-minigame stage now presents its authored full-color atlas art instead of stage-one line placeholders. The locomotive presentation is 40% larger, desktop car selectors no longer cover the exit control, long battle weapon/item labels are compacted into their buttons, and the two Ferret Scout idle frames have repaired crops and baselines.
+Latest visual polish: every help-minigame stage now presents its authored full-color atlas art with distinct scene and choice treatments instead of repeated stage-one placeholders. First aid also displays the actual medical-supply sprite being used. The enlarged locomotive now has distance-accurate drivers, rigid coupling and connecting rods, animated car bogies, layered vibrating ballast, and fullscreen seam regression captures. Desktop car selectors no longer cover the exit control, long battle weapon/item labels are compacted into their buttons, and the two Ferret Scout idle frames have repaired crops and baselines.
 
 ## 1. Stop activities, help requests, and goodwill — Complete
 
@@ -62,7 +62,7 @@ Latest visual polish: every help-minigame stage now presents its authored full-c
 - **Complete:** Attach melee and ranged weapons to per-character, per-frame hand points in battle and world attacks. Sprite Doctor generates, reviews, validates, and permits authored corrections to the shared desktop/mobile attachment list.
 - **Complete:** Redesign sludge creatures with mouse ears instead of antennae while preserving their established silhouette and animation contract. Four-frame idle/walk, attack, hit, and collapse atlases share one mouse-eared identity and render from the shared desktop/mobile source.
 - **Complete:** Add a clearly clickable `EXIT HOME` button inside every home. The shared scene control has a compact desktop layout, a larger Android touch target, and uses the same save-safe exit action as the nearby-door shortcut.
-- **Complete:** Expand stops with five persistent community activities whose deterministic rotation prevents either of the previous two activities from repeating. Telegraph environmental hazards, limit them to one nonlethal damage event with movement slowdown, reward help with goodwill and supplies, and make chickens and field mice flee travelers or gather around a filled wildlife trough. Desktop and Android use the same interaction path.
+- **Revised:** Water-pump repair remains available with a telegraphed nonlethal runoff hazard and persistent goodwill/scrap reward. Sludge containment, debris clearing, garden rescue, and trough care were retired for individual redesign. Ambient critters still respond to nearby travelers.
 
 ## 9. NPC relationships and character identity — Complete
 
@@ -84,10 +84,8 @@ Latest visual polish: every help-minigame stage now presents its authored full-c
 ## 12. Deeper help quests and authored minigames — In progress
 
 - **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and community activities now share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
-- **Planned:** Replace the placeholder first-aid sequence with wound inspection, tool choice, cleaning, pressure, treatment, and bandaging interactions.
-- **Complete:** Replace sludge seep's instant interaction with a sprite-driven containment activity: read the flow, anchor a downstream barrier, pack three active leaks, seal the source, and collect the sludge. Progress and mistakes persist, clean work earns exceptional goodwill, and keyboard, mouse, and Android touch share the same rules.
-- **Complete:** Replace track debris's instant interaction with a sprite-driven clearing activity: inspect loose piles from a safe edge, match gloves/pry bar/magnetic sweep to each hazard, and sort wood, metal, and sharps. Nine decisions persist through pause/resume, clean work earns exceptional goodwill, and all platforms use one shared minigame coordinator.
-- **Complete:** Add shared-component garden rescue and wildlife-trough care. Each has three persistent stages and nine decisions; garden work protects healthy vines and restores soil, while wildlife care observes tracks, sanitizes the trough, and measures visitor-specific portions without consuming food on failed or paused attempts.
+- **Complete:** Replace placeholder first aid with cut inspection, tool selection, five treatment steps, mouse/touch dragging, keyboard treatment, and saved pause/resume progress.
+- **Retired:** Sludge containment, track-debris clearing, garden rescue, and wildlife-trough care were removed with their world spots and assets so they can be redesigned individually.
 - **Planned:** Add the sprite-driven water-pump repair activity.
 - **Complete:** Add the first four branching investigation and conversation quests: Missing Family Trail, Crop Dispute, Bandit Warning, and Broken Promise. Choices and evidence persist, every conclusion remains constructive, stronger investigation can earn exceptional goodwill, and NPC follow-ups reflect the saved relationship.
 - **Planned:** Expand the authored dialogue pool beyond the first four quests and connect later-stop variants to regional characters and world-state consequences.

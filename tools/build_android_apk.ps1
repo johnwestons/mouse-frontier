@@ -12,6 +12,44 @@ $loveAndroidRoot = Join-Path $outputRoot 'love-android'
 $config = Get-Content -Raw (Join-Path $projectRoot 'mobile\config.json') | ConvertFrom-Json
 $resolvedPackage = (Resolve-Path -LiteralPath $PackagePath).Path
 
+function Get-StreamSha256 {
+    param([System.IO.Stream]$Stream)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    try { return ([System.BitConverter]::ToString($algorithm.ComputeHash($Stream))).Replace('-','').ToLowerInvariant() }
+    finally { $algorithm.Dispose() }
+}
+
+# Reject a stale or unrelated game archive before downloading tools or building.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$packageArchive = [System.IO.Compression.ZipFile]::OpenRead($resolvedPackage)
+try {
+    $buildManifest = $packageArchive.GetEntry('mobile-build.json')
+    if (-not $buildManifest) { throw 'Game package is missing mobile-build.json; run BUILD_ANDROID.ps1 first' }
+    $reader = [System.IO.StreamReader]::new($buildManifest.Open())
+    try { $packageManifest = $reader.ReadToEnd() | ConvertFrom-Json }
+    finally { $reader.Dispose() }
+    foreach ($field in @('applicationId','applicationName','versionName','versionCode','loveVersion')) {
+        if ($packageManifest.$field -ne $config.$field) { throw "Game package $field differs from mobile/config.json; rebuild the mobile package" }
+    }
+    $sourceFiles = @((Get-Item -LiteralPath (Join-Path $projectRoot 'main.lua')),(Get-Item -LiteralPath (Join-Path $projectRoot 'conf.lua')))
+    $sourceFiles += @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'game') -Recurse -Filter '*.lua' -File)
+    $packagedLua = @($packageArchive.Entries | Where-Object { $_.FullName -match '^(main\.lua|conf\.lua|game/.*\.lua)$' })
+    if ($packagedLua.Count -ne $sourceFiles.Count) { throw 'Game package has a stale Lua file inventory; rebuild the mobile package' }
+    foreach ($source in $sourceFiles) {
+        $relative = $source.FullName.Substring($projectRoot.Length + 1).Replace('\','/')
+        $entry = $packageArchive.GetEntry($relative)
+        if (-not $entry) { throw "Game package is missing $relative; rebuild the mobile package" }
+        $stream = $entry.Open()
+        try { $entrySha = Get-StreamSha256 $stream }
+        finally { $stream.Dispose() }
+        if ($entrySha -ne (Get-FileHash -Algorithm SHA256 -LiteralPath $source.FullName).Hash.ToLowerInvariant()) {
+            throw "Game package contains stale source: $relative; rebuild the mobile package"
+        }
+    }
+}
+finally { $packageArchive.Dispose() }
+$packageSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedPackage).Hash.ToLowerInvariant()
+
 New-Item -ItemType Directory -Force -Path $toolingRoot,$androidRoot | Out-Null
 
 function Get-VerifiedDownload {
@@ -69,6 +107,7 @@ if (-not (Test-Path -LiteralPath $sdkManager)) {
 $previousJavaHome = $env:JAVA_HOME
 $previousAndroidHome = $env:ANDROID_HOME
 $previousAndroidSdkRoot = $env:ANDROID_SDK_ROOT
+$previousPath = $env:Path
 $buildAndroidRoot = $androidRoot
 $buildLoveAndroidRoot = $loveAndroidRoot
 $substDrive = $null
@@ -224,8 +263,22 @@ public class GameActivity extends SDLActivity {
         if ($embeddedGame.Length -ne $packageBytes) {
             throw "Embedded game size mismatch: expected $packageBytes, found $($embeddedGame.Length)"
         }
+        $embeddedStream = $embeddedGame.Open()
+        try { $embeddedGameSha = Get-StreamSha256 $embeddedStream }
+        finally { $embeddedStream.Dispose() }
+        if ($embeddedGameSha -ne $packageSha) { throw 'APK contains a different game archive; SHA-256 verification failed' }
+        $verifiedAbis = @('arm64-v8a','armeabi-v7a','x86_64')
+        foreach ($abi in $verifiedAbis) {
+            if (-not $apkArchive.GetEntry("lib/$abi/liblove.so")) { throw "APK is missing its $abi engine" }
+        }
     }
     finally { $apkArchive.Dispose() }
+
+    $aapt = Join-Path $androidRoot 'build-tools\34.0.0\aapt.exe'
+    $badging = (& $aapt dump badging $apkPath | Out-String)
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect Android APK identity' }
+    $expectedIdentity = "package: name='$($config.applicationId)' versionCode='$($config.versionCode)' versionName='$($config.versionName)'"
+    if (-not $badging.Contains($expectedIdentity)) { throw 'Android APK identity/version differs from mobile/config.json' }
 
     $apksigner = Join-Path $androidRoot 'build-tools\34.0.0\apksigner.bat'
     & $apksigner verify --verbose $apkPath
@@ -261,7 +314,12 @@ public class GameActivity extends SDLActivity {
         apkBytes = (Get-Item -LiteralPath $apkPath).Length
         sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $apkPath).Hash.ToLowerInvariant()
         signed = $true
+        identityVerified = $true
+        verifiedAbis = $verifiedAbis
+        sourceCommit = $packageManifest.sourceCommit
+        sourceDirty = $packageManifest.sourceDirty
         embeddedGameBytes = $packageBytes
+        embeddedGameSha256 = $embeddedGameSha
         connectedAndroidDevices = $devices.Count
         deviceLaunchVerified = $deviceLaunchVerified
     }
@@ -273,5 +331,6 @@ finally {
     $env:JAVA_HOME = $previousJavaHome
     $env:ANDROID_HOME = $previousAndroidHome
     $env:ANDROID_SDK_ROOT = $previousAndroidSdkRoot
+    $env:Path = $previousPath
     if ($substDrive) { & subst.exe $substDrive /D | Out-Null }
 }

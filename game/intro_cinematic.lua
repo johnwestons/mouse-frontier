@@ -1,5 +1,10 @@
 local IntroCinematic = {}
 
+-- Anchors are proportions of the authored images so the mobile optimizer can
+-- resize the scenery without moving the train below the visible screen.
+local backgroundRailRatio = 750/1086
+local consistBaselineRatio = 584/724
+
 -- The generated sheet is not a uniform grid. These measured rectangles keep
 -- neighboring locomotive frames from being sliced into one another.
 local locomotiveFrames = {
@@ -37,13 +42,14 @@ function IntroCinematic.draw(intro,scenery,colors,width,height)
     love.graphics.clear(0,0,0,1)
     local background=scenery.introBackground
     local sceneScale=height/720
-    local railY=height*(497/720)
+    local railY=height*backgroundRailRatio
     if background then
-        local scale=math.max(width/background:getWidth(),height/background:getHeight())
-        sceneScale=scale/(720/background:getHeight())
-        railY=height/2+scale*(750-background:getHeight()/2)
+        local backgroundWidth,backgroundHeight=background:getDimensions()
+        local scale=math.max(width/backgroundWidth,height/backgroundHeight)
+        sceneScale=scale/(720/backgroundHeight)
+        railY=height/2+scale*(backgroundHeight*backgroundRailRatio-backgroundHeight/2)
         love.graphics.setColor(1,1,1)
-        love.graphics.draw(background,width/2,height/2,0,scale,scale,background:getWidth()/2,background:getHeight()/2)
+        love.graphics.draw(background,width/2,height/2,0,scale,scale,backgroundWidth/2,backgroundHeight/2)
     end
 
     local progress=math.max(0,math.min(1,intro.timer/intro.duration))
@@ -52,7 +58,7 @@ function IntroCinematic.draw(intro,scenery,colors,width,height)
     local cars=scenery.introCars
     if cars then
         love.graphics.setColor(1,1,1)
-        love.graphics.draw(cars,couplerX+257*sceneScale,railY,0,.24*sceneScale,.24*sceneScale,cars:getWidth()/2,584)
+        love.graphics.draw(cars,couplerX+257*sceneScale,railY,0,.24*sceneScale,.24*sceneScale,cars:getWidth()/2,cars:getHeight()*consistBaselineRatio)
     end
     local sheet=scenery.introLocomotiveSheet
     if sheet then

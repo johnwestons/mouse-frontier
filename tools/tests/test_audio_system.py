@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import unittest
 from pathlib import Path
 
@@ -53,17 +54,31 @@ class AudioSystemTests(unittest.TestCase):
         catalog = (ROOT / "game" / "audio_catalog.lua").read_text(encoding="utf-8")
         runtime = (ROOT / "game" / "audio_runtime.lua").read_text(encoding="utf-8")
         persistence = (ROOT / "game" / "persistence_runtime.lua").read_text(encoding="utf-8")
+        weapon_catalog = (ROOT / "game" / "catalog.lua").read_text(encoding="utf-8")
+        sound_profiles = (ROOT / "game" / "weapon_sound_profiles.lua").read_text(encoding="utf-8")
 
         self.assertIn("stopAndRelease(previous)", audio)
         self.assertIn("self.failedMusic[path]=true", audio)
         self.assertIn("self:refillShuffleBag(category)", audio)
         self.assertIn("function Audio:suspend", audio)
         self.assertIn("function Audio:resume", audio)
-        self.assertIn('lower:find("slingshot",1,true)', runtime)
+        self.assertIn('local WeaponSoundProfiles=require("game.weapon_sound_profiles")', runtime)
+        self.assertIn("return WeaponSoundProfiles.forWeapon(weaponName,Catalog)", runtime)
         self.assertIn('file:find("eagle",1,true)', runtime)
         self.assertIn("gameplayOverrides={battle=true,bossFight=true,endingHappy=true}", catalog)
         self.assertIn('runtime.state~="game" and runtime.state~="event"', runtime)
         self.assertIn("focusAudio(focused)", persistence)
+
+        ranged = set(re.findall(r'\["([^"]+)"\]=\{kind="ranged"', weapon_catalog))
+        progression_payload = weapon_catalog.split("Catalog.weaponProgression = {", 1)[1].split("}", 1)[0]
+        player_ranged = ranged & set(re.findall(r'"([^"]+)"', progression_payload))
+        order_payload = sound_profiles.split("local rangedOrder={", 1)[1].split("}", 1)[0]
+        assigned = re.findall(r'"([^"]+)"', order_payload)
+        self.assertEqual(len(assigned), len(set(assigned)), "weapon sound assignments must be unique")
+        self.assertEqual(player_ranged, set(assigned))
+        self.assertNotIn("mob-spit", assigned)
+        self.assertIn("local index=order[name] or (hash(name)%97+1)", sound_profiles)
+        self.assertNotIn("love.math.random", sound_profiles)
 
 
 if __name__ == "__main__":

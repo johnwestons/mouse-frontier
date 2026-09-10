@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "purpose": "Runtime-ready Last Stand quest art with transparent scene apertures and fixed atlas geometry.",
+  "layerOrder": {
+    "viewBackground": 0,
+    "distantBuilding": 10,
+    "distantActors": 20,
+    "distantEffects": 30,
+    "atmosphere": 40,
+    "windowFrame": 50,
+    "playerWeapon": 60,
+    "hud": 70
+  },
+  "scenes": {
+    "backyard": {
+      "file": "friendly-house-backyard-shell.png",
+      "width": 1672,
+      "height": 941,
+      "charactersBakedIn": false
+    },
+    "interior": {
+      "file": "friendly-house-interior-shell.png",
+      "width": 1671,
+      "height": 941,
+      "transparentWindowCount": 2,
+      "charactersBakedIn": false
+    },
+    "enemyRelay": {
+      "file": "rail-relay-facade-cutout.png",
+      "width": 2001,
+      "height": 786,
+      "transparentFiringApertures": true,
+      "charactersBakedIn": false
+    }
+  },
+  "windows": [
+    {
+      "id": "wide",
+      "file": "house-firing-window-wide.png",
+      "width": 887,
+      "height": 887
+    },
+    {
+      "id": "tall",
+      "file": "house-firing-window-tall.png",
+      "width": 887,
+      "height": 887
+    }
+  ],
+  "atlasDefaults": {
+    "grid4x2": {
+      "width": 2048,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "frameCount": 8
+    },
+    "strip8x1": {
+      "width": 2560,
+      "height": 512,
+      "columns": 8,
+      "rows": 1,
+      "frameWidth": 320,
+      "frameHeight": 512,
+      "frameCount": 8
+    }
+  },
+  "atlases": {
+    "mouseBandit": {
+      "file": "mouse-bandit-rifle-target-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "hostile"
+    },
+    "cowboyMouse": {
+      "file": "cowboy-mouse-rifle-target-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "hostile"
+    },
+    "tunnelBadger": {
+      "file": "tunnel-badger-rifle-target-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "hostile"
+    },
+    "guardFox": {
+      "file": "guard-fox-rifle-action-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "friendly"
+    },
+    "geckoRanger": {
+      "file": "gecko-ranger-pistol-action-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "friendly"
+    },
+    "otterSupport": {
+      "file": "otter-scout-support-action-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        500
+      ],
+      "role": "friendly"
+    },
+    "otterApproach": {
+      "file": "otter-scout-approach-walk.png",
+      "layout": "strip8x1",
+      "pivot": [
+        160,
+        496
+      ],
+      "fps": 10,
+      "loop": true,
+      "role": "friendly"
+    },
+    "distantDust": {
+      "file": "distant-dust-loop.png",
+      "layout": "strip8x1",
+      "pivot": [
+        160,
+        448
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "effects": {
+      "file": "shootout-effects-atlas.png",
+      "layout": "grid4x2",
+      "pivot": [
+        256,
+        256
+      ]
+    },
+    "surfaceDamage": {
+      "file": "house-surface-damage-decals.png",
+      "layout": "grid4x2",
+      "solidSurfaceOnly": true
+    },
+    "domesticProps": {
+      "file": "domestic-siege-props-atlas.png",
+      "layout": "grid4x2"
+    }
+  }
+}

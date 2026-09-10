@@ -62,6 +62,7 @@ local function install(context)
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
+    required(context,"caravanAudit","function")
     local questBalanceAudit=required(context,"questBalanceAudit","function")
     local audioAudit=required(context,"audioAudit","function")
     local finaleAudit=required(context,"finaleAudit","function")
@@ -118,6 +119,18 @@ local function install(context)
         local ok,message=xpcall(ui.smokeLoad,debug.traceback,...)
         if not ok then io.stderr:write("LOAD_ERROR: "..tostring(message).."\n"); io.stderr:flush(); os.exit(1) end
         local character=characters[1]
+        local requestedCharacter=os.getenv("MOUSE_FRONTIER_SMOKE_CHARACTER")
+        if requestedCharacter and requestedCharacter~="" then
+            local requestedFile=requestedCharacter:match("%.png$") and requestedCharacter or (requestedCharacter..".png")
+            character=nil
+            for _,candidate in ipairs(characters) do
+                if candidate==requestedFile then character=candidate; break end
+            end
+            if not character then
+                io.stderr:write("LOAD_ERROR: requested smoke character is not playable: "..requestedFile.."\n")
+                io.stderr:flush(); os.exit(1)
+            end
+        end
         if not character then io.stderr:write("LOAD_ERROR: no playable character assets found\n"); io.stderr:flush(); os.exit(1) end
         game.saveData=newSave(character); game.selectedSlot=nil; enterGame(game.saveData)
         local mobileControls=getMobileControls()
@@ -184,11 +197,36 @@ local function install(context)
                     return result.inverse and result.bounded and result.isolated and result.restored
                         and result.minZoom==1 and result.maxZoom==2.25 and result.curve=="global-camera-v1"
                 end},
-            {name="responsive_train_presentation",action=trainPresentationAudit,
+            {name="responsive_train_presentation",action=function()
+                local result=trainPresentationAudit()
+                if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_TRAIN")=="1" then
+                    pcall(love.window.setMode,1920,1080,{resizable=true,vsync=0})
+                    game.state="game"; game.scene="train"; game.saveData.scene="train"
+                    ui.smokeTrainCapturePhase=1
+                end
+                return result
+            end,
                 check=function(_,_,_,result)
                     return result.ready and result.aligned and result.tabsFit and result.tabs==7
-                        and result.engineLeft==8 and result.engineWidth==420 and result.carRight==935 and result.transitionDistance==960
-                        and result.curve=="train-presentation-v2"
+                        and result.engineLeft==-115 and result.engineRight==431 and result.engineWidth==546
+                        and result.carFront==429 and result.carRight==1049 and result.couplerOverlap==2
+                        and result.croppedLeft==115 and result.croppedRight==89
+                        and result.consistCenter==467 and result.centerError==13
+                        and result.frontWheelCount==2 and result.couplingRodThicknessScale==.55
+                        and result.connectingRodThicknessScale==.42
+                        and result.wheelContactY==result.railY
+                        and result.animationReady and result.layoutMatrixReady and result.layoutCount==6
+                        and result.trackCoverage and result.trackLayerCount==2 and result.phaseCount==12
+                        and result.ballastMode=="anchored-four-frame-pockets"
+                        and result.ballastFrameCount==4 and result.ballastAnchored
+                        and result.connectionMode=="sprite-atlas"
+                        and result.transitionDistance==960 and result.curve=="train-presentation-v7"
+                end},
+            {name="train_motion_kinematics",action=trainPresentationAudit,
+                check=function(_,_,_,result)
+                    return result.animationReady and result.driverCount==3 and result.phaseCount==12
+                        and result.trackLayerCount==2 and result.trackPriorityAlternates
+                        and result.maxMechanicalError<1e-8 and result.animationCurve=="train-animation-v1"
                 end},
             {name="maintenance_route_balance",action=Maintenance.audit,
                 check=function(_,_,_,result)
@@ -235,6 +273,19 @@ local function install(context)
                         and result.legendaryPrice>result.commonPrice
                         and result.wornResale<result.soundResale
                 end},
+            {name="crow_caravan_camps",action=smokeComposition.caravanAudit,
+                check=function(_,_,_,result)
+                    return result.ready and result.economy.merchants==9 and result.economy.listings==36
+                        and result.economy.minimumGap>=8 and result.economy.curve=="crow-caravans-v1"
+                        and result.area.safe and result.area.merchantCount==3
+                        and result.art.ready and result.art.loadedCount==9
+                        and result.art.campfireFrames==4 and result.art.stallBreezeFrames==4
+                        and result.art.activeBreezeFrames==3
+                        and result.art.curve=="crow-caravan-art-v2"
+                        and result.trade.curve=="merchant-trade-v1"
+                        and result.flow.entered and result.flow.tradeOpened and result.flow.reloadIsolated and result.flow.purchased
+                        and result.flow.returned and result.flow.positionRestored
+                end},
             {name="audio_engine_lifecycle",action=function() return audioAudit() end,
                 check=function(_,_,_,result) return result.failedTrackSkipped and result.replacementReleased and result.shuffleBag and result.priority and result.focus and result.titleSilent end},
             {name="quest_passenger_balance",action=questBalanceAudit,
@@ -254,15 +305,21 @@ local function install(context)
                 end},
             {name="stop_help_goodwill",action=function()
                     local result=helpBalanceAudit(); local previousState=game.state
-                    game.state="game"; game.firstAid=FirstAid.new({location=2,itemName="field-bandage-roll",itemSlot=1})
-                    ui.smokeDraw(); game.firstAid=nil; game.state=previousState; result.overlayRendered=true
+                    game.state="game"; game.firstAid=FirstAid.new({npc="ferret-medic.png",location=2,itemName="field-bandage-roll",itemSlot=1})
+                    if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_FIRST_AID")=="1" then
+                        ui.smokeFirstAidCapturePhase=1; ui.smokeFirstAidPreviousState=previousState
+                    else ui.smokeDraw(); game.firstAid=nil; game.state=previousState end
+                    result.overlayRendered=true
                     return result
                 end,
                 check=function(_,_,_,result)
                     return result.ready and result.curve=="goodwill-v1" and result.policyVersion==4
                         and result.points==5 and result.helpCount==2 and result.itemGoodwill==2 and result.aidGoodwill==3
-                        and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==3
-                        and result.firstAid.maximumMisses==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
+                        and result.noNegativeAlignment and result.firstAid.ready and result.firstAid.stages==6
+                        and result.firstAid.treatmentSteps==5 and result.firstAid.woundType=="small-cut"
+                        and result.firstAid.ointmentTrailOpacity==.8 and result.firstAid.bandagePasses==3
+                        and result.firstAid.bandageStripSprites==3 and result.firstAid.keyboard and result.firstAid.touch and result.overlayRendered
+                        and result.firstAid.gestures
                         and result.session.ready and result.session.rewardOnce and result.session.persistent
                 end},
             {name="help_quest_session_lifecycle",action=helpQuestAudit,check=function(_,_,_,result)
@@ -275,30 +332,16 @@ local function install(context)
                     and dialogue.totalGoodwill>=8 and dialogue.rewardOnce and dialogue.curve=="branching-dialogue-v1"
             end},
             {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
-                return result.ready and result.repeatProtected and result.profileCount==5 and result.damage==1
-                    and result.goodwill==1 and result.midGoodwill==2 and result.lateExceptional==4
-                    and result.persistent and result.foodProtected and result.curve=="stop-world-variety-v3"
-                    and result.minigames.ready and result.minigames.registered==4 and result.minigames.curve=="activity-minigames-v3"
-                    and result.minigames.difficulty.ready and result.minigames.difficulty.bands==3
-                    and result.minigames.difficulty.earlyRounds==3 and result.minigames.difficulty.midRounds==4
-                    and result.minigames.difficulty.lateRounds==5 and result.minigames.difficulty.lateMistakes==2
-                    and result.minigames.difficulty.earlyGoodwill==1 and result.minigames.difficulty.midGoodwill==2
-                    and result.minigames.difficulty.lateGoodwill==3 and result.minigames.difficulty.lateExceptional==4
-                    and result.minigames.difficulty.visualVariants==3 and result.minigames.difficulty.curve=="activity-difficulty-v2"
-                    and result.minigames.sludge.stages==3 and result.minigames.sludge.earlyAbsorbs==3
-                    and result.minigames.sludge.lateAbsorbs==5 and result.minigames.sludge.lateMistakes==2
-                    and result.minigames.sludge.persistent and result.minigames.sludge.keyboard and result.minigames.sludge.touch
-                    and result.minigames.sludge.curve=="sludge-containment-v2"
-                    and result.minigames.track.stages==3 and result.minigames.track.earlyDecisions==9
-                    and result.minigames.track.lateDecisions==15 and result.minigames.track.lateMistakes==2 and result.minigames.track.persistent
-                    and result.minigames.track.keyboard and result.minigames.track.touch and result.minigames.track.curve=="track-debris-v2"
-                    and result.minigames.garden.stages==3 and result.minigames.garden.earlyDecisions==9
-                    and result.minigames.garden.lateDecisions==15 and result.minigames.garden.lateMistakes==2 and result.minigames.garden.persistent
-                    and result.minigames.garden.keyboard and result.minigames.garden.touch and result.minigames.garden.curve=="garden-rescue-v2"
-                    and result.minigames.wildlife.stages==3 and result.minigames.wildlife.earlyDecisions==9
-                    and result.minigames.wildlife.lateDecisions==15 and result.minigames.wildlife.lateMistakes==2 and result.minigames.wildlife.persistent
-                    and result.minigames.wildlife.foodProtected and result.minigames.wildlife.keyboard and result.minigames.wildlife.touch
-                    and result.minigames.wildlife.curve=="wildlife-trough-v2"
+                local range=result.shootingRange or {}
+                return result.ready and result.onlyWaterPump and result.profileCount==1 and result.migrated
+                    and result.damage==1 and result.goodwill==1 and result.scrap==2
+                    and result.persistent and result.curve=="water-pump-help-v1"
+                    and range.ready and range.hostCount==9 and range.ownedWeapons==3
+                    and range.goodwill==2 and range.replayGoodwill==0 and range.version==3
+                    and range.sparseOwned==2 and range.brokenRejected and range.zeroGoodwill==0
+                    and range.movingMultiplier==1.30 and range.targetPattern=="pop-up" and range.stageLength==60
+                    and range.ammoPurchased and range.scrapAfterAmmo==4 and range.calibratedViews==45 and range.provisionalViews==0
+                    and range.modes==3 and range.targetTypes==3 and range.assignedSounds>=40
             end},
             {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
                 return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10
@@ -516,14 +559,41 @@ local function install(context)
                 game.dialogue=nil; game.questOffer=nil
                 game.player.x,game.player.y=activity.x,activity.y
                 ui.smokeUpdate(.05); ui.smokeDraw(); ui.interaction={kind="stopActivity",label=activity.label}; love.keypressed("q")
-                if game.activityMinigame and game.activityMinigame.kind=="wildlife-trough-care" then
-                    ui.smokeDraw()
-                    for _,key in ipairs({"2","3","1","1","2","3","1","2","3"}) do love.keypressed(key) end
-                end
                 return {completed=activity.completed,hazardTriggered=activity.hazardTriggered,healthBefore=beforeHealth,
                     healthAfter=game.saveData.health,goodwillBefore=beforeGoodwill,goodwillAfter=game.saveData.goodwill,kind=activity.kind}
             end,check=function(_,_,snapshot,result)
-                return result and result.completed and result.goodwillAfter==result.goodwillBefore+2 and snapshot.scene=="stop"
+                return result and result.completed and result.goodwillAfter==result.goodwillBefore+1 and snapshot.scene=="stop"
+            end},
+            {name="shared_shooting_range_playable",action=function()
+                local layout=ensureStopLayout(); local spot=layout.shootingRange
+                if not spot then return false end
+                game.saveData.equipment[1]="trail-slingshot"
+                game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
+                local beforeAmmo,beforeGoodwill=game.saveData.ammo.rocks,game.saveData.goodwill
+                game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
+                ui.smokeUpdate(.05); ui.interaction={kind="shootingRange",label="TARGET RANGE"}; love.keypressed("q")
+                local opened=game.shootingRange and game.shootingRange.phase=="lobby"
+                assert(opened,"range did not open; dialogue="..tostring(game.dialogue and game.dialogue.text))
+                ui.smokeDraw(); love.keypressed("return"); ui.smokeUpdate(.2); ui.smokeUpdate(.2); ui.smokeDraw()
+                local target=game.shootingRange and game.shootingRange.targets[1]
+                assert(target,"range did not spawn a target; phase="..tostring(game.shootingRange and game.shootingRange.phase))
+                if target then love.mousepressed(target.x,target.y,1) end
+                local impacts=target and #target.impacts or 0
+                assert(impacts==1,"range shot impact count="..tostring(impacts))
+                worldSessionComposition.worldScene.handleShootingRange("complete"); ui.smokeDraw()
+                local result=game.shootingRange and game.shootingRange.result
+                love.keypressed("q")
+                return {opened=opened,impactCount=impacts,ammoUsed=beforeAmmo-game.saveData.ammo.rocks,
+                    goodwill=(result and result.gained or 0),goodwillDelta=game.saveData.goodwill-beforeGoodwill,
+                    closed=game.shootingRange==nil,rewarded=spot.rewarded==true}
+            end,check=function(_,_,snapshot,result)
+                local ready=result and result.opened and result.impactCount==1 and result.ammoUsed==1
+                    and result.goodwill==1 and result.goodwillDelta==1 and result.closed and result.rewarded
+                    and snapshot.scene=="stop"
+                if ready then return true end
+                return "range state opened="..tostring(result and result.opened).." impacts="..tostring(result and result.impactCount)
+                    .." ammo="..tostring(result and result.ammoUsed).." goodwill="..tostring(result and result.goodwill)
+                    .." delta="..tostring(result and result.goodwillDelta).." closed="..tostring(result and result.closed)
             end},
             {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return "q" end,expect={state="game",scene="house"}},
             fixtureStep("house"),
@@ -538,6 +608,15 @@ local function install(context)
             end},
             {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return true end,expect={state="game",scene="house"}},
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("q"); return "q" end,expect={state="game",scene="stop"}},
+            {name="return_to_train_button",action=function()
+                ui.smokeDraw()
+                local control=ui.returnTrain
+                if not control then return false end
+                love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                return {width=control.w,height=control.h}
+            end,check=function(_,_,snapshot,result)
+                return result and result.width>=135 and result.height>=38 and snapshot.state=="game" and snapshot.scene=="train"
+            end},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
             {name="battle_ui_mouse_routes",action=function()
                 ui.smokeDraw()
@@ -576,21 +655,62 @@ local function install(context)
                 local valid=SaveSchema.validate(migrated)
                 return {originalVersion=legacy.version,version=migrated and migrated.version,steps=metadata and metadata.steps,
                     food=migrated and migrated.resources.food,oil=migrated and migrated.resources.oil,
-                    visited=migrated and migrated.visitedStops[7],valid=valid}
+                    visited=migrated and migrated.visitedStops[7],
+                    caravanVersion=migrated and migrated.crowCaravans.version,
+                    caravanScheduleVersion=migrated and migrated.crowCaravans.scheduleVersion,
+                    caravanSchedule=migrated and migrated.crowCaravans.scheduledStops,
+                    caravanCamps=migrated and migrated.crowCaravans.camps,valid=valid}
             end,check=function(_,_,_,result)
                 return result.originalVersion==1 and result.version==CURRENT_SAVE_VERSION and
-                    result.steps==CURRENT_SAVE_VERSION-1 and result.food==3 and result.oil==10 and result.visited and result.valid
+                    result.steps==CURRENT_SAVE_VERSION-1 and result.food==3 and result.oil==10 and result.visited and
+                    result.caravanVersion==1 and result.caravanScheduleVersion==0 and type(result.caravanSchedule)=="table" and
+                    type(result.caravanCamps)=="table" and result.valid
+            end},
+            {name="save_schema_preserves_crow_caravan",action=function()
+                local campId="legacy-crow-camp-18"
+                local prior={version=CURRENT_SAVE_VERSION-1,character=character,location=18,scene="caravan",
+                    resources={},inventory={},equipment={},droppedItems={},
+                    crowCaravans={version=1,scheduleVersion="1",activeAreaId=campId,
+                        scheduledStops={"43",18,18,"27"},
+                        camps={["18"]={id=campId,stop=18,stockSeed=8032,merchantIds={"rook"},
+                            returnX="417.5",returnY=286,returnFacing="-4",
+                            playerX="480.25",playerY=626,playerFacing=9}}}}
+                local migrated,metadata=SaveSchema.migrate(prior)
+                local valid=SaveSchema.validate(migrated)
+                local caravans=migrated and migrated.crowCaravans
+                local camp=caravans and caravans.camps["18"]
+                return {inputVersion=prior.version,inputScheduleVersion=prior.crowCaravans.scheduleVersion,
+                    inputActiveAreaId=prior.crowCaravans.activeAreaId,inputReturnX=prior.crowCaravans.camps["18"].returnX,
+                    version=migrated and migrated.version,fromVersion=metadata and metadata.fromVersion,
+                    steps=metadata and metadata.steps,scene=migrated and migrated.scene,
+                    location=migrated and migrated.location,scheduleVersion=caravans and caravans.scheduleVersion,
+                    activeCampId=caravans and caravans.activeCampId,aliasCleared=caravans and caravans.activeAreaId==nil,
+                    firstStop=caravans and caravans.scheduledStops[1],lastStop=caravans and caravans.scheduledStops[3],
+                    scheduledCount=caravans and #caravans.scheduledStops,
+                    returnX=camp and camp.returnX,returnFacing=camp and camp.returnFacing,
+                    playerX=camp and camp.playerX,playerFacing=camp and camp.playerFacing,
+                    stockSeed=camp and camp.stockSeed,merchant=camp and camp.merchantIds[1],valid=valid}
+            end,check=function(_,_,_,result)
+                return result.inputVersion==CURRENT_SAVE_VERSION-1 and result.inputScheduleVersion=="1" and
+                    result.inputActiveAreaId=="legacy-crow-camp-18" and result.inputReturnX=="417.5" and
+                    result.version==CURRENT_SAVE_VERSION and result.fromVersion==CURRENT_SAVE_VERSION-1 and result.steps==1 and
+                    result.scene=="caravan" and result.location==18 and result.scheduleVersion==1 and
+                    result.activeCampId=="crow-caravan-stop-18" and result.aliasCleared and
+                    result.scheduledCount==3 and result.firstStop==18 and result.lastStop==43 and
+                    result.returnX==417.5 and result.returnFacing==-1 and result.playerX==480.25 and result.playerFacing==1 and
+                    result.stockSeed==8032 and result.merchant=="rook" and result.valid
             end},
             {name="save_schema_rejects_invalid_data",action=function()
                 local future,futureError=SaveSchema.migrate({version=CURRENT_SAVE_VERSION+1})
                 local corrupt,corruptError=SaveSchema.migrate({version=CURRENT_SAVE_VERSION,resources="broken"})
+                local badCaravan,badCaravanError=SaveSchema.migrate({version=CURRENT_SAVE_VERSION,crowCaravans={scheduledStops="broken"}})
                 local cyclic={version=CURRENT_SAVE_VERSION}; cyclic.self=cyclic
                 local copied,cycleError=SaveSchema.migrate(cyclic)
                 return {future=future,futureError=futureError,corrupt=corrupt,corruptError=corruptError,
-                    copied=copied,cycleError=cycleError}
+                    badCaravan=badCaravan,badCaravanError=badCaravanError,copied=copied,cycleError=cycleError}
             end,check=function(_,_,_,result)
                 return result.future==nil and result.futureError~=nil and result.corrupt==nil and result.corruptError~=nil and
-                    result.copied==nil and result.cycleError~=nil
+                    result.badCaravan==nil and result.badCaravanError~=nil and result.copied==nil and result.cycleError~=nil
             end},
             {name="save_read_upgrades_legacy_slot",action=function()
                 Save.remove(99)
@@ -646,10 +766,16 @@ local function install(context)
                     love.touchreleased("smoke-stick",targetX,stick.y)
                     local axisX,axisY=mobileControls:movement()
                     return {before=before,after=game.player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=stick.x,
-                        actionX=mobileControls.primary.x,joystickRadius=stick.radius}
+                        actionX=mobileControls.primary.x,joystickRadius=stick.radius,
+                        edgeInsetX=stick.edgeInsetX,edgeInsetY=stick.edgeInsetY,
+                        actionInsetX=mobileControls.primary.edgeInsetX,actionInsetY=mobileControls.primary.edgeInsetY,
+                        secondaryY=mobileControls.secondary.y,primaryY=mobileControls.primary.y}
                 end,check=function(_,_,_,result)
                     return result.after>result.before and result.sprinting and result.axisX==0 and result.axisY==0
                         and result.stickX<result.actionX and result.joystickRadius>=82
+                        and result.edgeInsetX>=120 and result.edgeInsetY>=96
+                        and result.actionInsetX>=142 and result.actionInsetY>=120
+                        and result.secondaryY==result.primaryY
                 end},
                 {name="mobile_action_press_release",action=function()
                     ui.interaction=nil; game.dialogue=nil
@@ -692,26 +818,60 @@ local function install(context)
                 {name="mobile_settlement_help_touch",action=function()
                     local layout=ensureStopLayout(); local activity=layout.worldActivity
                     if not activity then return false end
-                    activity.kind="wildlife-trough"; activity.label="FILL WILDLIFE TROUGH"; activity.completed=false; activity.sessionId=nil
-                    layout=ensureStopLayout(); activity=layout.worldActivity
+                    local beforeGoodwill=game.saveData.goodwill
                     game.dialogue=nil; game.questOffer=nil
                     game.player.x,game.player.y=activity.x,activity.y
                     ui.smokeUpdate(.05); ui.smokeDraw()
                     love.touchpressed("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
                     love.touchreleased("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
-                    if game.activityMinigame and game.activityMinigame.kind=="wildlife-trough-care" then
-                        ui.smokeDraw()
-                        local zones={{x=350,y=390},{x=480,y=350},{x=610,y=390}}
-                        local windowWidth,windowHeight=love.graphics.getDimensions(); local scale=math.min(windowWidth/960,windowHeight/720)
-                        local offsetX=(windowWidth-960*scale)/2; local offsetY=(windowHeight-720*scale)/2
-                        for step,index in ipairs({1,2,3,1,2,3,1,1,2}) do
-                            local zone=zones[index]; local id="smoke-wildlife-"..step; local x,y=offsetX+zone.x*scale,offsetY+zone.y*scale
-                            love.touchpressed(id,x,y); love.touchreleased(id,x,y)
-                        end
-                    end
-                    return {completed=activity.completed,goodwill=game.saveData.goodwill}
+                    return {completed=activity.completed,beforeGoodwill=beforeGoodwill,goodwill=game.saveData.goodwill}
                 end,check=function(_,_,snapshot,result)
-                    return result and result.completed and result.goodwill==2 and snapshot.scene=="stop"
+                    return result and result.completed and result.goodwill==result.beforeGoodwill+1 and snapshot.scene=="stop"
+                end},
+                {name="mobile_return_to_train_touch",action=function()
+                    ui.smokeDraw()
+                    local control=ui.returnTrain
+                    if not control then return false end
+                    local x,y=control.x+control.w/2,control.y+control.h/2
+                    love.touchpressed("smoke-return-train",x,y); love.touchreleased("smoke-return-train",x,y)
+                    return {width=control.w,height=control.h,scene=game.scene}
+                end,check=function(_,_,snapshot,result)
+                    return result and result.width>=220 and result.height>=64 and result.scene=="train" and snapshot.scene=="train"
+                end},
+                {name="mobile_shooting_range_aim_then_fire",action=function()
+                    game.saveData=newSave(character); game.saveData.location=2; game.saveData.scene="stop"; enterGame(game.saveData)
+                    game.scene="stop"; game.saveData.scene="stop"
+                    local layout=ensureStopLayout(); local spot=layout.shootingRange
+                    if not spot then return false end
+                    game.saveData.equipment[1]="trail-slingshot"
+                    game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
+                    game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
+                    ui.smokeUpdate(.05); ui.smokeDraw(); ui.interaction={kind="shootingRange",label="TARGET RANGE"}
+                    love.touchpressed("smoke-range-open",mobileControls.primary.x,mobileControls.primary.y)
+                    love.touchreleased("smoke-range-open",mobileControls.primary.x,mobileControls.primary.y)
+                    ui.smokeDraw()
+                    love.touchpressed("smoke-range-start",637,569); love.touchreleased("smoke-range-start",637,569)
+                    ui.smokeUpdate(.2); ui.smokeUpdate(.2); ui.smokeDraw()
+                    local range=game.shootingRange; local target=range and range.targets[1]
+                    if not target then return false end
+                    local ammoBefore=game.saveData.ammo.rocks
+                    love.touchpressed("smoke-range-ads",217,675); love.touchreleased("smoke-range-ads",217,675)
+                    love.touchpressed("smoke-range-aim",target.x-35,target.y-25)
+                    love.touchmoved("smoke-range-aim",target.x,target.y,35,25)
+                    local aimedOnly=range.shots==0 and game.saveData.ammo.rocks==ammoBefore
+                        and math.abs(range.aimX-target.x)<.01 and math.abs(range.aimY-target.y)<.01
+                    love.touchpressed("smoke-range-fire",mobileControls.primary.x,mobileControls.primary.y)
+                    local fireHeld=mobileControls:isHeld("space")
+                    love.touchreleased("smoke-range-fire",mobileControls.primary.x,mobileControls.primary.y)
+                    love.touchreleased("smoke-range-aim",target.x,target.y)
+                    local result={aimedOnly=aimedOnly,fireHeld=fireHeld,shots=range.shots,
+                        ammoUsed=ammoBefore-game.saveData.ammo.rocks,aimMode=range.aimMode,
+                        controlsClear=next(mobileControls.touches)==nil}
+                    love.keypressed("q")
+                    return result
+                end,check=function(_,_,_,result)
+                    return result and result.aimedOnly and result.fireHeld and result.shots==1 and result.ammoUsed==1
+                        and result.aimMode=="sights" and result.controlsClear
                 end},
                 {name="mobile_pinch_zoom",action=function()
                     ui.mobileMenuOpen=false; game.inventoryOpen=false; game.mapOpen=false; game.dialogue=nil; presentationRuntime.setZoom(1)
@@ -831,6 +991,18 @@ local function install(context)
     end
     function love.update(dt)
         if not ui.smokeController or ui.smokeFinalized then return end
+        if ui.smokeFirstAidCaptureDone then
+            if ui.smokeReport then ui.smokeReport:finish("captured") end
+            print("SMOKE_CAPTURE_OK: six first-aid phases"); io.flush()
+            love.event.quit(0); return
+        end
+        if ui.smokeFirstAidCapturePhase then return end
+        if ui.smokeTrainCaptureDone then
+            if ui.smokeReport then ui.smokeReport:finish("captured") end
+            print("SMOKE_CAPTURE_OK: four train animation phases"); io.flush()
+            love.event.quit(0); return
+        end
+        if ui.smokeTrainCapturePhase then return end
         local status=ui.smokeController:getStatus()
         -- Fixed simulation time keeps the playthrough deterministic and lets
         -- transitions finish quickly even when the hidden window is throttled.
@@ -846,12 +1018,38 @@ local function install(context)
         end
     end
     function love.draw()
+        if ui.smokeFirstAidCapturePhase and game.firstAid then
+            local phase=ui.smokeFirstAidCapturePhase; local progress=game.firstAid.progress
+            game.firstAid.phase=phase; game.firstAid.stage=phase; progress.phase=phase; progress.stage=phase
+            if phase>=4 and #progress.ointmentTrail==0 then
+                for index=1,13 do progress.ointmentTrail[index]={x=405+index*11,y=370+((index%3)-1)*12} end
+            end
+            progress.gauzePlaced=phase>=6
+            progress.wrapPasses=phase==6 and 2 or 0
+        end
+        if ui.smokeTrainCapturePhase then
+            game.sceneryOffset=(ui.smokeTrainCapturePhase-1)*51.37
+            game.landscapeOffset=(ui.smokeTrainCapturePhase-1)*240
+        end
         if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then love.mouse.setPosition(313,365) end
         if ui.smokeMaintenanceCompleteCaptureRequested and maintenanceSession.open and love.mouse and love.mouse.setPosition then
             love.mouse.setPosition(712,544); Maintenance.update(maintenanceSession,.34)
         end
         local ok,message=xpcall(ui.smokeDraw,debug.traceback)
         if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); love.event.quit(1); return end
+        if ui.smokeTrainCapturePhase then
+            love.graphics.captureScreenshot(string.format("train-animation-phase-%02d.png",ui.smokeTrainCapturePhase))
+            if ui.smokeTrainCapturePhase>=4 then
+                ui.smokeTrainCapturePhase=nil; ui.smokeTrainCaptureDone=true
+            else ui.smokeTrainCapturePhase=ui.smokeTrainCapturePhase+1 end
+        end
+        if ui.smokeFirstAidCapturePhase then
+            love.graphics.captureScreenshot(string.format("first-aid-phase-%02d.png",ui.smokeFirstAidCapturePhase))
+            if ui.smokeFirstAidCapturePhase>=6 then
+                ui.smokeFirstAidCapturePhase=nil; ui.smokeFirstAidCaptureDone=true; game.firstAid=nil
+                game.state=ui.smokeFirstAidPreviousState or game.state
+            else ui.smokeFirstAidCapturePhase=ui.smokeFirstAidCapturePhase+1 end
+        end
         if ui.smokeMaintenanceCaptureRequested and maintenanceSession.open then
             ui.smokeMaintenanceCaptureRequested=false
             love.graphics.captureScreenshot("maintenance-smoke-preview.png")

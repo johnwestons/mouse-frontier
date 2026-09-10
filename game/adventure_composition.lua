@@ -53,6 +53,7 @@ local function new(context)
   local getWorldRenderer=required(context,"getWorldRenderer","function")
   local getScreenUI=required(context,"getScreenUI","function")
   local handleInventoryClick=required(context,"handleInventoryClick","function")
+  local returnToTrain=required(context,"returnToTrain","function")
 
   local battleRuntime,inventoryActions,journeyRules,eventRuntime
   battleRuntime=BattleRuntime.new({
@@ -68,6 +69,7 @@ local function new(context)
     playerProgression=PlayerProgression,
     writeSave=writeSave,screenToGame=screenToGame,pointerPosition=pointerPosition,
     enterStop=function(...) return journeyRules.enterStop(...) end,handleInventoryClick=handleInventoryClick,
+    returnToTrain=returnToTrain,
   })
 
   inventoryActions=InventoryActions.new({

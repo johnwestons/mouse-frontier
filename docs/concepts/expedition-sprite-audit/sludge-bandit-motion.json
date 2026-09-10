@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "character": "sludge-bandit-pilot",
+  "status": "reviewed V5 single-view pilot: two-step cycle and limb identity repaired; full directions and directional idle still missing",
+  "animations": {
+    "idle": {"path": "docs/concepts/expedition-sprite-audit/sludge-bandit-idle.png", "frame_width": 512, "frame_height": 512, "frame_count": 1, "loop": true, "fps": 1},
+    "walk_east": {"path": "docs/concepts/expedition-sprite-audit/sludge-bandit-walk.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait"}
+  },
+  "directions": {
+    "east": {"walk_animation": "walk_east", "idle_animation": "idle", "mirror_x": false},
+    "west": {"walk_animation": "walk_east", "idle_animation": "idle", "mirror_x": true}
+  },
+  "gait": {
+    "pose_order": ["healthy_contact", "healthy_down", "infected_passing", "infected_up", "infected_contact", "infected_down", "healthy_passing", "healthy_up"],
+    "pixels_per_frame": 8,
+    "base_speed": 62,
+    "speed_multipliers": [1,1,1,1,1,1,1,1],
+    "acceleration_multipliers": [1,1,1,1,1,1,1,1]
+  },
+  "audit": {"alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 0, "center_tolerance": 14}
+}

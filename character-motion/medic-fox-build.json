@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "character": "medic-fox",
+  "source_root": "output/character-motion/medic-fox/source",
+  "runtime_root": "output/character-motion/medic-fox/runtime",
+  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458 },
+  "idle_sets": [
+    { "source": "idle-east.png", "source_columns": 1, "rows": 2, "outputs": ["idle.png"] },
+    { "source": "idle-northeast.png", "source_columns": 1, "rows": 2, "outputs": ["idle_northeast.png"] },
+    { "source": "idle-north.png", "source_columns": 1, "rows": 2, "outputs": ["idle_north.png"] },
+    { "source": "idle-northwest.png", "source_columns": 1, "rows": 2, "outputs": ["idle_northwest.png"] },
+    { "source": "idle-west.png", "source_columns": 1, "rows": 2, "outputs": ["idle_west.png"] },
+    { "source": "idle-southwest.png", "source_columns": 1, "rows": 2, "outputs": ["idle_southwest.png"] },
+    { "source": "idle-south.png", "source_columns": 1, "rows": 2, "outputs": ["idle_south.png"] },
+    { "source": "idle-southeast.png", "source_columns": 1, "rows": 2, "outputs": ["idle_southeast.png"] }
+  ],
+  "walks": {
+    "walk.png": { "source": "walk-east-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true, "frame_adjustments": { "2": { "scale_x": 1.02 }, "5": { "scale_x": 1.02 } } },
+    "walk_northeast.png": { "source": "walk-northeast-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_north.png": { "source": "walk-north-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true, "frame_adjustments": { "2": { "scale_x": 1.03 }, "3": { "scale_x": 1.03 }, "6": { "scale_x": 1.09 }, "8": { "scale_x": 1.08 } } },
+    "walk_southeast.png": { "source": "walk-southeast-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_south.png": { "source": "walk-south-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_west.png": { "source": "walk-west-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true, "frame_adjustments": { "6": { "scale_x": 1.03 } } },
+    "walk_northwest.png": { "source": "walk-northwest-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southwest.png": { "source": "walk-southwest-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true }
+  }
+}

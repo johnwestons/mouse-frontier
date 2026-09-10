@@ -1,0 +1,52 @@
+PASS fresh isolated journey loads in full application
+PASS QA journey remains unslotted
+PASS QA uses isolated save identity
+Full application renderer; mobile 1280x720
+CAPTURE mobile-01-stop-trailhead.png
+PASS enter stop06-outskirts
+PASS scene and area agree
+CAPTURE mobile-02-surface-exploration.png
+PASS M opens local area map
+CAPTURE mobile-03-surface-area-map.png
+PASS visible local map close control works
+PASS settings pause player and pursuing mobs
+CAPTURE mobile-04-settings-pause.png
+PASS surface cache is reachable and selected
+PASS cache opens through real interaction
+PASS cache inventory is visible
+CAPTURE mobile-05-surface-cache.png
+PASS enter stop06-buried-waystation
+PASS scene and area agree
+CAPTURE mobile-06-dungeon-exploration.png
+PASS dungeon map opens
+CAPTURE mobile-07-dungeon-area-map.png
+PASS guardian gate begins closed
+CAPTURE mobile-08-dungeon-closed-gate.png
+PASS defeating both wardens opens gate
+PASS boss exposes deliberate challenge interaction
+CAPTURE mobile-09-boss-arena.png
+PASS boss challenge starts tactical encounter
+PASS normal battle runtime entered
+PASS field damage carries to boss battle exactly
+PASS battle intro finishes through normal updates
+CAPTURE mobile-10-boss-battle.png
+PASS real battle completion resolves victory
+CAPTURE mobile-11-battle-victory.png
+PASS victory returns to correct area
+PASS victory restores exact battle entry point
+PASS boss death opens corruption vault
+CAPTURE mobile-12-victory-return.png
+PASS victory vault can be reached
+PASS victory vault opens
+CAPTURE mobile-13-vault-reward.png
+PASS enter stop06-outskirts
+PASS scene and area agree
+PASS real battle completion resolves defeat
+PASS defeat returns to train and clears area
+PASS defeat places player on valid train floor
+PASS returning player is fully inside the viewport
+PASS defeat uses clear central-floor safe arrival
+PASS defeat clears movement momentum
+PASS safe arrival keeps player clear of touch USE control
+CAPTURE mobile-14-defeat-return-train.png
+PASS all 14 full application captures and transition assertions

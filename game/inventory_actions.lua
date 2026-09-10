@@ -55,6 +55,9 @@ local function new(context)
       local dropped={name=name,x=runtime.player.x+35,y=runtime.player.y,scene=runtime.scene,scale=1,rotation=0,droppedByPlayer=true}
       if runtime.scene=="train" then dropped.carIndex=runtime.saveData.activeCar or 1 end
       if runtime.scene~="train" then dropped.location=runtime.saveData.location end
+      if runtime.scene=="house" then dropped.houseDoor=runtime.saveData.activeHouseDoor or runtime.saveData.lastStopDoor or 1 end
+      if runtime.scene=="expedition" then dropped.expeditionAreaId=runtime.saveData.activeExpeditionArea end
+      if runtime.scene=="caravan" then dropped.caravanCampId=runtime.saveData.crowCaravans and runtime.saveData.crowCaravans.activeCampId end
       if Catalog.storageCapacities[name] then dropped.storage={} end
       runtime.saveData.droppedItems[#runtime.saveData.droppedItems+1]=dropped
       setContainerValue(ref,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true

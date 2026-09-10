@@ -1,0 +1,59 @@
+[AUDIO] Registered 4 canonical track(s) for battle
+[AUDIO] Registered 2 canonical track(s) for bossFight
+[AUDIO] Registered 9 canonical track(s) for chill
+[AUDIO] Registered 9 canonical track(s) for vibes
+[AUDIO] Registered 2 canonical track(s) for endingHappy
+[AUDIO] Registered 3 canonical track(s) for insideHomes
+[AUDIO] Registered 4 canonical track(s) for stops
+[AUDIO] Registered 4 canonical track(s) for train
+desktop: PASS fresh isolated journey loads in full application
+desktop: PASS QA journey remains unslotted
+desktop: PASS QA uses isolated save identity
+desktop: Full application renderer; desktop 960x720
+desktop: CAPTURE desktop-01-stop-trailhead.png
+desktop: PASS enter stop06-outskirts
+desktop: PASS scene and area agree
+desktop: CAPTURE desktop-02-surface-exploration.png
+desktop: PASS M opens local area map
+desktop: CAPTURE desktop-03-surface-area-map.png
+desktop: PASS visible local map close control works
+desktop: PASS settings pause player and pursuing mobs
+desktop: CAPTURE desktop-04-settings-pause.png
+desktop: PASS surface cache is reachable and selected
+desktop: PASS cache opens through real interaction
+desktop: PASS cache inventory is visible
+desktop: CAPTURE desktop-05-surface-cache.png
+desktop: PASS enter stop06-buried-waystation
+desktop: PASS scene and area agree
+desktop: CAPTURE desktop-06-dungeon-exploration.png
+desktop: PASS dungeon map opens
+desktop: CAPTURE desktop-07-dungeon-area-map.png
+desktop: PASS guardian gate begins closed
+desktop: CAPTURE desktop-08-dungeon-closed-gate.png
+desktop: PASS defeating both wardens opens gate
+desktop: PASS boss exposes deliberate challenge interaction
+desktop: CAPTURE desktop-09-boss-arena.png
+desktop: PASS boss challenge starts tactical encounter
+desktop: PASS normal battle runtime entered
+desktop: PASS field damage carries to boss battle exactly
+desktop: PASS battle intro finishes through normal updates
+desktop: CAPTURE desktop-10-boss-battle.png
+desktop: PASS real battle completion resolves victory
+desktop: CAPTURE desktop-11-battle-victory.png
+desktop: PASS victory returns to correct area
+desktop: PASS victory restores exact battle entry point
+desktop: PASS boss death opens corruption vault
+desktop: CAPTURE desktop-12-victory-return.png
+desktop: PASS victory vault can be reached
+desktop: PASS victory vault opens
+desktop: CAPTURE desktop-13-vault-reward.png
+desktop: PASS enter stop06-outskirts
+desktop: PASS scene and area agree
+desktop: PASS real battle completion resolves defeat
+desktop: PASS defeat returns to train and clears area
+desktop: PASS defeat places player on valid train floor
+desktop: PASS returning player is fully inside the viewport
+desktop: PASS defeat uses clear central-floor safe arrival
+desktop: PASS defeat clears movement momentum
+desktop: CAPTURE desktop-14-defeat-return-train.png
+desktop: PASS all 14 full application captures and transition assertions

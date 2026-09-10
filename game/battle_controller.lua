@@ -1,5 +1,6 @@
 local Battle={}
 local LootProgression=require("game.loot_progression")
+local ExpeditionRewards=require("game.expedition_rewards")
 
 local function applyPotionToPlayer(c,unit,name)
     local effect=c.Catalog.itemEffects[name]
@@ -8,7 +9,7 @@ local function applyPotionToPlayer(c,unit,name)
     if effect.attack then unit.aim=(unit.aim or 0)+effect.attack end
     if effect.defense then unit.armor=(unit.armor or 0)+effect.defense end
     if effect.move then unit.move=(unit.move or 0)+effect.move end
-    if effect.healthMax then unit.maxHP=(unit.maxHP or d.maxHealth)+effect.healthMax; unit.hp=math.min(unit.maxHP,(unit.hp or 0)+effect.health or 0) end
+    if effect.healthMax then unit.maxHP=(unit.maxHP or d.maxHealth)+effect.healthMax; unit.hp=math.min(unit.maxHP,(unit.hp or 0)+(effect.health or 0)) end
     if effect.extraAttacks then unit.extraAttacks=(unit.extraAttacks or 0)+effect.extraAttacks end
     if effect.extraMoves then unit.extraMoves=(unit.extraMoves or 0)+effect.extraMoves end
     if effect.guardAllies then for _,ally in ipairs(c.battle and c.battle.units or {}) do if ally.team=="ally" and ally.hp>0 then ally.guarding=true end end end
@@ -64,13 +65,19 @@ function Battle.begin(c,encounter)
     end
     local rows={1,2,3,4,5,6}
     for i,file in ipairs(encounter.mobFiles) do
+        local carried=encounter.enemyStates and encounter.enemyStates[i]
         local ranged=file:find("eagle") or file:find("owl") or file:find("dragon") or file:find("zombie")
         local isArmed=armed(file); local row=rows[((i-1)%#rows)+1]
-        local weapon=isArmed and LootProgression.rollWeapon(C,d.location,"common") or natural(file)
+        local weapon=(carried and carried.weapon) or (isArmed and LootProgression.rollWeapon(C,d.location,"common") or natural(file))
         local combat=C.weaponCombat[weapon] or C.weaponCombat.scratch
-        local boss=encounter.boss and i==1
-        local unitHP=boss and math.floor(maxHP*1.55) or maxHP
-        units[#units+1]={id="enemy"..i,team="enemy",name=(boss and "Alpha " or "")..c.Util.titleFromFile(file),file=file,q=c.BOARD_COLS,r=row,hp=unitHP,maxHP=unitHP,move=profile.move,armor=profile.armor+(boss and 1 or 0),aim=profile.aim+(boss and 1 or 0),attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon,boss=boss}
+        local boss=carried and carried.boss==true or (not carried and encounter.boss and i==1) or false
+        local unitProfile=carried and carried.tier and c.CombatBalance.enemyProfile(d.location,carried.tier) or profile
+        local unitMaxHP=carried and math.max(1,tonumber(carried.maxHp) or maxHP) or (boss and math.floor(maxHP*1.55) or maxHP)
+        local unitHP=carried and math.max(1,math.min(unitMaxHP,tonumber(carried.hp) or unitMaxHP)) or unitMaxHP
+        units[#units+1]={id="enemy"..i,mobId=carried and carried.mobId or nil,team="enemy",
+            name=(carried and carried.name) or ((boss and "Alpha " or "")..c.Util.titleFromFile(file)),file=file,
+            q=c.BOARD_COLS,r=row,hp=unitHP,maxHP=unitMaxHP,move=unitProfile.move,armor=unitProfile.armor+(boss and 1 or 0),
+            aim=unitProfile.aim+(boss and 1 or 0),attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon,boss=boss}
     end
     local tiles,vars={},{ }
     for q=0,c.BOARD_COLS do
@@ -84,14 +91,20 @@ function Battle.begin(c,encounter)
     local objective=encounter.boss and "Defeat the alpha threat" or (encounter.defenseBattle and "Protect the settlement defenders" or "Defeat all threats")
     c.battle={encounter=encounter,units=units,tiles=tiles,tileVariants=vars,obstacles=obstacles,biome=((d.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},objective=objective,message="Move between highlighted terrain pieces, or choose an attack.",log={"OBJECTIVE: "..objective,"Battle begins."},logScroll=0,terrainSeed=d.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
     for name in pairs(d.nextBattlePotions or {}) do applyPotionToPlayer(c,units[1],name) end
-    d.nextBattlePotions={}; c.writeSave()
-    c.writeSave(); return c.battle
+    d.nextBattlePotions={}; c.writeSave(); return c.battle
 end
 
 function Battle.advance(c)
-    local b=c.battle; local enemy,ally=false,false; for _,u in ipairs(b.units) do if u.hp>0 then if u.team=="enemy" then enemy=true else ally=true end end end
+    local b=c.battle; if not b or b.finished then return true end
+    local enemy,ally=false,false; for _,u in ipairs(b.units) do if u.hp>0 then if u.team=="enemy" then enemy=true else ally=true end end end
     if not enemy then
         b.encounter.resolved=true; local d=c.saveData; local C=c.Catalog; if d.health<=0 then d.health=1; for _,unit in ipairs(b.units) do if unit.id=="player" then unit.hp=1 end end end
+        if b.encounter.source=="expedition" then
+            b.expeditionRewardReceipt=ExpeditionRewards.claimBattle(d,C,b)
+            d.battlePotionLootChance=nil
+            msg(c,"Victory! "..ExpeditionRewards.summary(b.expeditionRewardReceipt))
+            b.finished="win"; c.writeSave(); return true
+        end
         local enemyCount=0; for _,unit in ipairs(b.units) do if unit.team=="enemy" then enemyCount=enemyCount+1 end end
         local rewards=c.CombatBalance.rewardProfile(b.encounter.tier,enemyCount,b.encounter.defenseBattle,b.encounter.boss)
         local trait=d.trait or C.characterTraitProfiles[1]; local reward=love.math.random(rewards.coalMin,rewards.coalMax); local scrap=math.max(1,math.floor(love.math.random(rewards.scrapMin,rewards.scrapMax)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=rewards.xp; local defenseBonus=""
@@ -132,6 +145,7 @@ function Battle.useHealingItem(c,name)
     local b=c.battle; local u=c.BattleRules.activeUnit(b)
     if not u or u.team~="ally" or b.finished then return false end
     local effect=c.Catalog.itemEffects[name]
+    if effect and effect.potion then return Battle.usePotion(c,name) end
     if not effect or not effect.health then return false end
     local slot
     for i=1,(c.saveData.inventoryCapacity or 6) do if c.saveData.inventory[i]==name then slot=i; break end end
@@ -155,8 +169,11 @@ function Battle.move(c,q,r)
     if u.id=="player" and (u.extraMoves or 0)>0 then u.extraMoves=u.extraMoves-1; b.moveUsed=false; b.phase="select"; prompt(c,u.name.." moved. One extra move remains.") else b.phase="action"; prompt(c,u.name.." moved. Choose an attack or end the turn.") end
 end
 function Battle.heal(c)
-    local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" then return end
-    for i=1,(c.saveData.inventoryCapacity or 6) do local name=c.saveData.inventory[i]; local effect=name and c.Catalog.itemEffects[name]; if effect and effect.health then u.action="use"; u.actionItem=name; u.actionTimer=.45; c.saveData.inventory[i]=nil; local before=u.hp; u.hp=math.min(u.maxHP,u.hp+effect.health); if u.id=="player" then c.saveData.health=u.hp end; msg(c,u.name.." recovered "..(u.hp-before).." HP."); Battle.advance(c); return end end
+    local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" or b.finished then return end
+    for i=1,(c.saveData.inventoryCapacity or 6) do
+        local name=c.saveData.inventory[i]; local effect=name and c.Catalog.itemEffects[name]
+        if effect and effect.health then return Battle.useHealingItem(c,name) end
+    end
     prompt(c,"No healing item is available.")
 end
 function Battle.guard(c)

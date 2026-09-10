@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "character": "crow-merchant",
+  "source_root": "output/character-motion/crow-merchant/source",
+  "runtime_root": "output/character-motion/crow-merchant/runtime",
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 450,
+    "center_x": 256,
+    "baseline": 458
+  },
+  "idle_sets": [
+    {
+      "source": "directional-idle-front-left-v1-magenta.png",
+      "source_columns": 4,
+      "source_indices": [0, 1, 2],
+      "rows": 2,
+      "outputs": ["idle_west.png", "idle_southwest.png", "idle_south.png"]
+    },
+    {
+      "source": "directional-idle-rear-v1-magenta.png",
+      "source_columns": 4,
+      "source_indices": [1, 2, 3],
+      "rows": 2,
+      "outputs": ["idle_northwest.png", "idle_north.png", "idle_northeast.png"]
+    },
+    {
+      "source": "directional-idle-east-v1-magenta.png",
+      "source_columns": 1,
+      "rows": 2,
+      "outputs": ["idle.png"]
+    },
+    {
+      "source": "directional-idle-southeast-v1-magenta.png",
+      "source_columns": 1,
+      "rows": 2,
+      "outputs": ["idle_southeast.png"]
+    }
+  ],
+  "walks": {
+    "walk.png": { "source": "walk-east-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northeast.png": { "source": "walk-northeast-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_north.png": { "source": "walk-north-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southeast.png": { "source": "walk-southeast-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_south.png": { "source": "walk-south-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_west.png": { "source": "walk-west-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northwest.png": { "source": "walk-northwest-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southwest.png": { "source": "walk-southwest-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true }
+  }
+}

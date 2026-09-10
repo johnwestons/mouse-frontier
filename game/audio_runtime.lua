@@ -1,3 +1,5 @@
+local WeaponSoundProfiles=require("game.weapon_sound_profiles")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"audio runtime requires "..name)
@@ -31,13 +33,21 @@ local function new(context)
       if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.boss and "bossFight" or "battle" end
       if runtime.state~="game" and runtime.state~="event" then return nil end
       if runtime.scene=="house" then return "insideHomes" end
-      if runtime.scene=="stop" or runtime.state=="event" then return "stops" end
+      if runtime.scene=="stop" or runtime.scene=="expedition" or runtime.state=="event" then return "stops" end
       return "train"
   end
 
   local function playSfx(kind)
       local current=settings()
-      if audio and current then return audio:playSfx(kind,current,runtime.battle) end
+      if audio and current then
+          if type(kind)=="table" and kind.path then return audio:playSfxPath(kind.path,current,kind) end
+          return audio:playSfx(kind,current,runtime.battle)
+      end
+  end
+
+  local function playSfxPath(path,options)
+      local current=settings()
+      if audio and current then return audio:playSfxPath(path,current,options) end
   end
 
   local function playTrainDepart()
@@ -47,14 +57,13 @@ local function new(context)
   end
 
   local function weaponSfx(weaponName,combat,attacker)
-      local lower=(weaponName or ""):lower(); local file=attacker and (attacker.file or ""):lower() or ""
-      if lower:find("slingshot",1,true) or weaponName=="scrap-boomerang" or combat.ammo=="arrows" or file:find("eagle",1,true) then return "bow" end
+      local file=attacker and (attacker.file or ""):lower() or ""
       if combat.kind~="ranged" then
           if weaponName=="scratch" or combat.family=="quick" or combat.family=="blunt" then return "slash" end
           return "sword"
       end
-      local tier=(Catalog.weaponStats[weaponName] and Catalog.weaponStats[weaponName].tier) or 1
-      return tier<=4 and "gunshotLight" or (tier<=6 and "gunshotMedium" or "gunshotHeavy")
+      if file:find("eagle",1,true) then return "bow" end
+      return WeaponSoundProfiles.forWeapon(weaponName,Catalog)
   end
 
   local function update()
@@ -111,11 +120,13 @@ local function new(context)
   end
 
   ui.playSfx=playSfx
+  ui.playSfxPath=playSfxPath
   ui.weaponSfx=weaponSfx
 
   return {
       initialize=initialize,
       playSfx=playSfx,
+      playSfxPath=playSfxPath,
       playTrainDepart=playTrainDepart,
       weaponSfx=weaponSfx,
       musicCategory=musicCategory,

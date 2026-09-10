@@ -200,11 +200,11 @@ end
 function HelpQuest.audit()
     local data={helpQuestSessions={}}
     local session=HelpQuest.ensure(data,{source="first-aid",kind="aid",mode="minigame",npc="medic.png",location=4,
-        title="TREAT THE WOUND",objective="Ask what happened.",stageCount=3,goodwill={assisted=1,successful=3,exceptional=4}})
+        title="TREAT THE WOUND",objective="Ask what happened.",stageCount=6,goodwill={assisted=1,successful=3,exceptional=4}})
     local offered=session.state=="offered"
     HelpQuest.accept(data,session.id); HelpQuest.investigate(data,session.id,"Find a medical supply.")
-    HelpQuest.activate(data,session.id,"Clean the wound."); HelpQuest.progress(data,session.id,2,"Wrap the wound.",{cleaned=true})
-    HelpQuest.pause(data,session.id); local persisted=session.stage==2 and session.progress.cleaned==true
+    HelpQuest.activate(data,session.id,"Find the small cut."); HelpQuest.progress(data,session.id,4,"Apply ointment.",{cleaned=true,phase=4})
+    HelpQuest.pause(data,session.id); local persisted=session.stage==4 and session.progress.cleaned==true and session.progress.phase==4
     HelpQuest.resume(data,session.id); HelpQuest.resolve(data,session.id,"successful","Treatment complete.")
     local awarded=0
     local function add(points) awarded=awarded+points; return points,awarded,{name="Helping Hand"} end

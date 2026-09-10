@@ -169,10 +169,10 @@ local function new(context)
       local slot,name=StopHelpProgression.medicalItem(runtime.saveData,Catalog)
       if not slot then
           if quest then HelpQuestSession.investigate(runtime.saveData,quest.id,"Find a medical supply and return to the wounded critter.") end
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text="I still need help, but you need a bandage, salve, tonic, splint, or medkit to treat this wound.",timer=6}
+          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text="I still need medical help, but you'll need a bandage, salve, tonic, splint, or medkit before we can begin.",timer=6}
           return false
       end
-      if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Treat the wound without using all three attempts.") end
+      if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Find the small cut, then complete all five treatment steps.") end
       runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location,
           helpQuestId=quest and quest.id,progress=quest and quest.progress})
       runtime.dialogue=nil
@@ -197,7 +197,8 @@ local function new(context)
           local reward=QuestProgression.rewardProfile("ride",rideStops,runtime.saveData.trait,destination)
           runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll help as your "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
       elseif kind=="trade" then
-          runtime.tradeOpen=true; runtime.tradeNPC=runtime.saveData.currentNPC; runtime.dialogue=nil
+          runtime.tradeOpen=true; runtime.tradeNPC=runtime.saveData.currentNPC; runtime.tradeMerchantId=nil
+          runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; runtime.dialogue=nil
       elseif kind=="item" then
           local request=currentHelpRequest()
           if request then itemHelp(request) end
@@ -227,7 +228,7 @@ local function new(context)
       local speaker=Util.titleFromFile(session.npc or "Traveler")
       if outcome=="complete" then
           local result=StopHelpProgression.completeAid(runtime.saveData,request,session,session.npc,session.location)
-          if result.completed then runtime.dialogue={speaker=speaker,text="You patched me up. I won't forget this. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
+          if result.completed then runtime.dialogue={speaker=speaker,text="That feels much better. The cut is clean, covered, and wrapped. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
           else runtime.dialogue={speaker=speaker,text="The medical supply went missing before the treatment was finished. We can try again.",timer=6} end
       elseif outcome=="failed" then
           if session.helpQuestId then HelpQuestSession.retry(runtime.saveData,session.helpQuestId,"Return to the wounded critter to try treatment again.") end

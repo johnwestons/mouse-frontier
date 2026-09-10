@@ -22,24 +22,12 @@ if ($Ffmpeg) { $packageArguments += @('--ffmpeg',$Ffmpeg) }
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $report = Get-Content -Raw (Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json
-$loveExecutable = 'C:\Program Files\LOVE\lovec.exe'
-if (Test-Path -LiteralPath $loveExecutable) {
-    $previousSmoke = $env:MOUSE_FRONTIER_SMOKE
-    $previousMobile = $env:MOUSE_FRONTIER_MOBILE
-    $previousReport = $env:MOUSE_FRONTIER_SMOKE_REPORT
-    try {
-        $env:MOUSE_FRONTIER_SMOKE = '1'
-        $env:MOUSE_FRONTIER_MOBILE = '1'
-        $env:MOUSE_FRONTIER_SMOKE_REPORT = (Join-Path $projectRoot '.stabilization\mobile-package-smoke.rpt')
-        & $loveExecutable $report.package
-        if ($LASTEXITCODE -ne 0) { throw "Packaged mobile smoke test failed with exit code $LASTEXITCODE" }
-    }
-    finally {
-        $env:MOUSE_FRONTIER_SMOKE = $previousSmoke
-        $env:MOUSE_FRONTIER_MOBILE = $previousMobile
-        $env:MOUSE_FRONTIER_SMOKE_REPORT = $previousReport
-    }
-}
+& (Join-Path $projectRoot 'tools\run_smoke.ps1') -PackagePath $report.package -Mobile `
+    -ReportPath (Join-Path $projectRoot '.stabilization\mobile-package-smoke.rpt')
+if ($LASTEXITCODE -ne 0) { throw "Packaged mobile smoke test failed with exit code $LASTEXITCODE" }
+& (Join-Path $projectRoot 'tools\run_last_stand_smoke.ps1') `
+    -GameRoot (Join-Path $projectRoot 'output\mobile\stage') `
+    -ReportPath (Join-Path $projectRoot '.stabilization\mobile-last-stand-smoke.rpt')
 if (-not $PackageOnly) {
     $apkArguments = @{ PackagePath = $report.package }
     if ($Install) { $apkArguments.Install = $true }

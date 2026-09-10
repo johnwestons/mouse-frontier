@@ -10,6 +10,7 @@ instead of silently substituting an unrelated pose.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import math
@@ -20,6 +21,7 @@ from collections import Counter, deque
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from statistics import median
 from typing import Iterable, Mapping, Sequence
 
 import numpy as np
@@ -45,8 +47,8 @@ class ActionSpec:
     requirement: str = "required"  # required, recommended, or optional
 
 
-# Walk is six frames for modern sets (identified by unconscious.png) and three
-# for legacy sets.  expected_frame_count() applies that runtime distinction.
+# Walk is eight frames for directional sets, six for modern side-facing sets
+# (identified by unconscious.png), and three for legacy sets.
 ACTION_SPECS: dict[str, ActionSpec] = {
     "idle": ActionSpec(2),
     "walk": ActionSpec(6),
@@ -59,6 +61,28 @@ ACTION_SPECS: dict[str, ActionSpec] = {
     "unconscious": ActionSpec(2, "recommended"),
     "death": ActionSpec(3, "recommended"),
 }
+
+DIRECTIONAL_ACTION_SPECS: dict[str, ActionSpec] = {
+    "idle_north": ActionSpec(2),
+    "idle_northeast": ActionSpec(2),
+    "idle_southeast": ActionSpec(2),
+    "idle_south": ActionSpec(2),
+    "walk_north": ActionSpec(8),
+    "walk_northeast": ActionSpec(8),
+    "walk_southeast": ActionSpec(8),
+    "walk_south": ActionSpec(8),
+}
+
+AUTHORED_WEST_ACTION_SPECS: dict[str, ActionSpec] = {
+    "idle_west": ActionSpec(2),
+    "idle_northwest": ActionSpec(2),
+    "idle_southwest": ActionSpec(2),
+    "walk_west": ActionSpec(8),
+    "walk_northwest": ActionSpec(8),
+    "walk_southwest": ActionSpec(8),
+}
+
+ALL_ACTION_SPECS = ACTION_SPECS | DIRECTIONAL_ACTION_SPECS | AUTHORED_WEST_ACTION_SPECS
 
 # Established 6x4 complete-atlas layout.  A three-frame walk is expanded to
 # the modern six-frame loop only when the character also has unconscious art.
@@ -106,6 +130,7 @@ class FrameMetrics:
     halo_spread: int = 0
     detached_fragment_pixels: int = 0
     detached_fragment_boxes: list[tuple[int, int, int, int]] = field(default_factory=list)
+    boundary_fragment_boxes: list[tuple[int, int, int, int]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -272,25 +297,24 @@ def measure_frame(frame: Image.Image, index: int) -> FrameMetrics:
         )
     detached_pixels = 0
     detached_boxes: list[tuple[int, int, int, int]] = []
-    fill = int(significant.sum()) / max(1, (x1 - x0) * (y1 - y0))
-    suspicious = (
-        edge_contact
-        or spread > 8
-        or abs(extent - TARGET_EXTENT) > max(8, round(TARGET_EXTENT * 0.03))
-        or abs((x0 + x1) / 2 - rgba.width / 2) > 3
-        or (rgba.height == FRAME_SIZE and abs(y1 - TARGET_BASELINE) > 2)
-        or fill < 0.20
-    )
-    if suspicious:
-        components = _component_summary(significant)
-        if components:
-            total = sum(area for area, _ in components)
-            main_box = components[0][1]
-            fragment_limit = max(24, round(total * 0.006))
-            for area, component_box in components[1:]:
-                if area <= fragment_limit and _box_gap(main_box, component_box) >= 5:
-                    detached_pixels += area
-                    detached_boxes.append(component_box)
+    # Component analysis is deliberately unconditional. Geometry can remain
+    # canonical while a generated frame contains a detached tail, limb, or a
+    # fragment bleeding in from a neighboring panel.
+    boundary_boxes: list[tuple[int, int, int, int]] = []
+    components = _component_summary(significant)
+    if components:
+        total = sum(area for area, _ in components)
+        main_box = components[0][1]
+        boundary_limit = max(16, round(total * 0.003))
+        for area, component_box in components[1:]:
+            if area >= 4 and _box_gap(main_box, component_box) >= 3:
+                detached_pixels += area
+                detached_boxes.append(component_box)
+            if (
+                area >= boundary_limit
+                and (component_box[0] <= 1 or component_box[2] >= rgba.width - 1)
+            ):
+                boundary_boxes.append(component_box)
     return FrameMetrics(
         frame=index,
         width=rgba.width,
@@ -305,7 +329,37 @@ def measure_frame(frame: Image.Image, index: int) -> FrameMetrics:
         halo_spread=spread,
         detached_fragment_pixels=detached_pixels,
         detached_fragment_boxes=detached_boxes,
+        boundary_fragment_boxes=boundary_boxes,
     )
+
+
+def aligned_silhouette(frame: Image.Image, metrics: FrameMetrics) -> np.ndarray:
+    """Align a significant-alpha mask by center and baseline for comparisons."""
+    source = np.asarray(frame.convert("RGBA").getchannel("A")) > ALPHA_THRESHOLD
+    canvas = np.zeros(source.shape, dtype=bool)
+    if metrics.empty or metrics.center_x is None or metrics.bottom is None:
+        return canvas
+    shift_x = round(TARGET_CENTER_X - metrics.center_x)
+    shift_y = round(TARGET_BASELINE - metrics.bottom)
+    source_y0 = max(0, -shift_y)
+    source_x0 = max(0, -shift_x)
+    target_y0 = max(0, shift_y)
+    target_x0 = max(0, shift_x)
+    copy_height = min(source.shape[0] - source_y0, canvas.shape[0] - target_y0)
+    copy_width = min(source.shape[1] - source_x0, canvas.shape[1] - target_x0)
+    if copy_height > 0 and copy_width > 0:
+        canvas[target_y0:target_y0 + copy_height, target_x0:target_x0 + copy_width] = (
+            source[source_y0:source_y0 + copy_height, source_x0:source_x0 + copy_width]
+        )
+    return canvas
+
+
+def silhouette_distance(left: np.ndarray, right: np.ndarray) -> float:
+    union = int(np.logical_or(left, right).sum())
+    if not union:
+        return 0.0
+    intersection = int(np.logical_and(left, right).sum())
+    return 1.0 - intersection / union
 
 
 def detect_hand_anchor(frame: Image.Image, index: int) -> HandAnchor:
@@ -722,15 +776,43 @@ class SpriteDoctor:
             return image is not None
         return (self.character_dir(character) / f"{action}.png").exists()
 
+    def uses_directional_contract(
+        self,
+        character: str,
+        overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
+    ) -> bool:
+        return any(self.has_action(character, action, overrides) for action in DIRECTIONAL_ACTION_SPECS)
+
+    def uses_authored_west_contract(
+        self,
+        character: str,
+        overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
+    ) -> bool:
+        return any(self.has_action(character, action, overrides) for action in AUTHORED_WEST_ACTION_SPECS)
+
+    def audit_actions(
+        self,
+        character: str,
+        overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
+    ) -> tuple[str, ...]:
+        actions = list(ACTION_SPECS)
+        if self.uses_directional_contract(character, overrides):
+            actions.extend(DIRECTIONAL_ACTION_SPECS)
+        if self.uses_authored_west_contract(character, overrides):
+            actions.extend(AUTHORED_WEST_ACTION_SPECS)
+        return tuple(actions)
+
     def expected_frame_count(
         self,
         character: str,
         action: str,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
     ) -> int:
+        if action == "walk" and self.uses_directional_contract(character, overrides):
+            return 8
         if action == "walk" and not self.has_action(character, "unconscious", overrides):
             return 3
-        return ACTION_SPECS[action].frames
+        return ALL_ACTION_SPECS[action].frames
 
     def load_sheet(
         self,
@@ -791,7 +873,7 @@ class SpriteDoctor:
             return SheetInspection(character, action, expected_count, None, None, [], [], issues, path)
 
         if image is None:
-            requirement = ACTION_SPECS[action].requirement
+            requirement = ALL_ACTION_SPECS[action].requirement
             if action == "death" and self.require_death:
                 requirement = "required"
             severity = "error" if requirement == "required" else "warning"
@@ -901,11 +983,108 @@ class SpriteDoctor:
             if metric.detached_fragment_pixels:
                 issues.append(Issue(
                     "warning", "detached_fragment", character, action,
-                    f"frame {metric.frame} has {metric.detached_fragment_pixels} small opaque pixels detached from the main sprite",
+                    f"frame {metric.frame} has {metric.detached_fragment_pixels} opaque pixels detached from the main sprite",
                     frame=metric.frame, repairable=self.best_source(character, action) is not None,
                     confidence="medium",
                     details={"boxes": [list(box) for box in metric.detached_fragment_boxes]},
                 ))
+            if metric.boundary_fragment_boxes:
+                issues.append(Issue(
+                    "warning", "panel_boundary_fragment", character, action,
+                    f"frame {metric.frame} has a detached component entering from a horizontal panel boundary",
+                    frame=metric.frame, repairable=False, confidence="high",
+                    details={"boxes": [list(box) for box in metric.boundary_fragment_boxes]},
+                ))
+
+        usable = [metric for metric in metrics if not metric.empty and metric.bbox is not None]
+        if canonical_cells and len(usable) > 1:
+            tops = [metric.bbox[1] for metric in usable if metric.bbox]
+            heights = [metric.bbox[3] - metric.bbox[1] for metric in usable if metric.bbox]
+            top_limit = max(12, round(float(median(heights)) * 0.08))
+            if max(tops) - min(tops) > top_limit:
+                issues.append(Issue(
+                    "warning", "top_bound_jitter", character, action,
+                    f"frame top bounds vary by {max(tops) - min(tops)}px; expected at most {top_limit}px",
+                    repairable=False, confidence="high",
+                    details={"tops": tops, "limit": top_limit},
+                ))
+
+            descriptors = [color_descriptor(frame) for frame in frames]
+            action_descriptor = combined_descriptor(frames)
+            silhouettes = [aligned_silhouette(frame, metric) for frame, metric in zip(frames, metrics)]
+            scale_jumps: list[dict[str, object]] = []
+            palette_jumps: list[dict[str, object]] = []
+            silhouette_jumps: list[dict[str, object]] = []
+            for index in range(len(metrics) - 1):
+                left, right = metrics[index], metrics[index + 1]
+                if left.empty or right.empty or not left.bbox or not right.bbox:
+                    continue
+                left_width, left_height = left.bbox[2] - left.bbox[0], left.bbox[3] - left.bbox[1]
+                right_width, right_height = right.bbox[2] - right.bbox[0], right.bbox[3] - right.bbox[1]
+                width_change = abs(right_width - left_width) / max(1, min(left_width, right_width))
+                height_change = abs(right_height - left_height) / max(1, min(left_height, right_height))
+                if max(width_change, height_change) > 0.10:
+                    scale_jumps.append({
+                        "frames": [index + 1, index + 2],
+                        "width_change": round(width_change, 4),
+                        "height_change": round(height_change, 4),
+                    })
+                palette_change = descriptor_distance(descriptors[index], descriptors[index + 1])
+                if palette_change > 0.30:
+                    palette_jumps.append({"frames": [index + 1, index + 2], "distance": round(palette_change, 4)})
+                shape_change = silhouette_distance(silhouettes[index], silhouettes[index + 1])
+                if shape_change > 0.68:
+                    silhouette_jumps.append({"frames": [index + 1, index + 2], "distance": round(shape_change, 4)})
+
+            identity_outliers = [
+                {"frame": index + 1, "distance": round(descriptor_distance(descriptor, action_descriptor), 4)}
+                for index, descriptor in enumerate(descriptors)
+                if descriptor_distance(descriptor, action_descriptor) > 0.30
+            ]
+            digest_frames: dict[str, list[int]] = {}
+            for index, frame in enumerate(frames, 1):
+                digest = hashlib.sha256(frame.convert("RGBA").tobytes()).hexdigest()
+                digest_frames.setdefault(digest, []).append(index)
+            duplicate_groups = [group for group in digest_frames.values() if len(group) > 1]
+            if duplicate_groups:
+                issues.append(Issue(
+                    "warning", "exact_duplicate_frames", character, action,
+                    "one or more animation frames are byte-identical",
+                    repairable=False, confidence="high", details={"groups": duplicate_groups},
+                ))
+            if len(frames) > 1 and len(digest_frames) <= max(1, len(frames) // 2):
+                issues.append(Issue(
+                    "warning", "low_effective_motion", character, action,
+                    f"{len(frames)} frames contain only {len(digest_frames)} unique image(s)",
+                    repairable=False, confidence="high",
+                    details={"frames": len(frames), "unique_images": len(digest_frames)},
+                ))
+            if (action == "idle" or action.startswith("idle_")
+                    or action == "walk" or action.startswith("walk_")) and len(silhouettes) > 1:
+                internal_distances = [
+                    silhouette_distance(silhouettes[index], silhouettes[index + 1])
+                    for index in range(len(silhouettes) - 1)
+                ]
+                seam = silhouette_distance(silhouettes[-1], silhouettes[0])
+                internal = float(median(internal_distances)) if internal_distances else 0.0
+                if seam > max(0.55, internal * 1.8 + 0.05):
+                    issues.append(Issue(
+                        "warning", "loop_seam", character, action,
+                        f"loop seam distance {seam:.3f} exceeds internal median {internal:.3f}",
+                        repairable=False, confidence="medium",
+                        details={"seam_distance": round(seam, 4), "internal_median": round(internal, 4)},
+                    ))
+            for code, message, details in (
+                ("adjacent_scale_jump", "adjacent frames have an abrupt visible-size change", scale_jumps),
+                ("adjacent_palette_jump", "adjacent frames have an abrupt palette change", palette_jumps),
+                ("adjacent_silhouette_jump", "adjacent frames have an abrupt silhouette change", silhouette_jumps),
+                ("frame_identity_drift", "one or more frames drift from the action's shared visual identity", identity_outliers),
+            ):
+                if details:
+                    issues.append(Issue(
+                        "warning", code, character, action, message,
+                        repairable=False, confidence="medium", details={"comparisons": details},
+                    ))
         return SheetInspection(character, action, expected_count, actual_count, image, frames, metrics, issues, path)
 
     def audit(
@@ -924,7 +1103,7 @@ class SpriteDoctor:
         issues: list[Issue] = []
         inspections: dict[tuple[str, str], SheetInspection] = {}
         for character in names:
-            for action in ACTION_SPECS:
+            for action in self.audit_actions(character, overrides):
                 inspection = self.inspect_sheet(character, action, overrides)
                 inspections[(character, action)] = inspection
                 issues.extend(inspection.issues)
@@ -956,8 +1135,10 @@ class SpriteDoctor:
                 ))
                 continue
             own_path, own_descriptor = references[character]
-            for action in ACTION_SPECS:
-                inspection = inspections[(character, action)]
+            for action in self.audit_actions(character):
+                inspection = inspections.get((character, action))
+                if inspection is None:
+                    continue
                 usable = [frame for frame, metric in zip(inspection.frames, inspection.metrics) if not metric.empty]
                 if not usable:
                     continue
@@ -1504,6 +1685,15 @@ def command_import_atlas(args: argparse.Namespace) -> int:
         raise ValueError(f"source does not exist: {source}")
     repairs = atlas_repairs(doctor, args.character, source)
     plan = RepairPlan(repairs, [])
+    prepared = doctor.audit([args.character], overrides=plan.overrides())
+    if prepared.counts["error"]:
+        emit_audit(prepared)
+        print("Import stopped because the prepared atlas fails the Sprite Doctor audit.")
+        return 1
+    if args.apply and not args.reviewed_contact_sheet:
+        raise ValueError(
+            "generated imports require visual review; preview the contact sheet, then apply with --reviewed-contact-sheet"
+        )
     run_stamp = timestamp()
     output_root = Path(args.output_root)
     preview_root, backup_root = save_repair_plan(doctor, plan, output_root, args.apply, run_stamp)
@@ -1522,8 +1712,8 @@ def command_import_atlas(args: argparse.Namespace) -> int:
         "repairs": [repair.to_dict() for repair in repairs],
         "post_audit": result.to_dict(),
     })
-    if args.contact_sheet:
-        render_contact_sheet(doctor, args.character, run_root / f"{args.character}-contact.png", overrides)
+    render_contact_sheet(doctor, args.character, run_root / f"{args.character}-contact.png", overrides)
+    print(f"Required contact sheet: {run_root / f'{args.character}-contact.png'}")
     print(f"{'Installed' if args.apply else 'Previewed'} 6x4 atlas for {args.character}")
     print(f"Report: {report_path.resolve()}")
     return 1 if result.counts["error"] else 0
@@ -1559,6 +1749,15 @@ def command_import_action(args: argparse.Namespace) -> int:
             ))
 
     plan = RepairPlan(repairs, [])
+    prepared = doctor.audit([args.character], overrides=plan.overrides())
+    if prepared.counts["error"]:
+        emit_audit(prepared)
+        print("Import stopped because the prepared action fails the Sprite Doctor audit.")
+        return 1
+    if args.apply and not args.reviewed_contact_sheet:
+        raise ValueError(
+            "generated imports require visual review; preview the contact sheet, then apply with --reviewed-contact-sheet"
+        )
     run_stamp = timestamp()
     output_root = Path(args.output_root)
     preview_root, backup_root = save_repair_plan(doctor, plan, output_root, args.apply, run_stamp)
@@ -1577,8 +1776,8 @@ def command_import_action(args: argparse.Namespace) -> int:
         "repairs": [item.to_dict() for item in repairs],
         "post_audit": result.to_dict(),
     })
-    if args.contact_sheet:
-        render_contact_sheet(doctor, args.character, run_root / f"{args.character}-contact.png", overrides)
+    render_contact_sheet(doctor, args.character, run_root / f"{args.character}-contact.png", overrides)
+    print(f"Required contact sheet: {run_root / f'{args.character}-contact.png'}")
     print(f"{'Installed' if args.apply else 'Previewed'} {args.action} for {args.character}")
     print(f"Report: {report_path.resolve()}")
     return 1 if result.counts["error"] else 0
@@ -1659,18 +1858,26 @@ def build_parser() -> argparse.ArgumentParser:
     atlas.add_argument("--apply", action="store_true")
     atlas.add_argument("--require-death", action="store_true")
     atlas.add_argument("--contact-sheet", action="store_true")
+    atlas.add_argument(
+        "--reviewed-contact-sheet", action="store_true",
+        help="confirm the generated contact sheet was visually reviewed before --apply",
+    )
     atlas.add_argument("--report")
     atlas.add_argument("--output-root", default=str(DEFAULT_OUTPUT_ROOT))
     atlas.set_defaults(func=command_import_atlas)
 
     action = subparsers.add_parser("import-action", help="process one generated horizontal action strip")
     action.add_argument("character")
-    action.add_argument("action", choices=tuple(ACTION_SPECS))
+    action.add_argument("action", choices=tuple(ALL_ACTION_SPECS))
     action.add_argument("source")
     action.add_argument("--source-frames", type=int, help="number of panels in the source image")
     action.add_argument("--apply", action="store_true")
     action.add_argument("--require-death", action="store_true")
     action.add_argument("--contact-sheet", action="store_true")
+    action.add_argument(
+        "--reviewed-contact-sheet", action="store_true",
+        help="confirm the generated contact sheet was visually reviewed before --apply",
+    )
     action.add_argument("--report")
     action.add_argument("--output-root", default=str(DEFAULT_OUTPUT_ROOT))
     action.set_defaults(func=command_import_action)

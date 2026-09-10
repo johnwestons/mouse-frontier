@@ -19,6 +19,7 @@ local function new(context)
   local H=required(context,"height","number")
   local drawExitPrompt=required(context,"drawExitPrompt","function")
   local drawMobileControls=required(context,"drawMobileControls","function")
+  local getWorldOffset=required(context,"getWorldOffset","function")
 
   Camera:configure(W,H)
 
@@ -26,7 +27,8 @@ local function new(context)
       if runtime.state~="game" then
           return runtime.state..(runtime.state=="battle" and runtime.inventoryOpen and ":inventory" or "")
       end
-      local overlay=runtime.exitPrompt and "exit" or runtime.firstAid and "first-aid" or runtime.activityMinigame and "activity-minigame" or runtime.travelConfirm and "travel"
+      local lastStandCaptures=runtime.lastStand and runtime.lastStand.capture==true
+      local overlay=runtime.exitPrompt and "exit" or lastStandCaptures and "last-stand" or runtime.shootingRange and "shooting-range" or runtime.firstAid and "first-aid" or runtime.travelConfirm and "travel"
           or maintenanceSession.open and "maintenance" or ui.radioOpen and "radio" or runtime.inventoryOpen and "inventory"
           or runtime.mapOpen and "map" or runtime.tradeOpen and "trade" or runtime.trainUpgradeOpen and "upgrades"
           or runtime.editMode and "editor" or runtime.poseMenu and "pose" or ui.optionsOpen and "options"
@@ -39,11 +41,15 @@ local function new(context)
   end
 
   local function focus()
-      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not runtime.firstAid and not runtime.activityMinigame and not runtime.travelConfirm
+      local lastStandCaptures=runtime.lastStand and runtime.lastStand.capture==true
+      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not lastStandCaptures and not runtime.shootingRange and not runtime.firstAid and not runtime.travelConfirm
           and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen
           and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode and not runtime.poseMenu
           and not ui.optionsOpen and not ui.mobileMenuOpen and not runtime.dialogue
-      if worldSurface and runtime.player then return runtime.player.x,runtime.player.y end
+      if worldSurface and runtime.player then
+          local offsetX,offsetY=getWorldOffset()
+          return runtime.player.x-(offsetX or 0),runtime.player.y-(offsetY or 0)
+      end
       return W/2,H/2
   end
 
@@ -59,6 +65,15 @@ local function new(context)
           x,y=Camera:toWorld(x,y,focusX,focusY)
       end
       return x,y
+  end
+
+  local function worldCoordinates(x,y)
+      local offsetX,offsetY=getWorldOffset()
+      return x+(offsetX or 0),y+(offsetY or 0)
+  end
+
+  local function screenToWorld(x,y)
+      return worldCoordinates(screenToGame(x,y))
   end
 
   local function drawTravelFade()
@@ -93,7 +108,9 @@ local function new(context)
       if runtime.exitPrompt then drawExitPrompt() end
       love.graphics.pop()
 
-      drawMobileControls(offsetX,offsetY,scaleX,scaleY)
+      if not (runtime.lastStand and runtime.lastStand.capture==true) then
+          drawMobileControls(offsetX,offsetY,scaleX,scaleY)
+      end
       drawTravelFade()
   end
 
@@ -129,6 +146,8 @@ local function new(context)
       draw=draw,
       viewportToGame=viewportToGame,
       screenToGame=screenToGame,
+      screenToWorld=screenToWorld,
+      worldCoordinates=worldCoordinates,
       isPanning=isPanning,
       beginPan=beginPan,
       movePan=movePan,

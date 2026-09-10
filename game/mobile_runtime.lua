@@ -1,3 +1,5 @@
+local WorldPause=require("game.world_pause")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"mobile runtime requires "..name)
@@ -29,9 +31,11 @@ local function new(context)
   end
 
   local function gameplayActive()
-      return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open
-          and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.exitPrompt and not runtime.firstAid
+      return not WorldPause.isPaused(runtime,ui,maintenanceSession,{allowDialogue=true})
+  end
+
+  local function shootingRangeActive()
+      return runtime.state=="game" and runtime.shootingRange and runtime.shootingRange.phase=="play"
   end
 
   local function backVisible()
@@ -39,16 +43,16 @@ local function new(context)
       if runtime.state=="slots" or runtime.state=="characters" then return true end
       if runtime.state=="battle" then return runtime.inventoryOpen end
       return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
-          or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid)
+          or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid or runtime.shootingRange)
   end
 
   local function menuVisible()
       return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
           and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
-          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue and not runtime.firstAid
+          and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue and not runtime.firstAid and not runtime.shootingRange
   end
 
-  local function primaryAction()
+  local function contextualAction()
       if runtime.dialogue then return "q","CLOSE" end
       local kind=ui.interaction and ui.interaction.kind
       if kind=="radio" then return "p","RADIO"
@@ -59,13 +63,30 @@ local function new(context)
       elseif kind=="house" then return "q","ENTER"
       elseif kind=="houseExit" then return "q","EXIT"
       elseif kind=="stopActivity" then return "q","HELP"
+      elseif kind=="shootingRange" then return "q","RANGE"
+      elseif kind=="expedition" then
+          if ui.interaction.action=="challenge" then return "q","CHALLENGE" end
+          local returning=ui.interaction.action=="returnStop" or (ui.interaction.label or ""):find("^RETURN")~=nil
+          return "q",ui.interaction.action=="chest" and "OPEN" or (returning and "RETURN" or "ENTER")
+      elseif kind=="crowCaravan" then
+          local action=ui.interaction.action
+          return "q",action=="trade" and "TRADE" or (action=="returnStop" and "RETURN" or "CARAVAN")
       elseif kind=="returnTrain" then return "q","BOARD"
       elseif kind=="carNext" or kind=="carPrev" then return "q","DOOR"
       end
       return "e","USE"
   end
 
+  local function primaryAction()
+      if runtime.dialogue then return "q","CLOSE" end
+      if runtime.scene=="expedition" then return "f","ATTACK" end
+      return contextualAction()
+  end
+
   local function secondaryAction()
+      if runtime.scene=="expedition" and not runtime.dialogue and ui.interaction then
+          return contextualAction()
+      end
       local kind=ui.interaction and ui.interaction.kind
       if kind=="npc" or kind=="passenger" then return "g","GIVE" end
   end
@@ -83,6 +104,7 @@ local function new(context)
           moveCameraPan=moveCameraPan,
           endCameraPan=endCameraPan,
           cameraGesturesActive=function() return runtime.state~="intro" end,
+          shootingRangeActive=shootingRangeActive,
           backVisible=backVisible,
           backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
           menuVisible=menuVisible,

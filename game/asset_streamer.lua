@@ -70,6 +70,8 @@ function AssetStreamer:update(state,scene,data,battle,npcActor)
         if npcActor and npcActor.family then
             for _,member in ipairs(npcActor.family) do add(keep,member.file or member.npc) end
         end
+    elseif scene=="caravan" then
+        add(keep,"crow-merchant.png")
     end
 
     local names={}; for file in pairs(keep) do names[#names+1]=file end; table.sort(names)

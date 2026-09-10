@@ -1,4 +1,6 @@
 local Accessibility=require("game.accessibility")
+local CharacterMotion=require("game.character_motion")
+local WorldPause=require("game.world_pause")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -14,6 +16,7 @@ local function new(context)
   local holdPickupSeconds=required(context,"holdPickupSeconds","number")
   local ui=required(context,"ui","table")
   local car=required(context,"car","table")
+  local landscape=required(context,"landscape","table")
   local scenery=required(context,"scenery","table")
   local cloudLayer=required(context,"cloudLayer","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
@@ -42,14 +45,30 @@ local function new(context)
   local ensureStopLayout=required(context,"ensureStopLayout","function")
   local updateWorldScene=required(context,"updateWorldScene","function")
   local currentStopActivity=required(context,"currentStopActivity","function")
+  local currentShootingRange=required(context,"currentShootingRange","function")
+  local handleShootingRange=required(context,"handleShootingRange","function")
   local clampToTrainFloor=required(context,"clampToTrainFloor","function")
   local itemIsHere=required(context,"itemIsHere","function")
   local setupNPC=required(context,"setupNPC","function")
+  local moveExpedition=required(context,"moveExpedition","function")
+  local currentExpeditionInteraction=required(context,"currentExpeditionInteraction","function")
+  local moveCaravan=required(context,"moveCaravan","function")
+  local currentCaravanInteraction=required(context,"currentCaravanInteraction","function")
   local trainFloorBounds=required(context,"trainFloorBounds","function")
   local updateCarTransition=required(context,"updateCarTransition","function")
   local writeSave=required(context,"writeSave","function")
+  local FirstAid=required(context,"firstAid","table")
+  local ShootingRange=required(context,"shootingRange","table")
 
   local function movementAxis(a, b) return (love.keyboard.isDown(b) and 1 or 0) - (love.keyboard.isDown(a) and 1 or 0) end
+
+  local function moveInCurrentScene(oldX,oldY,newX,newY)
+      if runtime.scene=="train" then return clampToTrainFloor(newX,newY) end
+      if runtime.scene=="stop" then return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY) end
+      if runtime.scene=="expedition" then return moveExpedition(oldX,oldY,newX,newY) end
+      if runtime.scene=="caravan" then return moveCaravan(oldX,oldY,newX,newY) end
+      return Util.clampHouseFloor(newX,newY)
+  end
 
   local function updateInteraction()
       local mx,my
@@ -59,12 +78,15 @@ local function new(context)
           itemIsHere=itemIsHere,storageCapacities=Catalog.storageCapacities,nearTrain=Settlements.nearTrain,trainPoint=Settlements.trainPoint,
           nearDoor=Settlements.nearDoor,doorPoint=Settlements.doorPoint,hasSettlements=scenery.settlements~=nil,layout=ensureStopLayout,
           interiorPoint=InteriorDoors.point,nearInteriorDoor=InteriorDoors.near,interiorFiles=scenery.interiorFiles,
-          stopActivity=currentStopActivity(),choose=Interactions.select})
+          stopActivity=currentStopActivity(),shootingRange=currentShootingRange(),expeditionInteraction=currentExpeditionInteraction(),caravanInteraction=currentCaravanInteraction(),choose=Interactions.select})
       local flags=interactionRouter.flags(selected)
       ui.interaction=flags.interaction; runtime.nearbyItem=flags.nearbyItem; runtime.nearChest=flags.nearChest; runtime.nearMailbox=flags.nearMailbox
       runtime.nearHouse=flags.nearHouse or false; runtime.nearNPC=flags.nearNPC or false; runtime.nearPassenger=flags.nearPassenger
       runtime.nearReturnTrain=flags.nearReturnTrain or false; runtime.nearFire=flags.nearFire or false
       runtime.nearStopActivity=flags.nearStopActivity or false
+      runtime.nearShootingRange=flags.nearShootingRange or false
+      runtime.nearExpedition=flags.nearExpedition or false
+      runtime.nearCaravan=flags.nearCaravan or false
       runtime.nearCarPrev=flags.nearCarPrev or false; runtime.nearCarNext=flags.nearCarNext or false; ui.nearRadio=flags.nearRadio or false
   end
 
@@ -78,19 +100,20 @@ local function new(context)
       -- the retired random decoration wildlife remains disconnected.
       runtime.walkingSoundTimer=math.max(0,runtime.walkingSoundTimer-dt)
       updateAudio()
-      local trainRate=2.2
-      if runtime.travelTransition then
-          local t=runtime.travelTransition.t or 0; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,runtime.travelTransition.maintenanceCondition or Maintenance.condition(runtime.saveData))
-          if t<timing.depart then local p=t/timing.depart; trainRate=2.2+6.3*p*p
-          elseif t<timing.arrive then trainRate=8.5
-          else local p=math.max(0,1-(t-timing.arrive)/timing.arrivalDuration); trainRate=2.2+6.3*p*p end
-      end
-      runtime.trainAnimationClock=runtime.trainAnimationClock+dt*trainRate
+      -- Wheel, rod, bogie, and ballast phases are derived from sceneryOffset.
+      -- Keeping motion tied to traveled pixels prevents rail slip and makes
+      -- animation deterministic across frame rates and travel-speed upgrades.
       runtime.actionTimer=math.max(0,runtime.actionTimer-dt)
       if runtime.actionTimer<=0 then runtime.actionHeldItem=nil; runtime.actionKind=nil end
       if screens:update(dt) then return end
-      if runtime.firstAid then return end
-      updateWorldScene(dt)
+      if runtime.shootingRange then
+          local outcome=ShootingRange.update(runtime.shootingRange,dt)
+          if outcome then handleShootingRange(outcome) end
+          return
+      end
+      if runtime.firstAid then FirstAid.update(runtime.firstAid,dt); return end
+      if not WorldPause.isPaused(runtime,ui,maintenanceSession) then updateWorldScene(dt) end
+      if runtime.state~="game" then return end
       if runtime.travelTransition then
           local transition=runtime.travelTransition
           transition.t=transition.t+dt*Accessibility.motionSpeed(runtime.saveData)
@@ -107,7 +130,7 @@ local function new(context)
           end
           if t<timing.depart then speedFactor=(t/timing.depart)^2 elseif t<timing.arrive then speedFactor=1 else speedFactor=math.max(0,1-(t-timing.arrive)/timing.arrivalDuration)^2 end
           local sceneryDistance=(25+125*speedFactor)*EngineUpgrades.profile(runtime.saveData.engineLevel).speed*dt
-          runtime.sceneryOffset=(runtime.sceneryOffset+sceneryDistance)%W
+          runtime.sceneryOffset=runtime.sceneryOffset+sceneryDistance*(landscape.trackSpeed or 1)
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
           if not transition.changed and transition.t>=timing.change then
               transition.changed=true; runtime.saveData.location=runtime.saveData.location+1; runtime.saveData.stopped=true; runtime.saveData.visitedStops[runtime.saveData.location]=true
@@ -140,19 +163,37 @@ local function new(context)
               end
           end
       end
-      if runtime.scene~="train" and not runtime.npcActor then setupNPC() end
+      if (runtime.scene=="stop" or runtime.scene=="house") and not runtime.npcActor then setupNPC() end
       if runtime.dialogue then runtime.dialogue.timer=runtime.dialogue.timer-dt; if runtime.dialogue.timer<=0 then runtime.dialogue=nil end end
       if runtime.scene=="train" then
           local sceneryDistance=18*dt
-          runtime.sceneryOffset=(runtime.sceneryOffset+sceneryDistance)%W
+          runtime.sceneryOffset=runtime.sceneryOffset+sceneryDistance*(landscape.trackSpeed or 1)
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
       end
       if updateCarTransition(dt*Accessibility.motionSpeed(runtime.saveData)) then return end
       Maintenance.update(maintenanceSession,dt)
-      if maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen then return end
+      if WorldPause.isPaused(runtime,ui,maintenanceSession) then
+          runtime.player.moving=false
+          runtime.player.velocityX,runtime.player.velocityY=0,0
+          return
+      end
       local dx=movementAxis("a","d")+movementAxis("left","right")
       local dy=movementAxis("w","s")+movementAxis("up","down")
       local mobileX,mobileY=mobileMovement(); dx,dy=dx+mobileX,dy+mobileY
+      local motionProfile=CharacterMotion.profileFor(runtime.saveData.character)
+      if motionProfile then
+          if dx~=0 or dy~=0 then runtime.playerPose="idle"; runtime.poseMenu=false end
+          local sprint=(love.keyboard.isDown("lshift","rshift") or mobileSprinting()) and 1.7 or 1
+          local worldSlow=runtime.scene=="stop" and (runtime.stopHazardSlow or 1) or 1
+          CharacterMotion.updateActor(runtime.player,dx,dy,dt,{
+              profile=motionProfile,speed=runtime.player.speed,speedScale=sprint*worldSlow,
+              move=moveInCurrentScene,
+          })
+          if runtime.player.moving and runtime.walkingSoundTimer<=0 then
+              ui.playSfx("walkingSteps")
+              runtime.walkingSoundTimer=math.max(.18,.34/sprint)
+          end
+      else
       runtime.player.moving=dx~=0 or dy~=0
       if runtime.player.moving then
           runtime.playerPose="idle"; runtime.poseMenu=false
@@ -170,9 +211,14 @@ local function new(context)
               runtime.player.x,runtime.player.y=clampToTrainFloor(runtime.player.x,runtime.player.y)
           elseif runtime.scene=="stop" then
               runtime.player.x,runtime.player.y=Settlements.move(runtime.saveData.location,oldX,oldY,runtime.player.x,runtime.player.y)
+          elseif runtime.scene=="expedition" then
+              runtime.player.x,runtime.player.y=moveExpedition(oldX,oldY,runtime.player.x,runtime.player.y)
+          elseif runtime.scene=="caravan" then
+              runtime.player.x,runtime.player.y=moveCaravan(oldX,oldY,runtime.player.x,runtime.player.y)
           else
               runtime.player.x,runtime.player.y=Util.clampHouseFloor(runtime.player.x,runtime.player.y)
           end
+      end
       end
       if runtime.npcActor then
           Family.update(runtime.npcActor,dt,function(oldX,oldY,newX,newY)
@@ -193,8 +239,16 @@ local function new(context)
               elseif runtime.scene=="stop" then runtime.npcActor.targetX,runtime.npcActor.targetY=Settlements.clamp(runtime.npcActor.targetX,runtime.npcActor.targetY,runtime.saveData.location) end
               local nx,ny=runtime.npcActor.targetX-runtime.npcActor.x,runtime.npcActor.targetY-runtime.npcActor.y; local len=math.sqrt(nx*nx+ny*ny)
               if len<2 then runtime.npcActor.targetX=nil else
+                  local npcProfile=CharacterMotion.profileFor(runtime.saveData.currentNPC)
+                  if npcProfile then
+                      local arrived=CharacterMotion.moveToward(runtime.npcActor,runtime.npcActor.targetX,runtime.npcActor.targetY,dt,{
+                          profile=npcProfile,speed=32,stopDistance=2,move=moveInCurrentScene,
+                      })
+                      if arrived then runtime.npcActor.targetX=nil end
+                  else
                   if math.abs(nx)>.1 then runtime.npcActor.facing=nx>0 and 1 or -1 end
                   local step=math.min(len,32*dt); runtime.npcActor.x=runtime.npcActor.x+nx/len*step; runtime.npcActor.y=runtime.npcActor.y+ny/len*step
+                  end
               end
           end
       end
@@ -212,7 +266,17 @@ local function new(context)
                   passenger.targetX=nil
                   if passenger.targetCar then local left,right,top,bottom=trainFloorBounds(); passenger.carIndex=passenger.targetCar; passenger.targetCar=nil; passenger.x=passenger.carIndex>1 and left or right; passenger.y=(top+bottom)/2 end
                   local hasSleeper=false; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="sleeper" then hasSleeper=true end end; passenger.pose=(hasSleeper and love.math.random()<.25) and "lay" or (love.math.random()<.55 and "sit" or "idle")
-              else local step=math.min(len,38*dt); passenger.x=passenger.x+dx/len*step; passenger.y=passenger.y+dy/len*step; passenger.facing=dx>0 and 1 or -1 end
+              else
+                  local passengerProfile=CharacterMotion.profileFor(passenger.npc)
+                  if passengerProfile then
+                      CharacterMotion.moveToward(passenger,passenger.targetX,passenger.targetY,dt,{
+                          profile=passengerProfile,speed=38,stopDistance=2,
+                          move=function(_,_,x,y) return clampToTrainFloor(x,y) end,
+                      })
+                  else
+                      local step=math.min(len,38*dt); passenger.x=passenger.x+dx/len*step; passenger.y=passenger.y+dy/len*step; passenger.facing=dx>0 and 1 or -1
+                  end
+              end
           end
       end end
       updateInteraction()

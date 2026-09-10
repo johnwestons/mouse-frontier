@@ -1,0 +1,20 @@
+Expedition sprite runtime audit
+Border/reviewed-pocket connected matte; shared ground baseline y492.
+Bandit V5 / boss V4: repaired opposite-foot half steps and host limb identities; single authored camera view only.
+sludge-bandit: 6 actions,8 walk; referenceHeight=429.00; scales action=1.0000/walk=1.1066; retained enclosed neutral pixels=2202; source-edge frames=3
+sludge-bandit actions 3 neutral component 49px seed(360,233) bounds(358,233)-(362,247)
+sludge-bandit actions 3 neutral component 85px seed(296,366) bounds(296,366)-(309,382)
+sludge-bandit actions 4 neutral component 56px seed(296,160) bounds(295,160)-(301,171)
+sludge-bandit walk 1 neutral component 66px seed(351,227) bounds(347,227)-(352,244)
+sludge-bandit walk 4 SOURCE EDGE CONTACT bounds(1,39)-(384,434)
+sludge-bandit walk 7 SOURCE EDGE CONTACT bounds(2,18)-(442,390)
+sludge-bandit walk 8 SOURCE EDGE CONTACT bounds(0,19)-(386,390)
+sludge-badger-boss: 6 actions,8 walk; referenceHeight=434.44; scales action=0.9919/walk=1.1678; retained enclosed neutral pixels=3444; source-edge frames=2
+sludge-badger-boss actions 2 neutral component 42px seed(430,380) bounds(429,380)-(433,390)
+sludge-badger-boss actions 3 neutral component 61px seed(384,285) bounds(373,285)-(392,289)
+sludge-badger-boss actions 5 SOURCE EDGE CONTACT bounds(24,143)-(511,455)
+sludge-badger-boss actions 5 neutral component 71px seed(333,406) bounds(333,406)-(344,423)
+sludge-badger-boss actions 6 SOURCE EDGE CONTACT bounds(0,8)-(491,451)
+sludge-badger-boss walk 1 neutral component 66px seed(366,357) bounds(357,357)-(367,377)
+GPU texture bytes before=0 peak=29360128 after release=0
+PASS: highlight preservation, frame counts, exact baseline, distance-driven walk, stopped idle, native facing, player depth, true hit-radius telegraph, idempotent GPU release.

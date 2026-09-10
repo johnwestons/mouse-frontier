@@ -29,11 +29,13 @@ local function new(context)
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
   local NpcRelationships=required(context,"npcRelationships","table")
+  local MerchantTrade=required(context,"merchantTrade","table")
   local FinaleProgression=required(context,"finaleProgression","table")
   local Maintenance=required(context,"maintenance","table")
   local writeSave=required(context,"writeSave","function")
   local screenToGame=required(context,"screenToGame","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
+  local currentTradeSource=required(context,"currentTradeSource","function")
   local mobileEnabled=required(context,"mobileEnabled","function")
   local drawLandscape=required(context,"drawLandscape","function")
   local drawTracks=required(context,"drawTracks","function")
@@ -250,20 +252,62 @@ local function new(context)
   end
 
   local function drawTrade()
-      local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
+      local source=currentTradeSource()
+      if not source then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; return end
       local mobile=mobileEnabled()
-      local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
-      local terms=NpcRelationships.merchantTerms(runtime.saveData,merchant)
-      local availableBudget=(layout.tradeBudget or 0)+terms.budgetBonus
+      local merchant=source.relationshipId or source.merchant or runtime.tradeNPC or runtime.saveData.currentNPC
+      local terms=MerchantTrade.terms(runtime.saveData,source)
+      local availableBudget=MerchantTrade.availableBudget(runtime.saveData,source)
       love.graphics.setColor(0,0,0,.72); love.graphics.rectangle("fill",0,0,W,H)
       drawMenuFrame(90,65,780,600,1,1); love.graphics.setColor(colors.cream)
-      love.graphics.printf(Util.titleFromFile(runtime.tradeNPC or runtime.saveData.currentNPC).."'S TRADING POST",110,95,740,"center",0,1.35,1.35)
+      love.graphics.printf((source.title or Util.titleFromFile(merchant).."'S TRADING POST"),110,95,740,"center",0,1.35,1.35)
       love.graphics.printf("YOUR SCRAP: "..(runtime.saveData.scrap or 0).."   •   "..terms.tier.." terms: "..math.floor(terms.discount*100+.5).."% buy discount, "..math.floor(terms.saleBonus*100+.5).."% sell bonus",120,135,720,"center",0,.76,.76)
+      if runtime.tradeMessage then love.graphics.setColor(colors.brass); love.graphics.printf(runtime.tradeMessage,120,158,720,"center",0,.68,.68) end
       ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
-      for i=1,4 do local name=layout.tradeStock[i]; if name then local y=210+(i-1)*82; local price=NpcRelationships.buyPrice(runtime.saveData,merchant,Inventory.scrapPrice(name,Catalog)); ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),210,y+8,0,.82,.82); love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72); ui.tradeBuy[i]=button("BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,runtime.saveData.scrap>=price and Inventory.firstEmptySlot(runtime.saveData)~=nil) end end
-      love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("NPC BUDGET: "..math.max(0,availableBudget).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-      local row=0; for i=1,(runtime.saveData.inventoryCapacity or 6) do local name=runtime.saveData.inventory[i]; if name and row<5 then local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72); local weapon=isWeapon(name); local sellPrice=NpcRelationships.sellPrice(runtime.saveData,merchant,Inventory.resalePrice(name,Catalog,runtime.saveData)); ui.tradeSell[i]=button("SELL +"..sellPrice,mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and 105 or 140) or 110,mobile and 58 or 30,availableBudget>=sellPrice); if weapon then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end; row=row+1 end end
-      ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 590 or 605,mobile and 240 or 210,mobile and 64 or 40,true)
+      local stockIndices={}
+      for index in pairs(source.stock or {}) do
+          if type(index)=="number" and MerchantTrade.stockItem(source,index) then stockIndices[#stockIndices+1]=index end
+      end
+      table.sort(stockIndices)
+      local buyPageSize=4; local maxBuyPage=math.max(0,math.ceil(#stockIndices/buyPageSize)-1)
+      runtime.tradeBuyPage=math.max(0,math.min(maxBuyPage,math.floor(runtime.tradeBuyPage or 0)))
+      local firstBuy=runtime.tradeBuyPage*buyPageSize+1
+      for row=0,buyPageSize-1 do
+          local i=stockIndices[firstBuy+row]
+          local name,entry
+          if i then name,entry=MerchantTrade.stockItem(source,i) end
+          if name then
+              local y=210+row*82; local price=MerchantTrade.buyPrice(runtime.saveData,Catalog,source,i)
+              local canBuy,target=MerchantTrade.canBuy(runtime.saveData,Catalog,source,i)
+              ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream)
+              local quantity=tonumber(entry and entry.quantity) or 1
+              love.graphics.print(Util.titleFromFile(name)..(quantity>1 and ("  x"..quantity) or ""),210,y+8,0,.82,.82)
+              love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72)
+              ui.tradeBuy[i]=button(target=="train" and "SEND" or "BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,canBuy)
+          end
+      end
+      ui.tradeBuyPrev=button("<",135,548,58,mobile and 44 or 34,runtime.tradeBuyPage>0)
+      ui.tradeBuyNext=button(">",397,548,58,mobile and 44 or 34,runtime.tradeBuyPage<maxBuyPage)
+      love.graphics.setColor(colors.cream); love.graphics.printf((runtime.tradeBuyPage+1).." / "..(maxBuyPage+1),215,556,160,"center",0,.66,.66)
+      love.graphics.setColor(colors.cream); love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("BUDGET: "..math.max(0,availableBudget).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
+      local occupied={}
+      for i=1,(runtime.saveData.inventoryCapacity or 6) do if runtime.saveData.inventory[i] then occupied[#occupied+1]=i end end
+      local pageSize=5; local maxPage=math.max(0,math.ceil(#occupied/pageSize)-1)
+      runtime.tradeSellPage=math.max(0,math.min(maxPage,math.floor(runtime.tradeSellPage or 0)))
+      local first=runtime.tradeSellPage*pageSize+1
+      for row=0,pageSize-1 do
+          local i=occupied[first+row]; local name=i and runtime.saveData.inventory[i]
+          if name then
+              local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72)
+              local weapon=isWeapon(name); local sellPrice=MerchantTrade.sellPrice(runtime.saveData,Catalog,source,i)
+              ui.tradeSell[i]=button("SELL +"..sellPrice,mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and source.allowGifts and 105 or 140) or 110,mobile and 58 or 30,availableBudget>=sellPrice)
+              if weapon and source.allowGifts then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end
+          end
+      end
+      ui.tradePrev=button("<",500,562,58,mobile and 44 or 34,runtime.tradeSellPage>0)
+      ui.tradeNext=button(">",636,562,58,mobile and 44 or 34,runtime.tradeSellPage<maxPage)
+      love.graphics.setColor(colors.cream); love.graphics.printf((runtime.tradeSellPage+1).." / "..(maxPage+1),558,570,78,"center",0,.66,.66)
+      ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 600 or 605,mobile and 240 or 210,mobile and 58 or 40,true)
   end
 
   function ui.drawMap()

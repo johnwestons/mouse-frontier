@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "character": "gardener-lizard",
+  "source_root": "output/character-motion/gardener-lizard/source",
+  "runtime_root": "output/character-motion/gardener-lizard/runtime",
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458
+  },
+  "idle_sets": [
+    {
+      "source": "directional-idle-front-side-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle_west.png", "idle_southwest.png", "idle_south.png", "idle.png"]
+    },
+    {
+      "source": "directional-idle-rear-plus-southeast-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle_northwest.png", "idle_north.png", "idle_northeast.png", "idle_southeast.png"]
+    }
+  ],
+  "walks": {
+    "walk.png": { "source": "walk-east-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_northeast.png": { "source": "walk-northeast-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_north.png": { "source": "walk-north-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_southeast.png": { "source": "walk-southeast-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_south.png": { "source": "walk-south-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_west.png": { "source": "walk-west-v2-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northwest.png": { "source": "walk-northwest-v1-magenta.png", "drop_boundary_spill": true },
+    "walk_southwest.png": { "source": "walk-southwest-v2-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true }
+  }
+}

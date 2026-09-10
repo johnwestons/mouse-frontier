@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "character": "cook-mouse",
+  "source_root": "output/character-motion/cook-mouse/source",
+  "runtime_root": "output/character-motion/cook-mouse/runtime",
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458
+  },
+  "idle_sets": [
+    {
+      "source": "directional-idle-core-set-v1-magenta.png",
+      "rows": 2,
+      "source_columns": 5,
+      "source_indices": [0, 1, 2, 4],
+      "outputs": ["idle.png", "idle_northeast.png", "idle_north.png", "idle_south.png"]
+    },
+    {
+      "source": "directional-idle-southeast-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle_southeast.png"]
+    },
+    {
+      "source": "directional-idle-west-set-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle_west.png", "idle_northwest.png", "idle_southwest.png"]
+    }
+  ],
+  "walks": {
+    "walk.png": "walk-east-v1-magenta.png",
+    "walk_northeast.png": "walk-northeast-v1-magenta.png",
+    "walk_north.png": "walk-north-v1-magenta.png",
+    "walk_southeast.png": "walk-southeast-v1-magenta.png",
+    "walk_south.png": "walk-south-v1-magenta.png",
+    "walk_west.png": "walk-west-v1-magenta.png",
+    "walk_northwest.png": "walk-northwest-v1-magenta.png",
+    "walk_southwest.png": "walk-southwest-v1-magenta.png"
+  }
+}

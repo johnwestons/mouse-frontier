@@ -25,8 +25,7 @@ function Mice.spawn(layout, location, settlements)
     layout.miceInitialized = true
     layout.mice = {}
     local seed = (location or 1) * 67 + 11
-    local feedActivity = layout.worldActivity and layout.worldActivity.kind == "wildlife-trough"
-    layout.miceEnabled = (seed % 100) < 48 or feedActivity
+    layout.miceEnabled = (seed % 100) < 48
     if not layout.miceEnabled then return layout.mice end
 
     local centerX, centerY = nearbyWalkable(180 + (seed % 520), 390 + (seed % 170), location, settlements)

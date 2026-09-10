@@ -23,6 +23,7 @@ local function new(context)
   local colors=required(context,"colors","table")
   local content=required(context,"content","table")
   local car=required(context,"car","table")
+  local landscape=required(context,"landscape","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local holdPickupSeconds=required(context,"holdPickupSeconds","number")
   local Inventory=required(context,"inventory","table")
@@ -34,9 +35,11 @@ local function new(context)
   local PlayerProgression=required(context,"playerProgression","table")
   local StopHelpProgression=required(context,"stopHelpProgression","table")
   local NpcRelationships=required(context,"npcRelationships","table")
+  local MerchantTrade=required(context,"merchantTrade","table")
   local FinaleProgression=required(context,"finaleProgression","table")
   local FirstAid=required(context,"firstAid","table")
-  local ActivityMinigames=required(context,"activityMinigames","table")
+  local ShootingRange=required(context,"shootingRange","table")
+  local LastStand=required(context,"lastStand","table")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Family=required(context,"family","table")
@@ -53,10 +56,10 @@ local function new(context)
     readSave=platform.persistenceRuntime.read,util=Util,catalog=Catalog,inventory=Inventory,eventUI=EventUI,
     canChooseEvent=adventure.eventRuntime.canChoose,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,
     playerProgression=PlayerProgression,
-    stopHelpProgression=StopHelpProgression,npcRelationships=NpcRelationships,
+    stopHelpProgression=StopHelpProgression,npcRelationships=NpcRelationships,merchantTrade=MerchantTrade,
     finaleProgression=FinaleProgression,maintenance=Maintenance,
     writeSave=platform.persistenceRuntime.schedule,screenToGame=platform.presentationRuntime.screenToGame,
-    ensureStopLayout=world.worldScene.ensureStopLayout,mobileEnabled=platform.mobileRuntime.isEnabled,
+    ensureStopLayout=world.worldScene.ensureStopLayout,currentTradeSource=world.worldScene.currentTradeSource,mobileEnabled=platform.mobileRuntime.isEnabled,
     drawLandscape=function(...) return worldRenderer.drawLandscape(...) end,
     drawTracks=function(...) return worldRenderer.drawTracks(...) end,
     drawLocomotive=function(...) return worldRenderer.drawLocomotive(...) end,
@@ -78,14 +81,16 @@ local function new(context)
   })
 
   worldRenderer=WorldRenderer.new({
-    runtime=runtime,width=W,height=H,backgroundImages=content.backgroundImages,scenery=content.scenery,car=car,colors=colors,
+    runtime=runtime,width=W,height=H,backgroundImages=content.backgroundImages,scenery=content.scenery,car=car,colors=colors,landscape=landscape,
     getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
     characterImages=content.characterImages,characterWalkImages=content.characterWalkImages,
     characterActionImages=content.characterActionImages,itemIdleImages=content.itemIdleImages,
     npcImages=content.npcImages,npcWalkImages=content.npcWalkImages,familyImages=content.familyImages,
     mobImages=content.mobImages,mobIdleImages=content.mobIdleImages,mobWalkImages=content.mobWalkImages,
     mobHitImages=content.mobHitImages,mobDeathImages=content.mobDeathImages,
-    drawStopSludges=world.worldScene.drawStopSludges,drawStopActivity=world.worldScene.drawStopActivity,drawWildlife=world.worldScene.drawWildlife,
+    drawStopSludges=world.worldScene.drawStopSludges,drawStopActivity=world.worldScene.drawStopActivity,drawShootingRangeSpot=world.worldScene.drawShootingRangeSpot,drawWildlife=world.worldScene.drawWildlife,
+    drawExpedition=world.worldScene.drawExpedition,drawExpeditionTrailhead=world.worldScene.drawExpeditionTrailhead,
+    drawCaravanRuntime=world.worldScene.drawCaravan,drawCaravanGate=world.worldScene.drawCaravanGate,
     train=Train,characterAnimation=CharacterAnimation,catalog=Catalog,family=Family,settlements=Settlements,stops=Stops,util=Util,ui=ui,
     itemIsHere=world.worldScene.itemIsHere,pendingMailHere=adventure.journeyRules.pendingMailHere,
     ensureStopLayout=world.worldScene.ensureStopLayout,
@@ -95,14 +100,15 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
     holdPickupSeconds=holdPickupSeconds,getCloudLayer=function() return startup.startupRuntime.cloudLayer() end,
     mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,clouds=Clouds,maintenance=Maintenance,util=Util,train=Train,
-    firstAid=FirstAid,activityMinigames=ActivityMinigames,
+    firstAid=FirstAid,shootingRange=ShootingRange,lastStand=LastStand,scenery=content.scenery,npcImages=content.npcImages,catalog=Catalog,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,
     screenToGame=platform.presentationRuntime.screenToGame,pointerPosition=platform.mobileRuntime.pointerPosition,
     getAudioStatus=platform.audioRuntime.status,drawLandscape=worldRenderer.drawLandscape,
     drawTracks=worldRenderer.drawTracks,drawTrainView=worldRenderer.drawTrainView,
-    drawHouse=worldRenderer.drawHouse,drawStop=worldRenderer.drawStop,
+    drawHouse=worldRenderer.drawHouse,drawStop=worldRenderer.drawStop,drawExpedition=worldRenderer.drawExpedition,drawCaravan=worldRenderer.drawCaravan,
+    expeditionObjective=world.worldScene.expeditionObjective,drawExpeditionLocalMap=world.worldScene.drawExpeditionLocalMap,
   })
 
   local views={screenUI=screenUI,inventoryPresenter=inventoryPresenter,worldRenderer=worldRenderer,gameplayHUD=gameplayHUD}

@@ -6,6 +6,8 @@ The former code-structure freeze has been lifted for a staged [architecture migr
 
 The dependency-ordered gameplay backlog and mobile parity requirements are tracked in [GAMEPLAY_ROADMAP.md](GAMEPLAY_ROADMAP.md).
 
+The [September 10 game/mobile audit](docs/audits/2026-09-10-game-and-mobile.md) records the current fixes, verification and remaining device acceptance.
+
 ## Run on Windows
 
 1. Install [LÖVE 11.x for Windows](https://love2d.org/) using the 64-bit installer.
@@ -42,10 +44,10 @@ Android controls, installation, update flow, and device verification are documen
 - Some NPCs ask for a needed item or first aid. Helping awards goodwill; declining or missing an attempt never creates a negative alignment.
 - Four stop NPCs can begin branching dialogue quests about a missing family, disputed crops, a bandit warning, or a broken promise. Choices and discovered evidence persist; use **1–3** or the large choice buttons, and **Escape/Q** or **Pause** to resume later.
 - NPCs remember personal help, rides, gifts, conversations, and trades. Familiar travelers recognize the player, passengers discuss their work and destination, and goodwill plus friendship improve merchant prices and buying budgets.
-- First aid uses three highlighted treatment markers and supports mouse, touch, number keys **1–3**, and cancel/back.
-- Sludge seep activities use a three-stage containment screen: follow the flow to place a barrier, pack the pulsing leaks, then seal and scoop. Use mouse/touch or **1–3**; **Q/Escape** pauses with progress saved.
-- Track debris activities now require safe inspection, the correct gloves/pry bar/magnetic sweep, and responsible material sorting. They use the same mouse, touch, **1–3**, and pause/resume controls.
-- Garden rescue protects healthy vines while clearing thorns, supporting seedlings, and restoring soil. Wildlife-trough care identifies visitors, cleans safely, and measures food without consuming the supply until completion. Both use the shared **1–3**, mouse/touch, and pause/resume controls.
+- First aid begins by finding a small cut, then disinfecting, cleaning, applying ointment, placing gauze, and wrapping three passes. Use mouse/touch gestures or **Enter/Space** to complete the current step; **Q/Escape** saves progress for later. Medical supplies are consumed when treatment is complete.
+- Settlement water pumps can be repaired for goodwill and scrap. Walk up and interact; repairing the leak also clears its slippery runoff.
+- Shooting ranges offer weapon selection, stationary or moving paper/steel/clay targets, target patterns, and stage lengths. Use **B** to buy ammunition in setup, **Space/left click** to fire, **R** to reload, **right click/Shift** to aim, and **Tab** to return to setup.
+- From stop 4 onward, Otter Scout can offer the Last Stand rescue. Help the wounded, take a farmhouse window, and defend against the relay gang. Use **L** for the house rifle and ammunition, **Tab** to switch weapons, **C** for cover, and **P** to pause. Touch buttons and gamepad controls support the quest; leaving through the backyard gate preserves progress.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
 - Open the journey map with its top-right button or press **M**. Only visited stops are revealed.
 - Some stops have a one-time mob encounter before you can enter. Choose a weapon to attack or retreat to the train.
@@ -113,14 +115,16 @@ Text sizing, contrast, reduced motion, guidance, battle readability, and the sha
 
 ## Automated smoke playthrough
 
-Run `.stabilization/run-smoke.ps1` from PowerShell to launch the hidden watchdog test. The tester starts a fresh character, walks, opens and scrolls menus, spends supplies to travel, enters and exits a house, exercises an encounter and retreat, renders every major screen, and validates the asset contract.
+Run `tools/run_last_stand_smoke.ps1 -CaptureScreenshots` for the Last Stand rescue quest. This checks navigation, reversible dialogue, treatment and pause controls, transparent target apertures, personal and borrowed ammunition, touch/gamepad input, packaged audio, save/resume, a full 180-second simulated defense, withdrawal, rewards, and released scene resources after returning. Its report is `.stabilization/last-stand-smoke.rpt` and scene captures are in the LÖVE save folder `mouse-frontier-last-stand-smoke`.
+
+Run `tools/run_smoke.ps1` from PowerShell to launch the hidden watchdog test. The tester starts a fresh character, walks, opens and scrolls menus, spends supplies to travel, enters and exits a house, exercises an encounter and retreat, renders every major screen, and validates the asset contract.
 
 Each run writes `.stabilization/smoke-report.rpt`. The report contains pass/fail checkpoints plus typed action return values and snapshots of important game variables. A callback error, failed expectation, stalled step, missing report, or watchdog timeout produces a nonzero exit code.
 
 To test route reachability all the way to stop 50, use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ".\\.stabilization\\run-smoke.ps1" -Full -Visible
+powershell -ExecutionPolicy Bypass -File ".\\tools\\run_smoke.ps1" -Full -Visible
 ```
 
 Full-route reports identify whether the run reached the ending, exhausted supplies, stalled, or hit a code error. Full-route mode provisions supplies and auto-resolves encounters so route/ending reachability can be separated from combat difficulty; the normal smoke run continues to exercise battle controls.

@@ -1,5 +1,6 @@
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
+local WorldPause = require("game.world_pause")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -24,7 +25,11 @@ local function new(context)
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
   local FirstAid=required(context,"firstAid","table")
-  local ActivityMinigames=required(context,"activityMinigames","table")
+  local ShootingRange=required(context,"shootingRange","table")
+  local LastStand=required(context,"lastStand","table")
+  local Catalog=required(context,"catalog","table")
+  local scenery=required(context,"scenery","table")
+  local npcImages=required(context,"npcImages","table")
   local Util=required(context,"util","table")
   local Train=required(context,"train","table")
   local button=required(context,"button","function")
@@ -41,10 +46,28 @@ local function new(context)
   local drawTrainView=required(context,"drawTrainView","function")
   local drawHouse=required(context,"drawHouse","function")
   local drawStop=required(context,"drawStop","function")
+  local drawExpedition=required(context,"drawExpedition","function")
+  local expeditionObjective=required(context,"expeditionObjective","function")
+  local drawExpeditionLocalMap=required(context,"drawExpeditionLocalMap","function")
+  local drawCaravan=required(context,"drawCaravan","function")
+
+  local function drawExpeditionProgress()
+      if runtime.scene~="expedition" or WorldPause.isPaused(runtime,ui,maintenanceSession) then return end
+      local objective=expeditionObjective()
+      if not objective then return end
+      local x,y,width=18,200,402
+      drawMenuFrame(x,y,width,86,4,.94)
+      love.graphics.setColor(colors.brass)
+      love.graphics.printf(objective.title or "EXPEDITION",x+12,y+9,width-24,"left",0,.88,.88)
+      love.graphics.setColor(colors.cream)
+      love.graphics.printf(objective.text or "Explore the area.",x+12,y+30,(width-24)/.70,"left",0,.70,.70)
+      love.graphics.setColor(.56,.91,.84,1)
+      love.graphics.printf(objective.status or "",x+12,y+64,(width-24)/.60,"left",0,.60,.60)
+  end
 
   local function drawGame()
       local cloudLayer=getCloudLayer()
-      ui.returnDoor,ui.exitHome=nil,nil
+      ui.returnDoor,ui.returnTrain,ui.returnStop,ui.exitHome=nil,nil,nil,nil
       if runtime.scene=="train" then
           drawLandscape(); drawTracks(); local tx=0
           if runtime.travelTransition then
@@ -60,17 +83,21 @@ local function new(context)
               drawTrainView(runtime.carTransition.to,direction*W*(eased-1),nil)
           else drawTrainView(runtime.saveData.activeCar or 1,0,runtime.saveData.activeCar or 1,runtime.player.x,runtime.player.y) end
           love.graphics.pop()
-      elseif runtime.scene=="house" then drawHouse() else drawStop() end
+      elseif runtime.scene=="house" then drawHouse()
+      elseif runtime.scene=="expedition" then drawExpedition()
+      elseif runtime.scene=="caravan" then drawCaravan()
+      else drawStop() end
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
       ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
       ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,Maintenance.oilCapacity(runtime.saveData))
       ui.drawJourneyHUD()
+      drawExpeditionProgress()
       local travel=travelStatus()
       local cost=travel.cost
       local travelLabel=runtime.saveData.location>=50 and "JOURNEY COMPLETE"
         or ((travel.affordable and "TRAVEL" or "NEED").."  "..cost.food.."F  "..cost.water.."W  "..cost.coal.."C")
       local mobile=mobileEnabled()
-      ui.travel,ui.leaveTrain,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack,ui.trainCarTabs,ui.exitHome=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
+      ui.travel,ui.leaveTrain,ui.returnTrain,ui.returnStop,ui.backpack,ui.map,ui.editMode,ui.trainUpgrade,ui.maintenance,ui.pose,ui.options,ui.stopAttack,ui.trainCarTabs,ui.exitHome=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
       if mobile then
           if ui.mobileMenuOpen then
               love.graphics.setColor(0,0,0,.64); love.graphics.rectangle("fill",0,0,W,H)
@@ -79,15 +106,17 @@ local function new(context)
               love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",295,122,600,3)
               local canTravel=runtime.scene=="train" and runtime.saveData.location<50 and travel.affordable
               ui.travel=runtime.scene=="train" and button(travelLabel,295,142,600,66,canTravel) or nil
+              ui.returnTrain=runtime.scene=="stop" and button("RETURN TO TRAIN",295,142,600,66,true,.92) or nil
+              ui.returnStop=runtime.scene=="caravan" and button("RETURN TO STOP",295,142,600,66,true,.92) or nil
               ui.backpack=button("BACKPACK",295,226,285,66,true)
-              ui.map=button("TRAIL MAP",610,226,285,66,true)
+              ui.map=button(runtime.scene=="expedition" and "AREA MAP" or "TRAIL MAP",610,226,285,66,true)
               ui.trainUpgrade=runtime.scene=="train" and button("TRAIN UPGRADES  •  "..runtime.saveData.scrap.." SCRAP",295,310,285,66,true) or nil
               ui.editMode=runtime.scene=="train" and button("MOVE / SCALE",610,310,285,66,true) or nil
               ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE  •  "..math.floor(Maintenance.condition(runtime.saveData)).."%",295,394,285,66,true) or nil
               ui.pose=button("CHARACTER POSES",610,394,285,66,true)
               ui.options=button("SETTINGS",295,478,285,66,true)
               ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",610,478,285,66,true) or nil
-              ui.stopAttack=runtime.scene=="stop" and button("ATTACK",610,478,285,66,true) or nil
+              ui.stopAttack=(runtime.scene=="stop" or runtime.scene=="expedition") and button("ATTACK",610,478,285,66,true) or nil
               love.graphics.setColor(colors.cream); love.graphics.printf("Tap BACK or CLOSE to return to the world",295,575,600,"center",0,.86,.86)
           end
       else
@@ -96,14 +125,26 @@ local function new(context)
           -- beneath Options, so it remains discoverable without covering the train.
           ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",790,194,135,32,true) or nil
           ui.backpack=button(runtime.inventoryOpen and "CLOSE" or "PACK",830,20,95,36,true)
-          ui.map=button(runtime.mapOpen and "CLOSE MAP" or "MAP",735,20,87,36,true)
+          local expeditionMap=runtime.scene=="expedition"
+          ui.map=button(runtime.mapOpen and "CLOSE MAP" or (expeditionMap and "AREA MAP" or "MAP"),expeditionMap and 700 or 735,20,expeditionMap and 122 or 87,36,true,expeditionMap and 1 or .72)
           ui.editMode=runtime.scene=="train" and button(runtime.editMode and "EDITING" or "MOVE / SCALE",745,70,180,36,true) or nil
           ui.trainUpgrade=runtime.scene=="train" and button("UPGRADE  "..runtime.saveData.scrap.." SCRAP",510,70,220,36,true) or nil
           ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(runtime.saveData)).."%",510,112,220,32,true) or nil
           ui.pose=button(runtime.poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
           ui.options=button(ui.optionsOpen and "CLOSE" or "OPTIONS",840,112,85,32,true)
-          ui.stopAttack=runtime.scene=="stop" and button("ATTACK",790,650,135,38,true) or nil
+          ui.stopAttack=(runtime.scene=="stop" or runtime.scene=="expedition") and button("ATTACK",790,650,135,38,true) or nil
       end
+      local returnTrainVisible=runtime.scene=="stop" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.helpDialogue
+          and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
+          and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not runtime.shootingRange
+          and not runtime.exitPrompt and not maintenanceSession.open
+      if returnTrainVisible then
+          ui.returnTrain=mobile and button("RETURN TO TRAIN",700,150,238,66,true,.92) or button("RETURN TO TRAIN",790,194,135,38,true,.68)
+      end
+      -- The campsite exit is a safety control, not ordinary world chrome. Keep
+      -- it above every modal panel; the mobile journey menu supplies its own
+      -- full-width version while that menu is open.
+      local returnStopVisible=runtime.scene=="caravan" and not ui.mobileMenuOpen
       local exitHomeVisible=runtime.scene=="house" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue
           and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
           and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not maintenanceSession.open
@@ -129,8 +170,11 @@ local function new(context)
               elseif runtime.nearHouse then contextText,contextScale="TAP ENTER",.78
               elseif ui.interaction and ui.interaction.kind=="houseExit" then contextText,contextScale="TAP EXIT",.78
               elseif ui.interaction and ui.interaction.kind=="stopActivity" then contextText,contextScale="TAP HELP  •  "..(ui.interaction.label or "COMMUNITY TASK"),.62
+              elseif runtime.nearExpedition then contextText,contextScale="TAP  •  "..(ui.interaction.label or "EXPLORE"),.62
+              elseif runtime.nearCaravan then contextText,contextScale="TAP  •  "..(ui.interaction.label or "CARAVAN"),.62
               elseif runtime.nearReturnTrain then contextText,contextScale="TAP BOARD",.78
-              elseif runtime.nearFire then contextText,contextScale="TAP COAL",.78 end
+              elseif runtime.nearFire then contextText,contextScale="TAP COAL",.78
+              elseif runtime.scene=="expedition" then contextText,contextScale="ATTACK  •  DODGE THE WIND-UP",.64 end
           elseif ui.nearRadio then contextText,contextScale="P  OPEN RADIO",.72
           elseif runtime.nearPassenger then contextText,contextScale="Q  TALK   •   G  GIVE",.72
           elseif runtime.nearCarNext then contextText,contextScale="Q  ENTER NEXT CAR",.72
@@ -142,8 +186,11 @@ local function new(context)
           elseif runtime.nearHouse then contextText,contextScale="Q  ENTER HOME",.78
           elseif ui.interaction and ui.interaction.kind=="houseExit" then contextText,contextScale="Q  LEAVE HOME",.78
           elseif ui.interaction and ui.interaction.kind=="stopActivity" then contextText,contextScale="Q  HELP  •  "..(ui.interaction.label or "COMMUNITY TASK"),.62
+          elseif runtime.nearExpedition then contextText,contextScale="Q  "..(ui.interaction.label or "EXPLORE"),.68
+          elseif runtime.nearCaravan then contextText,contextScale="Q  "..(ui.interaction.label or "CARAVAN"),.68
           elseif runtime.nearReturnTrain then contextText,contextScale="Q  BOARD TRAIN",.78
-          elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78 end
+          elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78
+          elseif runtime.scene=="expedition" then contextText,contextScale="F  ATTACK  •  DODGE THE WIND-UP",.62 end
       end
       if contextText then
           local highContrast=Accessibility.enabled(runtime.saveData,"highContrast")
@@ -171,7 +218,14 @@ local function new(context)
       ui.pickup = runtime.nearbyItem and not nearbyFurniture and not runtime.editMode and not ui.mobileMenuOpen and button("PICK UP  [E]",390,650,180,38,true) or nil
       if runtime.inventoryOpen then if runtime.chestOpen then ui.drawChestInventory() end; ui.drawInventory() end
       if runtime.inventoryOpen and runtime.inventoryDragActive and runtime.draggedSlot and containerValue(runtime.draggedSlot) then local mx,my=screenToGame(pointerPosition()); ui.drawItem(containerValue(runtime.draggedSlot),{x=mx-32,y=my-32,w=64,h=64}) end
-      if runtime.mapOpen then ui.drawMap() end
+      ui.expeditionMapClose=nil
+      if runtime.mapOpen then
+          if runtime.scene=="expedition" then
+              ui.mapUp,ui.mapDown=nil,nil
+              drawExpeditionLocalMap()
+              ui.expeditionMapClose=button("CLOSE MAP",W-194,28,150,44,true,.82)
+          else ui.drawMap() end
+      end
       if runtime.editMode then ui.drawEditControls() end
       ui.poseIdle=nil; ui.poseSit=nil; ui.poseLay=nil; ui.poseAction=nil
       ui.musicDown=nil; ui.musicUp=nil; ui.sfxDown=nil; ui.sfxUp=nil; ui.rainDown=nil; ui.rainUp=nil; ui.musicPrevious=nil; ui.musicPause=nil; ui.musicNext=nil; ui.musicMute=nil
@@ -268,8 +322,25 @@ local function new(context)
           maintenanceSession.mouseX,maintenanceSession.mouseY=screenToGame(pointerPosition())
           Maintenance.draw(maintenanceSession,runtime.saveData)
       end
-      if runtime.firstAid then FirstAid.draw(runtime.firstAid,colors) end
-      if runtime.activityMinigame then ActivityMinigames.draw(runtime.activityMinigame,colors,runtime.animationClock) end
+      if runtime.firstAid then
+          local firstAidAssets=scenery.firstAidAssets or {}
+          local assets={
+              npc=npcImages[runtime.firstAid.npc],medical=ui.propImages[runtime.firstAid.itemName],
+              wound=firstAidAssets.wound,disinfectant=firstAidAssets.disinfectant,
+              rag=firstAidAssets.rag,swab=firstAidAssets.swab,gauze=firstAidAssets.gauze,
+              bandage=firstAidAssets.bandage,bandageStrips=firstAidAssets.bandageStrips,
+          }
+          FirstAid.draw(runtime.firstAid,colors,assets)
+      end
+      if runtime.shootingRange then
+          ShootingRange.draw(runtime.shootingRange,runtime.saveData,scenery.shootingRangeAssets or {},ui,Catalog,mobile)
+      end
+      -- Keep the campsite exit above its greeting and trading overlays so leaving
+      -- never requires closing another panel first.
+      if returnStopVisible then
+          ui.returnStop=mobile and button("RETURN TO STOP",700,642,238,66,true,.82) or button("RETURN TO STOP",780,670,145,34,true,.68)
+      end
+      if runtime.lastStand then LastStand:draw() end
   end
 
   return {draw=drawGame}

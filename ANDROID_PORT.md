@@ -5,7 +5,7 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 ## Current build
 
 - Application ID: `com.mousefrontier.game`
-- Version: `0.7.0-mobile.1` (`versionCode` 1)
+- Version: `0.7.0-mobile.5` (`versionCode` 5)
 - Engine: LÖVE 11.5
 - Orientation: landscape fullscreen
 - Architectures: ARM64 and ARMv7; debug builds also contain x86-64 for emulator testing
@@ -13,11 +13,16 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 The generated installable file is:
 
-`output/mobile/MouseFrontier-0.7.0-mobile.1-debug.apk`
+`output/mobile/MouseFrontier-0.7.0-mobile.5-debug.apk`
+
+This update packages the current shared gameplay, Last Stand quest, wilderness
+expeditions, crow caravans, first-person weapons, and directional character
+animations. The mobile package preserves Last Stand's fixed atlas cells and
+omits its unused concept and candidate artwork.
 
 ## Phone controls
 
-- Drag the lower-left thumb control to walk.
+- Drag the lower-left thumb control to walk. It is inset from the phone corner for a comfortable natural thumb reach.
 - Push it to the outer edge to run.
 - The large lower-right button changes with context: Use, Pick Up, Talk, Enter, Exit, Board, Door, Coal, or Radio.
 - A Give button appears beside NPCs and passengers.
@@ -37,6 +42,15 @@ Run from PowerShell at the project root:
 ```
 
 The first build downloads verified local copies of FFmpeg, JDK 17, the Android command-line tools, API 34, NDK 25.2, and LÖVE Android 11.5. They are cached under ignored `output/mobile` files. Later builds reuse them.
+
+The packaged smoke run requires a local LÖVE installation and uses the shared
+`tools/run_smoke.ps1` watchdog. Missing LÖVE or a failed smoke run stops the build.
+The build also runs the Last Stand harness against the staged mobile Lua, resized
+artwork and converted audio before producing the APK.
+The APK builder rejects stale Lua or version metadata, verifies the embedded
+game's full SHA-256, Android identity and version, all three supported native
+architectures, and the APK signature. `build-report.json` and `apk-report.json`
+record the source commit and matching package checksum.
 
 To build only the testable `.love` archive:
 
@@ -62,11 +76,17 @@ The current APK is debug-signed for sideloading and development. A store/release
 1. Make or merge the PC change in this repository.
 2. Preserve save compatibility or add the next sequential save migration.
 3. Update `versionName` and increment `versionCode` in `mobile/config.json` for a distributable Android update.
-4. Run the normal smoke playthrough.
-5. Run `BUILD_ANDROID.ps1`. It takes the current shared Lua directly, incrementally regenerates phone-sized assets, runs the packaged mobile smoke checks, builds the APK, and verifies its signature.
+4. Run `tools/run_smoke.ps1` for the normal desktop smoke playthrough.
+5. Commit the reviewed changes and run `BUILD_ANDROID.ps1`. It takes the current shared Lua directly, incrementally regenerates phone-sized assets, runs the packaged mobile smoke checks, builds the APK, and verifies its contents and signature.
 6. Install on a phone and complete the device checklist below.
 
 Only conflicts inside the small mobile boundary described in `MOBILE_ARCHITECTURE_DECISION.md` should require Android-specific adaptation. Ordinary gameplay, content, art, save, and UI updates are inherited by the next build.
+
+After recording the desktop and full-route reports described in
+`FINAL_PARITY_AUDIT.md`, `python tools/audit_platform_parity.py` verifies the
+offline artifacts. Add `--require-device` to require the recorded on-device
+startup check as well. An offline pass does not establish physical-device
+readiness; the controls checklist still applies before distribution.
 
 ## Physical-device release checklist
 
@@ -87,4 +107,4 @@ joystick movement, contextual storage opening, and mobile HUD wording.
 
 ## Size policy
 
-The source repository contains several gigabytes of authored and high-resolution material. The mobile build excludes generation sources, keeps one copy of duplicate music, converts runtime audio to Ogg Vorbis, and derives phone-resolution palette PNGs. Originals remain unchanged for the PC edition and future art work.
+The source repository contains several gigabytes of authored and high-resolution material. The mobile build excludes generation sources, keeps one copy of duplicate music, converts runtime audio to Ogg Vorbis, and derives phone-resolution palette PNGs. Character animation sheets retain every authored direction and use a uniform phone-sized frame so idle and walking scale remain synchronized. Originals remain unchanged for the PC edition and future art work.

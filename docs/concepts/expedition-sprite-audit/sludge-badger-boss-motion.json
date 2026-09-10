@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "character": "sludge-badger-boss-pilot",
+  "status": "reviewed V4 single-view pilot: two-step cycle and front-left camera repaired; full directions and directional idle still missing",
+  "animations": {
+    "idle": {"path": "docs/concepts/expedition-sprite-audit/sludge-badger-boss-idle.png", "frame_width": 512, "frame_height": 512, "frame_count": 1, "loop": true, "fps": 1},
+    "walk_west": {"path": "docs/concepts/expedition-sprite-audit/sludge-badger-boss-walk.png", "frame_width": 512, "frame_height": 512, "frame_count": 8, "loop": true, "role": "gait"}
+  },
+  "directions": {
+    "east": {"walk_animation": "walk_west", "idle_animation": "idle", "mirror_x": true},
+    "west": {"walk_animation": "walk_west", "idle_animation": "idle", "mirror_x": false}
+  },
+  "gait": {
+    "pose_order": ["healthy_contact", "healthy_down", "infected_passing", "infected_up", "infected_contact", "infected_down", "healthy_passing", "healthy_up"],
+    "pixels_per_frame": 9,
+    "base_speed": 44,
+    "speed_multipliers": [1,1,1,1,1,1,1,1],
+    "acceleration_multipliers": [1,1,1,1,1,1,1,1]
+  },
+  "audit": {"alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 0, "center_tolerance": 14}
+}

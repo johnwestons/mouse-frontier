@@ -54,13 +54,6 @@ local function new(context)
   local content=Modules.contentRegistry.new({filesystem=Filesystem})
   local scenery,ui=content.scenery,content.ui
   local maintenanceSession=Maintenance.new()
-  local activityMinigames=Modules.stopActivityMinigames.new({helpQuestSession=Modules.helpQuestSession,
-    activityDifficulty=Modules.activityDifficulty,
-    sludgeContainment=Modules.sludgeContainment,trackDebrisClearing=Modules.trackDebrisClearing,
-    gardenRescue=Modules.gardenRescue,wildlifeTroughCare=Modules.wildlifeTroughCare,
-    atlases={["sludge-containment"]=scenery.sludgeContainmentAtlas,["track-debris-clearing"]=scenery.trackDebrisAtlas,
-      ["garden-rescue"]=scenery.gardenRescueAtlas,["wildlife-trough-care"]=scenery.wildlifeTroughAtlas}})
-
   services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,ui=ui,screens=screens,intro=Modules.intro,scenery=scenery,colors=colors,
     updateBattle=function(...) return services.battleRuntime.update(...) end,
@@ -79,6 +72,12 @@ local function new(context)
     engineUpgrades=EngineUpgrades,mobileControls=MobileControls,
     drawExitPrompt=function(...) return services.screenUI.drawExitPrompt(...) end,
     getGameplayInput=function() return services.gameplayInput end,
+    getWorldOffset=function()
+      if runtime.scene=="expedition" and services.worldScene and services.worldScene.expeditionCameraOffset then
+        return services.worldScene.expeditionCameraOffset()
+      end
+      return 0,0
+    end,
   })
   serviceRegistry.publishAll(platform)
 
@@ -87,12 +86,16 @@ local function new(context)
     platform=platform,content=content,runtime=runtime,ui=ui,car=car,maintenanceSession=maintenanceSession,
     filesystem=Filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
-    stopActivities=Modules.stopActivities,activityMinigames=activityMinigames,
+    stopActivities=Modules.stopActivities,shootingRange=Modules.shootingRange,
+    expeditionAreas=Modules.expeditionAreas,expeditionRuntime=Modules.expeditionRuntime,roamingMobs=Modules.roamingMobs,
+    crowCaravans=Modules.crowCaravans,crowCaravanArea=Modules.crowCaravanArea,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
     playerProgression=Modules.playerProgression,
     stopHelpProgression=Modules.stopHelpProgression,
     npcRelationships=Modules.npcRelationships,
     getIsWeapon=function() return services.inventoryActions.isWeapon end,
+    getBeginEncounter=function() return services.battleRuntime and services.battleRuntime.beginEncounter end,
+    width=W,height=H,
   })
   serviceRegistry.publishAll(world)
 
@@ -119,32 +122,39 @@ local function new(context)
     getWorldRenderer=function() return services.worldRenderer end,
     getScreenUI=function() return services.screenUI end,
     handleInventoryClick=function(x,y) return services.inventoryPresenter.handleClick(x,y,ui.offerGift) end,
+    returnToTrain=platform.trainCarRuntime.enterTrain,
   })
   serviceRegistry.publishAll(adventure)
 
   local startup=Modules.startupComposition.new({
     startupRuntimeFactory=Modules.startupRuntime,assetStreamer=Modules.assetStreamer,
     gameplayUpdate=Modules.gameplayUpdate,platform=platform,adventure=adventure,world=world,content=content,
-    runtime=runtime,width=W,holdPickupSeconds=Config.holdPickupSeconds,ui=ui,car=car,
+    runtime=runtime,width=W,holdPickupSeconds=Config.holdPickupSeconds,ui=ui,car=car,landscape=Config.landscape,
     maintenanceSession=maintenanceSession,screens=screens,graphics=Graphics,filesystem=Filesystem,
     assets=Assets,settlements=Settlements,clouds=Clouds,intro=Modules.intro,
     interactionRouter=Modules.interactions,interactions=Interactions,catalog=Catalog,interiorDoors=InteriorDoors,
     engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
+    firstAid=Modules.firstAid,shootingRange=Modules.shootingRange,
   })
   serviceRegistry.publishAll(startup)
+
+  local lastStand=Modules.lastStandQuest.new({
+    runtime=runtime,catalog=Catalog,writeSave=platform.persistenceRuntime.schedule,
+    characterImages=content.characterImages,scenery=content.scenery,npcImages=content.npcImages,
+    ui=ui,maintenanceSession=maintenanceSession,width=W,height=H,
+  })
 
   local views=Modules.viewComposition.new({
     screenUIFactory=Modules.screenUI,inventoryPresenterFactory=Modules.inventoryPresenter,
     worldRendererFactory=Modules.worldRenderer,gameplayHUDFactory=Modules.gameplayHUD,inventoryUI=Modules.inventory,
     platform=platform,adventure=adventure,world=world,startup=startup,
-    runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,
+    runtime=runtime,width=W,height=H,ui=ui,colors=colors,content=content,car=car,landscape=Config.landscape,
     maintenanceSession=maintenanceSession,holdPickupSeconds=Config.holdPickupSeconds,
     inventory=Inventory,catalog=Catalog,util=Util,eventUI=EventUI,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,
     playerProgression=Modules.playerProgression,
-    stopHelpProgression=Modules.stopHelpProgression,npcRelationships=Modules.npcRelationships,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,
-    activityMinigames=activityMinigames,
+    stopHelpProgression=Modules.stopHelpProgression,npcRelationships=Modules.npcRelationships,merchantTrade=Modules.merchantTrade,finaleProgression=Modules.finaleProgression,firstAid=Modules.firstAid,shootingRange=Modules.shootingRange,
     train=Train,characterAnimation=CharacterAnimation,family=Family,settlements=Settlements,stops=Stops,
-    clouds=Clouds,maintenance=Maintenance,
+    clouds=Clouds,maintenance=Maintenance,lastStand=lastStand,
   })
   serviceRegistry.publishAll(views)
 
@@ -152,10 +162,9 @@ local function new(context)
     gameplayInputFactory=Modules.gameplayInput,runtime=runtime,ui=ui,content=content,
     maintenanceSession=maintenanceSession,platform=platform,adventure=adventure,views=views,
     worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
-    inventory=Inventory,catalog=Catalog,npcRelationships=Modules.npcRelationships,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
+    inventory=Inventory,catalog=Catalog,npcRelationships=Modules.npcRelationships,merchantTrade=Modules.merchantTrade,util=Util,engineUpgrades=EngineUpgrades,trainUpgradeBalance=Modules.trainUpgradeBalance,maintenance=Maintenance,
     battleRules=BattleRules,stops=Stops,settlements=Settlements,interiorDoors=InteriorDoors,
-    firstAid=Modules.firstAid,resolveFirstAid=adventure.journeyRules.resolveFirstAid,chooseHelpDialogue=adventure.journeyRules.chooseHelpDialogue,
-    activityMinigames=activityMinigames,resolveActivityMinigame=world.worldScene.resolveActivityMinigame,
+    firstAid=Modules.firstAid,shootingRange=Modules.shootingRange,resolveFirstAid=adventure.journeyRules.resolveFirstAid,chooseHelpDialogue=adventure.journeyRules.chooseHelpDialogue,
     finaleProgression=Modules.finaleProgression,
     intro=Modules.intro,interactions=Modules.interactions,
   })
@@ -179,25 +188,76 @@ local function new(context)
       assets=Assets,save=Save,maintenance=Maintenance,train=Train,events=Events,battleRules=BattleRules,intro=Modules.intro,firstAid=Modules.firstAid,
       audio=Audio,audioCatalog=Modules.audioCatalog,audioSelfTest=Modules.audioSelfTest,
       finaleProgression=Modules.finaleProgression,stopHelpProgression=Modules.stopHelpProgression,helpQuestSession=Modules.helpQuestSession,helpDialogueQuests=Modules.helpDialogueQuests,
-      stopActivities=Modules.stopActivities,activityMinigames=activityMinigames},
+      stopActivities=Modules.stopActivities,shootingRange=Modules.shootingRange,
+      crowCaravans=Modules.crowCaravans,crowCaravanArea=Modules.crowCaravanArea,merchantTrade=Modules.merchantTrade},
     services=services,
     graphs={content=content,views=views,adventure=adventure,platform=platform,input=input,
       world=world,startup=startup,serviceRegistry=serviceRegistry,applicationComposition=application},
   })
 
   function application.load() return services.startupRuntime.load() end
-  function application.update(dt) return services.startupRuntime.update(dt) end
+  local function lastStandPoint(x,y)
+    if type(x)~="number" or type(y)~="number" then return x,y end
+    return platform.presentationRuntime.screenToGame(x,y)
+  end
+
+  function application.update(dt)
+    if lastStand:update(dt) then
+      platform.persistenceRuntime.update(dt)
+      return true
+    end
+    return services.startupRuntime.update(dt)
+  end
   function application.draw() return services.presentationRuntime.draw() end
-  function application.mousepressed(...) return services.mobileRuntime.mousepressed(...) end
-  function application.mousemoved(...) return services.mobileRuntime.mousemoved(...) end
-  function application.mousereleased(...) return services.mobileRuntime.mousereleased(...) end
-  function application.wheelmoved(...) return services.gameplayInput.wheelmoved(...) end
-  function application.keypressed(...) return services.mobileRuntime.keypressed(...) end
-  function application.keyreleased(...) return services.mobileRuntime.keyreleased(...) end
-  function application.touchpressed(...) return services.mobileRuntime.touchpressed(...) end
-  function application.touchmoved(...) return services.mobileRuntime.touchmoved(...) end
-  function application.touchreleased(...) return services.mobileRuntime.touchreleased(...) end
-  function application.focus(focused) return services.persistenceRuntime.focus(focused) end
+  function application.mousepressed(x,y,button,istouch,presses)
+    if istouch and lastStand:isCapturing() then return true end
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:mousepressed(gx,gy,button,istouch,presses) then return true end
+    return services.mobileRuntime.mousepressed(x,y,button,istouch,presses)
+  end
+  function application.mousemoved(x,y,dx,dy,istouch)
+    if istouch and lastStand:isCapturing() then return true end
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:mousemoved(gx,gy,dx,dy,istouch) then return true end
+    return services.mobileRuntime.mousemoved(x,y,dx,dy,istouch)
+  end
+  function application.mousereleased(x,y,button,istouch,presses)
+    if istouch and lastStand:isCapturing() then return true end
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:mousereleased(gx,gy,button,istouch,presses) then return true end
+    return services.mobileRuntime.mousereleased(x,y,button,istouch,presses)
+  end
+  function application.wheelmoved(x,y)
+    if lastStand:wheelmoved(x,y) then return true end
+    return services.gameplayInput.wheelmoved(x,y)
+  end
+  function application.keypressed(key,scancode,isrepeat)
+    if lastStand:keypressed(key,scancode,isrepeat) then return true end
+    return services.mobileRuntime.keypressed(key,scancode,isrepeat)
+  end
+  function application.keyreleased(key,scancode)
+    if lastStand:keyreleased(key,scancode) then return true end
+    return services.mobileRuntime.keyreleased(key,scancode)
+  end
+  function application.touchpressed(id,x,y,dx,dy,pressure)
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:touchpressed(id,gx,gy) then return true end
+    return services.mobileRuntime.touchpressed(id,x,y,dx,dy,pressure)
+  end
+  function application.touchmoved(id,x,y,dx,dy,pressure)
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:touchmoved(id,gx,gy) then return true end
+    return services.mobileRuntime.touchmoved(id,x,y,dx,dy,pressure)
+  end
+  function application.touchreleased(id,x,y,dx,dy,pressure)
+    local gx,gy=lastStandPoint(x,y)
+    if lastStand:touchreleased(id,gx,gy) then return true end
+    return services.mobileRuntime.touchreleased(id,x,y,dx,dy,pressure)
+  end
+  function application.focus(focused)
+    lastStand:focus(focused)
+    return services.persistenceRuntime.focus(focused)
+  end
   function application.installSmoke() return smoke.install() end
   function application.quit() services.persistenceRuntime.shutdown() end
   return application

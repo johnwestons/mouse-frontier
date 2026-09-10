@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "character": "guard-fox",
+  "source_root": "output/character-motion/guard-fox/source",
+  "runtime_root": "output/character-motion/guard-fox/runtime",
+  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458 },
+  "idle_sets": [
+    { "source": "idle-front-atlas.png", "source_columns": 4, "rows": 2, "outputs": ["idle_west.png", "idle_southwest.png", "idle_south.png", "idle_southeast.png"] },
+    { "source": "idle-east.png", "source_columns": 1, "rows": 2, "outputs": ["idle.png"] },
+    { "source": "idle-rear-atlas.png", "source_columns": 4, "source_indices": [3, 2, 1], "rows": 2, "outputs": ["idle_northeast.png", "idle_north.png", "idle_northwest.png"] }
+  ],
+  "walks": {
+    "walk.png": { "source": "walk-east-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northeast.png": { "source": "walk-northeast-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_north.png": { "source": "walk-north-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southeast.png": { "source": "walk-southeast-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_south.png": { "source": "walk-south-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_west.png": { "source": "walk-west-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_northwest.png": { "source": "walk-northwest-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_southwest.png": { "source": "walk-southwest-v1-grid-magenta.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true }
+  }
+}

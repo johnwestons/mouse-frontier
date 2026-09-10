@@ -6,11 +6,14 @@ local Wildlife = require("game.wildlife") -- retained only for dynamic chickens
 local Mice = require("game.mice")
 local AssetDiagnostics = require("game.asset_diagnostics")
 local LootProgression = require("game.loot_progression")
+local FirstPersonWeaponViews = require("game.first_person_weapon_views")
+local CrowCaravanArt = require("game.crow_caravan_art")
 
 local Assets = {}
 local missingRequired
 local lazyPaths=setmetatable({},{__mode="k"})
 local lazyCategories=setmetatable({},{__mode="k"})
+local externallyOwnedImages=setmetatable({},{__mode="k"})
 
 local function loadImage(path,category)
     local ok, image = pcall(love.graphics.newImage, path)
@@ -42,7 +45,7 @@ end
 local function releaseLazyImages(destination,keep)
     if not lazyPaths[destination] then return end
     for key,image in pairs(destination) do
-        if not (keep and keep[key]) then
+        if not (keep and keep[key]) and not externallyOwnedImages[image] then
             if image and image.release then pcall(image.release,image) end
             rawset(destination,key,nil)
         end
@@ -120,6 +123,71 @@ local function loadGeneratedAnimationAtlas(path, columns, rows, count)
     end
     return {image=image,columns=columns,rows=rows,count=count or columns*rows,
         w=width/columns,h=height/rows,path=path}
+end
+
+local function loadGridAtlas(path, columns, rows, category)
+    local image=loadImage(path,category)
+    if not image then return nil end
+    image:setFilter("nearest","nearest")
+    local width,height=image:getDimensions()
+    if columns<1 or rows<1 or width%columns~=0 or height%rows~=0 then
+        AssetDiagnostics.record(path,category,"atlas dimensions do not divide into its frame grid")
+        return nil
+    end
+    local frameWidth,frameHeight=width/columns,height/rows
+    local atlas={image=image,count=columns*rows,w=frameWidth,h=frameHeight,columns=columns,rows=rows,quads={}}
+    for index=1,atlas.count do
+        local column,row=(index-1)%columns,math.floor((index-1)/columns)
+        atlas.quads[index]=love.graphics.newQuad(column*frameWidth,row*frameHeight,frameWidth,frameHeight,width,height)
+    end
+    return atlas
+end
+
+local function loadHorizontalAtlas(path, count, category)
+    return loadGridAtlas(path,count,1,category)
+end
+
+local function loadVerticalAtlas(path, count, category)
+    local image=loadImage(path,category)
+    if not image then return nil end
+    image:setFilter("nearest","nearest")
+    local width,height=image:getDimensions()
+    if count<1 or height%count~=0 then
+        AssetDiagnostics.record(path,category,"atlas height does not divide into its frame count")
+        return nil
+    end
+    local frameHeight=height/count
+    local atlas={image=image,count=count,w=width,h=frameHeight,quads={}}
+    for index=1,count do
+        atlas.quads[index]=love.graphics.newQuad(0,(index-1)*frameHeight,width,frameHeight,width,height)
+    end
+    return atlas
+end
+
+local function loadAlphaCutoffShader()
+    local ok,shader=pcall(love.graphics.newShader,[=[
+        vec4 effect(vec4 color, Image texture, vec2 textureCoordinates, vec2 screenCoordinates) {
+            vec4 pixel = Texel(texture, textureCoordinates);
+            if (pixel.a < 0.125) discard;
+            return pixel * color;
+        }
+    ]=])
+    if not ok then
+        AssetDiagnostics.record("generated-alpha-cutoff","train scenery",shader)
+        return nil
+    end
+    return shader
+end
+
+local function addHorizontalAtlasSlice(atlas,name,sourceY,height)
+    if not atlas then return end
+    local imageWidth,imageHeight=atlas.image:getDimensions()
+    assert(sourceY>=0 and height>0 and sourceY+height<=imageHeight,"invalid atlas slice")
+    local quads={}
+    for index=1,atlas.count do
+        quads[index]=love.graphics.newQuad((index-1)*atlas.w,sourceY,atlas.w,height,imageWidth,imageHeight)
+    end
+    atlas[name]={quads=quads,sourceY=sourceY,h=height}
 end
 
 local function validateCatalogArt(ui)
@@ -363,10 +431,52 @@ function Assets.load(targets)
         hit=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-hit.png",2,2,4),
         death=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-death.png",2,2,4),
     }
-    scenery.sludgeContainmentAtlas=loadImage("assets/sprites/props/sludge-containment-tools-atlas.png")
-    scenery.trackDebrisAtlas=loadImage("assets/sprites/props/track-debris-tools-atlas.png")
-    scenery.gardenRescueAtlas=loadImage("assets/sprites/props/garden-rescue-tools-atlas.png")
-    scenery.wildlifeTroughAtlas=loadImage("assets/sprites/props/wildlife-trough-tools-atlas.png")
+    scenery.firstAidAssets={
+        wound=requireImage("assets/sprites/props/first-aid/small-cut.png"),
+        disinfectant=requireImage("assets/sprites/props/first-aid/disinfectant-bottle.png"),
+        rag=requireImage("assets/sprites/props/first-aid/clean-rag.png"),
+        swab=requireImage("assets/sprites/props/first-aid/ointment-swab.png"),
+        gauze=requireImage("assets/sprites/props/first-aid/gauze-pad.png"),
+        bandage=requireImage("assets/sprites/props/first-aid/bandage-roll.png"),
+        bandageStrips={
+            requireImage("assets/sprites/props/first-aid/bandage-strip.png"),
+            requireImage("assets/sprites/props/first-aid/bandage-strip-2.png"),
+            requireImage("assets/sprites/props/first-aid/bandage-strip-3.png"),
+        },
+    }
+    local shootingRangeWeaponViews=FirstPersonWeaponViews.new(
+        function(path) return loadImage(path,"shooting range weapon") end,
+        function(path) return love.filesystem.getInfo(path)~=nil end)
+    scenery.shootingRangeAssets={
+        background=requireImage("assets/sprites/props/shooting-range/range-background.png"),
+        targets=requireImage("assets/sprites/props/shooting-range/target-atlas.png"),
+        impacts=requireImage("assets/sprites/props/shooting-range/impact-atlas.png"),
+        entrance=requireImage("assets/sprites/props/shooting-range/range-trail-flag-atlas.png"),
+        weaponViews=shootingRangeWeaponViews,
+    }
+    local caravanRoot="assets/sprites/caravans/rookery/"
+    local caravanCampfirePath=caravanRoot.."animations/campfire-idle-4-v1.png"
+    local caravanCampfire=loadHorizontalAtlas(caravanCampfirePath,4,"required")
+    if not caravanCampfire then missingRequired[#missingRequired+1]=caravanCampfirePath end
+    local caravanStallPath=caravanRoot.."animations/merchant-stall-breeze-4-v1.png"
+    local caravanStallImage=requireImage(caravanStallPath)
+    local caravanStall=caravanStallImage and CrowCaravanArt.stallAtlas(caravanStallImage,love.graphics.newQuad)
+    scenery.crowCaravanAssets={
+        background=requireImage("assets/backgrounds/crow-caravan-campsite-v1.png"),
+        wagonBody=requireImage(caravanRoot.."wagon-body-v1.png"),
+        wagonWheel=requireImage(caravanRoot.."wagon-wheel-v1.png"),
+        stallBody=requireImage(caravanRoot.."merchant-stall-body-v2.png"),
+        stallBreeze=caravanStall,
+        patchedTent=requireImage(caravanRoot.."patched-tent-v1.png"),
+        cargoCluster=requireImage(caravanRoot.."cargo-cluster-v1.png"),
+        crowBanner=requireImage(caravanRoot.."crow-banner-v1.png"),
+        campfire=caravanCampfire,
+    }
+    -- Short semantic names are the area renderer's public bundle contract;
+    -- keep the descriptive aliases above useful to diagnostics and tools.
+    scenery.crowCaravanAssets.wheel=scenery.crowCaravanAssets.wagonWheel
+    scenery.crowCaravanAssets.tent=scenery.crowCaravanAssets.patchedTent
+    scenery.crowCaravanAssets.cargo=scenery.crowCaravanAssets.cargoCluster
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
         loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end
@@ -389,19 +499,47 @@ function Assets.load(targets)
     validateCatalogArt(ui)
     loadMenuFrames(ui)
 
-    scenery.trainFrames, scenery.worldTrainFrames = {}, {}
+    -- The old independently redrawn locomotives are retained only for their
+    -- transparent smoke area. The approved boiler/cab/tender body is invariant;
+    -- wheels and rods are now composed over it by the train renderer.
+    scenery.worldTrainSmokeFrames = {}
     for index = 1, 3 do
         local image = loadImage("assets/sprites/train/animations/locomotive-red-run-" .. index .. ".png","train scenery")
-        scenery.trainFrames[index], scenery.worldTrainFrames[index] = image, image
+        if image then
+            local imageWidth,imageHeight=image:getDimensions()
+            scenery.worldTrainSmokeFrames[index]={image=image,
+                quad=love.graphics.newQuad(0,0,imageWidth,math.min(225,imageHeight),imageWidth,imageHeight)}
+        end
     end
     scenery.redTrain = loadImage("assets/sprites/train/locomotive-red.png","train scenery")
     scenery.worldTrain = scenery.redTrain
+    scenery.generatedAlphaCutoffShader = loadAlphaCutoffShader()
+    scenery.worldTrainBody = loadImage("assets/sprites/train/animations/locomotive-red-body-v2.png","train scenery")
+    local runningGearImage=loadImage(
+        "assets/sprites/train/animations/locomotive-running-gear-components-v1.png","train scenery")
+    if runningGearImage then
+        local gearWidth,gearHeight=runningGearImage:getDimensions()
+        local function component(x,y,w,h,originX,originY,length)
+            return {quad=love.graphics.newQuad(x,y,w,h,gearWidth,gearHeight),
+                originX=originX,originY=originY,length=length}
+        end
+        scenery.worldTrainRunningGear={image=runningGearImage,
+            largeWheel=component(130,40,560,560,282,281),
+            smallWheel=component(950,160,380,380,192,193),
+            couplingRod=component(130,690,520,170,65,87,378),
+            connectingRod=component(790,650,720,210,634,116,558),
+            jointPin=component(1070,830,170,140,82,67)}
+    end
     scenery.trainCarImages = {}
     for _, entry in ipairs(Catalog.trainCarCatalog) do
         scenery.trainCarImages[entry.id] = loadImage("assets/sprites/train/cars/" .. entry.id .. ".png","train scenery")
     end
     scenery.trainCarImages["living-car"] = loadImage("assets/sprites/train/cars/living-car.png","train scenery")
-    scenery.track = loadImage("assets/sprites/tracks/railway-track-v1.png","train scenery")
+    scenery.trainCarBogie = loadHorizontalAtlas(
+        "assets/sprites/train/animations/train-car-bogie-run-4-v1.png",4,"train scenery")
+    scenery.track = loadImage("assets/sprites/tracks/railway-track-v2.png","train scenery")
+    scenery.ballastPocketFrames = loadVerticalAtlas(
+        "assets/sprites/tracks/railway-ballast-pocket-run-4-v1.png",4,"train scenery")
 
     local projectileImage = loadImage("assets/sprites/projectiles/projectiles-packed-v1.png","battle scenery")
     if projectileImage then
@@ -461,6 +599,15 @@ end
 function Assets.assertHealthy() return AssetDiagnostics.assertHealthy() end
 function Assets.assetFailureSummary() return AssetDiagnostics.summary() end
 function Assets.assetFailureCount() return AssetDiagnostics.count() end
+
+-- Runtime-generated sprite frames can be shared with the legacy animation
+-- tables without transferring their lifetime to the generic lazy streamer.
+-- Their owner retains both the image and these registrations until it replaces
+-- or explicitly releases them; the registry itself does not keep images alive.
+function Assets.markExternallyOwned(image)
+    if image then externallyOwnedImages[image]=true end
+    return image
+end
 
 function Assets.retainAnimationImages(tables,keep)
     for _,images in ipairs(tables or {}) do releaseLazyImages(images,keep) end

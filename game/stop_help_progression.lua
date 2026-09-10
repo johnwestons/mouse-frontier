@@ -58,17 +58,20 @@ function StopHelp.ensureRequest(layout,npc,kind,location,data)
             local profile=StopHelp.itemRequests[index]
             request.item=profile.item; request.label=profile.label; request.text=profile.text; request.goodwill=2
         else
-            request.text="I took a bad fall and this wound needs attention. Could you help patch me up?"
             request.goodwill=3
         end
         layout.helpRequests[npc]=request
+    end
+    if kind=="aid" then
+        request.text="I've been hurt. This small cut needs medical help - could you treat it?"
+        request.goodwill=request.goodwill or 3
     end
     if data then
         local title=kind=="aid" and "TREAT A WOUNDED CRITTER" or "BRING A NEEDED ITEM"
         local objective=kind=="aid" and "Talk to the wounded critter and offer treatment."
             or ("Find "..(request.label or request.item or "the requested item")..".")
         local quest=HelpQuest.ensure(data,{source=kind=="aid" and "first-aid" or "item-request",kind=kind,mode=kind=="aid" and "minigame" or "dialogue",
-            npc=npc,location=location,title=title,objective=objective,stageCount=kind=="aid" and 4 or 3,
+            npc=npc,location=location,title=title,objective=objective,stageCount=kind=="aid" and 6 or 3,
             goodwill={assisted=1,successful=request.goodwill or (kind=="aid" and 3 or 2),exceptional=(request.goodwill or 2)+1}})
         request.sessionId=quest.id
         if request.complete then HelpQuest.importResolved(data,quest.id,"successful","This critter was already helped.")

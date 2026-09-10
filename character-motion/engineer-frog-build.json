@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "character": "engineer-frog",
+  "source_root": "output/character-motion/engineer-frog/source",
+  "runtime_root": "output/character-motion/engineer-frog/runtime",
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458
+  },
+  "idle_sets": [
+    {
+      "source": "directional-idle-right-set-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle.png", "idle_northeast.png", "idle_southeast.png"]
+    },
+    {
+      "source": "directional-idle-left-core-v1-magenta.png",
+      "rows": 2,
+      "outputs": ["idle_west.png", "idle_northwest.png", "idle_north.png", "idle_southwest.png", "idle_south.png"]
+    }
+  ],
+  "walks": {
+    "walk.png": "walk-east-v1-magenta.png",
+    "walk_northeast.png": "walk-northeast-v1-magenta.png",
+    "walk_north.png": "walk-north-v1-magenta.png",
+    "walk_southeast.png": {
+      "source": "walk-southeast-v1-magenta.png",
+      "frame_adjustments": {
+        "4": { "scale_y": 0.9601 }
+      }
+    },
+    "walk_south.png": "walk-south-v1-magenta.png",
+    "walk_west.png": {
+      "source": "walk-west-v1-magenta.png",
+      "frame_adjustments": {
+        "7": { "scale_x": 0.958 }
+      }
+    },
+    "walk_northwest.png": {
+      "source": "walk-northwest-v1-magenta.png",
+      "frame_adjustments": {
+        "4": { "scale_x": 0.985 }
+      }
+    },
+    "walk_southwest.png": {
+      "source": "walk-southwest-v1-magenta.png",
+      "frame_adjustments": {
+        "8": { "scale_y": 1.038 }
+      }
+    }
+  }
+}

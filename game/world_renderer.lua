@@ -17,6 +17,7 @@ local function new(context)
   local scenery=required(context,"scenery","table")
   local car=required(context,"car","table")
   local colors=required(context,"colors","table")
+  local landscape=required(context,"landscape","table")
   local getCharacterAnimations=required(context,"getCharacterAnimations","function")
   local characterImages=required(context,"characterImages","table")
   local characterWalkImages=required(context,"characterWalkImages","table")
@@ -32,7 +33,12 @@ local function new(context)
   local mobDeathImages=required(context,"mobDeathImages","table")
   local drawStopSludges=required(context,"drawStopSludges","function")
   local drawStopActivity=required(context,"drawStopActivity","function")
+  local drawShootingRangeSpot=required(context,"drawShootingRangeSpot","function")
   local drawWildlife=required(context,"drawWildlife","function")
+  local drawExpeditionRuntime=required(context,"drawExpedition","function")
+  local drawExpeditionTrailhead=required(context,"drawExpeditionTrailhead","function")
+  local drawCaravanRuntime=required(context,"drawCaravanRuntime","function")
+  local drawCaravanGate=required(context,"drawCaravanGate","function")
   local Train=required(context,"train","table")
   local CharacterAnimation=required(context,"characterAnimation","table")
   local Catalog=required(context,"catalog","table")
@@ -44,14 +50,65 @@ local function new(context)
   local itemIsHere=required(context,"itemIsHere","function")
   local pendingMailHere=required(context,"pendingMailHere","function")
   local ensureStopLayout=required(context,"ensureStopLayout","function")
+  local landscapeQuads=setmetatable({},{__mode="k"})
+  local landscapeSeamShader
+  do
+      local ok,shader=pcall(love.graphics.newShader,[=[
+          extern number seamWidth;
+          vec4 effect(vec4 color, Image texture, vec2 textureCoordinates, vec2 screenCoordinates) {
+              float x=fract(textureCoordinates.x);
+              if (x>=seamWidth && x<=1.0-seamWidth) {
+                  return Texel(texture,vec2(x,textureCoordinates.y))*color;
+              }
+              float progress=x>1.0-seamWidth
+                  ? (x-(1.0-seamWidth))/(2.0*seamWidth)
+                  : (x+seamWidth)/(2.0*seamWidth);
+              vec2 leftSample=vec2(1.0-seamWidth+progress*seamWidth,textureCoordinates.y);
+              vec2 rightSample=vec2(progress*seamWidth,textureCoordinates.y);
+              float blend=progress*progress*(3.0-2.0*progress);
+              return mix(Texel(texture,leftSample),Texel(texture,rightSample),blend)*color;
+          }
+      ]=])
+      if ok then landscapeSeamShader=shader end
+  end
 
   local function drawLandscape()
       local backgroundCount=#backgroundImages
       local image = backgroundCount>0 and backgroundImages[((runtime.saveData.location-1)%backgroundCount)+1] or nil
       if image then
           local s=math.max(W/image:getWidth(), H/image:getHeight())
-          local iw=image:getWidth()*s; local offset=runtime.landscapeOffset%iw; love.graphics.setColor(0.78,0.78,0.78)
-          for x=offset-iw, W+iw, iw do love.graphics.draw(image,x,0,0,s,s) end
+          local iw=image:getWidth()*s; local offset=runtime.landscapeOffset%iw
+          local verticalOffset=landscape.verticalOffset or 0
+          local overlap=landscape.seamOverlap or 0
+          local windowWidth,windowHeight=love.graphics.getDimensions()
+          local viewportScale=math.min(windowWidth/W,windowHeight/H)
+          local visibleWidth=windowWidth/viewportScale
+          local drawLeft=-(visibleWidth-W)/2-overlap
+          local drawWidth=visibleWidth+overlap*2
+          local quads=landscapeQuads[image]
+          if not quads then
+              -- A cyclic feather joins the last and first 64 source pixels.
+              -- Unlike mirrored repeat, it removes both the black gap and the
+              -- visible reflection cusp at the direction change.
+              image:setWrap(landscapeSeamShader and "repeat" or "mirroredrepeat","clamp")
+              local skyHeight=math.min(image:getHeight(),math.ceil(verticalOffset/s))
+              quads={body=love.graphics.newQuad(0,0,image:getWidth(),image:getHeight(),image:getDimensions()),sky=verticalOffset>0 and love.graphics.newQuad(0,0,image:getWidth(),skyHeight,image:getDimensions()) or nil,skyHeight=skyHeight}
+              landscapeQuads[image]=quads
+          end
+          local sourceX=(drawLeft-offset)/s
+          local sourceWidth=drawWidth/s
+          quads.body:setViewport(sourceX,0,sourceWidth,image:getHeight(),image:getDimensions())
+          if quads.sky then quads.sky:setViewport(sourceX,0,sourceWidth,quads.skyHeight,image:getDimensions()) end
+          love.graphics.setColor(0.78,0.78,0.78)
+          -- One repeated overscan draw crosses the canvas origin, covers
+          -- fullscreen side pillars, and removes separate tile-edge draws.
+          if landscapeSeamShader then
+              landscapeSeamShader:send("seamWidth",math.min(.12,64/image:getWidth()))
+              love.graphics.setShader(landscapeSeamShader)
+          end
+          if quads.sky then love.graphics.draw(image,quads.sky,drawLeft,verticalOffset,0,s,-s) end
+          love.graphics.draw(image,quads.body,drawLeft,verticalOffset,0,s,s)
+          if landscapeSeamShader then love.graphics.setShader() end
       else love.graphics.clear(0.55,0.37,0.20) end
   end
 
@@ -67,7 +124,8 @@ local function new(context)
   end
 
   local function drawTracks()
-      if Train.drawTracks(scenery.track,W) then return end
+      if Train.drawTracks({base=scenery.track,ballastFrames=scenery.ballastPocketFrames},
+          W,runtime.sceneryOffset) then return end
       -- Fallback track uses the same rail baseline as the artwork-backed path.
       local railY=Train.railY
       local farRailY=railY-(414-300)*(W/2172)
@@ -78,9 +136,10 @@ local function new(context)
   end
 
   local function drawLocomotive()
-      local frames=scenery.worldTrainFrames or {}; local frameIndex=(math.floor(runtime.trainAnimationClock)%3)+1; local image=frames[frameIndex] or scenery.worldTrain
-      if not image then return end
-      Train.drawLocomotive(image,frames[frameIndex] and frameIndex or nil,car)
+      Train.drawLocomotive({body=scenery.worldTrainBody,runningGear=scenery.worldTrainRunningGear,
+          generatedShader=scenery.generatedAlphaCutoffShader,
+          smokeFrames=scenery.worldTrainSmokeFrames,fallback=scenery.worldTrain},
+          car,runtime.sceneryOffset,runtime.animationClock)
   end
 
   local function drawTrainCar(index)
@@ -89,6 +148,10 @@ local function new(context)
       local carImage=carId and scenery.trainCarImages and scenery.trainCarImages[carId]
       if carImage then
           Train.drawCarImage(carImage,car)
+          Train.drawCarRunningGear(scenery.trainCarBogie,car,runtime.sceneryOffset,
+              scenery.generatedAlphaCutoffShader)
+          if index==1 then Train.drawConsistConnection(car,scenery.worldTrainRunningGear,
+              scenery.generatedAlphaCutoffShader) end
           if index==1 then
               if scenery.boiler then local s=150/scenery.boiler:getHeight(); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.boiler,x+165,y+244,0,s,s,scenery.boiler:getWidth()/2,scenery.boiler:getHeight()/2) end
               local fireFrame=scenery.fireFrames and scenery.fireFrames[(math.floor(runtime.animationClock/0.55)%#scenery.fireFrames)+1] or scenery.fire
@@ -120,22 +183,22 @@ local function new(context)
       end
   end
 
-  local function drawAnimatedCharacter(file,action,x,y,maxW,maxH,facing,phase)
-      return CharacterAnimation.draw(getCharacterAnimations(),file,action,x,y,maxW,maxH,facing,phase,runtime.animationClock)
+  local function drawAnimatedCharacter(file,action,x,y,maxW,maxH,facing,phase,motion)
+      return CharacterAnimation.draw(getCharacterAnimations(),file,action,x,y,maxW,maxH,facing,phase,runtime.animationClock,motion)
   end
 
-  local function drawPlayer()
+  local function drawPlayer(drawShadow)
       if not runtime.player.image then return end
       if getCharacterAnimations()[runtime.saveData.character] then
           if runtime.player.moving and runtime.actionTimer<=0 then
-              love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7)
-              if drawAnimatedCharacter(runtime.saveData.character,"walk",runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,runtime.animationClock) then return end
+              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
+              if drawAnimatedCharacter(runtime.saveData.character,"walk",runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,runtime.animationClock,runtime.player) then return end
           end
           if not runtime.player.moving or runtime.actionTimer>0 then
               local action=runtime.actionTimer>0 and (runtime.actionKind or "use") or (runtime.playerPose=="sit" and "sit" or (runtime.playerPose=="lay" and "lay" or "idle"))
-              love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7)
+              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
               local actionPhase=runtime.actionTimer>0 and math.max(0,.35-runtime.actionTimer) or runtime.animationClock
-              drawAnimatedCharacter(runtime.saveData.character,action,runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,actionPhase)
+              drawAnimatedCharacter(runtime.saveData.character,action,runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,actionPhase,runtime.player)
               if runtime.actionTimer>0 and runtime.actionHeldItem then
                   local combat=Catalog.weaponCombat[runtime.actionHeldItem]
                   local attached=combat and (action=="melee" or action=="ranged") and WeaponAttachment.draw(
@@ -158,14 +221,15 @@ local function new(context)
           if walk then image=walk; drawFacing=-runtime.player.facing; scale=math.min(0.075,90/image:getHeight()) end
       end
       local bob=0
-      love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7)
+      if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
       local rotation,scaleY,yOffset=0,scale,0
       if runtime.playerPose=="sit" then scaleY=scale*.72; yOffset=10 elseif runtime.playerPose=="lay" then rotation=math.pi/2; scaleY=scale*.82; yOffset=16 end
       love.graphics.setColor(1,1,1); love.graphics.draw(image,runtime.player.x,runtime.player.y+bob+yOffset,rotation,scale*drawFacing,scaleY,image:getWidth()/2,image:getHeight()/2)
   end
 
   local function drawDroppedItems(carIndex)
-      local cacheKey=carIndex and ("train:"..tostring(carIndex)) or (runtime.scene..":"..tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.activeHouseDoor or 0))
+      local sceneDetail=runtime.scene=="expedition" and runtime.saveData.activeExpeditionArea or runtime.saveData.activeHouseDoor or 0
+      local cacheKey=carIndex and ("train:"..tostring(carIndex)) or (runtime.scene..":"..tostring(runtime.saveData.location)..":"..tostring(sceneDetail))
       local revision=ui.itemOrderRevision or 0
       ui.itemOrderCache=ui.itemOrderCache or {}
       local cached=ui.itemOrderCache[cacheKey]
@@ -219,18 +283,20 @@ local function new(context)
       local npcFile=runtime.saveData.currentNPC; local img=npcFile and (npcImages[npcFile] or characterImages[npcFile])
       if not (img and runtime.npcActor) then return end
       local idle=0
-      if runtime.npcActor.targetX and getCharacterAnimations()[npcFile] then
+      local animationSet=getCharacterAnimations()[npcFile]
+      local walking=runtime.npcActor.targetX and (not (animationSet and animationSet.directional) or runtime.npcActor.moving)
+      if walking and animationSet then
           love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",runtime.npcActor.x,runtime.npcActor.y+28,20,7)
-          if drawAnimatedCharacter(npcFile,"walk",runtime.npcActor.x,runtime.npcActor.y+34,82,104,runtime.npcActor.facing or 1,runtime.animationClock) then
+          if drawAnimatedCharacter(npcFile,"walk",runtime.npcActor.x,runtime.npcActor.y+34,82,104,runtime.npcActor.facing or 1,runtime.animationClock,runtime.npcActor) then
               love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),runtime.npcActor.x-100,runtime.npcActor.y+50,200,"center")
               Family.draw(runtime.npcActor,familyImages,runtime.animationClock)
               return
           end
-      elseif runtime.npcActor.targetX and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then img=npcWalkImages[npcFile] or characterWalkImages[npcFile] end
+      elseif walking and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then img=npcWalkImages[npcFile] or characterWalkImages[npcFile] end
       local s=math.min(0.075,90/img:getHeight()); local facing=-(runtime.npcActor.facing or 1)
-      if runtime.npcActor.targetX and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then facing=-facing end
+      if walking and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then facing=-facing end
       love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",runtime.npcActor.x,runtime.npcActor.y+28,20,7)
-      if not runtime.npcActor.targetX and drawAnimatedCharacter(npcFile,"idle",runtime.npcActor.x,runtime.npcActor.y+34,82,104,facing) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,runtime.npcActor.x,runtime.npcActor.y+idle,0,s*facing,s,img:getWidth()/2,img:getHeight()/2) end
+      if not walking and drawAnimatedCharacter(npcFile,"idle",runtime.npcActor.x,runtime.npcActor.y+34,82,104,facing,nil,runtime.npcActor) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,runtime.npcActor.x,runtime.npcActor.y+idle,0,s*facing,s,img:getWidth()/2,img:getHeight()/2) end
       love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),runtime.npcActor.x-100,runtime.npcActor.y+50,200,"center")
       if pendingMailHere() and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=34/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,runtime.npcActor.x,runtime.npcActor.y-82+math.sin(runtime.animationClock*4)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2) end
       Family.draw(runtime.npcActor,familyImages,runtime.animationClock)
@@ -240,8 +306,8 @@ local function new(context)
       local visibleCar=carIndex or (runtime.saveData.activeCar or 1)
       for i,passenger in ipairs(runtime.saveData.passengers or {}) do
           if (passenger.carIndex or 1)==visibleCar then
-          local moving=passenger.targetX~=nil; local legacyWalk=moving and (npcWalkImages[passenger.npc] or characterWalkImages[passenger.npc]); local img=legacyWalk or npcImages[passenger.npc] or characterImages[passenger.npc]
-          if img then local s=math.min(.075,90/img:getHeight()); local face=passenger.facing or 1; love.graphics.setColor(0,0,0,0.22); love.graphics.ellipse("fill",passenger.x,passenger.y+28,20,7); if drawAnimatedCharacter(passenger.npc,moving and "walk" or (passenger.pose or "idle"),passenger.x,passenger.y+34,82,104,face,runtime.animationClock+i*.2) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,passenger.x,passenger.y,0,s*(legacyWalk and -face or -face),s,img:getWidth()/2,img:getHeight()/2) end end
+          local passengerSet=getCharacterAnimations()[passenger.npc]; local moving=passenger.targetX~=nil and (not (passengerSet and passengerSet.directional) or passenger.moving); local legacyWalk=moving and (npcWalkImages[passenger.npc] or characterWalkImages[passenger.npc]); local img=legacyWalk or npcImages[passenger.npc] or characterImages[passenger.npc]
+          if img then local s=math.min(.075,90/img:getHeight()); local face=passenger.facing or 1; love.graphics.setColor(0,0,0,0.22); love.graphics.ellipse("fill",passenger.x,passenger.y+28,20,7); if drawAnimatedCharacter(passenger.npc,moving and "walk" or (passenger.pose or "idle"),passenger.x,passenger.y+34,82,104,face,runtime.animationClock+i*.2,passenger) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,passenger.x,passenger.y,0,s*(legacyWalk and -face or -face),s,img:getWidth()/2,img:getHeight()/2) end end
           end
       end
   end
@@ -273,6 +339,9 @@ local function new(context)
               love.graphics.draw(image,trainX,trainY-8,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
           end
           drawStopActivity()
+          drawShootingRangeSpot()
+          drawExpeditionTrailhead()
+          drawCaravanGate()
           drawDroppedItems()
           drawStopSludges(sludgeImages())
           drawWildlife(ensureStopLayout())
@@ -306,6 +375,9 @@ local function new(context)
       if house then local s=280/house:getHeight(); love.graphics.draw(house,layout.houseX or 520,515,0,s,s,house:getWidth()/2,house:getHeight()) end
       if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
       drawStopActivity()
+      drawShootingRangeSpot()
+      drawExpeditionTrailhead()
+      drawCaravanGate()
       drawDroppedItems()
       drawStopSludges(sludgeImages())
       drawWildlife(layout)
@@ -330,6 +402,29 @@ local function new(context)
       InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
       drawNPC(); drawPlayer()
       InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+  end
+
+  local function drawExpedition()
+      drawExpeditionRuntime({drawDroppedItems=drawDroppedItems,drawPlayer=drawPlayer})
+  end
+
+  local function drawCaravan()
+      drawCaravanRuntime({
+          drawDroppedItems=drawDroppedItems,
+          drawPlayer=function() drawPlayer(false) end,
+          characterImages=npcImages,
+          caravanAssets=scenery.crowCaravanAssets,
+          props=scenery.stopProps or {},
+          drawAnimatedCharacter=function(file,action,x,y,maxW,maxH,facing,phase,_,actor)
+              return drawAnimatedCharacter(file,action,x,y,maxW,maxH,facing,phase,actor)
+          end,
+          drawUnderlay=function()
+              InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          end,
+          drawOverlay=function()
+              InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          end,
+      })
   end
   
   local function drawTrainView(focusIndex,offsetX,playerCar,playerX,playerY)
@@ -360,6 +455,8 @@ local function new(context)
     drawGround=drawGround,
     drawStop=drawStop,
     drawHouse=drawHouse,
+    drawExpedition=drawExpedition,
+    drawCaravan=drawCaravan,
     drawTrainView=drawTrainView
   }
 end

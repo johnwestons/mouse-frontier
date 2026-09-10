@@ -1,5 +1,10 @@
 # Character sprite workflow
 
+For eight-direction locomotion upgrades, start with
+`character-motion/README.md`. The directional runtime is opt-in by complete
+asset set, so the legacy rules below continue to apply to characters that have
+not yet been upgraded.
+
 `character_sprite_doctor.py` is the single entry point for checking, repairing, and importing character animation art. It understands the game’s actual runtime contract and the project’s established source formats.
 
 ## Canonical runtime format
@@ -75,7 +80,7 @@ python tools/character_sprite_doctor.py import-atlas CHARACTER path/to/master.pn
 Install it after review:
 
 ```powershell
-python tools/character_sprite_doctor.py import-atlas CHARACTER path/to/master.png --apply --contact-sheet
+python tools/character_sprite_doctor.py import-atlas CHARACTER path/to/master.png --apply --reviewed-contact-sheet
 ```
 
 If the character already has unconscious art, the three authored walk poses are expanded into the established six-frame forward/back loop. The master is retained as `complete-transparent-source.png` when applied.
@@ -86,10 +91,10 @@ Generated horizontal strips can be processed independently:
 
 ```powershell
 python tools/character_sprite_doctor.py import-action CHARACTER melee path/to/melee.png --contact-sheet
-python tools/character_sprite_doctor.py import-action CHARACTER melee path/to/melee.png --apply --contact-sheet
+python tools/character_sprite_doctor.py import-action CHARACTER melee path/to/melee.png --apply --reviewed-contact-sheet
 ```
 
-Use `--source-frames N` when the source panel count is not the action’s final frame count. Green-screen removal only follows green pixels connected to the image edge, which protects green costume details.
+Imports always write a contact sheet. `--apply` is rejected until `--reviewed-contact-sheet` explicitly confirms that the preview was inspected; a clean geometry audit is not visual approval. Use `--source-frames N` when the source panel count is not the action’s final frame count. Green-screen removal only follows green pixels connected to the image edge, which protects green costume details.
 
 ## Weapon attachment points
 
@@ -154,12 +159,15 @@ Coordinates are normalized within the character's 512×512 action cell, so place
 - empty or edge-clipped frames;
 - bad crops, faint alpha residue, frame-boundary bleed, and suspicious detached fragments;
 - mismatched visible scale, horizontal center, and foot baseline;
+- unusual top-bound variation and substantial components entering from panel boundaries;
+- abrupt adjacent-frame scale, palette, silhouette, and within-action identity drift;
+- exact duplicate frames, low effective motion, and unusually harsh idle/walk loop seams;
 - missing required and recommended actions;
 - action art whose palette identity strongly matches another character.
 
 Geometry repairs are automatic because they do not alter the meaning of a pose. Missing sheets are rebuilt automatically only from a same-character action source or master atlas. If no trustworthy source exists, the report says that new authored art is needed rather than copying an idle pose and calling it complete.
 
-An edge-clipped frame can be reframed, but pixels already lost outside the source cannot be reconstructed. Those repairs are marked medium-confidence and remain on the review list. Small detached opaque components are also reported rather than deleted automatically because they may be an intentional spark, weapon, or dropped accessory.
+Connected-component analysis runs on every frame even when all basic geometry passes. An edge-clipped frame can be reframed, but pixels already lost outside the source cannot be reconstructed. Those repairs are marked medium-confidence and remain on the review list. Detached opaque components are reported rather than deleted automatically because they may be an intentional spark, weapon, or dropped accessory.
 
 Identity assignment is audit-only by default. `repair --identity-swaps` permits only reciprocal high-confidence swaps, where two characters’ matching action sheets clearly belong to each other. One-way identity mistakes remain flagged for authored replacement.
 

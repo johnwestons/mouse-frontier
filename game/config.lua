@@ -6,7 +6,12 @@ local Config = {
     minimumWidth = 720,
     minimumHeight = 540,
     holdPickupSeconds = 0.85,
-    trainCar = {x = 315, y = 280, w = 620, h = 363, gap = 0, wall = 16},
+    -- The landscape is lowered to the rail-side ground line marked in the
+    -- presentation reference. A small overscan protects the fullscreen edge.
+    landscape = {verticalOffset = 90, seamOverlap = 2, trackSpeed = 1.08},
+    -- Keep the locomotive/car union centered on the 960-wide authored stage.
+    -- The locomotive has its own additional left offset in game/train.lua.
+    trainCar = {x = 429, y = 280, w = 620, h = 363, gap = 0, wall = 16},
     colors = {
         ink = {0.10, 0.065, 0.04},
         wall = {0.31, 0.20, 0.12},

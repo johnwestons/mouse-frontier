@@ -1,0 +1,60 @@
+[AUDIO] Registered 4 canonical track(s) for battle
+[AUDIO] Registered 2 canonical track(s) for bossFight
+[AUDIO] Registered 9 canonical track(s) for chill
+[AUDIO] Registered 9 canonical track(s) for vibes
+[AUDIO] Registered 2 canonical track(s) for endingHappy
+[AUDIO] Registered 3 canonical track(s) for insideHomes
+[AUDIO] Registered 4 canonical track(s) for stops
+[AUDIO] Registered 4 canonical track(s) for train
+mobile: PASS fresh isolated journey loads in full application
+mobile: PASS QA journey remains unslotted
+mobile: PASS QA uses isolated save identity
+mobile: Full application renderer; mobile 1280x720
+mobile: CAPTURE mobile-01-stop-trailhead.png
+mobile: PASS enter stop06-outskirts
+mobile: PASS scene and area agree
+mobile: CAPTURE mobile-02-surface-exploration.png
+mobile: PASS M opens local area map
+mobile: CAPTURE mobile-03-surface-area-map.png
+mobile: PASS visible local map close control works
+mobile: PASS settings pause player and pursuing mobs
+mobile: CAPTURE mobile-04-settings-pause.png
+mobile: PASS surface cache is reachable and selected
+mobile: PASS cache opens through real interaction
+mobile: PASS cache inventory is visible
+mobile: CAPTURE mobile-05-surface-cache.png
+mobile: PASS enter stop06-buried-waystation
+mobile: PASS scene and area agree
+mobile: CAPTURE mobile-06-dungeon-exploration.png
+mobile: PASS dungeon map opens
+mobile: CAPTURE mobile-07-dungeon-area-map.png
+mobile: PASS guardian gate begins closed
+mobile: CAPTURE mobile-08-dungeon-closed-gate.png
+mobile: PASS defeating both wardens opens gate
+mobile: PASS boss exposes deliberate challenge interaction
+mobile: CAPTURE mobile-09-boss-arena.png
+mobile: PASS boss challenge starts tactical encounter
+mobile: PASS normal battle runtime entered
+mobile: PASS field damage carries to boss battle exactly
+mobile: PASS battle intro finishes through normal updates
+mobile: CAPTURE mobile-10-boss-battle.png
+mobile: PASS real battle completion resolves victory
+mobile: CAPTURE mobile-11-battle-victory.png
+mobile: PASS victory returns to correct area
+mobile: PASS victory restores exact battle entry point
+mobile: PASS boss death opens corruption vault
+mobile: CAPTURE mobile-12-victory-return.png
+mobile: PASS victory vault can be reached
+mobile: PASS victory vault opens
+mobile: CAPTURE mobile-13-vault-reward.png
+mobile: PASS enter stop06-outskirts
+mobile: PASS scene and area agree
+mobile: PASS real battle completion resolves defeat
+mobile: PASS defeat returns to train and clears area
+mobile: PASS defeat places player on valid train floor
+mobile: PASS returning player is fully inside the viewport
+mobile: PASS defeat uses clear central-floor safe arrival
+mobile: PASS defeat clears movement momentum
+mobile: PASS safe arrival keeps player clear of touch USE control
+mobile: CAPTURE mobile-14-defeat-return-train.png
+mobile: PASS all 14 full application captures and transition assertions

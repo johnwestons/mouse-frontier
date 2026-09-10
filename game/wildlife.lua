@@ -39,8 +39,7 @@ function Wildlife.spawn(layout,location,settlements)
     layout.chickensInitialized=true
     layout.wildlife={}
     local seed=(location or 1)*41+3
-    local feedActivity=layout.worldActivity and layout.worldActivity.kind=="wildlife-trough"
-    layout.chickensEnabled=(seed%100)<40 or feedActivity
+    layout.chickensEnabled=(seed%100)<40
     if not layout.chickensEnabled then return layout.wildlife end
 
     local centerX,centerY=nearbyWalkable(250+(seed%430),430+(seed%145),location,settlements)
