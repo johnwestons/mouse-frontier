@@ -32,7 +32,6 @@ local function new(context)
   local mobHitImages=required(context,"mobHitImages","table")
   local mobDeathImages=required(context,"mobDeathImages","table")
   local drawStopSludges=required(context,"drawStopSludges","function")
-  local drawStopActivity=required(context,"drawStopActivity","function")
   local drawShootingRangeSpot=required(context,"drawShootingRangeSpot","function")
   local drawWildlife=required(context,"drawWildlife","function")
   local drawExpeditionRuntime=required(context,"drawExpedition","function")
@@ -338,7 +337,6 @@ local function new(context)
               love.graphics.setColor(1,1,1,.92)
               love.graphics.draw(image,trainX,trainY-8,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
           end
-          drawStopActivity()
           drawShootingRangeSpot()
           drawExpeditionTrailhead()
           drawCaravanGate()
@@ -374,7 +372,6 @@ local function new(context)
       if treeB then local x=layout.treeB or 830; local s=180/treeB:getHeight(); local sway=math.sin(runtime.animationClock*.67+x*.019+1.7)*math.rad(.8); love.graphics.draw(treeB,x,495,sway,s,s,treeB:getWidth()/2,treeB:getHeight()) end
       if house then local s=280/house:getHeight(); love.graphics.draw(house,layout.houseX or 520,515,0,s,s,house:getWidth()/2,house:getHeight()) end
       if scenery.redTrain then local s=74/math.max(scenery.redTrain:getWidth(),scenery.redTrain:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(scenery.redTrain,145,405,0,s,s,scenery.redTrain:getWidth()/2,scenery.redTrain:getHeight()/2) end
-      drawStopActivity()
       drawShootingRangeSpot()
       drawExpeditionTrailhead()
       drawCaravanGate()

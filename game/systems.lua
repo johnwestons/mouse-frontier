@@ -55,7 +55,6 @@ return {
     shootingRange = require("game.shooting_range"),
     stopHelpProgression = require("game.stop_help_progression"),
     npcRelationships = require("game.npc_relationships"),
-    stopActivities = require("game.stop_activities"),
     startupRuntime = require("game.startup_runtime"),
     startupComposition = require("game.startup_composition"),
     trainCarRuntime = require("game.train_car_runtime"),

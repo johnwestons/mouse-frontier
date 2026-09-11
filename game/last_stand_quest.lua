@@ -140,6 +140,7 @@ function Quest.new(context)
     end
 
     local function enterScene(state,mode)
+        state.aimTouch=nil; state.aimTouchSession=nil
         state.mode=mode
         state.capture=true
         state.scene=state.scene or Scene.new(mode,state.quest)
@@ -409,8 +410,11 @@ function Quest.new(context)
         end
         if state.mode=="shootout" and not state.paused then
             local gun=state.shootout.gun
-            Shootout.setAim(state.shootout,math.max(0,math.min(width,gun.aimX+axis("rightx")*340*dt)),
-                math.max(0,math.min(height,gun.aimY+axis("righty")*340*dt)))
+            local aimDX,aimDY=axis("rightx"),axis("righty")
+            if aimDX~=0 or aimDY~=0 then
+                Shootout.setAim(state.shootout,math.max(0,math.min(width,gun.aimX+aimDX*340*dt)),
+                    math.max(0,math.min(height,gun.aimY+aimDY*340*dt)))
+            end
             local aiming=pad:getGamepadAxis("triggerleft")>.4
             if aiming~=controllerADS or (aiming and controllerGun~=gun) then Shootout.setADS(state.shootout,aiming) end
             controllerADS=aiming; controllerGun=gun
@@ -492,7 +496,9 @@ function Quest.new(context)
             return true
         end
         if state.mode=="shootout" then
+            local healthBefore=runtime.saveData.health
             local result=Shootout.update(state.shootout,dt,runtime.saveData,Catalog,width,height)
+            if runtime.saveData.health~=healthBefore then save() end
             if result=="intermission" then
                 local phase=state.shootout.stage
                 state.quest.intermission=phase
@@ -500,10 +506,13 @@ function Quest.new(context)
                 state.notice={text=Tuning.phases[phase].line,timer=8}
                 state.shootout=nil
             elseif result=="retreat" then
+                local wounded=state.shootout.retreatReason=="wounded"
                 Shootout.retry(state.shootout)
                 enterScene(state,"interior")
                 state.quest.intermission=Tuning.phase(state.quest.holdElapsed)
-                state.notice={text="The defenders pull you back. The current phase will restart; earlier progress and eliminations are safe.",timer=7}
+                state.notice={text=wounded
+                    and "Guard Fox pulls you below the window, badly wounded. Your health is still low. Return to the train to heal before trying again."
+                    or "The defenders pull you back. The current phase will restart; earlier progress and eliminations are safe.",timer=7}
                 state.shootout=nil
                 save()
             elseif result=="victory" then
@@ -579,7 +588,7 @@ function Quest.new(context)
             elseif key=="r" then Shootout.reload(state.shootout,runtime.saveData)
             elseif key=="l" then Shootout.supply(state.shootout,runtime.saveData,Catalog)
             elseif key=="tab" then Shootout.cycleWeapon(state.shootout,runtime.saveData,Catalog)
-            elseif key=="c" then state.shootout.ducking=not state.shootout.ducking
+            elseif key=="c" then Shootout.setCover(state.shootout,not state.shootout.ducking)
             elseif key=="return" and state.shootout.result=="retreat" then Shootout.retry(state.shootout)
             elseif key=="space" then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog)
             end
@@ -634,7 +643,7 @@ function Quest.new(context)
                 if state.shootout.result=="retreat" or Shootout.needsSupply(state.shootout,runtime.saveData) then
                     return Shootout.mousepressed(state.shootout,x,y,1,runtime.saveData,Catalog,width,height)
                 end
-                Shootout.setAim(state.shootout,x,y)
+                Shootout.setTouchAim(state.shootout,x,y,width,height)
                 return true
             end
             Shootout.setAim(state.shootout,x,y)
@@ -681,7 +690,18 @@ function Quest.new(context)
         state.touchControls=true
         if state.mode=="shootout" then
             state.shootout.touchControls=true
-            if not Shootout.touchAction(x,y,width,height) and not state.aimTouch then state.aimTouch=id end
+            if state.aimTouchSession~=state.shootout then state.aimTouch=nil; state.aimTouchSession=state.shootout end
+            if not state.paused and not state.treatment and not state.handoff
+                and not Shootout.touchAction(x,y,width,height) and state.shootout.result~="retreat"
+                and not Shootout.needsSupply(state.shootout,runtime.saveData) then
+                if state.aimTouch then
+                    if state.aimTouch~=id then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog) end
+                else
+                    state.aimTouch=id
+                    Shootout.setTouchAim(state.shootout,x,y,width,height)
+                end
+                return true
+            end
         end
         return self:mousepressed(x,y,1,true)
     end
@@ -689,7 +709,12 @@ function Quest.new(context)
     function service:touchmoved(id,x,y)
         local state=runtime.lastStand
         if not state or not state.capture then return false end
-        if state.mode=="shootout" and state.aimTouch~=id then return true end
+        if state.mode=="shootout" and not state.treatment then
+            if not state.paused and state.aimTouch==id and state.aimTouchSession==state.shootout then
+                Shootout.setTouchAim(state.shootout,x,y,width,height)
+            end
+            return true
+        end
         return self:mousemoved(x,y)
     end
 
@@ -702,6 +727,7 @@ function Quest.new(context)
 
     function service:focus(focused)
         if not focused and runtime.lastStand and runtime.lastStand.capture then
+            runtime.lastStand.aimTouch=nil
             runtime.lastStand.paused=true
             save()
         end

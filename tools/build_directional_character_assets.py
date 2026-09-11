@@ -39,20 +39,63 @@ def project_path(value: str) -> Path:
     return path if path.is_absolute() else ROOT / path
 
 
-def remove_magenta_matte(image: Image.Image) -> Image.Image:
-    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+def magenta_matte_mask(rgba: np.ndarray) -> np.ndarray:
     red = rgba[:, :, 0].astype(np.int16)
     green = rgba[:, :, 1].astype(np.int16)
     blue = rgba[:, :, 2].astype(np.int16)
-    magenta = (
+    return (
         (red >= 155)
         & (blue >= 105)
         & (green <= 130)
         & ((red + blue - 2 * green) >= 190)
         & (np.abs(red - blue) <= 125)
     )
+
+
+def remove_magenta_matte(image: Image.Image) -> Image.Image:
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    magenta = magenta_matte_mask(rgba)
     rgba[magenta, 3] = 0
     rgba[magenta, :3] = 0
+    return Image.fromarray(rgba, "RGBA")
+
+
+def remove_edge_connected_magenta_fringe_pixels(image: Image.Image) -> Image.Image:
+    """Clear reviewed magenta matte/fringe only along a background connection.
+
+    The tight dark-fringe match requires balanced red/blue, very little green,
+    and clear chroma above black. Four-connected flooding starts at transparent
+    neighbors or the outside image boundary and cannot cross a subject-colored
+    outline. Enclosed colors present in this input are preserved. The builder
+    applies this pass after its separately approved hard-magenta matte removal;
+    this pass does not replace or broaden that existing rule. Sources are never
+    mutated.
+    """
+    rgba = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    red, green, blue = (rgba[:, :, channel].astype(np.int16) for channel in range(3))
+    dark_fringe = (
+        (red >= 64) & (blue >= 64) & (green <= 96)
+        & (np.minimum(red, blue) - green >= 48)
+        & (np.abs(red - blue) <= 64)
+    )
+    visible = rgba[:, :, 3] >= ALPHA_THRESHOLD
+    candidate = visible & (magenta_matte_mask(rgba) | dark_fringe)
+    height, width = candidate.shape
+    transparent = ~visible
+    padded = np.pad(transparent, 1, constant_values=True)
+    boundary = (
+        padded[:-2, 1:-1] | padded[2:, 1:-1]
+        | padded[1:-1, :-2] | padded[1:-1, 2:]
+    )
+    connected = candidate & boundary
+    queue: deque[tuple[int, int]] = deque((int(y), int(x)) for y, x in np.argwhere(connected))
+    while queue:
+        y, x = queue.popleft()
+        for next_y, next_x in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+            if 0 <= next_y < height and 0 <= next_x < width and candidate[next_y, next_x] and not connected[next_y, next_x]:
+                connected[next_y, next_x] = True
+                queue.append((next_y, next_x))
+    rgba[connected, :] = 0
     return Image.fromarray(rgba, "RGBA")
 
 
@@ -394,6 +437,7 @@ def normalize_strip(
     horizontal_anchor: str = "bbox",
     remove_edge_connected_checker: bool = False,
     source_resolution_scales: list[float] | None = None,
+    remove_edge_connected_magenta_fringe: bool = False,
 ) -> tuple[Image.Image, dict[str, object]]:
     if not isinstance(horizontal_anchor, str) or horizontal_anchor not in HORIZONTAL_ANCHORS:
         raise ValueError(
@@ -402,6 +446,8 @@ def normalize_strip(
         )
     if not isinstance(remove_edge_connected_checker, bool):
         raise ValueError("remove_edge_connected_checker must be a boolean")
+    if not isinstance(remove_edge_connected_magenta_fringe, bool):
+        raise ValueError("remove_edge_connected_magenta_fringe must be a boolean")
     if source_resolution_scales is None:
         resolution_scales = [1.0] * len(cells)
     elif (
@@ -420,7 +466,19 @@ def normalize_strip(
         )
     else:
         resolution_scales = [float(value) for value in source_resolution_scales]
-    transparent = [remove_magenta_matte(cell) for cell in cells]
+    magenta_removed_pixels: list[int] = []
+    magenta_fringe_removed_pixels: list[int] = []
+    if remove_edge_connected_magenta_fringe:
+        transparent = []
+        for cell in cells:
+            original = np.asarray(cell.convert("RGBA"), dtype=np.uint8)
+            cleaned = remove_edge_connected_magenta_fringe_pixels(remove_magenta_matte(cell))
+            removed = (original[:, :, 3] >= ALPHA_THRESHOLD) & (np.asarray(cleaned.getchannel("A")) < ALPHA_THRESHOLD)
+            magenta_removed_pixels.append(int(np.count_nonzero(removed)))
+            magenta_fringe_removed_pixels.append(int(np.count_nonzero(removed & ~magenta_matte_mask(original))))
+            transparent.append(cleaned)
+    else:
+        transparent = [remove_magenta_matte(cell) for cell in cells]
     checker_removed_pixels: list[int] = []
     if remove_edge_connected_checker:
         checker_cleaned: list[Image.Image] = []
@@ -465,7 +523,6 @@ def normalize_strip(
         zip(transparent, boxes, source_anchors, resolution_scales), 1
     ):
         crop = frame.crop(box)
-        source_crop_width = crop.width
         adjustment = adjustments.get(str(index), {})
         scale_x = float(adjustment.get("scale_x", 1.0))
         scale_y = float(adjustment.get("scale_y", 1.0))
@@ -476,7 +533,10 @@ def normalize_strip(
         crop = crop.resize((width, height), Image.Resampling.NEAREST)
         canvas = Image.new("RGBA", (frame_size, frame_size), (0, 0, 0, 0))
         if horizontal_anchor == "core":
-            anchor_in_crop = (source_anchor - box[0]) * width / source_crop_width
+            # Nearest-neighbor resampling changes discrete support weights.
+            # Measure the actual output pixels, not a scaled source estimate,
+            # so the renderer and doctor's core anchor agree after rounding.
+            anchor_in_crop = core_horizontal_anchor_x(crop, visible_bbox(crop))
             left = round(center_x - anchor_in_crop)
             output_anchor = left + anchor_in_crop
         else:
@@ -513,8 +573,12 @@ def normalize_strip(
         "widest_source_frame": round(widest, 3),
         "horizontal_anchor": horizontal_anchor,
         "remove_edge_connected_checker": remove_edge_connected_checker,
+        "remove_edge_connected_magenta_fringe": remove_edge_connected_magenta_fringe,
         "normalized_frames": frame_data,
     }
+    if remove_edge_connected_magenta_fringe:
+        details["magenta_matte_and_fringe_removed_pixels"] = magenta_removed_pixels
+        details["edge_connected_magenta_fringe_removed_pixels"] = magenta_fringe_removed_pixels
     if remove_edge_connected_checker:
         details["edge_connected_checker_removed_pixels"] = checker_removed_pixels
     return strip, details
@@ -569,10 +633,13 @@ def visible_height_for_resolution_normalization(
     *,
     drop_boundary_spill: bool = False,
     remove_edge_connected_checker: bool = False,
+    remove_edge_connected_magenta_fringe: bool = False,
 ) -> int:
     """Measure visible height using the same safe cleanup as normalization."""
 
     prepared = remove_magenta_matte(image)
+    if remove_edge_connected_magenta_fringe:
+        prepared = remove_edge_connected_magenta_fringe_pixels(prepared)
     if remove_edge_connected_checker:
         prepared = remove_edge_connected_checker_matte(prepared)
     if drop_boundary_spill:
@@ -593,6 +660,29 @@ def positive_finite_number(value: object, location: str) -> float:
     return float(value)
 
 
+def reorder_walk_source_frames(
+    cells: list[Image.Image], source_frame_indices: object
+) -> list[Image.Image]:
+    """Map selected atlas cells into the eight canonical gait phase slots.
+
+    Indices address the row-selected cells, not the original atlas. Every cell
+    must occur exactly once: resequencing may correct phase order but cannot
+    manufacture movement by duplicating or omitting authored poses. Standalone
+    frame overrides are applied afterwards in canonical output-slot order.
+    """
+
+    if (
+        not isinstance(source_frame_indices, list)
+        or len(source_frame_indices) != 8
+        or any(type(index) is not int for index in source_frame_indices)
+        or set(source_frame_indices) != set(range(8))
+    ):
+        raise ValueError("source_frame_indices must be an eight-item permutation of integers 0..7")
+    if len(cells) != 8:
+        raise ValueError("source_frame_indices requires exactly eight row-selected source cells")
+    return [cells[index] for index in source_frame_indices]
+
+
 def apply_frame_source_overrides(
     cells: list[Image.Image],
     frame_sources: object,
@@ -600,6 +690,7 @@ def apply_frame_source_overrides(
     *,
     drop_boundary_spill: bool = False,
     remove_edge_connected_checker: bool = False,
+    remove_edge_connected_magenta_fringe: bool = False,
 ) -> tuple[list[Image.Image], list[dict[str, object]]]:
     """Replace selected cells with reviewed one-frame source images.
 
@@ -625,6 +716,8 @@ def apply_frame_source_overrides(
         raise ValueError("drop_boundary_spill must be a boolean")
     if not isinstance(remove_edge_connected_checker, bool):
         raise ValueError("remove_edge_connected_checker must be a boolean")
+    if not isinstance(remove_edge_connected_magenta_fringe, bool):
+        raise ValueError("remove_edge_connected_magenta_fringe must be a boolean")
     overridden = list(cells)
     records: list[dict[str, object]] = []
     for index, source_entry in enumerate(frame_sources):
@@ -670,11 +763,13 @@ def apply_frame_source_overrides(
                 replacement,
                 drop_boundary_spill=drop_boundary_spill,
                 remove_edge_connected_checker=remove_edge_connected_checker,
+                remove_edge_connected_magenta_fringe=remove_edge_connected_magenta_fringe,
             )
             target_height = visible_height_for_resolution_normalization(
                 cells[index],
                 drop_boundary_spill=drop_boundary_spill,
                 remove_edge_connected_checker=remove_edge_connected_checker,
+                remove_edge_connected_magenta_fringe=remove_edge_connected_magenta_fringe,
             )
             normalization = {
                 "mode": "match_base_visible_height",
@@ -745,6 +840,7 @@ def build(manifest_path: Path) -> dict[str, object]:
     default_remove_edge_connected_checker = framing.get(
         "remove_edge_connected_checker", False
     )
+    default_remove_edge_connected_magenta_fringe = framing.get("remove_edge_connected_magenta_fringe", False)
     if (
         not isinstance(default_horizontal_anchor, str)
         or default_horizontal_anchor not in HORIZONTAL_ANCHORS
@@ -755,6 +851,8 @@ def build(manifest_path: Path) -> dict[str, object]:
         )
     if not isinstance(default_remove_edge_connected_checker, bool):
         raise ValueError("remove_edge_connected_checker must be a boolean")
+    if not isinstance(default_remove_edge_connected_magenta_fringe, bool):
+        raise ValueError("remove_edge_connected_magenta_fringe must be a boolean")
     report: dict[str, object] = {
         "character": manifest["character"],
         "manifest": str(manifest_path),
@@ -762,6 +860,7 @@ def build(manifest_path: Path) -> dict[str, object]:
         "target_baseline": baseline,
         "default_horizontal_anchor": default_horizontal_anchor,
         "default_remove_edge_connected_checker": default_remove_edge_connected_checker,
+        "default_remove_edge_connected_magenta_fringe": default_remove_edge_connected_magenta_fringe,
         "outputs": {},
         "sources": {},
     }
@@ -815,6 +914,7 @@ def build(manifest_path: Path) -> dict[str, object]:
                     "remove_edge_connected_checker",
                     default_remove_edge_connected_checker,
                 ),
+                remove_edge_connected_magenta_fringe=idle.get("remove_edge_connected_magenta_fringe", default_remove_edge_connected_magenta_fringe),
             )
             strip.save(runtime_root / output_name)
             report["outputs"][output_name] = details
@@ -828,6 +928,7 @@ def build(manifest_path: Path) -> dict[str, object]:
             frame_sources = None
             horizontal_anchor = default_horizontal_anchor
             remove_checker = default_remove_edge_connected_checker
+            remove_magenta_fringe = default_remove_edge_connected_magenta_fringe
         else:
             source_name = source_spec["source"]
             frame_adjustments = source_spec.get("frame_adjustments")
@@ -838,6 +939,7 @@ def build(manifest_path: Path) -> dict[str, object]:
                 "remove_edge_connected_checker",
                 default_remove_edge_connected_checker,
             )
+            remove_magenta_fringe = source_spec.get("remove_edge_connected_magenta_fringe", default_remove_edge_connected_magenta_fringe)
         source_columns = int(source_spec.get("source_columns", 8)) if isinstance(source_spec, dict) else 8
         source_rows = int(source_spec.get("rows", 1)) if isinstance(source_spec, dict) else 1
         row_indices = source_spec.get("row_indices", list(range(source_rows))) if isinstance(source_spec, dict) else [0]
@@ -860,6 +962,12 @@ def build(manifest_path: Path) -> dict[str, object]:
             for row in row_indices
             for column in range(source_columns)
         ]
+        source_frame_indices = (
+            source_spec.get("source_frame_indices", list(range(8)))
+            if isinstance(source_spec, dict)
+            else list(range(8))
+        )
+        cells = reorder_walk_source_frames(cells, source_frame_indices)
         override_records: list[dict[str, object]] = []
         resolution_scales = [1.0] * len(cells)
         if frame_sources is not None:
@@ -869,6 +977,7 @@ def build(manifest_path: Path) -> dict[str, object]:
                 source_root,
                 drop_boundary_spill=drop_boundary_spill,
                 remove_edge_connected_checker=remove_checker,
+                remove_edge_connected_magenta_fringe=remove_magenta_fringe,
             )
             for record in override_records:
                 report["sources"][record["source"]] = record["sha256"]
@@ -883,7 +992,9 @@ def build(manifest_path: Path) -> dict[str, object]:
             horizontal_anchor,
             remove_checker,
             source_resolution_scales=resolution_scales if override_records else None,
+            remove_edge_connected_magenta_fringe=remove_magenta_fringe,
         )
+        details["source_frame_indices"] = source_frame_indices
         if override_records:
             details["frame_source_overrides"] = override_records
         strip.save(runtime_root / output_name)

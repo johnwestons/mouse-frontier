@@ -94,7 +94,6 @@ local function new(context)
   local resolveFirstAid=required(context,"resolveFirstAid","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local chooseFinale=required(context,"chooseFinale","function")
-  local completeStopActivity=required(context,"completeStopActivity","function")
   local beginShootingRange=required(context,"beginShootingRange","function")
   local handleShootingRange=required(context,"handleShootingRange","function")
 
@@ -405,9 +404,9 @@ local function new(context)
           if Util.pointIn(returnX,returnY,ui.returnStop) then activateCaravanReturnControl(); return end
       end
       if runtime.shootingRange then
-          if button==1 or button==2 or button==4 then
+          if button==1 or button==2 or button==4 or button==5 then
               local rangeX,rangeY=screenToGame(x,y)
-              processRangeOutcome(ShootingRange.mousepressed(runtime.shootingRange,rangeX,rangeY,runtime.saveData,Catalog,button))
+              return processRangeOutcome(ShootingRange.mousepressed(runtime.shootingRange,rangeX,rangeY,runtime.saveData,Catalog,button))
           end
           return
       end
@@ -476,9 +475,9 @@ local function new(context)
       end
   end
 
-  local function mousemoved(x,y)
+  local function mousemoved(x,y,dx,dy,touchAim)
       if runtime.shootingRange then
-          x,y=screenToGame(x,y); ShootingRange.mousemoved(runtime.shootingRange,x,y); return
+          x,y=screenToGame(x,y); ShootingRange.mousemoved(runtime.shootingRange,x,y,touchAim); return
       end
       if runtime.firstAid then
           x,y=screenToGame(x,y)
@@ -625,7 +624,6 @@ local function new(context)
           runtime.saveData.lastStopDoor=arg; runtime.saveData.activeHouseDoor=arg; ui.playSfx("doors"); runtime.scene="house"
           local homeLayout=Stops.ensureDoor(runtime.saveData,Catalog,arg); ensureHouseItems(); runtime.player.x,runtime.player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
       elseif action=="exitHouse" then exitHouse()
-      elseif action=="stopActivity" then completeStopActivity()
       elseif action=="shootingRange" then beginShootingRange()
       elseif action=="expedition" then activateExpeditionInteraction(arg)
       elseif action=="caravan" then activateCaravanInteraction(arg)

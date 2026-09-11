@@ -35,7 +35,7 @@ local function new(context)
   end
 
   local function shootingRangeActive()
-      return runtime.state=="game" and runtime.shootingRange and runtime.shootingRange.phase=="play"
+      return runtime.state=="game" and runtime.shootingRange and runtime.shootingRange.phase=="play" and runtime.shootingRange
   end
 
   local function backVisible()
@@ -62,7 +62,6 @@ local function new(context)
       elseif kind=="npc" or kind=="passenger" then return "q","TALK"
       elseif kind=="house" then return "q","ENTER"
       elseif kind=="houseExit" then return "q","EXIT"
-      elseif kind=="stopActivity" then return "q","HELP"
       elseif kind=="shootingRange" then return "q","RANGE"
       elseif kind=="expedition" then
           if ui.interaction.action=="challenge" then return "q","CHALLENGE" end
@@ -115,8 +114,8 @@ local function new(context)
           secondaryAction=secondaryAction,
           pressKey=function(key) gameplayInput().keypressed(key) end,
           releaseKey=function(key) gameplayInput().keyreleased(key) end,
-          pressPointer=function(x,y,button) gameplayInput().mousepressed(x,y,button) end,
-          movePointer=function(x,y,dx,dy) gameplayInput().mousemoved(x,y,dx,dy) end,
+          pressPointer=function(x,y,button) return gameplayInput().mousepressed(x,y,button) end,
+          movePointer=function(x,y,dx,dy,touchAim) gameplayInput().mousemoved(x,y,dx,dy,touchAim) end,
           releasePointer=function(x,y,button) gameplayInput().mousereleased(x,y,button) end,
       })
       return controls

@@ -1,10 +1,8 @@
 # Shared Help-Quest Session Framework
 
-Stop help now uses one persistent domain model across Windows and Android. Item requests, first aid, and community activities no longer own separate reward or lifecycle rules.
+Stop help uses one persistent domain model across Windows and Android. Item requests, first aid, and dialogue quests share reward and lifecycle rules.
 
-Authored community activities share a three-band progression profile. Stops 1–16 use three rounds and three allowed mistakes, stops 17–33 use four rounds and three mistakes, and stops 34–50 use five rounds with two allowed mistakes. Each band also supplies a regional palette and target arrangement, with mouse and touch hit areas following the visible positions. Sludge containment, track clearing, garden rescue, and wildlife trough care remain separate modules while consuming this one shared rule.
-
-Goodwill follows the added commitment: a completed authored minigame awards 1, 2, or 3 goodwill in the early, middle, or late band. A flawless completion adds one more point, producing exceptional rewards of 2, 3, or 4. Quick one-step community chores retain their original 1-point successful and 2-point exceptional rewards. Rewards remain positive-only and pass through the existing exactly-once claim guard.
+Goodwill rewards remain positive-only and pass through the existing exactly-once claim guard.
 
 ## Lifecycle
 
@@ -27,7 +25,7 @@ Save schema version 30 stores sessions in `helpQuestSessions` and optionally ide
 - its result grade and goodwill amount;
 - an irreversible reward-claimed guard.
 
-Older completed requests and community activities import as resolved and already rewarded. This prevents migration from creating duplicate goodwill. Merely discovering an offer does not add it to the active-objective list.
+Older completed requests import as resolved and already rewarded. This prevents migration from creating duplicate goodwill. Merely discovering an offer does not add it to the active-objective list.
 
 ## Integration rules
 
@@ -43,8 +41,8 @@ The assigned NPC remembers the session between conversations and after a save re
 
 ## Community activity retirement
 
-Sludge containment, track-debris clearing, garden rescue, and wildlife-trough care have been removed completely, including their world spots, shared coordinator, rules, and sprite atlases. Existing saves migrate any retired spot to the remaining water pump and discard the retired spot's abandoned help-quest session. First Aid remains independent and active.
+Water-pump repair, sludge containment, track-debris clearing, garden rescue, and wildlife-trough care have been removed, including their world spots and hazards. The former community minigames' shared coordinator, rules, and sprite atlases are also retired. Existing saves clear retired activity spots and their help-quest sessions, including any active objective for those sessions. First aid, item requests, and dialogue quests remain active.
 
 ## Verification
 
-The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The stop-world audit verifies that only the water pump remains, retired saves migrate cleanly, and its hazard, reward, and persistence behavior still work. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.
+The deterministic `help_quest_session_lifecycle` smoke checkpoint covers acceptance, investigation, activation, progress persistence, pause/resume, resolution, and duplicate reward rejection. `branching_help_dialogue_quests` additionally verifies the four definitions, evidence paths, resolutions, follow-ups, and shared goodwill rules. The `settlement_without_water_pump` checkpoint verifies that the retired activity is absent, and save-migration regression tests verify cleanup of world spots, help-quest sessions, and active objectives. Existing item-help, first-aid, save-migration, full-route, and packaged-mobile checks remain required.

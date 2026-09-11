@@ -2,6 +2,8 @@ local Maintenance = {}
 local WheelAnimation = require("game.maintenance_wheel_animation")
 local PanelAnimation = require("game.maintenance_panel_animation")
 local EngineUpgrades = require("game.engine_upgrades")
+local Typography = require("game.typography")
+local Accessibility = require("game.accessibility")
 
 local ASSET_ROOT = "assets/sprites/maintenance/oil-running-gear/"
 local BACKGROUND_Y = 90
@@ -386,7 +388,7 @@ local function drawFallbackPanel()
     love.graphics.setColor(.30, .20, .11, 1)
     love.graphics.rectangle("line", 18, BACKGROUND_Y + 18, 924, 504, 12, 12)
     love.graphics.setColor(.91, .63, .20, 1)
-    love.graphics.printf("OIL THE RUNNING GEAR", 0, 130, 960, "center", 0, 1.6, 1.6)
+    Typography.drawText(love.graphics,"OIL THE RUNNING GEAR",80,116,800,48,{scale=1.4,minScale=1,align="center",valign="center"})
 end
 
 local function drawConditionPanel(session, data)
@@ -401,7 +403,7 @@ local function drawConditionPanel(session, data)
     love.graphics.setColor(.08, .055, .04, .97); love.graphics.rectangle("fill", 54, 531, 215, 31, 3, 3)
     local meterColor = condition < 25 and {.88, .20, .12} or (condition < 50 and {.95, .55, .12} or {.34, .78, .34})
     love.graphics.setColor(meterColor); love.graphics.rectangle("fill", 58, 536, 207 * condition / 100, 20, 2, 2)
-    love.graphics.setColor(.96, .82, .48, 1); love.graphics.printf(math.floor(condition) .. "%", 208, 506, 62, "right", 0, .72, .72)
+    love.graphics.setColor(.96, .82, .48, 1); Typography.drawText(love.graphics,math.floor(condition).."%",202,499,68,30,{scale=1,minScale=.9,align="right",valign="center"})
 end
 
 local function drawTargetState(session, index, target)
@@ -416,8 +418,8 @@ local function drawTargetState(session, index, target)
         love.graphics.setColor(1, .75, .20, .18); love.graphics.circle("fill", target.x, target.y, target.radius)
         love.graphics.setColor(1, .82, .35, .90); love.graphics.setLineWidth(2); love.graphics.circle("line", target.x, target.y, target.radius); love.graphics.setLineWidth(1)
     end
-    love.graphics.setColor(.08, .055, .04, .88); love.graphics.circle("fill", target.x, target.y - 55, 13)
-    love.graphics.setColor(1, .84, .42, 1); love.graphics.printf(current .. "/" .. target.doses, target.x - 20, target.y - 60, 40, "center", 0, .58, .58)
+    love.graphics.setColor(.08, .055, .04, .96); love.graphics.rectangle("fill",target.x-27,target.y-70,54,32,8,8)
+    love.graphics.setColor(1, .84, .42, 1); Typography.drawText(love.graphics,current.."/"..target.doses,target.x-25,target.y-69,50,30,{scale=1,minScale=.9,align="center",valign="center"})
 end
 
 local function targetMotionAngle(session, index)
@@ -536,21 +538,25 @@ function Maintenance.draw(session, data)
     drawConditionPanel(session, data)
     drawDoneSprite(session)
 
-    love.graphics.setColor(.035, .027, .023, .92); love.graphics.rectangle("fill", 690, 578, 205, 27, 5, 5)
+    local textScale=Accessibility.textScale(data)
+    local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1" or (love.system and love.system.getOS and love.system.getOS()=="Android")
+    love.graphics.setColor(.035, .027, .023, .96); love.graphics.rectangle("fill",690,578,240,58,5,5)
     love.graphics.setColor(.96, .82, .48, 1)
-    love.graphics.printf("OIL " .. Maintenance.oilSupply(data) .. " / "..Maintenance.oilCapacity(data).."  •  COST " .. Maintenance.serviceOilCost(data), 690, 585, 205, "center", 0, .52, .52)
+    Typography.drawText(love.graphics,"OIL "..Maintenance.oilSupply(data).." / "..Maintenance.oilCapacity(data).."\nSERVICE COST "..Maintenance.serviceOilCost(data),700,582,220,50,{scale=.95*textScale,minScale=.85,align="center",valign="center"})
 
     if allOiled(session) and not session.completed then
         love.graphics.setColor(1, .70, .12, .22); love.graphics.rectangle("fill", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8)
         love.graphics.setColor(1, .84, .32, 1); love.graphics.setLineWidth(2); love.graphics.rectangle("line", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8); love.graphics.setLineWidth(1)
     end
     love.graphics.setColor(.08, .055, .04, .94); love.graphics.rectangle("fill", CLOSE_RECT.x, CLOSE_RECT.y, CLOSE_RECT.w, CLOSE_RECT.h, 5, 5)
-    love.graphics.setColor(.96, .86, .64, 1); love.graphics.printf("X", CLOSE_RECT.x, CLOSE_RECT.y + 8, CLOSE_RECT.w, "center", 0, .85, .85)
-    love.graphics.setColor(.035, .027, .023, .92); love.graphics.rectangle("fill", 275, 570, 410, 29, 5, 5)
-    love.graphics.setColor(.96, .86, .64, 1); love.graphics.printf(session.message or "", 275, 578, 410, "center", 0, .61, .61)
-    love.graphics.printf("OIL THE THREE HUBS  •  FIVE LAMPS  •  ENTER: DONE  •  ESC: CLOSE", 0, 651, 960, "center", 0, .63, .63)
+    love.graphics.setColor(.96, .86, .64, 1); Typography.drawText(love.graphics,"X",CLOSE_RECT.x,CLOSE_RECT.y,CLOSE_RECT.w,CLOSE_RECT.h,{scale=1,minScale=.9,align="center",valign="center"})
+    love.graphics.setColor(.035, .027, .023, .96); love.graphics.rectangle("fill",300,574,378,62,5,5)
+    love.graphics.setColor(.96, .86, .64, 1); Typography.drawText(love.graphics,session.message or "",310,579,358,52,{scale=.95*textScale,minScale=.85,align="center",valign="center"})
+    local instructions=mobile and "Oil three hubs. Tap DONE when all five lamps are lit."
+        or "OIL THREE HUBS  •  ENTER: DONE  •  ESC: CLOSE"
+    Typography.drawText(love.graphics,instructions,24,645,912,35,{scale=.95*textScale,minScale=.85,align="center",valign="center"})
     if session.assetError then
-        love.graphics.setColor(.92, .34, .22, 1); love.graphics.printf("Maintenance art fallback active", 0, 680, 960, "center", 0, .58, .58)
+        love.graphics.setColor(.92, .34, .22, 1); Typography.drawText(love.graphics,"Maintenance art fallback active",24,683,912,28,{scale=.85,minScale=.85,align="center",valign="center"})
     end
     drawOilCanCursor(session)
 end

@@ -250,6 +250,39 @@ function WindowScene.drawWindow(windowId,width,height)
     love.graphics.draw(source,layout.x,layout.y,0,layout.scale,layout.scale)
 end
 
+-- Continue the interior wall below the sill as the player's eye level drops.
+function WindowScene.drawLowerWall(windowId,width,height,drop)
+    local _,y,_,h=WindowScene.opening(windowId,width,height)
+    local top=y+h+30
+    local bottom=height+drop
+    local source=image(PATHS.wide)
+    if source and not quads.lowerWall then
+        quads.lowerWall=love.graphics.newQuad(240,700,555,44,source:getDimensions())
+    end
+    love.graphics.setColor(.24,.13,.065,1)
+    love.graphics.rectangle("fill",0,top,width,math.max(0,bottom-top))
+    local boardHeight=height*.10
+    for row=0,math.ceil(math.max(0,bottom-top)/boardHeight) do
+        local by=top+row*boardHeight
+        local shade=row%2==0 and .02 or 0
+        love.graphics.setColor(.27+shade,.15+shade,.077,1)
+        love.graphics.rectangle("fill",0,by+3,width,boardHeight-5)
+        if source then
+            love.graphics.setColor(.64+shade,.59+shade,.53,1)
+            local reverse=row%2==1
+            love.graphics.draw(source,quads.lowerWall,reverse and width or 0,by+3,0,
+                (reverse and -1 or 1)*width/555,(boardHeight-5)/44)
+        end
+        love.graphics.setColor(.39,.23,.12,.6)
+        love.graphics.rectangle("fill",0,by+3,width,2)
+        love.graphics.setColor(.13,.07,.035,.7)
+        for seam=1,3 do
+            local sx=(seam-.35*(row%2))*width/3
+            love.graphics.rectangle("fill",sx,by+3,2,boardHeight-4)
+        end
+    end
+end
+
 local damageShader
 function WindowScene.drawDamage(impacts,width,height,windowId)
     local source=image(PATHS.damage)

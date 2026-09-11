@@ -179,6 +179,7 @@ class SheetInspection:
     metrics: list[FrameMetrics]
     issues: list[Issue]
     path: Path
+    framing_measurements: list[dict[str, object]] = field(default_factory=list)
 
 
 @dataclass
@@ -186,6 +187,8 @@ class AuditResult:
     characters: list[str]
     issues: list[Issue]
     inspections: dict[tuple[str, str], SheetInspection]
+    audited_inputs: list[dict[str, str]] = field(default_factory=list)
+    framing_contract: dict[str, object] | None = None
 
     @property
     def counts(self) -> Counter[str]:
@@ -201,6 +204,13 @@ class AuditResult:
                 "info": counts["info"],
             },
             "issues": [issue.to_dict() for issue in self.issues],
+            "audited_inputs": self.audited_inputs,
+            "framing_contract": self.framing_contract,
+            "framing_measurements": {
+                f"{character}/{action}": inspection.framing_measurements
+                for (character, action), inspection in self.inspections.items()
+                if inspection.framing_measurements
+            },
         }
 
 
@@ -234,6 +244,13 @@ class RepairPlan:
 
 def timestamp() -> str:
     return datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+
+
+def file_sha256(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None  # Sheet inspection reports missing/unreadable files separately.
 
 
 def threshold_bbox(frame: Image.Image, threshold: int = ALPHA_THRESHOLD) -> tuple[int, int, int, int] | None:
@@ -333,14 +350,17 @@ def measure_frame(frame: Image.Image, index: int) -> FrameMetrics:
     )
 
 
-def aligned_silhouette(frame: Image.Image, metrics: FrameMetrics) -> np.ndarray:
+def aligned_silhouette(
+    frame: Image.Image, metrics: FrameMetrics, *, anchor_x: float | None = None,
+    target_center_x: float = TARGET_CENTER_X, target_baseline: float = TARGET_BASELINE,
+) -> np.ndarray:
     """Align a significant-alpha mask by center and baseline for comparisons."""
     source = np.asarray(frame.convert("RGBA").getchannel("A")) > ALPHA_THRESHOLD
     canvas = np.zeros(source.shape, dtype=bool)
     if metrics.empty or metrics.center_x is None or metrics.bottom is None:
         return canvas
-    shift_x = round(TARGET_CENTER_X - metrics.center_x)
-    shift_y = round(TARGET_BASELINE - metrics.bottom)
+    shift_x = round(target_center_x - (metrics.center_x if anchor_x is None else anchor_x))
+    shift_y = round(target_baseline - metrics.bottom)
     source_y0 = max(0, -shift_y)
     source_x0 = max(0, -shift_x)
     target_y0 = max(0, shift_y)
@@ -352,6 +372,32 @@ def aligned_silhouette(frame: Image.Image, metrics: FrameMetrics) -> np.ndarray:
             source[source_y0:source_y0 + copy_height, source_x0:source_x0 + copy_width]
         )
     return canvas
+
+
+def core_framing_measurements(frame: Image.Image, bbox: tuple[int, int, int, int]) -> tuple[float, int]:
+    """Measure the authored core, excluding narrow tail/limb extensions.
+
+    Anchor position uses the builder's exact implementation. Width measures
+    that same dominant support run in its 22%-68% torso band, using the same
+    35% support threshold; it is not the full silhouette bounding-box width.
+    A one-column threshold gap can split an attached equipment run, so this
+    width is supporting evidence only, never an independent resize trigger.
+    """
+    try:
+        from tools.build_directional_character_assets import core_horizontal_anchor_x
+    except ModuleNotFoundError:
+        from build_directional_character_assets import core_horizontal_anchor_x
+    _, top, _, bottom = bbox
+    height = bottom - top
+    band_top = min(bottom - 1, top + round(height * 0.22))
+    band_bottom = max(band_top + 1, min(bottom, top + round(height * 0.68)))
+    alpha = np.asarray(frame.convert("RGBA").getchannel("A"))
+    support = np.count_nonzero(alpha[band_top:band_bottom] >= ALPHA_THRESHOLD, axis=0)
+    eligible = support >= max(1, math.ceil(float(support.max(initial=0)) * 0.35))
+    edges = np.diff(np.pad(eligible.astype(np.int8), (1, 1)))
+    runs = list(zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)))
+    core = max(runs, key=lambda run: (support[run[0]:run[1]].sum(), run[1] - run[0])) if runs else (bbox[0], bbox[2])
+    return core_horizontal_anchor_x(frame, bbox), int(core[1] - core[0])
 
 
 def silhouette_distance(left: np.ndarray, right: np.ndarray) -> float:
@@ -711,12 +757,72 @@ class SpriteDoctor:
         project_root: Path = ROOT,
         animation_root: Path | None = None,
         require_death: bool = False,
+        animation_subdirectory: str | None = None,
+        build_manifest: Path | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         self.animation_root = Path(animation_root or (self.project_root / "assets/sprites/character-animations")).resolve()
         self.sprite_root = self.project_root / "assets" / "sprites"
         self.require_death = require_death
+        self.animation_subdirectory = Path(animation_subdirectory or ".")
+        if self.animation_subdirectory.is_absolute() or ".." in self.animation_subdirectory.parts:
+            raise ValueError("animation_subdirectory must stay beneath each character directory")
         self._reference_cache: dict[str, tuple[Path, np.ndarray]] | None = None
+        self.framing_contract: dict[str, object] | None = None
+        self.action_framing: dict[tuple[str, str], dict[str, object]] = {}
+        if build_manifest is not None:
+            self.load_build_framing(Path(build_manifest).resolve())
+
+    def load_build_framing(self, path: Path) -> None:
+        content = path.read_bytes()
+        manifest = json.loads(content)
+        character = manifest["character"]
+        self.character_dir(character)  # Validate the character identifier.
+        framing = manifest.get("framing", {})
+        base: dict[str, object] = {
+            "frame_size": framing.get("frame_size", FRAME_SIZE),
+            "target_height": framing.get("target_height", TARGET_EXTENT),
+            "center_x": framing.get("center_x", framing.get("frame_size", FRAME_SIZE) // 2),
+            "baseline": framing.get("baseline", TARGET_BASELINE),
+            "horizontal_anchor": framing.get("horizontal_anchor", "bbox"),
+            "size_metric": "height",
+        }
+        for key in ("frame_size", "target_height", "center_x", "baseline"):
+            value = base[key]
+            if type(value) not in {int, float} or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"build framing {key} must be positive and finite")
+        if type(base["frame_size"]) is not int:
+            raise ValueError("build framing frame_size must be an integer")
+        if base["center_x"] >= base["frame_size"] or base["baseline"] >= base["frame_size"]:
+            raise ValueError("build framing anchors must lie inside the frame")
+
+        def register(output: str, source: Mapping[str, object]) -> None:
+            if Path(output).name != output or Path(output).suffix != ".png":
+                raise ValueError("build framing outputs must be PNG filenames")
+            contract = {**base, "horizontal_anchor": source.get("horizontal_anchor", base["horizontal_anchor"])}
+            if contract["horizontal_anchor"] not in {"bbox", "core"}:
+                raise ValueError("build framing horizontal_anchor must be bbox or core")
+            key = (character, Path(output).stem)
+            if key in self.action_framing:
+                raise ValueError(f"duplicate build framing output: {output}")
+            self.action_framing[key] = contract
+
+        for idle in manifest.get("idle_sets") or [manifest.get("idle", {})]:
+            for output in idle.get("outputs", []):
+                register(output, idle)
+        for output, walk in manifest.get("walks", {}).items():
+            register(output, walk if isinstance(walk, dict) else {})
+        if not self.action_framing:
+            raise ValueError("build manifest has no framed animation outputs")
+        try:
+            reference_path = path.relative_to(self.project_root).as_posix()
+        except ValueError:
+            reference_path = str(path)
+        self.framing_contract = {
+            "path": reference_path, "sha256": hashlib.sha256(content).hexdigest(),
+            "character": character,
+            "actions": {action: contract for (_, action), contract in self.action_framing.items()},
+        }
 
     def character_dir(self, character: str) -> Path:
         if not character or any(character_part not in "abcdefghijklmnopqrstuvwxyz0123456789-"
@@ -724,14 +830,15 @@ class SpriteDoctor:
             raise ValueError(f"invalid character name: {character!r}")
         if character.startswith("-") or character.endswith("-") or "--" in character:
             raise ValueError(f"invalid character name: {character!r}")
-        return self.animation_root / character
+        return self.animation_root / character / self.animation_subdirectory
 
     def character_names(self) -> list[str]:
         if not self.animation_root.exists():
             return []
         return sorted(
             path.name for path in self.animation_root.iterdir()
-            if path.is_dir() and not path.name.startswith("new-options") and not path.name.startswith(".")
+            if (path / self.animation_subdirectory).is_dir()
+            and not path.name.startswith("new-options") and not path.name.startswith(".")
         )
 
     def reference_path(self, character: str) -> Path | None:
@@ -909,7 +1016,14 @@ class SpriteDoctor:
                 details={"actual": inferred_count, "expected": expected_count},
             ))
 
-        expected_size = (FRAME_SIZE * expected_count, FRAME_SIZE)
+        framing = self.action_framing.get((character, action))
+        frame_size = int(framing["frame_size"]) if framing else FRAME_SIZE
+        size_target = float(framing["target_height"]) if framing else TARGET_EXTENT
+        center_target = float(framing["center_x"]) if framing else TARGET_CENTER_X
+        baseline_target = float(framing["baseline"]) if framing else TARGET_BASELINE
+        anchor_mode = str(framing["horizontal_anchor"]) if framing else "bbox"
+        size_metric = "height" if framing else "extent"
+        expected_size = (frame_size * expected_count, frame_size)
         if image.size != expected_size:
             issues.append(Issue(
                 "error", "sheet_size", character, action,
@@ -929,8 +1043,11 @@ class SpriteDoctor:
 
         frames = split_evenly(image, actual_count)
         metrics = [measure_frame(frame, index + 1) for index, frame in enumerate(frames)]
-        canonical_cells = image.height == FRAME_SIZE and all(frame.width == FRAME_SIZE for frame in frames)
-        for metric in metrics:
+        canonical_cells = image.height == frame_size and all(frame.width == frame_size for frame in frames)
+        framing_measurements: list[dict[str, object]] = []
+        core_widths: dict[int, int] = {}
+        anchor_positions: dict[int, float] = {}
+        for sprite_frame, metric in zip(frames, metrics):
             if metric.empty:
                 issues.append(Issue(
                     "error", "empty_frame", character, action,
@@ -950,28 +1067,35 @@ class SpriteDoctor:
             if not canonical_cells:
                 continue
             assert metric.extent is not None and metric.center_x is not None and metric.bottom is not None
-            extent_delta = abs(metric.extent - TARGET_EXTENT)
-            if extent_delta > max(8, round(TARGET_EXTENT * 0.03)):
-                severity = "error" if extent_delta / TARGET_EXTENT > 0.08 else "warning"
+            measured_size = metric.bbox[3] - metric.bbox[1] if framing and metric.bbox else metric.extent
+            measured_anchor = metric.center_x
+            if anchor_mode == "core" and metric.bbox:
+                measured_anchor, core_widths[metric.frame] = core_framing_measurements(sprite_frame, metric.bbox)
+            anchor_positions[metric.frame] = measured_anchor
+            if framing:
+                framing_measurements.append({"frame": metric.frame, "horizontal_anchor": anchor_mode, "anchor_x": measured_anchor, "target_center_x": center_target, "height": measured_size, "target_height": size_target, "baseline": metric.bottom, "target_baseline": baseline_target, "bbox_width": metric.bbox[2] - metric.bbox[0], "core_width": core_widths.get(metric.frame)})
+            extent_delta = abs(measured_size - size_target)
+            if extent_delta > max(8, round(size_target * 0.03)):
+                severity = "error" if extent_delta / size_target > 0.08 else "warning"
                 issues.append(Issue(
                     severity, "scale_mismatch", character, action,
-                    f"frame {metric.frame} visible extent is {metric.extent}px; target is {TARGET_EXTENT}px",
-                    frame=metric.frame, repairable=True, confidence="high",
-                    details={"extent": metric.extent, "target": TARGET_EXTENT},
+                    f"frame {metric.frame} visible {size_metric} is {measured_size}px; target is {size_target:g}px",
+                    frame=metric.frame, repairable=not bool(framing), confidence="high",
+                    details={size_metric: measured_size, "target": size_target, "size_metric": size_metric},
                 ))
-            if abs(metric.center_x - TARGET_CENTER_X) > 3:
+            if abs(measured_anchor - center_target) > 3:
                 issues.append(Issue(
                     "warning", "center_mismatch", character, action,
-                    f"frame {metric.frame} is centered at x={metric.center_x:.1f}; target is {TARGET_CENTER_X:.1f}",
-                    frame=metric.frame, repairable=True, confidence="high",
-                    details={"center_x": metric.center_x, "target": TARGET_CENTER_X},
+                    f"frame {metric.frame} {anchor_mode} anchor is x={measured_anchor:.1f}; target is {center_target:.1f}",
+                    frame=metric.frame, repairable=not bool(framing), confidence="high",
+                    details={"center_x": measured_anchor, "target": center_target, "horizontal_anchor": anchor_mode, "bbox_center_x": metric.center_x},
                 ))
-            if abs(metric.bottom - TARGET_BASELINE) > 2:
+            if abs(metric.bottom - baseline_target) > 2:
                 issues.append(Issue(
                     "warning", "baseline_mismatch", character, action,
-                    f"frame {metric.frame} baseline is y={metric.bottom}; target is {TARGET_BASELINE}",
-                    frame=metric.frame, repairable=True, confidence="high",
-                    details={"bottom": metric.bottom, "target": TARGET_BASELINE},
+                    f"frame {metric.frame} baseline is y={metric.bottom}; target is {baseline_target:g}",
+                    frame=metric.frame, repairable=not bool(framing), confidence="high",
+                    details={"bottom": metric.bottom, "target": baseline_target},
                 ))
             if metric.halo_spread > 8:
                 issues.append(Issue(
@@ -1011,8 +1135,10 @@ class SpriteDoctor:
 
             descriptors = [color_descriptor(frame) for frame in frames]
             action_descriptor = combined_descriptor(frames)
-            silhouettes = [aligned_silhouette(frame, metric) for frame, metric in zip(frames, metrics)]
+            silhouettes = [aligned_silhouette(frame, metric, anchor_x=anchor_positions.get(metric.frame), target_center_x=center_target, target_baseline=baseline_target) for frame, metric in zip(frames, metrics)]
             scale_jumps: list[dict[str, object]] = []
+            pose_extent_changes: list[dict[str, object]] = []
+            core_topology_changes: list[dict[str, object]] = []
             palette_jumps: list[dict[str, object]] = []
             silhouette_jumps: list[dict[str, object]] = []
             for index in range(len(metrics) - 1):
@@ -1022,13 +1148,25 @@ class SpriteDoctor:
                 left_width, left_height = left.bbox[2] - left.bbox[0], left.bbox[3] - left.bbox[1]
                 right_width, right_height = right.bbox[2] - right.bbox[0], right.bbox[3] - right.bbox[1]
                 width_change = abs(right_width - left_width) / max(1, min(left_width, right_width))
+                core_width_change = None
+                if anchor_mode == "core":
+                    left_core, right_core = core_widths[left.frame], core_widths[right.frame]
+                    core_width_change = abs(right_core - left_core) / max(1, min(left_core, right_core))
                 height_change = abs(right_height - left_height) / max(1, min(left_height, right_height))
-                if max(width_change, height_change) > 0.10:
+                outer_scale_alert = max(width_change, height_change) > 0.10
+                stable_core_explains_width = anchor_mode == "core" and height_change <= 0.10 and core_width_change <= 0.10
+                if outer_scale_alert and not stable_core_explains_width:
                     scale_jumps.append({
                         "frames": [index + 1, index + 2],
                         "width_change": round(width_change, 4),
                         "height_change": round(height_change, 4),
+                        "width_metric": "bbox",
+                        "core_width_change": round(core_width_change, 4) if core_width_change is not None else None,
                     })
+                elif outer_scale_alert:
+                    pose_extent_changes.append({"frames": [index + 1, index + 2], "bbox_widths": [left_width, right_width], "core_widths": [left_core, right_core], "bbox_width_change": round(width_change, 4), "core_width_change": round(core_width_change, 4), "height_change": round(height_change, 4)})
+                elif core_width_change is not None and core_width_change > 0.10:
+                    core_topology_changes.append({"frames": [index + 1, index + 2], "bbox_widths": [left_width, right_width], "core_widths": [left_core, right_core], "bbox_width_change": round(width_change, 4), "core_width_change": round(core_width_change, 4), "height_change": round(height_change, 4)})
                 palette_change = descriptor_distance(descriptors[index], descriptors[index + 1])
                 if palette_change > 0.30:
                     palette_jumps.append({"frames": [index + 1, index + 2], "distance": round(palette_change, 4)})
@@ -1074,6 +1212,10 @@ class SpriteDoctor:
                         repairable=False, confidence="medium",
                         details={"seam_distance": round(seam, 4), "internal_median": round(internal, 4)},
                     ))
+            if pose_extent_changes:
+                issues.append(Issue("info", "pose_extent_change", character, action, "outer silhouette width changes while the measured body core and height remain within scale limits", repairable=False, confidence="medium", details={"comparisons": pose_extent_changes}))
+            if core_topology_changes:
+                issues.append(Issue("info", "core_support_topology_change", character, action, "thresholded core-support width changes without a matching outer-width or height resize; equipment bridging can change the selected run", repairable=False, confidence="medium", details={"comparisons": core_topology_changes}))
             for code, message, details in (
                 ("adjacent_scale_jump", "adjacent frames have an abrupt visible-size change", scale_jumps),
                 ("adjacent_palette_jump", "adjacent frames have an abrupt palette change", palette_jumps),
@@ -1085,13 +1227,14 @@ class SpriteDoctor:
                         "warning", code, character, action, message,
                         repairable=False, confidence="medium", details={"comparisons": details},
                     ))
-        return SheetInspection(character, action, expected_count, actual_count, image, frames, metrics, issues, path)
+        return SheetInspection(character, action, expected_count, actual_count, image, frames, metrics, issues, path, framing_measurements)
 
     def audit(
         self,
         characters: Sequence[str] | None = None,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
         identity: bool = True,
+        locomotion_only: bool = False,
     ) -> AuditResult:
         names = list(characters or self.character_names())
         virtual_names = {key[0] for key in (overrides or {})}
@@ -1100,17 +1243,43 @@ class SpriteDoctor:
         if unknown:
             raise ValueError(f"unknown character(s): {', '.join(unknown)}")
 
+        if self.framing_contract:
+            if set(names) != {self.framing_contract["character"]}:
+                raise ValueError("--build-manifest must match the single audited character")
+            contract_path = self.project_root / str(self.framing_contract["path"])
+            if file_sha256(contract_path) != self.framing_contract["sha256"]:
+                raise ValueError("build manifest changed after loading; rerun the audit")
+
         issues: list[Issue] = []
         inspections: dict[tuple[str, str], SheetInspection] = {}
+        audited_inputs: list[dict[str, str]] = []
         for character in names:
             for action in self.audit_actions(character, overrides):
+                if locomotion_only and action not in {"idle", "walk"} and not action.startswith(("idle_", "walk_")):
+                    continue
+                if self.framing_contract and (action in {"idle", "walk"} or action.startswith(("idle_", "walk_"))) and (character, action) not in self.action_framing:
+                    issues.append(Issue("error", "missing_framing_action", character, action, "build manifest has no framing contract for this locomotion strip"))
+                path = self.character_dir(character) / f"{action}.png"
+                virtual = overrides is not None and (character, action) in overrides
+                before_hash = file_sha256(path) if not virtual else None
                 inspection = self.inspect_sheet(character, action, overrides)
                 inspections[(character, action)] = inspection
                 issues.extend(inspection.issues)
+                if before_hash is not None:
+                    after_hash = file_sha256(path)
+                    if after_hash != before_hash:
+                        issues.append(Issue("error", "input_changed_during_audit", character, action, "sprite file changed while being inspected; rerun the audit"))
+                    try:
+                        input_path = path.relative_to(self.project_root).as_posix()
+                    except ValueError:
+                        input_path = str(path)
+                    audited_inputs.append({"character": character, "action": action, "path": input_path, "sha256": before_hash})
 
         if identity:
             issues.extend(self.identity_issues(names, inspections))
-        return AuditResult(names, issues, inspections)
+        if self.framing_contract and file_sha256(contract_path) != self.framing_contract["sha256"]:
+            issues.append(Issue("error", "framing_contract_changed_during_audit", names[0], None, "build manifest changed during inspection; rerun the audit"))
+        return AuditResult(names, issues, inspections, audited_inputs, self.framing_contract)
 
     def identity_issues(
         self,
@@ -1351,21 +1520,27 @@ def render_contact_sheet(
     character: str,
     destination: Path,
     overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
+    actions: Sequence[str] | None = None,
 ) -> None:
     scale = 0.25
     cell = round(FRAME_SIZE * scale)
     label_width = 130
     row_height = cell + 28
-    columns = 6
+    selected_actions = tuple(actions) if actions is not None else tuple(ACTION_SPECS)
+    columns = max((doctor.expected_frame_count(character, action, overrides) for action in selected_actions), default=6)
     width = label_width + columns * cell + 20
-    height = 46 + len(ACTION_SPECS) * row_height
+    height = 46 + len(selected_actions) * row_height
     contact = Image.new("RGBA", (width, height), (18, 20, 24, 255))
     draw = ImageDraw.Draw(contact)
     draw.text((12, 12), f"{character} - sprite audit", fill=(242, 226, 181, 255))
 
-    for row, action in enumerate(ACTION_SPECS):
+    for row, action in enumerate(selected_actions):
         top = 42 + row * row_height
         expected = doctor.expected_frame_count(character, action, overrides)
+        framing = doctor.action_framing.get((character, action), {})
+        contract_frame_size = float(framing.get("frame_size", FRAME_SIZE))
+        guide_center = float(framing.get("center_x", TARGET_CENTER_X)) * cell / contract_frame_size
+        guide_baseline = float(framing.get("baseline", TARGET_BASELINE)) * cell / contract_frame_size
         draw.text((12, top + 6), f"{action} ({expected})", fill=(225, 225, 225, 255))
         image = doctor.load_sheet(character, action, overrides)
         if image is None:
@@ -1379,12 +1554,12 @@ def render_contact_sheet(
             preview = frame.resize((cell, cell), Image.Resampling.NEAREST)
             background.alpha_composite(preview)
             contact.alpha_composite(background, (left, top))
-            draw.line((left + cell // 2, top, left + cell // 2, top + cell - 1), fill=(50, 145, 170, 120))
-            baseline = top + round(TARGET_BASELINE * scale)
+            draw.line((left + round(guide_center), top, left + round(guide_center), top + cell - 1), fill=(50, 145, 170, 120))
+            baseline = top + round(guide_baseline)
             draw.line((left, baseline, left + cell - 1, baseline), fill=(215, 90, 70, 190))
             metric = measure_frame(frame, index + 1)
             if metric.bbox:
-                box = tuple(round(value * scale) for value in metric.bbox)
+                box = tuple(round(value * cell / frame.width) for value in metric.bbox)
                 color = (255, 80, 80, 255) if metric.edge_contact else (90, 220, 130, 255)
                 draw.rectangle((left + box[0], top + box[1], left + box[2] - 1, top + box[3] - 1), outline=color)
             draw.text((left + 4, top + cell + 4), str(index + 1), fill=(190, 190, 190, 255))
@@ -1609,16 +1784,20 @@ def install_source_copy(source: Path, destination: Path, backup_root: Path | Non
 
 
 def command_audit(args: argparse.Namespace) -> int:
-    doctor = SpriteDoctor(ROOT, require_death=args.require_death)
+    doctor = SpriteDoctor(
+        ROOT, animation_root=Path(args.animation_root) if getattr(args, "animation_root", None) else None,
+        require_death=args.require_death, animation_subdirectory=getattr(args, "animation_subdirectory", None),
+        build_manifest=getattr(args, "build_manifest", None),
+    )
     names = list(args.characters) or doctor.character_names()
-    result = doctor.audit(names, identity=not args.geometry_only)
+    result = doctor.audit(names, identity=not args.geometry_only, locomotion_only=getattr(args, "locomotion_only", False))
     emit_audit(result)
     if args.report:
         write_json(Path(args.report), result.to_dict())
     if args.contact_sheets:
         contact_root = Path(args.contact_sheets)
         for name in names:
-            render_contact_sheet(doctor, name, contact_root / f"{name}.png")
+            render_contact_sheet(doctor, name, contact_root / f"{name}.png", actions=[action for character, action in result.inspections if character == name])
         print(f"Contact sheets: {contact_root.resolve()}")
     has_failure = result.counts["error"] > 0 or (args.strict and result.counts["warning"] > 0)
     return 1 if has_failure else 0
@@ -1831,6 +2010,10 @@ def build_parser() -> argparse.ArgumentParser:
     audit = subparsers.add_parser("audit", help="audit complete character animation sets")
     audit.add_argument("characters", nargs="*", help="character directory names; defaults to every character")
     audit.add_argument("--report", help="write the machine-readable JSON report here")
+    audit.add_argument("--animation-root", type=Path, help="read character directories from this root instead of installed assets")
+    audit.add_argument("--animation-subdirectory", help="read strips from this relative subdirectory inside each character (for example runtime)")
+    audit.add_argument("--locomotion-only", action="store_true", help="audit only idle/walk actions in the detected directional contract")
+    audit.add_argument("--build-manifest", type=Path, help="use this hash-bound character build manifest's height, core/bbox anchor, and baseline contract")
     audit.add_argument("--contact-sheets", metavar="DIR", help="render visual QA sheets into this directory")
     audit.add_argument("--require-death", action="store_true", help="treat missing death art as an error")
     audit.add_argument("--geometry-only", action="store_true", help="skip cross-character identity matching")

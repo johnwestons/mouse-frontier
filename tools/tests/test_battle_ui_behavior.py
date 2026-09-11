@@ -24,6 +24,24 @@ class BattleUIBehaviorTests(unittest.TestCase):
         self.lua.execute(r'''
             local function noop() end
             love={graphics=setmetatable({},{__index=function() return noop end})}
+            -- Courier Prime 20 has a 22px line box and 12px monospaced advance.
+            testFont={getHeight=function() return 22 end,getLineHeight=function() return 1.08 end,
+                getWidth=function(_,value) local _,count=tostring(value):gsub('[^\128-\191]',''); return count*12 end}
+            function testFont:getWrap(value,width)
+                local lines,longest={},0
+                for paragraph in (tostring(value)..'\n'):gmatch('(.-)\n') do
+                    local line=''
+                    for word in paragraph:gmatch('%S+') do
+                        local nextLine=line=='' and word or line..' '..word
+                        if line~='' and self:getWidth(nextLine)>width then
+                            lines[#lines+1]=line; longest=math.max(longest,self:getWidth(line)); line=word
+                        else line=nextLine end
+                    end
+                    lines[#lines+1]=line; longest=math.max(longest,self:getWidth(line))
+                end
+                return longest,lines
+            end
+            love.graphics.getFont=function() return testFont end
             UI=require('game.battle_ui')
             local data=require('game.save_schema').migrate({character='mouse-engineer.png',
                 equipment={'frontier-short-sword'},traitBaselineApplied=true})
@@ -158,6 +176,81 @@ class BattleUIBehaviorTests(unittest.TestCase):
                 end
             end
             assert(found.feed and found.health and found.ability)
+        ''')
+
+    def test_mobile_text_stays_inside_allocated_cards_with_large_type(self) -> None:
+        self.lua.execute(r'''
+            local typography=require('game.typography')
+            local original=typography.drawText
+            local overflow={}
+            typography.drawText=function(graphics,value,x,y,w,h,options)
+                local scale,measured,lines,fits=original(graphics,value,x,y,w,h,options)
+                if not fits then overflow[#overflow+1]=value..' ('..w..'x'..h..')' end
+                return scale,measured,lines,fits
+            end
+            ctx.mobileEnabled=true; ctx.saveData.accessibility.textSize='large'
+            ctx.battle.message='A companion blocks the attack and protects the nearby allies from the incoming damage.'
+            local catalog=require('game.catalog')
+            for _,kind in ipairs({'heal','rally','protect','snare','sleep','paralyze','area','nourish','repair','haste','disarm','volley'}) do
+                ctx.playerProgression={abilityProfile=function() return require('game.player_progression').abilityProfile(kind,12) end}
+                UI.draw(ctx)
+            end
+            assert(#overflow==0,table.concat(overflow,'\n'))
+        ''')
+
+    def test_mobile_inventory_large_pack_slots_and_equipment_do_not_overlap(self) -> None:
+        self.lua.execute(r'''
+            local inventoryUI=require('game.inventory_ui')
+            local inventory=require('game.inventory')
+            local drawn={}
+            love.graphics.rectangle=function(mode,x,y,w,h)
+                if mode=='fill' then drawn[#drawn+1]={x=x,y=y,w=w,h=h} end
+            end
+            local data=ctx.saveData; data.inventoryCapacity=16; data.inventory={}
+            local inventoryContext={data=data,ui={propImages={}},Inventory=inventory,Catalog=require('game.catalog'),
+                colors=ctx.colors,mobileEnabled=true,pointIn=require('game.util').pointIn,
+                title=require('game.util').titleFromFile,isWeapon=function() return false end,
+                drawMenuFrame=function() end,button=ctx.button,pointer=function() return -1000,-1000 end,
+                value=function() end}
+            inventoryUI.draw(inventoryContext)
+            local slots={}
+            for _,r in ipairs(drawn) do
+                if r.w==76 and r.h==50 then slots[#slots+1]=r end
+            end
+            assert(#slots==16)
+            for index,r in ipairs(slots) do
+                assert(r.y+r.h<462,'backpack slot overlaps equipped-weapons header')
+                local hit=inventoryUI.slotAtPoint(inventoryContext,r.x+r.w/2,r.y+r.h/2)
+                assert(hit.kind=='inventory' and hit.index==index,'slot drawing and hit test disagree')
+            end
+            for i=1,2 do
+                local r=inventory.mobileEquipmentSlotRect(i)
+                local hit=inventoryUI.slotAtPoint(inventoryContext,r.x+r.w/2,r.y+r.h/2)
+                assert(hit.kind=='equipment' and hit.index==i,'backpack captures equipment touch')
+            end
+        ''')
+
+    def test_inventory_catalog_descriptions_fit_typewriter_detail_card(self) -> None:
+        self.lua.execute(r'''
+            local typography=require('game.typography')
+            local original=typography.drawText
+            local overflow={}
+            typography.drawText=function(graphics,value,x,y,w,h,options)
+                local scale,measured,lines,fits=original(graphics,value,x,y,w,h,options)
+                if not fits then overflow[#overflow+1]=value..' ('..w..'x'..h..')' end
+                return scale,measured,lines,fits
+            end
+            local catalog=require('game.catalog'); local selected
+            local inventoryContext={data=ctx.saveData,ui={propImages={}},Inventory=require('game.inventory'),Catalog=catalog,
+                colors=ctx.colors,mobileEnabled=true,pointIn=require('game.util').pointIn,
+                title=require('game.util').titleFromFile,isWeapon=function(name) return catalog.weaponStats[name]~=nil end,
+                drawMenuFrame=function() end,button=ctx.button,pointer=function() return -1000,-1000 end,
+                draggedSlot={kind='inventory',index=1},value=function() return selected end}
+            inventoryContext.data.inventory={}; inventoryContext.data.equipment={}
+            local inventoryUI=require('game.inventory_ui')
+            for name in pairs(catalog.weaponStats) do selected=name; inventoryUI.draw(inventoryContext) end
+            for name in pairs(catalog.itemEffects) do selected=name; inventoryUI.draw(inventoryContext) end
+            assert(#overflow==0,table.concat(overflow,'\n'))
         ''')
 
 

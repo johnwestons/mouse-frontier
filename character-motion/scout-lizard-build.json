@@ -3,19 +3,342 @@
   "character": "scout-lizard",
   "source_root": "output/character-motion/scout-lizard/source",
   "runtime_root": "output/character-motion/scout-lizard/runtime",
-  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458 },
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458,
+    "horizontal_anchor": "core",
+    "remove_edge_connected_magenta_fringe": true
+  },
   "idle_sets": [
-    { "source": "idle-direction-study-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "source_indices": [0, 1, 2, 3], "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png", "idle_northwest.png"], "fixed_grid": true },
-    { "source": "idle-direction-study-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "source_indices": [0, 1, 2, 3], "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"], "fixed_grid": true, "output_cleanup": { "idle_northeast.png": { "keep_primary_component": true } } }
+    {
+      "source": "idle-direction-study-v1-reviewed.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        1,
+        2,
+        3
+      ],
+      "outputs": [
+        "idle_southwest.png",
+        "idle_west.png",
+        "idle_northwest.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-v2-checker-to-magenta-v4.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        2,
+        3
+      ],
+      "source_indices": [
+        0,
+        2
+      ],
+      "outputs": [
+        "idle_north.png",
+        "idle.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-v2-checker-to-magenta-v4.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        2,
+        3
+      ],
+      "source_indices": [
+        1
+      ],
+      "outputs": [
+        "idle_northeast.png"
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true
+    },
+    {
+      "source": "idle-south-single-left-patch-v3-vertical.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_south.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "candidates/idle-southeast-left-knee-v1-vertical.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_southeast.png"
+      ],
+      "fixed_grid": true
+    }
   ],
   "walks": {
-    "walk.png": { "source": "walk-west-east-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true, "frame_adjustments": { "8": { "scale_x": 1.083 } } },
-    "walk_northeast.png": { "source": "walk-northwest-northeast-v3-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_north.png": { "source": "walk-south-north-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true, "frame_adjustments": { "4": { "scale_x": 1.053 }, "5": { "scale_x": 1.093, "scale_y": 1.046 }, "6": { "scale_x": 0.747, "scale_y": 1.046 }, "7": { "scale_x": 0.994, "scale_y": 1.049 }, "8": { "scale_x": 1.024, "scale_y": 1.046 } } },
-    "walk_northwest.png": { "source": "walk-northwest-northeast-v3-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_west.png": { "source": "walk-west-east-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true, "frame_adjustments": { "4": { "scale_x": 1.048 }, "5": { "scale_x": 0.968 }, "8": { "scale_x": 1.045 } } },
-    "walk_southwest.png": { "source": "walk-southwest-southeast-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true, "frame_adjustments": { "4": { "scale_x": 1.036 }, "5": { "scale_x": 0.968 } } },
-    "walk_south.png": { "source": "walk-south-north-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true, "frame_adjustments": { "1": { "scale_x": 1.113 }, "8": { "scale_x": 0.899 } } },
-    "walk_southeast.png": { "source": "walk-southwest-southeast-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true }
+    "walk.png": {
+      "source": "candidates/walk-east-targeted-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        {
+          "source": "candidates/walk-east-phase1-palette-v7-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-east-phase2-palette-v7-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-east-phase6-palette-v7-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-east-phase7-v3-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-east-phase8-v3-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk_southeast.png": {
+      "source": "candidates/walk-southeast-knee-patches-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "source_frame_indices": [
+        4,
+        1,
+        2,
+        3,
+        0,
+        5,
+        6,
+        7
+      ]
+    },
+    "walk_north.png": {
+      "source": "candidates/walk-north-centered-tail-counterarms-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-north-phase4-balanced-arm-v5-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "walk_northeast.png": {
+      "source": "candidates/walk-northeast-targeted-v5.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        {
+          "source": "candidates/walk-northeast-frame2-isolated-load-v9.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "walk_northwest.png": {
+      "source": "candidates/walk-northwest-coherent-rig-v10.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        {
+          "source": "candidates/walk-northwest-frame1-left-knee-patch-v11-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    "walk_west.png": {
+      "source": "candidates/walk-west-tail-clearance-v5.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-west-left-passing-clear-v6.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ],
+      "frame_adjustments": {
+        "1": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "2": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "3": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "4": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "5": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "6": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "7": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        },
+        "8": {
+          "scale_x": 0.9844155844155844,
+          "scale_y": 0.9844155844155844
+        }
+      }
+    },
+    "walk_southwest.png": {
+      "source": "candidates/walk-southwest-passing-and-arms-v5.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-southwest-left-passing-clear-v6.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    },
+    "walk_south.png": {
+      "source": "candidates/walk-south-clothing-and-right-contact-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-south-phase4-counterarms-v4-crop.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-south-phase5-grounded-contact-v5.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null
+      ]
+    }
   }
 }

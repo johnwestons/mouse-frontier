@@ -4,16 +4,32 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
+Build `0.7.0-mobile.8` (`versionCode` 8) includes the September 11,
+2026 mobile UI and shooting update. It bundles Courier Prime regular and bold typewriter
+fonts at a shared 20-pixel base size, measured text wrapping, and a larger
+journey HUD spanning the physical screen width while staying fixed during world
+zoom. Menus, settings, inventory, battles, dialogue, trading, and activity
+interfaces also receive readability and fit improvements. Mobile shooting uses
+calibrated weapon grips: the first finger holds and aims the weapon, while a
+second touch or the footer FIRE button shoots without moving the reticle.
+Last Stand now visibly crouches below the sill, shields the player while covered,
+and applies enemy hits to persistent player health while exposed.
+
+Build 8 artifact:
+`output/mobile/MouseFrontier-0.7.0-mobile.8-debug.apk`.
+
+Last installed build:
+
 - Application ID: `com.mousefrontier.game`
-- Version: `0.7.0-mobile.5` (`versionCode` 5)
+- Version: `0.7.0-mobile.7` (`versionCode` 7)
 - Engine: LÖVE 11.5
 - Orientation: landscape fullscreen
 - Architectures: ARM64 and ARMv7; debug builds also contain x86-64 for emulator testing
 - Saves: private Android application storage under the shared `mouse-frontier` LÖVE identity
 
-The generated installable file is:
+The last installed file was:
 
-`output/mobile/MouseFrontier-0.7.0-mobile.5-debug.apk`
+`output/mobile/MouseFrontier-0.7.0-mobile.7-debug.apk`
 
 This update packages the current shared gameplay, Last Stand quest, wilderness
 expeditions, crow caravans, first-person weapons, and directional character
@@ -28,6 +44,9 @@ omits its unused concept and candidate artwork.
 - A Give button appears beside NPCs and passengers.
 - Menus, inventory, the map, travel prompts, events, and battles use direct touch.
 - Settings provide shared text sizing, high contrast, reduced motion, optional guidance, tap confirmation, and large thumb controls. Battle ability explanations never require hover.
+- Build 8 uses Courier Prime throughout the shared text interface and expands the journey HUD across the physical screen; the HUD stays fixed when the world camera moves or zooms.
+- Shooting range and Last Stand: hold a finger on the weapon's grip and drag to aim. The reticle stays above the finger. A second field touch or FIRE shoots; AIM switches between hip and sight views. Releasing the firing finger never transfers aim ownership.
+- Last Stand: C or COVER lowers the view below the window. Incoming fire cannot hurt the player while crouched or rising. Firing resumes once the view returns to the window. Enemy hits while exposed reduce saved health; critical wounds force a retreat with 1 HP and do not heal on retry.
 - Pinch zoom and two-finger pan use the shared camera in gameplay, battles, menus, and overlays; fixed thumb, back, and menu controls remain anchored to the phone edges.
 - The complete seven-car navigator fits the shared phone canvas and supports direct touch selection; train condition, projected wear, oil capacity, and servicing use the same rules as Windows.
 - Android Back behaves like Escape: close an overlay or request a return to the title screen.
@@ -89,6 +108,39 @@ startup check as well. An offline pass does not establish physical-device
 readiness; the controls checklist still applies before distribution.
 
 ## Physical-device release checklist
+
+Build `0.7.0-mobile.7` was installed in place over build 6 on September 11, 2026
+on the same Galaxy S25 Ultra (`SM-S938U`, Android 16). Floating ballast rocks and
+a wide gap between track tiles were reproduced on build 6. A build 7 device
+capture confirms continuous rails and ballast correctly positioned beneath
+them. The renderer now accounts independently for the resized rail image and
+ballast frames; the mobile textures retain their existing sizes.
+
+Build 7 passed all 95 packaged mobile smoke checkpoints, 131 staged Last Stand
+checks, and eight train-specific regression tests. The new rendering tests fail
+against the previous renderer. All three phone save slots were backed up before
+installation to
+`output/mobile/train-render-device/saves-pre-install-20260911-100847.tar`.
+
+Build `0.7.0-mobile.6` was installed in place over build 4 on September 10, 2026
+on the connected Galaxy S25 Ultra (`SM-S938U`, Android 16). All three save slots
+were backed up before installation and migrated from save schema 30 to 33 on
+first launch. Cold startup, landscape rendering, touch selection of Continue,
+loading the existing Stop 14 game, and background/cold-relaunch persistence were
+verified on the phone. The game was left on its save-selection screen.
+
+This build also passed 144 regression tests with zero skips, all 96 packaged
+mobile smoke checkpoints, and 131 staged Last Stand checks. The package contains
+all 126 current Lua files, six expedition images and 700 mobile locomotion strips.
+It intentionally includes the latest working-tree changes; it is a debug-signed
+development update, not a clean-commit store release. Extended combat, multi-touch
+and performance acceptance on physical hardware remain separate checklist items.
+
+The original phone saves are retained in
+`output/mobile/device-backup-20260910-111939/mouse-frontier-pre-mobile-6.tar`.
+Installation identity, signature, archive checksums and startup confirmation are
+recorded in `output/mobile/apk-report.json`; launch and gameplay captures are
+saved as `output/mobile/device-mobile-6-*.png`.
 
 Validated on August 22, 2026 with a Galaxy S25 Ultra running Android 16:
 installation/update-in-place, cold launch, landscape/fullscreen rendering,

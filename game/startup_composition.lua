@@ -57,7 +57,7 @@ local function new(context)
       updatePersistence=platform.persistenceRuntime.update,clouds=Clouds,screens=screens,
       engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,family=Family,util=Util,passengers=Passengers,
       screenToGame=platform.presentationRuntime.screenToWorld,updateAudio=platform.audioRuntime.update,
-      ensureStopLayout=world.worldScene.ensureStopLayout,updateWorldScene=world.worldScene.update,currentStopActivity=world.worldScene.currentStopActivity,
+      ensureStopLayout=world.worldScene.ensureStopLayout,updateWorldScene=world.worldScene.update,
       currentShootingRange=world.worldScene.currentShootingRange,handleShootingRange=world.worldScene.handleShootingRange,
       clampToTrainFloor=platform.trainCarRuntime.clampToFloor,itemIsHere=world.worldScene.itemIsHere,
       setupNPC=world.worldScene.setupNPC,trainFloorBounds=platform.trainCarRuntime.floorBounds,

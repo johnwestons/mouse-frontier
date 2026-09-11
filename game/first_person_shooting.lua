@@ -1,4 +1,5 @@
 local WeaponViews=require("game.first_person_weapon_views")
+local MobileAim=require("game.mobile_weapon_aim")
 
 local Shooting={}
 local viewCache
@@ -89,6 +90,7 @@ function Shooting.new(data,Catalog,quest,width,height)
             saved.ammoType=Catalog.weaponCombat[saved.weapon].ammo
             saved.magazine=math.max(0,math.min(tonumber(saved.magazine) or 0,saved.capacity,totalRounds(saved,data,quest)))
             saved.ads=false
+            saved.touchAim=nil
             saved.recoil=0
             return saved
         end
@@ -161,6 +163,8 @@ function Shooting.chooseWeapon(state,option,data,Catalog,quest)
     end
     selected.aimX,selected.aimY=state.aimX,state.aimY
     selected.ads=state.ads
+    selected.touchAim=state.touchAim
+    MobileAim.refresh(selected,selected.weapon,selected.ads and "sights" or "hip")
     if supplied then selected.magazine=math.min(selected.capacity,totalRounds(selected,data,quest)) end
     selected.magazine=math.min(selected.magazine,totalRounds(selected,data,quest))
     quest.weaponSession=selected
@@ -213,12 +217,18 @@ function Shooting.needsSupply(state,data,quest)
 end
 
 function Shooting.setAim(state,x,y)
+    state.touchAim=nil
     if type(x)=="number" then state.aimX=x end
     if type(y)=="number" then state.aimY=y end
 end
 
+function Shooting.setTouchAim(state,x,y,width,height)
+    MobileAim.set(state,x,y,state.weapon,state.ads and "sights" or "hip",width,height)
+end
+
 function Shooting.setADS(state,value)
     state.ads=value==true
+    MobileAim.refresh(state,state.weapon,state.ads and "sights" or "hip")
 end
 
 function Shooting.reload(state,data,quest)
@@ -292,7 +302,11 @@ function Shooting.draw(state,width,height)
     local maxHeight=state.ads and height*.94 or height*.84
     local scale=math.min(maxWidth/iw,maxHeight/ih)
     love.graphics.setColor(1,1,1,1)
-    if state.ads then
+    if state.touchAim then
+        local mode=state.ads and "sights" or "hip"
+        local place=MobileAim.placement(state.weapon,mode,mode,state.aimX,state.aimY,width,height)
+        love.graphics.draw(image,place.x,place.y+(state.recoil or 0)*12,0,place.width/iw,place.height/ih)
+    elseif state.ads then
         local anchor=views:anchor(state.weapon)
         local x=state.aimX-iw*scale*anchor.x
         local y=state.aimY-ih*scale*anchor.y+(state.recoil or 0)*18

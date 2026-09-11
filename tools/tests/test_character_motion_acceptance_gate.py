@@ -18,11 +18,17 @@ from tools.character_motion_acceptance_gate import (  # noqa: E402
     REVIEW_FLAGS,
     audit_locomotion_mattes,
     audit_per_frame_geometry,
+    audit_source_resolution_normalization,
+    audit_current_motion_evidence,
     frame_has_opaque_rectangular_matte,
     prepare_review_artifacts,
     sha256_file,
     validate_manual_review,
     validate_prompt_provenance,
+    validate_sprite_doctor_inputs,
+    validate_motion_center_contract,
+    validate_motion_center_metrics,
+    split_animation_frames,
 )
 
 
@@ -133,6 +139,10 @@ class CharacterMotionAcceptanceGateTests(unittest.TestCase):
         (sprite_root / "report.json").write_text(
             json.dumps({"summary": {"errors": 0, "warnings": 1}, "issues": [
                 {"severity": "warning", "action": "sit", "code": "legacy_duplicate"}
+            ], "audited_inputs": [
+                {"character": self.character, "action": path.stem,
+                 "path": path.relative_to(self.project_root).as_posix(), "sha256": sha256_file(path)}
+                for path in sorted(self.runtime_root.glob("*.png"))
             ]}),
             encoding="utf-8",
         )
@@ -197,6 +207,40 @@ class CharacterMotionAcceptanceGateTests(unittest.TestCase):
         self.assertIn("excessive_per_frame_scale", codes)
         self.assertIn("dangerous_per_frame_geometry", codes)
 
+    def _resolution_fixture(self) -> tuple[dict, dict]:
+        _, build = self._fixture()
+        replacement = self._transparent_sprite().resize((192, 192), Image.Resampling.NEAREST)
+        replacement.save(self.source_root / "high-resolution-phase.png")
+        entry = {"source": "high-resolution-phase.png", "resolution_normalization": {
+            "mode": "reviewed_visible_height", "source_visible_height": 159, "target_visible_height": 53,
+        }}
+        build["walks"]["walk.png"].update({"fixed_grid": True, "frame_sources": [entry] + [None] * 7})
+        return build, entry
+
+    def test_high_resolution_replacement_is_not_a_body_scale_error(self) -> None:
+        build, entry = self._resolution_fixture()
+        self.assertEqual(audit_source_resolution_normalization(build, self.project_root), [])
+        entry["resolution_normalization"] = "match_base_visible_height"
+        self.assertEqual(audit_source_resolution_normalization(build, self.project_root), [])
+
+    def test_reviewed_height_cannot_bypass_body_scale_limit(self) -> None:
+        build, entry = self._resolution_fixture()
+        entry["resolution_normalization"]["target_visible_height"] = 53 * 1.07
+        codes = {issue.code for issue in audit_source_resolution_normalization(build, self.project_root)}
+        self.assertIn("excessive_resolution_body_scale", codes)
+        entry["resolution_normalization"].update({"source_visible_height": 159 / 1.07, "target_visible_height": 53})
+        codes = {issue.code for issue in audit_source_resolution_normalization(build, self.project_root)}
+        self.assertIn("unverified_source_resolution_height", codes)
+        self.assertIn("excessive_resolution_body_scale", codes)
+
+    def test_resolution_and_frame_corrections_share_one_scale_budget(self) -> None:
+        build, entry = self._resolution_fixture()
+        entry["resolution_normalization"]["target_visible_height"] = 53 * 1.03
+        build["walks"]["walk.png"]["frame_adjustments"] = {"1": {"scale_x": 1.03, "scale_y": 1.03}}
+        self.assertEqual(audit_per_frame_geometry(build), [])
+        codes = {issue.code for issue in audit_source_resolution_normalization(build, self.project_root)}
+        self.assertIn("excessive_resolution_body_scale", codes)
+
     def test_prompt_provenance_requires_candid_reconstruction_and_covers_sources(self) -> None:
         _, build = self._fixture()
         artifacts = []
@@ -240,6 +284,12 @@ class CharacterMotionAcceptanceGateTests(unittest.TestCase):
             )
         }
         self.assertIn("reconstructed_prompt_claimed_verbatim", codes)
+
+        provenance["records"][0].pop("verbatim")
+        shutil.copyfile(self.source_root / "walk-reviewed.png", self.source_root / "override.png")
+        build["walks"]["walk.png"]["frame_sources"] = [{"source": "override.png", "resolution_normalization": "match_base_visible_height"}] + [None] * 7
+        codes = {issue.code for issue in validate_prompt_provenance(provenance, character=self.character, build_manifest=build, project_root=self.project_root, character_root=self.character_root)}
+        self.assertIn("build_source_without_prompt_provenance", codes)
 
     def test_prepare_review_creates_half_speed_gif_and_half_cycle_sheet(self) -> None:
         spec, _ = self._fixture()
@@ -328,6 +378,122 @@ class CharacterMotionAcceptanceGateTests(unittest.TestCase):
         self.assertIn("wrong_direction_evidence", codes)
         self.assertIn("wrong_review_report", codes)
         self.assertIn("stale_evidence_hash", codes)
+
+    def test_review_binds_sprite_bytes_spec_and_build_manifest(self) -> None:
+        spec, build = self._fixture()
+        self._write_audit_evidence()
+        template_path, _ = prepare_review_artifacts(spec, self.project_root, self.character_root, build_manifest=build)
+        review = json.loads(template_path.read_text(encoding="utf-8"))
+        with Image.open(self.runtime_root / "walk.png") as opened:
+            changed = opened.convert("RGBA")
+        changed.putpixel((30, 30), (110, 80, 20, 255))
+        changed.save(self.runtime_root / "walk.png")
+        spec["directions"]["north"]["mirror_x"] = True
+        build["walks"]["walk.png"]["source_frame_indices"] = list(reversed(range(8)))
+        codes = {issue.code for issue in validate_manual_review(review, motion_spec=spec, project_root=self.project_root, character_root=self.character_root, build_manifest=build)}
+        self.assertIn("stale_evidence_hash", codes)
+        self.assertIn("stale_review_motion_spec", codes)
+        self.assertIn("stale_review_build_manifest", codes)
+
+    def test_audit_input_verification_rejects_stale_metrics_and_contact_pixels(self) -> None:
+        spec, _ = self._fixture()
+        self._write_audit_evidence()
+        report_path = self.character_root / "audit" / "report.json"
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report["animations"] = []
+        for name, definition in spec["animations"].items():
+            metrics = []
+            for index, frame in enumerate(split_animation_frames(definition, self.project_root), 1):
+                alpha = frame.getchannel("A")
+                metrics.append({"frame": index, "bbox": list(alpha.getbbox()), "visible_pixels": sum(alpha.histogram()[17:])})
+            report["animations"].append({"name": name, "path": definition["path"], "frames": metrics})
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        # Correct metrics cannot legitimize unrelated contact-sheet art.
+        codes = {issue.code for issue in audit_current_motion_evidence(spec, self.project_root, self.character_root)}
+        self.assertIn("stale_motion_contact_sheet", codes)
+        self.assertNotIn("stale_motion_audit_inputs", codes)
+        report["animations"][0]["frames"][0]["visible_pixels"] += 1
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        codes = {issue.code for issue in audit_current_motion_evidence(spec, self.project_root, self.character_root)}
+        self.assertIn("stale_motion_audit_inputs", codes)
+
+    def test_core_center_contract_requires_matching_build_and_threshold(self) -> None:
+        self.assertEqual(validate_motion_center_contract({}, {}), [])
+        spec = {"audit": {"center_metric": "core", "alpha_threshold": 16}}
+        self.assertIn("motion_center_contract_mismatch", {i.code for i in validate_motion_center_contract(spec, {})})
+        build = {"framing": {"horizontal_anchor": "core"}}
+        self.assertEqual(validate_motion_center_contract(spec, build), [])
+        mixed = {**build, "walks": {"walk.png": {"horizontal_anchor": "bbox"}}}
+        self.assertIn("motion_center_contract_mismatch", {i.code for i in validate_motion_center_contract(spec, mixed)})
+        legacy_idle = {**build, "idle": {"horizontal_anchor": "bbox"}}
+        self.assertIn("motion_center_contract_mismatch", {i.code for i in validate_motion_center_contract(spec, legacy_idle)})
+        legacy_idle["idle_sets"] = []
+        self.assertIn("motion_center_contract_mismatch", {i.code for i in validate_motion_center_contract(spec, legacy_idle)})
+        spec["audit"]["alpha_threshold"] = 24
+        self.assertIn("invalid_core_alpha_threshold", {i.code for i in validate_motion_center_contract(spec, build)})
+        spec["audit"]["center_metric"] = "tail"
+        self.assertIn("invalid_motion_center_metric", {i.code for i in validate_motion_center_contract(spec, build)})
+
+    def test_core_center_evidence_is_recomputed_and_cannot_hide_drift(self) -> None:
+        from tools.build_directional_character_assets import core_horizontal_anchor_x, visible_bbox
+        frames = [self._transparent_sprite(), self._transparent_sprite(offset=1)]
+        settings = {"center_metric": "core", "center_tolerance": 6}
+        positions = [core_horizontal_anchor_x(frame, visible_bbox(frame)) for frame in frames]
+        bbox_positions = [(visible_bbox(frame)[0] + visible_bbox(frame)[2]) / 2 for frame in frames]
+        record = {"center_metrics": {"metric": "core", "positions": positions, "bbox_positions": bbox_positions, "tolerance": 6}}
+        before = [frame.tobytes() for frame in frames]
+        self.assertEqual(validate_motion_center_metrics(record, frames, settings, "test"), [])
+        record["center_metrics"]["tolerance"] = 1000
+        self.assertIn("stale_motion_center_metrics", {i.code for i in validate_motion_center_metrics(record, frames, settings, "test")})
+        record["center_metrics"]["tolerance"] = 6
+        record["center_metrics"]["positions"] = [0, 0]
+        shifted = [frames[0], self._transparent_sprite(offset=10)]
+        codes = {i.code for i in validate_motion_center_metrics(record, shifted, settings, "test")}
+        self.assertIn("stale_motion_center_metrics", codes)
+        self.assertIn("motion_core_center_jitter", codes)
+        self.assertEqual([frame.tobytes() for frame in frames], before)
+
+    def test_sprite_doctor_must_hash_the_current_staged_locomotion(self) -> None:
+        spec, _ = self._fixture()
+        self._write_audit_evidence()
+        report = json.loads((self.character_root / "sprite-doctor" / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root), [])
+        self.assertIn("missing_sprite_doctor_input_hashes", {issue.code for issue in validate_sprite_doctor_inputs({}, spec, self.project_root, self.character_root)})
+        # Installed audit evidence is valid only when it describes identical bytes.
+        installed = self.project_root / "assets" / "sprites" / "character-animations" / self.character
+        installed.mkdir(parents=True)
+        for reference in report["audited_inputs"]:
+            destination = installed / f"{reference['action']}.png"
+            shutil.copyfile(self.project_root / reference["path"], destination)
+            reference["path"] = destination.relative_to(self.project_root).as_posix()
+        self.assertEqual(validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root), [])
+        with Image.open(self.runtime_root / "walk.png") as source:
+            changed = source.convert("RGBA")
+        changed.putpixel((30, 30), (25, 40, 80, 255))
+        changed.save(self.runtime_root / "walk.png")
+        codes = {issue.code for issue in validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root)}
+        self.assertIn("stale_sprite_doctor_input", codes)
+
+    def test_doctor_framing_must_match_the_current_build_manifest(self) -> None:
+        from tools.character_sprite_doctor import SpriteDoctor
+        spec, build = self._fixture()
+        self._write_audit_evidence()
+        build["idle_sets"][0]["outputs"] = ["idle.png"]
+        build["framing"] = {"horizontal_anchor": "core"}
+        path = self.project_root / "character-motion" / f"{self.character}-build.json"
+        path.parent.mkdir()
+        path.write_text(json.dumps(build), encoding="utf-8")
+        report = json.loads((self.character_root / "sprite-doctor" / "report.json").read_text(encoding="utf-8"))
+        report["framing_contract"] = SpriteDoctor(self.project_root, build_manifest=path).framing_contract
+        self.assertEqual(validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root, build), [])
+        report["framing_contract"]["actions"]["walk"]["center_x"] = 200
+        codes = {issue.code for issue in validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root, build)}
+        self.assertIn("wrong_sprite_doctor_framing_measurements", codes)
+        other = {**build, "framing": {"horizontal_anchor": "bbox", "center_x": 200}}
+        path.write_text(json.dumps(other), encoding="utf-8")
+        report["framing_contract"] = SpriteDoctor(self.project_root, build_manifest=path).framing_contract
+        codes = {issue.code for issue in validate_sprite_doctor_inputs(report, spec, self.project_root, self.character_root, build)}
+        self.assertIn("wrong_sprite_doctor_framing_contract", codes)
 
 
 if __name__ == "__main__":

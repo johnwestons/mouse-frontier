@@ -33,6 +33,7 @@ Android controls, installation, update flow, and device verification are documen
 - Use the mouse wheel or **+ / -** to zoom any gameplay scene, battle, menu, or overlay. Middle-drag to pan, **Alt + arrow keys** to nudge the view, and **0** to reset the current view. Hold **Shift** while using the wheel on the journey map or character list to scroll that interface instead.
 - On Android, pinch anywhere outside the fixed thumb controls to zoom and use a two-finger drag to pan. Camera views are remembered separately for worlds and interfaces, while the edge controls remain fixed and reachable.
 - Open **Settings → Accessibility** for three text sizes, high contrast, reduced motion, optional control hints, visual/haptic touch feedback, and larger Android thumb controls. On Windows, use **Tab** to change settings pages and **1–6** to change accessibility preferences.
+- The shared interface uses Courier Prime typewriter text with measured wrapping. On mobile, the journey HUD spans the physical screen width and stays fixed during world zoom; roomier menus and clearer inventory, battle, dialogue, trading, and activity panels improve readability.
 - Use the travel control to preview the next leg's food, water, and coal cost. Costs rise at clear journey milestones, with terrain, passengers, engine upgrades, traits, and maintenance modifying the total.
 - Open the backpack with its top-right button or press **I**.
 - Click an item and then another slot to rearrange it.
@@ -45,7 +46,6 @@ Android controls, installation, update flow, and device verification are documen
 - Four stop NPCs can begin branching dialogue quests about a missing family, disputed crops, a bandit warning, or a broken promise. Choices and discovered evidence persist; use **1–3** or the large choice buttons, and **Escape/Q** or **Pause** to resume later.
 - NPCs remember personal help, rides, gifts, conversations, and trades. Familiar travelers recognize the player, passengers discuss their work and destination, and goodwill plus friendship improve merchant prices and buying budgets.
 - First aid begins by finding a small cut, then disinfecting, cleaning, applying ointment, placing gauze, and wrapping three passes. Use mouse/touch gestures or **Enter/Space** to complete the current step; **Q/Escape** saves progress for later. Medical supplies are consumed when treatment is complete.
-- Settlement water pumps can be repaired for goodwill and scrap. Walk up and interact; repairing the leak also clears its slippery runoff.
 - Shooting ranges offer weapon selection, stationary or moving paper/steel/clay targets, target patterns, and stage lengths. Use **B** to buy ammunition in setup, **Space/left click** to fire, **R** to reload, **right click/Shift** to aim, and **Tab** to return to setup.
 - From stop 4 onward, Otter Scout can offer the Last Stand rescue. Help the wounded, take a farmhouse window, and defend against the relay gang. Use **L** for the house rifle and ammunition, **Tab** to switch weapons, **C** for cover, and **P** to pause. Touch buttons and gamepad controls support the quest; leaving through the backyard gate preserves progress.
 - Stand at a house entrance and press **E** to enter; its furniture can be collected and placed elsewhere.
@@ -91,6 +91,7 @@ Android controls, installation, update flow, and device verification are documen
 - `assets/sprites/items/` — generated collectible sprites
 - `assets/sprites/environment/` — generated houses, trees, and train furniture
 - `assets/sprites/train/` — generated locomotive and train-car artwork
+- `assets/fonts/` — Courier Prime regular/bold fonts, source attribution, and SIL Open Font License
 - `backgroundReferences/` — landscape references; the prototype currently scrolls the desert landscape
 
 LÖVE stores the three save files in its `mouse-frontier/saves` save-data folder, safely outside the artwork folder. Older saves are upgraded sequentially to the current schema on load, with the original retained as a backup; invalid primary files recover from a validated temporary file or backup when available.

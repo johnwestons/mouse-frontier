@@ -1,6 +1,8 @@
 local FirstPerson=require("game.first_person_shooting")
 local WindowScene=require("game.window_scene")
 local Tuning=require("game.last_stand_tuning")
+local Typography=require("game.typography")
+local Accessibility=require("game.accessibility")
 
 local Shootout={}
 
@@ -51,6 +53,10 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
         flashes={},
         impacts={},
         enemyShots=0,
+        ducking=false,
+        coverProgress=0,
+        hitRecovery=0,
+        hitFeedback=0,
         spawnCursor=1,
         result=nil,
         notice=nil,
@@ -87,13 +93,26 @@ local function addEffect(state,frame,x,y,scale,duration)
     }
 end
 
-local function enemyShot(state,target)
+local function enemyShot(state,target,data)
     state.enemyShots=state.enemyShots+1
     local stage=select(1,stageFor(state.elapsed))
-    if state.ducking then return end
+    state.flashes[#state.flashes+1]={slot=target.slot,ttl=.13,maxTtl=.13}
+    if state.ducking or state.coverProgress>0 then return end
     local cover=WindowScene.data.frames[state.windowId].cover
     state.quest.positionIntegrity=clamp(state.quest.positionIntegrity-(.34+stage*.12)*cover,0,100)
-    state.flashes[#state.flashes+1]={slot=target.slot,ttl=.13,maxTtl=.13}
+    local hitChance=(Tuning.hitChance+(stage-1)*Tuning.hitChancePerPhase)*cover
+    if state.hitRecovery<=0 and randomRange(0,1)<hitChance then
+        local damage=target.heavy and 2 or 1
+        local health=tonumber(data.health) or tonumber(data.maxHealth) or 20
+        data.health=math.max(1,health-damage)
+        state.hitRecovery=Tuning.hitRecoverySeconds
+        state.hitFeedback=.45
+        state.notice={text="You were hit! Take cover below the window.",timer=1.7}
+        if data.health<=1 then
+            state.retreatReason="wounded"
+            state.result="retreat"
+        end
+    end
     if state.enemyShots%3==0 then
         state.impacts[#state.impacts+1]={
             point=((math.floor(state.enemyShots/3)-1)%6)+1,
@@ -105,7 +124,7 @@ local function enemyShot(state,target)
     end
 end
 
-local function updateTargets(state,dt)
+local function updateTargets(state,dt,data)
     local limit=activeLimit(state)
     state.spawnCooldown=math.max(0,(state.spawnCooldown or 0)-dt)
     local active=0
@@ -122,7 +141,7 @@ local function updateTargets(state,dt)
                 target.timer=.16
                 target.fired=false
             elseif target.status=="firing" then
-                if not target.fired then target.fired=true; enemyShot(state,target) end
+                if not target.fired then target.fired=true; enemyShot(state,target,data) end
                 if target.timer<=0 then target.status="hiding"; target.timer=.22 end
             elseif target.status=="hiding" and target.timer<=0 then
                 target.status="hidden"
@@ -173,6 +192,11 @@ end
 function Shootout.update(state,dt,data,Catalog,width,height)
     state.width,state.height=width,height
     state.clock=state.clock+dt
+    state.hitRecovery=math.max(0,(state.hitRecovery or 0)-dt)
+    state.hitFeedback=math.max(0,(state.hitFeedback or 0)-dt)
+    local coverTarget=state.ducking and 1 or 0
+    local coverStep=dt/(state.reducedMotion and .1 or Tuning.coverSeconds)
+    state.coverProgress=state.coverProgress+clamp(coverTarget-state.coverProgress,-coverStep,coverStep)
     state.stageBanner=math.max(0,(state.stageBanner or 0)-dt)
     if state.notice then
         state.notice.timer=state.notice.timer-dt
@@ -221,8 +245,10 @@ function Shootout.update(state,dt,data,Catalog,width,height)
         end
     end
     local shots=state.enemyShots
-    updateTargets(state,dt)
+    updateTargets(state,dt,data)
     if state.enemyShots>shots then FirstPerson.playReport("frontier-22-lever-rifle",Catalog,data,true) end
+
+    if state.result then return state.result end
 
     if state.quest.positionIntegrity<=0 then
         state.result="retreat"
@@ -244,6 +270,16 @@ end
 
 function Shootout.setADS(state,value)
     FirstPerson.setADS(state.gun,value)
+end
+
+function Shootout.setCover(state,value)
+    if state.result then return false end
+    state.ducking=value==true
+    return true
+end
+
+function Shootout.setTouchAim(state,x,y,width,height)
+    FirstPerson.setTouchAim(state.gun,x,y,width,height)
 end
 
 function Shootout.reload(state,data)
@@ -281,7 +317,7 @@ function Shootout.supply(state,data,Catalog)
 end
 
 function Shootout.fire(state,data,width,height,Catalog)
-    if state.result or state.ducking or FirstPerson.needsSupply(state.gun,data,state.quest) then return false end
+    if state.result or state.ducking or state.coverProgress>0 or FirstPerson.needsSupply(state.gun,data,state.quest) then return false end
     local fired,reason=FirstPerson.fire(state.gun,data,state.quest)
     if not fired then
         state.notice={text=reason=="reload" and "Magazine empty. Press R to reload." or "The weapon is not ready.",timer=1.5}
@@ -321,6 +357,10 @@ function Shootout.retry(state)
     state.quest.holdElapsed=state.elapsed
     state.quest.recoveries=(state.quest.recoveries or 0)+1
     state.result=nil
+    state.retreatReason=nil
+    state.ducking=false
+    state.coverProgress=0
+    state.hitRecovery=0
     state.enemyShots=0
     state.impacts={}
     state.quest.impacts=state.impacts
@@ -395,11 +435,11 @@ function Shootout.touchAction(x,y,width,height)
 end
 
 function Shootout.supplyRect(width,height)
-    return width/2-170,height/2+70,340,50
+    return width/2-170,height/2+70,340,62
 end
 
 function Shootout.retryRect(width,height)
-    return width/2-150,height/2+80,300,50
+    return width/2-150,height/2+80,300,62
 end
 
 function Shootout.mousepressed(state,x,y,button,data,Catalog,width,height)
@@ -425,9 +465,20 @@ function Shootout.mousereleased(state,button)
 end
 
 function Shootout.draw(state,data,width,height)
+    local textScale=Accessibility.textScale(data)
+    local function textBox(text,x,y,w,h,scale,align)
+        return Typography.drawText(love.graphics,text,x,y,w,h,{scale=(scale or 1)*textScale,minScale=.85,align=align or "left",valign="center"})
+    end
     love.graphics.push("all")
     love.graphics.setColor(.045,.034,.025,1)
     love.graphics.rectangle("fill",0,0,width,height)
+    local cover=state.coverProgress or 0
+    local easedCover=cover*cover*(3-2*cover)
+    local _,openingY,_,openingHeight=WindowScene.opening(state.windowId,width,height)
+    local drop=(openingY+openingHeight-height*.14)*easedCover
+    love.graphics.push("all")
+    love.graphics.translate(0,-drop)
+    WindowScene.drawLowerWall(state.windowId,width,height,drop)
     love.graphics.push("all")
     WindowScene.clipWindow(state.windowId,width,height)
     local layout=WindowScene.drawBackground(state,width,height)
@@ -438,89 +489,108 @@ function Shootout.draw(state,data,width,height)
     love.graphics.pop()
     WindowScene.drawWindow(state.windowId,width,height)
     WindowScene.drawDamage(state.impacts,width,height,state.windowId)
-    FirstPerson.draw(state.gun,width,height)
+    love.graphics.pop()
+    if cover<1 then
+        love.graphics.push("all")
+        love.graphics.translate(0,height*easedCover)
+        FirstPerson.draw(state.gun,width,height)
+        love.graphics.pop()
+    end
 
-    local aimX,aimY=state.gun.aimX,state.gun.aimY
-    love.graphics.setColor(1,.82,.42,.92)
-    love.graphics.setLineWidth(state.gun.ads and 1.5 or 2.5)
-    local radius=state.gun.ads and 9 or 16
-    love.graphics.circle("line",aimX,aimY,radius)
-    love.graphics.line(aimX-radius-8,aimY,aimX-radius+2,aimY)
-    love.graphics.line(aimX+radius-2,aimY,aimX+radius+8,aimY)
-    love.graphics.line(aimX,aimY-radius-8,aimX,aimY-radius+2)
-    love.graphics.line(aimX,aimY+radius-2,aimX,aimY+radius+8)
+    if not state.ducking and cover==0 then
+        local aimX,aimY=state.gun.aimX,state.gun.aimY
+        love.graphics.setColor(1,.82,.42,.92)
+        love.graphics.setLineWidth(state.gun.ads and 1.5 or 2.5)
+        local radius=state.gun.ads and 9 or 16
+        love.graphics.circle("line",aimX,aimY,radius)
+        love.graphics.line(aimX-radius-8,aimY,aimX-radius+2,aimY)
+        love.graphics.line(aimX+radius-2,aimY,aimX+radius+8,aimY)
+        love.graphics.line(aimX,aimY-radius-8,aimX,aimY-radius+2)
+        love.graphics.line(aimX,aimY+radius-2,aimX,aimY+radius+8)
+    end
 
-    panel(18,16,205,92)
+    if state.hitFeedback>0 and not state.reducedFlashes then
+        love.graphics.setColor(.75,.13,.07,state.hitFeedback*.65)
+        love.graphics.setLineWidth(14)
+        love.graphics.rectangle("line",7,7,width-14,height-14)
+    end
+
+    panel(18,16,250,108)
     love.graphics.setColor(.96,.86,.67,1)
-    love.graphics.print("HOLD  "..formatTime(Tuning.holdSeconds-state.elapsed),32,29)
-    love.graphics.print("HOSTILES  "..state.quest.kills.." / "..Tuning.requiredKills,32,54)
-    love.graphics.print("MORALE  "..math.ceil(state.quest.enemyMorale).."%",32,79)
+    textBox("HOLD  "..formatTime(Tuning.holdSeconds-state.elapsed),32,24,222,28)
+    textBox("HOSTILES  "..state.quest.kills.." / "..Tuning.requiredKills,32,57,222,28)
+    textBox("MORALE  "..math.ceil(state.quest.enemyMorale).."%",32,90,222,28)
 
-    panel(width-228,16,210,92)
+    panel(width-260,16,242,140)
     love.graphics.setColor(.96,.86,.67,1)
-    love.graphics.print("POSITION  "..math.ceil(state.quest.positionIntegrity).."%",width-214,29)
+    textBox("HEALTH  "..math.ceil(data.health or data.maxHealth or 20).." / "..math.ceil(data.maxHealth or 20),width-246,24,214,28)
+    textBox("POSITION  "..math.ceil(state.quest.positionIntegrity).."%",width-246,57,214,28)
     local rounds=FirstPerson.rounds(state.gun,data,state.quest)
-    love.graphics.print("MAG  "..(state.gun.magazine or 0).." / "..(state.gun.capacity or 0),width-214,54)
-    love.graphics.print("ROUNDS  "..rounds,width-214,79)
+    textBox("MAG  "..(state.gun.magazine or 0).." / "..(state.gun.capacity or 0),width-246,90,214,28)
+    textBox("ROUNDS  "..rounds,width-246,123,214,28)
 
     local _,stageName=stageFor(state.elapsed)
     if state.stageBanner>0 then
-        panel(width/2-150,28,300,48)
+        panel(width/2-190,20,380,72)
         love.graphics.setColor(1,.82,.43,math.min(1,state.stageBanner))
-        love.graphics.printf("PHASE "..select(1,stageFor(state.elapsed)).."  "..string.upper(stageName),width/2-140,45,280,"center")
+        textBox("PHASE "..select(1,stageFor(state.elapsed)).."  "..string.upper(stageName),width/2-178,26,356,60,1,"center")
     end
     if state.notice then
-        panel(width/2-260,height-116,520,44)
+        local noticeY=height-(state.touchControls and 190 or 118)
+        panel(width/2-290,noticeY,580,70)
         love.graphics.setColor(.96,.86,.68,1)
-        love.graphics.printf(state.notice.text,width/2-246,height-102,492,"center")
+        textBox(state.notice.text,width/2-276,noticeY+6,552,58,.95,"center")
     end
     love.graphics.setColor(.95,.84,.64,.86)
-    love.graphics.printf("LMB fire   RMB aim   R reload   C cover   TAB weapon   ESC leave",width/2-310,height-30,620,"center")
+    local hints=state.touchControls and "Hold the grip. Second touch or FIRE to shoot."
+        or "LMB fire  •  RMB aim  •  R reload  •  C cover  •  TAB weapon  •  ESC leave"
+    textBox(hints,24,height-36,width-48,30,.9,"center")
     if state.ducking then
-        panel(width/2-180,height/2-35,360,70)
+        panel(width/2-230,height/2-52,460,104)
         love.graphics.setColor(1,.88,.62,1)
-        love.graphics.printf("IN COVER - HOLD TIMER PAUSED\n[C] Return to the window",width/2-168,height/2-17,336,"center")
+        textBox("IN COVER  •  PROTECTED\n"..(state.touchControls and "Tap COVER to return to the window" or "[C] Return to the window"),width/2-216,height/2-42,432,84,1,"center")
     end
     if state.touchControls then
         for _,button in ipairs(touchButtons) do
             local x,w=button.x*width/960,button.w*width/960
             panel(x,height-104,w,62)
             love.graphics.setColor(1,.88,.62,1)
-            love.graphics.printf(button.label,x,height-80,w,"center")
+            textBox(button.label,x+6,height-100,w-12,54,1,"center")
         end
     end
 
     if FirstPerson.needsSupply(state.gun,data,state.quest) and not state.result then
         love.graphics.setColor(0,0,0,.68)
         love.graphics.rectangle("fill",0,0,width,height)
-        panel(width/2-260,height/2-92,520,232)
+        panel(width/2-290,height/2-100,580,244)
         love.graphics.setColor(1,.84,.56,1)
-        love.graphics.printf("GUARD FOX",width/2-230,height/2-66,460,"center")
+        textBox("GUARD FOX",width/2-270,height/2-80,540,38,1.15,"center")
         love.graphics.setColor(.92,.86,.74,1)
-        love.graphics.printf(
+        textBox(
             state.quest.loanActive and "You are dry again. I found another pouch of .22s." or "Use my lever rifle and ammunition. It comes back when this is over.",
-            width/2-220,height/2-28,440,"center"
+            width/2-260,height/2-30,520,86,1,"center"
         )
         local rx,ry,rw,rh=Shootout.supplyRect(width,height)
         love.graphics.setColor(.52,.26,.10,1)
         love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
         love.graphics.setColor(1,.88,.62,1)
-        love.graphics.printf(state.quest.loanActive and "TAKE AMMO  [L]" or "USE FOX'S RIFLE  [L]",rx,ry+17,rw,"center")
+        local label=state.quest.loanActive and "TAKE AMMO" or "USE FOX'S RIFLE"
+        textBox(label..(state.touchControls and "" or "  [L]"),rx+10,ry+4,rw-20,rh-8,1,"center")
     end
 
     if state.result=="retreat" then
         love.graphics.setColor(0,0,0,.72)
         love.graphics.rectangle("fill",0,0,width,height)
-        panel(width/2-270,height/2-100,540,250)
+        panel(width/2-300,height/2-108,600,266)
         love.graphics.setColor(1,.66,.38,1)
-        love.graphics.printf("THE FIRING LINE GIVES WAY",width/2-240,height/2-68,480,"center")
+        textBox("THE FIRING LINE GIVES WAY",width/2-280,height/2-90,560,42,1.1,"center")
         love.graphics.setColor(.92,.85,.72,1)
-        love.graphics.printf("The defenders drag everyone back from the windows. Your progress is kept, but the position must be stabilized before you continue.",width/2-220,height/2-28,440,"center")
+        textBox("The defenders pull everyone back from the windows. Your progress is saved. Stabilize the position to continue.",width/2-270,height/2-36,540,106,1,"center")
         local rx,ry,rw,rh=Shootout.retryRect(width,height)
         love.graphics.setColor(.52,.25,.10,1)
         love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
         love.graphics.setColor(1,.88,.62,1)
-        love.graphics.printf("REGROUP AND RETRY  [ENTER]",rx,ry+17,rw,"center")
+        textBox("REGROUP AND RETRY"..(state.touchControls and "" or "  [ENTER]"),rx+10,ry+4,rw-20,rh-8,1,"center")
     end
     love.graphics.pop()
 end

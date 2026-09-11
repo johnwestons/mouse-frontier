@@ -12,7 +12,7 @@ local function run()
     local Gun=require("game.first_person_shooting")
     local Shootout=require("game.last_stand_shootout")
     local saves=0
-    local data={version=33,location=4,scene="stop",stopped=true,
+    local data={version=33,location=4,scene="stop",stopped=true,health=20,maxHealth=20,
         equipment={},inventory={},inventoryCapacity=6,weaponDurability={},ammo={["22lr"]=0},
         scrap=5,goodwill=2,resources={food=3},character="missing-player.png",lastStand={},audio={sfxVolume=0}}
     local runtime={state="game",scene="stop",saveData=data,player={x=480,y=500,facing=1}}
@@ -276,21 +276,65 @@ local function run()
     quest:keypressed("c")
     local hold=data.lastStand.holdElapsed
     local integrity=data.lastStand.positionIntegrity
+    local coveredHealth=data.health
     for _=1,80 do quest:update(.05) end
     expect(data.lastStand.holdElapsed==hold and data.lastStand.positionIntegrity==integrity,"cover grants progress or takes unavoidable damage")
+    expect(battle.coverProgress==1 and data.health==coveredHealth,"cover did not lower the view or protect player health")
+    expect(not Shootout.fire(battle,data,960,720,Catalog),"player could fire below the window")
+    draw("10-crouched-cover")
     quest:keypressed("c")
+    quest:update(.05)
+    expect(battle.coverProgress>0 and battle.coverProgress<1,"returning to the window did not animate")
+    expect(not Shootout.fire(battle,data,960,720,Catalog),"player could fire before rising to the window")
+    for _=1,6 do quest:update(.05) end
+
+    -- A real enemy shot damages and saves the player's persistent health.
+    local enemyRandom=love.math.random
+    love.math.random=function() return 0 end
+    battle.targets[1].status="firing"; battle.targets[1].timer=.16; battle.targets[1].fired=false
+    battle.targets[1].heavy=false; battle.hitRecovery=0
+    local healthBefore,savesBefore=data.health,saves
+    quest:update(.01)
+    love.math.random=enemyRandom
+    expect(data.health==healthBefore-1 and saves>savesBefore,"enemy hit did not damage and save actual player health")
+    draw("11-exposed-hit")
 
     -- An independent aiming finger never fires; the FIRE finger preserves aim.
     battle.gun.cooldown=0
-    quest:touchpressed("aim",x,y)
+    local gripX,gripY=require("game.mobile_weapon_aim").gripForAim(battle.gun.weapon,battle.gun.ads and "sights" or "hip",x,y,960,720)
+    quest:touchpressed("aim",gripX,gripY)
+    draw("12-touch-grip-hip")
     local rounds=data.lastStand.loanAmmo
     quest:touchpressed("fire",875,646)
     expect(data.lastStand.loanAmmo==rounds-1,"touch fire button did not shoot")
-    expect(battle.gun.aimX==x and battle.gun.aimY==y,"fire button moved the crosshair")
+    expect(math.abs(battle.gun.aimX-x)<.001 and math.abs(battle.gun.aimY-y)<.001,"fire button moved the crosshair")
     quest:touchmoved("fire",890,648)
-    expect(battle.gun.aimX==x,"fire finger moved aim while dragging")
+    expect(math.abs(battle.gun.aimX-x)<.001,"fire finger moved aim while dragging")
     quest:touchreleased("fire",875,646)
-    quest:touchreleased("aim",x,y)
+    battle.gun.cooldown=0
+    local secondRounds=data.lastStand.loanAmmo
+    quest:touchpressed("second-fire",gripX+90,gripY)
+    expect(data.lastStand.loanAmmo==secondRounds-1,"second canvas finger did not fire")
+    quest:touchmoved("second-fire",gripX+120,gripY+30)
+    expect(math.abs(battle.gun.aimX-x)<.001 and math.abs(battle.gun.aimY-y)<.001,"second canvas finger stole aim")
+    quest:touchreleased("second-fire",gripX+90,gripY)
+    quest:touchreleased("aim",gripX,gripY)
+    expect(runtime.lastStand.aimTouch==nil,"released aiming touch retained ownership")
+    quest:touchpressed("focus-aim",gripX,gripY)
+    quest:focus(false)
+    expect(runtime.lastStand.aimTouch==nil and runtime.lastStand.paused,"focus loss retained aiming touch")
+    quest:keypressed("escape")
+    quest:touchpressed("cover-button",440,646); quest:touchreleased("cover-button",440,646)
+    for _=1,6 do quest:update(.05) end
+    expect(battle.ducking and battle.coverProgress==1,"mobile COVER button did not crouch")
+    draw("13-mobile-cover")
+    local originalWindow=battle.windowId
+    battle.windowId="wide"; draw("13-mobile-cover-wide"); battle.windowId=originalWindow
+    quest:touchpressed("cover-button",440,646); quest:touchreleased("cover-button",440,646)
+    for _=1,6 do quest:update(.05) end
+    quest:touchpressed("ads",320,646); quest:touchreleased("ads",320,646)
+    draw("14-touch-grip-sights")
+    quest:touchpressed("ads",320,646); quest:touchreleased("ads",320,646)
 
     -- Loading an active battle safely restores the interior and its progress.
     local savedHold=data.lastStand.holdElapsed
@@ -301,6 +345,7 @@ local function run()
     local loaded=Save.read(99)
     expect(loaded and loaded.lastStand.weaponSession.magazine==savedMagazine
         and loaded.lastStand.loanAmmo==savedLoanAmmo,"serialized save lost magazine or borrowed ammunition")
+    expect(loaded.health==data.health,"serialized save lost enemy hit damage")
     Save.remove(99)
     data=loaded; runtime.saveData=data
     runtime.lastStand=nil
@@ -339,6 +384,11 @@ local function run()
         battle=runtime.lastStand.shootout
         if Gun.needsSupply(battle.gun,data,data.lastStand) then quest:keypressed("l") end
         if battle.gun.magazine==0 and battle.gun.reloadTimer==0 then quest:keypressed("r") end
+        local incoming=false
+        for _,target in ipairs(battle.targets) do
+            if target.status=="firing" or (target.status=="exposed" and target.timer<.35) then incoming=true end
+        end
+        if battle.ducking~=incoming then quest:keypressed("c") end
         if data.lastStand.kills<15 and battle.gun.cooldown==0 then
             for index,target in ipairs(battle.targets) do
                 if target.status=="exposed" then
@@ -395,8 +445,9 @@ local function run()
         love.math.setRandomSeed(14641)
         local pressureQuest={holdElapsed=110,kills=0,enemyMorale=morale,positionIntegrity=100,
             phaseCheckpoint=105,completedPhase=2,loanActive=true,loanAmmo=200}
-        local pressureBattle=Shootout.new(pressureQuest,data,Catalog,"wide",960,720)
-        for _=1,600 do Shootout.update(pressureBattle,.05,data,Catalog,960,720) end
+        local pressureData={health=200,maxHealth=200,equipment={},inventory={},ammo={},audio={sfxVolume=0}}
+        local pressureBattle=Shootout.new(pressureQuest,pressureData,Catalog,"wide",960,720)
+        for _=1,600 do Shootout.update(pressureBattle,.05,pressureData,Catalog,960,720) end
         return pressureBattle,pressureQuest
     end
     local highPressure,highQuest=measurePressure(100)
@@ -406,6 +457,46 @@ local function run()
     expect(lowQuest.positionIntegrity>highQuest.positionIntegrity,"reduced enemy fire did not relieve position pressure")
     expect(not lowPressure.result and lowQuest.kills==0,"zero morale bypassed the hold or elimination requirements")
     expect((data.lastStand.recoveries or 0)==0,"minimum-elimination defense still entered the recovery loop")
+
+    -- Resolve real enemy firing states with known rolls: misses, hits, cover,
+    -- simultaneous fire and a forced retreat must all affect the same health.
+    for _,windowId in ipairs({"wide","tall"}) do
+        local hitData={health=20,maxHealth=20,equipment={},inventory={},ammo={},audio={sfxVolume=0}}
+        local hitQuest={loanActive=true,loanAmmo=48}
+        local hitBattle=Shootout.new(hitQuest,hitData,Catalog,windowId,960,720)
+        local originalRandom=love.math.random
+        local function shot(roll,dt,heavy)
+            for _,target in ipairs(hitBattle.targets) do target.status="hidden"; target.timer=999 end
+            local target=hitBattle.targets[1]
+            target.status="firing"; target.timer=.16; target.fired=false; target.heavy=heavy
+            love.math.random=function() return roll end
+            Shootout.update(hitBattle,dt,hitData,Catalog,960,720)
+            love.math.random=originalRandom
+        end
+        shot(.99,.01,false)
+        expect(hitData.health==20 and hitQuest.positionIntegrity<100,"exposed enemy shots never miss")
+        shot(0,.01,false)
+        expect(hitData.health==19,"exposed shot did not damage actual health")
+        shot(0,.01,true)
+        expect(hitData.health==19,"simultaneous shots bypassed the hit recovery interval")
+        Shootout.setCover(hitBattle,true)
+        local safeIntegrity=hitQuest.positionIntegrity
+        shot(0,1,true)
+        expect(hitData.health==19 and hitQuest.positionIntegrity==safeIntegrity and hitBattle.coverProgress==1,
+            "crouching failed to shield health and the firing position")
+        Shootout.setCover(hitBattle,false)
+        shot(0,.01,true)
+        expect(hitData.health==19 and hitBattle.coverProgress>0 and hitBattle.coverProgress<1,
+            "enemy hit the player before the view had risen above cover")
+        shot(0,.3,true)
+        expect(hitData.health==17 and hitBattle.coverProgress==0,"heavy enemy fire did not damage an exposed player")
+        hitData.health=2
+        shot(0,1,true)
+        expect(hitData.health==1 and hitBattle.result=="retreat" and hitBattle.retreatReason=="wounded",
+            "critical wounds did not safely pull the player from the window")
+        Shootout.retry(hitBattle)
+        expect(hitData.health==1 and not hitBattle.result,"regrouping silently healed the player")
+    end
     print(string.format("LAST_STAND_PRESSURE_OK high_morale_shots=%d low_morale_shots=%d recoveries=%d",
         highPressure.enemyShots,lowPressure.enemyShots,data.lastStand.recoveries or 0))
     print(string.format("LAST_STAND_FOCUS_OK checks=%d saves=%d kills=%d hold=%.2f scrap=%d",checks,saves,data.lastStand.kills,data.lastStand.holdElapsed,data.scrap))

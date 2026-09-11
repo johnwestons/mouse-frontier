@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import contextlib
 import io
+import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -18,11 +20,14 @@ if str(TOOLS) not in sys.path:
 
 from character_sprite_doctor import (  # noqa: E402
     ACTION_SPECS,
+    ALL_ACTION_SPECS,
     FRAME_SIZE,
     HandAnchor,
     SpriteDoctor,
     apply_weapon_anchor_overrides,
     assemble_strip,
+    build_parser,
+    command_audit,
     command_weapon_anchors,
     detect_hand_anchor,
     encode_weapon_anchors_lua,
@@ -70,6 +75,130 @@ class SpriteDoctorTests(unittest.TestCase):
 
     def doctor(self) -> SpriteDoctor:
         return SpriteDoctor(self.root, self.animation_root)
+
+    def test_staged_locomotion_audit_preserves_installed_assets_and_records_hashes(self) -> None:
+        installed = self.add_character("test-mouse", (190, 65, 45, 255))
+        installed_hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in installed.glob("*.png")}
+        staging_root = self.root / "output" / "character-motion"
+        staged = staging_root / "test-mouse" / "runtime"
+        staged.mkdir(parents=True)
+        for action in ALL_ACTION_SPECS:
+            if action not in {"idle", "walk"} and not action.startswith(("idle_", "walk_")):
+                continue
+            count = 8 if action.startswith("walk") else 2
+            assemble_strip([frame((190, 65, 45, 255))] * count).save(staged / f"{action}.png")
+        report_path = self.root / "doctor-report.json"
+        contacts = self.root / "contacts"
+        args = build_parser().parse_args([
+            "audit", "test-mouse", "--animation-root", str(staging_root),
+            "--animation-subdirectory", "runtime", "--locomotion-only", "--geometry-only",
+            "--report", str(report_path), "--contact-sheets", str(contacts),
+        ])
+        with patch("character_sprite_doctor.ROOT", self.root), contextlib.redirect_stdout(io.StringIO()):
+            exit_code = command_audit(args)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(len(report["audited_inputs"]), 16)
+        self.assertFalse(any(issue.get("action") in {"sit", "lay", "melee", "death"} for issue in report["issues"]))
+        for reference in report["audited_inputs"]:
+            path = self.root / reference["path"]
+            self.assertEqual(path.parent, staged)
+            self.assertEqual(reference["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+        self.assertEqual(installed_hashes, {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in installed.glob("*.png")})
+        self.assertEqual(self.doctor().character_dir("test-mouse"), installed)
+        with Image.open(contacts / "test-mouse.png") as contact:
+            self.assertEqual(contact.size, (130 + 8 * 128 + 20, 46 + 16 * 156))
+
+    def test_virtual_repair_pixels_are_not_claimed_as_audited_file_bytes(self) -> None:
+        self.add_character("test-mouse", (190, 65, 45, 255))
+        result = self.doctor().audit(["test-mouse"], identity=False, locomotion_only=True, overrides={
+            ("test-mouse", "walk"): assemble_strip([frame((60, 100, 150, 255))] * 6),
+        })
+        self.assertNotIn("walk", [record["action"] for record in result.audited_inputs])
+        self.assertIn("idle", [record["action"] for record in result.audited_inputs])
+
+    def _core_manifest(self) -> Path:
+        path = self.root / "character-motion" / "test-mouse-build.json"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps({
+            "character": "test-mouse",
+            "framing": {"frame_size": 512, "target_height": 385, "center_x": 256, "baseline": 458, "horizontal_anchor": "core"},
+            "idle_sets": [{"outputs": ["idle.png"]}], "walks": {"walk.png": {}},
+        }), encoding="utf-8")
+        return path
+
+    @staticmethod
+    def _tailed_frame(tail_end: int, body_width: int = 100) -> Image.Image:
+        sprite = frame((190, 65, 45, 255), (256 - body_width // 2, 73, 256 + body_width // 2, 458))
+        ImageDraw.Draw(sprite).rectangle((290, 415, tail_end, 430), fill=(190, 65, 45, 255))
+        return sprite
+
+    def test_explicit_core_contract_checks_body_anchor_and_preserves_real_misalignment(self) -> None:
+        directory = self.add_character("test-mouse", (190, 65, 45, 255))
+        manifest = self._core_manifest()
+        sprites = [self._tailed_frame(430), self._tailed_frame(420)]
+        assemble_strip(sprites).save(directory / "idle.png")
+        legacy = self.doctor().inspect_sheet("test-mouse", "idle")
+        self.assertIn("center_mismatch", {issue.code for issue in legacy.issues})
+        doctor = SpriteDoctor(self.root, build_manifest=manifest)
+        inspection = doctor.inspect_sheet("test-mouse", "idle")
+        self.assertNotIn("center_mismatch", {issue.code for issue in inspection.issues})
+        self.assertEqual(inspection.framing_measurements[0]["anchor_x"], 255)
+        moved = Image.new("RGBA", sprites[0].size)
+        moved.alpha_composite(sprites[0], (10, -6))
+        changed = doctor.inspect_sheet("test-mouse", "idle", {("test-mouse", "idle"): assemble_strip([moved, sprites[1]])})
+        codes = {issue.code for issue in changed.issues}
+        self.assertIn("center_mismatch", codes)
+        self.assertIn("baseline_mismatch", codes)
+
+    def test_core_scale_metric_separates_tail_pose_from_body_resize(self) -> None:
+        self.add_character("test-mouse", (190, 65, 45, 255))
+        doctor = SpriteDoctor(self.root, build_manifest=self._core_manifest())
+        tail_only = assemble_strip([self._tailed_frame(440), self._tailed_frame(340)])
+        legacy = self.doctor().inspect_sheet("test-mouse", "idle", {("test-mouse", "idle"): tail_only})
+        self.assertIn("adjacent_scale_jump", {issue.code for issue in legacy.issues})
+        inspection = doctor.inspect_sheet("test-mouse", "idle", {("test-mouse", "idle"): tail_only})
+        self.assertNotIn("adjacent_scale_jump", {issue.code for issue in inspection.issues})
+        self.assertTrue(any(issue.code == "pose_extent_change" and issue.severity == "info" for issue in inspection.issues))
+        body_resize = assemble_strip([self._tailed_frame(440), self._tailed_frame(340, body_width=120)])
+        inspection = doctor.inspect_sheet("test-mouse", "idle", {("test-mouse", "idle"): body_resize})
+        issue = next(issue for issue in inspection.issues if issue.code == "adjacent_scale_jump")
+        self.assertEqual(issue.severity, "warning")
+        self.assertEqual(issue.details["comparisons"][0]["width_metric"], "bbox")
+        self.assertGreater(issue.details["comparisons"][0]["width_change"], 0.10)
+        self.assertGreater(issue.details["comparisons"][0]["core_width_change"], 0.10)
+
+    def test_one_pixel_equipment_bridge_does_not_create_a_body_resize_alarm(self) -> None:
+        self.add_character("test-mouse", (190, 65, 45, 255))
+        doctor = SpriteDoctor(self.root, build_manifest=self._core_manifest())
+        sprites = []
+        # The 177-row torso band requires 62 occupied pixels for eligibility.
+        # Reducing this already connected equipment bridge from 62 to 61 pixels
+        # splits the selected support run, although body and bbox are unchanged.
+        for bridge_bottom in (261, 260):
+            sprite = frame((190, 65, 45, 255), (206, 73, 306, 458))
+            draw = ImageDraw.Draw(sprite)
+            draw.rectangle((310, 200, 339, 310), fill=(190, 65, 45, 255))
+            draw.rectangle((306, 200, 309, bridge_bottom), fill=(190, 65, 45, 255))
+            sprites.append(sprite)
+        inspection = doctor.inspect_sheet("test-mouse", "idle", {("test-mouse", "idle"): assemble_strip(sprites)})
+        first, second = inspection.framing_measurements
+        self.assertEqual(first["bbox_width"], second["bbox_width"])
+        self.assertEqual(first["height"], second["height"])
+        self.assertGreater(abs(first["core_width"] - second["core_width"]) / min(first["core_width"], second["core_width"]), 0.10)
+        self.assertNotIn("adjacent_scale_jump", {issue.code for issue in inspection.issues})
+        self.assertTrue(any(issue.code == "core_support_topology_change" and issue.severity == "info" for issue in inspection.issues))
+
+    def test_framing_contract_is_hashed_and_cannot_change_between_load_and_audit(self) -> None:
+        self.add_character("test-mouse", (190, 65, 45, 255))
+        path = self._core_manifest()
+        doctor = SpriteDoctor(self.root, build_manifest=path)
+        expected = hashlib.sha256(path.read_bytes()).hexdigest()
+        result = doctor.audit(["test-mouse"], identity=False, locomotion_only=True)
+        self.assertEqual(result.to_dict()["framing_contract"]["sha256"], expected)
+        path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "manifest changed"):
+            doctor.audit(["test-mouse"], identity=False, locomotion_only=True)
 
     def test_crop_scale_center_and_baseline_are_detected_and_repaired(self) -> None:
         directory = self.add_character("test-mouse", (190, 65, 45, 255))

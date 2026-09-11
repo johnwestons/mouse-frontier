@@ -26,7 +26,6 @@ EXPECTED_MOBILE_ONLY = {
     "mobile_joystick_move_and_run",
     "mobile_menu_touch",
     "mobile_pinch_zoom",
-    "mobile_settlement_help_touch",
     "mobile_return_to_train_touch",
     "mobile_shooting_range_aim_then_fire",
 }

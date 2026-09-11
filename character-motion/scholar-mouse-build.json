@@ -10,8 +10,16 @@
       "source_columns": 4,
       "rows": 4,
       "row_indices": [0, 1],
-      "source_indices": [0, 1, 2, 3],
-      "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png", "idle_northwest.png"]
+      "source_indices": [0, 1, 2],
+      "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png"]
+    },
+    {
+      "source": "candidates/idle-northwest-equipment-v5.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [0, 1],
+      "source_indices": [3],
+      "outputs": ["idle_northwest.png"]
     },
     {
       "source": "idle-direction-study-v4-reviewed.png",
@@ -19,12 +27,16 @@
       "rows": 4,
       "row_indices": [2, 3],
       "source_indices": [0, 1, 2, 3],
-      "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"]
+      "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"],
+      "output_adjustments": {
+        "idle.png": { "2": { "scale_x": 1.01, "scale_y": 1.01 } },
+        "idle_southeast.png": { "2": { "scale_x": 1.02, "scale_y": 1.02 } }
+      }
     }
   ],
   "walks": {
     "walk.png": {
-      "source": "candidates/walk-east-v9-passing-palette.png",
+      "source": "candidates/walk-east-v10-contact-ownership.png",
       "source_columns": 4,
       "rows": 2,
       "drop_boundary_spill": true,
@@ -35,7 +47,7 @@
         null,
         null,
         {
-          "source": "candidates/walk-east-frame3-v16-passing.png",
+          "source": "candidates/walk-east-frame3-upper-palette-v18.png",
           "resolution_normalization": "match_base_visible_height"
         },
         {
@@ -52,7 +64,7 @@
       ]
     },
     "walk_northeast.png": {
-      "source": "candidates/walk-northeast-v5-bare-eye.png",
+      "source": "candidates/walk-northeast-v7-far-cycle.png",
       "source_columns": 4,
       "rows": 2,
       "drop_boundary_spill": true,
@@ -61,7 +73,7 @@
         "2": { "scale_x": 0.99, "scale_y": 0.99 },
         "3": { "scale_x": 0.985, "scale_y": 0.985 },
         "5": { "scale_x": 1.03, "scale_y": 1.03 },
-        "6": { "scale_x": 1.02, "scale_y": 1.02 },
+        "6": { "scale_x": 1.03, "scale_y": 1.03 },
         "7": { "scale_x": 1.015, "scale_y": 1.015 }
       },
       "frame_sources": [
@@ -78,10 +90,10 @@
         null
       ]
     },
-    "walk_north.png": { "source": "walk-north-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
-    "walk_northwest.png": { "source": "walk-northwest-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_north.png": { "source": "walk-north-v1-reviewed.png", "source_columns": 4, "rows": 2, "source_frame_indices": [0, 5, 6, 3, 4, 1, 2, 7], "drop_boundary_spill": true },
+    "walk_northwest.png": { "source": "candidates/walk-northwest-v3-far-depth.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
     "walk_west.png": {
-      "source": "candidates/walk-west-v9-natural-palette.png",
+      "source": "candidates/walk-west-v10-contact-ownership.png",
       "source_columns": 4,
       "rows": 2,
       "drop_boundary_spill": true,
@@ -89,7 +101,7 @@
         null,
         null,
         {
-          "source": "candidates/walk-west-frame3-v11-recolor.png",
+          "source": "candidates/walk-west-frame3-v14-upper-palette.png",
           "resolution_normalization": "match_base_visible_height"
         },
         {
@@ -99,7 +111,7 @@
         null,
         null,
         {
-          "source": "candidates/walk-west-frame7-v8-passing.png",
+          "source": "candidates/walk-west-frame7-v11-upper-palette.png",
           "resolution_normalization": "match_base_visible_height"
         },
         {
@@ -114,8 +126,8 @@
       "rows": 2,
       "drop_boundary_spill": true,
       "frame_sources": [
-        null,
-        null,
+        { "source": "candidates/walk-southwest-frame1-left-leg-magenta-v8.png", "resolution_normalization": "match_base_visible_height" },
+        { "source": "candidates/walk-southwest-frame2-left-leg-magenta-v8.png", "resolution_normalization": "match_base_visible_height" },
         {
           "source": "candidates/walk-southwest-frame3-v7-recolor.png",
           "resolution_normalization": "match_base_visible_height"
@@ -127,29 +139,30 @@
           "source": "candidates/walk-southwest-frame7-v4-passing.png",
           "resolution_normalization": "match_base_visible_height"
         },
-        null
+        { "source": "candidates/walk-southwest-frame8-left-leg-magenta-v8.png", "resolution_normalization": "match_base_visible_height" }
       ]
     },
-    "walk_south.png": { "source": "walk-south-v1-reviewed.png", "source_columns": 4, "rows": 2, "drop_boundary_spill": true },
+    "walk_south.png": {
+      "source": "walk-south-v1-reviewed.png", "source_columns": 4, "rows": 2,
+      "source_frame_indices": [0, 1, 6, 3, 4, 5, 2, 7], "drop_boundary_spill": true,
+      "frame_sources": [null, { "source": "candidates/walk-south-frame2-magenta-v3.png", "resolution_normalization": "match_base_visible_height" }, null, null, null, null, null, null]
+    },
     "walk_southeast.png": {
       "source": "candidates/walk-southeast-v6-natural-palette.png",
       "source_columns": 4,
       "rows": 2,
       "drop_boundary_spill": true,
+      "frame_adjustments": { "7": { "scale_x": 1.05, "scale_y": 1.05 } },
       "frame_sources": [
         null,
         null,
         null,
-        null,
-        null,
-        null,
+        { "source": "candidates/walk-southeast-frame4-right-leg-v9.png", "resolution_normalization": "match_base_visible_height" },
+        { "source": "candidates/walk-southeast-frame5-contact-magenta-v10.png", "resolution_normalization": "match_base_visible_height" },
+        { "source": "candidates/walk-southeast-frame6-right-leg-v9.png", "resolution_normalization": "match_base_visible_height" },
         {
           "source": "candidates/walk-southeast-frame7-v8-passing.png",
-          "resolution_normalization": {
-            "mode": "reviewed_visible_height",
-            "source_visible_height": 730,
-            "target_visible_height": 387
-          }
+          "resolution_normalization": "match_base_visible_height"
         },
         null
       ]

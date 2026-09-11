@@ -4,8 +4,12 @@ local Util = require("game.util")
 local WeaponAttachment = require("game.weapon_attachment")
 local Grid = require("game.battle_grid")
 local Accessibility = require("game.accessibility")
+local Typography = require("game.typography")
 
 local BattleUI = {}
+local function text(value,x,y,w,h,scale,minimum,align)
+    return Typography.drawText(love.graphics,value,x,y,w,h,{scale=scale,minScale=minimum or scale,align=align or "left",valign="center"})
+end
 local function weaponButtonLabel(Catalog,Util,item)
     local name=(Catalog.weaponStats[item] and Catalog.weaponStats[item].name) or Util.titleFromFile(item)
     name=name:gsub("^Frontier%s+",""):gsub("%s+Pocket%s+"," ")
@@ -35,14 +39,12 @@ function BattleUI.draw(ctx)
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
     drawLandscape(); drawGround()
-    love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,55,910,625,12,12)
-    if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,55,910,625,12,12); love.graphics.setLineWidth(1) end
-    love.graphics.setColor(colors.cream); love.graphics.printf("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,70,910,"center",0,1.25,1.25)
-    love.graphics.setColor(colors.brass); love.graphics.printf("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),260,98,440,"center",0,.58,.58)
-    if Accessibility.enabled(saveData,"controlHints") then
-        local hint=mobile and "TAP A UNIT OR HIGHLIGHTED TILE  •  PINCH TO ZOOM" or "CLICK A UNIT OR HIGHLIGHTED TILE  •  RIGHT CLICK INSPECT  •  WHEEL ZOOMS"
-        love.graphics.setColor(colors.cream); love.graphics.printf(hint,145,119,670,"center",0,.52*math.min(textScale,1.18),.52*math.min(textScale,1.18))
-    end
+    love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,12,910,668,12,12)
+    if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,12,910,668,12,12); love.graphics.setLineWidth(1) end
+    -- The northern scenery reaches above its board tile. Keep the heading in
+    -- the free top band and put touch hints on the feed, clear of that artwork.
+    love.graphics.setColor(colors.cream); text("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,18,910,30,1.25,1,"center")
+    love.graphics.setColor(colors.brass); text("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),190,51,580,24,mobile and .80 or .72,.68,"center")
     -- Inspecting a unit changes its information card, never who owns the turn.
     local active=BattleRules.activeUnit(battle)
     local inspected=BattleRules.selectedUnit(battle)
@@ -132,7 +134,7 @@ function BattleUI.draw(ctx)
         end
         if (u.damageNumberTimer or 0)>0 and u.damageNumber then
             local rise=(.9-u.damageNumberTimer)*24
-            love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); love.graphics.printf("-"..u.damageNumber,x-35,y-55-rise,70,"center",0,1.15,1.15)
+            love.graphics.setColor(1,.12,.08,math.min(1,u.damageNumberTimer*2)); text("-"..u.damageNumber,x-35,y-55-rise,70,26,1.15,1,"center")
         end
         if u.hp>0 then
             local hpHeight=highContrast and 12 or 8
@@ -147,7 +149,7 @@ function BattleUI.draw(ctx)
             elseif (u.moveBonus or 0)<0 then status="SNARED"
             elseif u.guarding then status="GUARD"
             elseif (u.regenRounds or 0)>0 then status="REGEN" end
-            if status then love.graphics.setColor(colors.brass); local statusScale=.43*textScale; love.graphics.printf(status,x-50,y+29,100,"center",0,statusScale,statusScale) end
+            if status then love.graphics.setColor(colors.brass); local statusScale=(mobile and .66 or .55)*textScale; text(status,x-50,y+29,100,19,statusScale,.55,"center") end
         end
     end
     if battle.projectile and scenery.projectiles then
@@ -164,28 +166,37 @@ function BattleUI.draw(ctx)
     if not battle.finished and active and active.team=="ally" then
         love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,mobile and 488 or 575,944,mobile and 220 or 105,9,9)
     end
-    local feedX,feedY,feedW,feedH=mobile and 20 or 185,mobile and 438 or 488,mobile and 920 or 590,mobile and 50 or 82
+    local feedX,feedY,feedW,feedH=mobile and 20 or 185,mobile and 414 or 476,mobile and 920 or 590,mobile and 82 or 94
     love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); love.graphics.rectangle("fill",feedX,feedY,feedW,feedH,8,8)
-    love.graphics.setColor(colors.brass); love.graphics.print("BATTLE FEED",feedX+20,feedY+9,0,.72,.72)
-    local log=battle.log or {battle.message}; local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-3))); battle.logScroll=offset
-    local newest=#log-(mobile and 0 or offset); local first=math.max(1,newest-(mobile and 0 or 2)); local row=0
-    local feedScale=(mobile and .80 or .67)*math.min(textScale,1.22)
-    love.graphics.setColor(colors.cream); for i=first,newest do love.graphics.printf(log[i],feedX+25,feedY+28+row*(16*math.min(textScale,1.15)),mobile and (feedW-50)/feedScale or 520,"left",0,feedScale,feedScale); row=row+1 end
+    love.graphics.setColor(colors.brass); text("BATTLE FEED",feedX+20,feedY+7,feedW-40,20,.82,.72)
+    if Accessibility.enabled(saveData,"controlHints") then
+        local hint=mobile and "TAP UNIT / TILE  •  PINCH TO ZOOM" or "CLICK: SELECT  •  RIGHT CLICK: INSPECT  •  WHEEL: ZOOM"
+        love.graphics.setColor(colors.cream); text(hint,feedX+165,feedY+7,feedW-185,20,(mobile and .72 or .60)*math.min(textScale,1.18),.58,"right")
+    end
+    local log=battle.log or {battle.message}; local visible=mobile and 1 or 2
+    local offset=math.max(0,math.min(battle.logScroll or 0,math.max(0,#log-visible))); battle.logScroll=offset
+    local newest=#log-(mobile and 0 or offset); local first=math.max(1,newest-visible+1); local row=0
+    local feedScale=(mobile and .90 or .70)*math.min(textScale,1.22)
+    love.graphics.setColor(colors.cream)
+    for i=first,newest do
+        text(log[i],feedX+20,feedY+28+row*30,mobile and feedW-40 or 520,mobile and 48 or 30,feedScale,mobile and .78 or .64)
+        row=row+1
+    end
     if mobile then ui.battleLogUp=nil; ui.battleLogDown=nil
     else ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0) end
     ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
-    if terrainAtlas then love.graphics.setColor(colors.cream); love.graphics.print(terrainAtlas.name,790,112,0,.7,.7) end
+    if terrainAtlas then love.graphics.setColor(colors.cream); text(terrainAtlas.name,790,105,135,35,.75,.65,"right") end
     if inspected then
         -- Character card occupies the lower-left corner between the battle
         -- feed and the attack controls, leaving the tactical map unobstructed.
-        local cardX,cardY=mobile and 660 or 8,mobile and 506 or 488
-        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",cardX,cardY,mobile and 282 or 168,mobile and 54 or 82,8,8)
-        love.graphics.setColor(colors.brass); love.graphics.printf(inspected==active and "ACTIVE" or "INSPECT",cardX+6,cardY+7,80,"left",0,.62,.62)
+        local cardX,cardY=mobile and 660 or 8,mobile and 498 or 488
+        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",cardX,cardY,mobile and 282 or 168,mobile and 62 or 82,8,8)
+        love.graphics.setColor(colors.brass); text(inspected==active and "ACTIVE" or "INSPECT",cardX+6,cardY+4,50,16,.62,.58)
         local portrait=inspected.team=="enemy" and mobImages[inspected.file] or (characterImages[inspected.file] or npcImages[inspected.file])
         if portrait then local portraitScale=math.min(42/portrait:getWidth(),(mobile and 34 or 48)/portrait:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(portrait,cardX+34,cardY+(mobile and 51 or 64),0,portraitScale,portraitScale,portrait:getWidth()/2,portrait:getHeight()) end
-        love.graphics.setColor(colors.cream); love.graphics.printf(inspected.name,cardX+60,cardY+(mobile and 6 or 15),mobile and 220 or 100,"left",0,mobile and .68 or .54,mobile and .68 or .54)
-        love.graphics.print("HP "..inspected.hp.."/"..inspected.maxHP,cardX+60,cardY+(mobile and 23 or 35),0,mobile and .68 or .56,mobile and .68 or .56)
-        love.graphics.print("MOVE "..inspected.move.."  ARM "..inspected.armor,cardX+60,cardY+(mobile and 39 or 53),0,.52,.52)
+        love.graphics.setColor(colors.cream); text(inspected.name,cardX+60,cardY+(mobile and 3 or 6),mobile and 212 or 100,mobile and 18 or 30,mobile and .85 or .62,mobile and .72 or .54)
+        text("HP "..inspected.hp.."/"..inspected.maxHP,cardX+60,cardY+(mobile and 23 or 36),mobile and 212 or 100,18,mobile and .84 or .65,.60)
+        text("MOVE "..inspected.move.."  ARM "..inspected.armor,cardX+60,cardY+(mobile and 43 or 56),mobile and 212 or 100,16,mobile and .70 or .55,.52)
     end
     if battle.finished then
         local expedition=battle.encounter and battle.encounter.source=="expedition"
@@ -198,7 +209,7 @@ function BattleUI.draw(ctx)
             local bx=20+(i-1)*(mobile and 210 or 174)
             ui.battleWeapons[i]=button((i).."  "..weaponButtonLabel(Catalog,Util,w),bx,mobile and 506 or 592,mobile and 200 or 166,mobile and 54 or 34,true,mobile and .62 or .56)
             local mx,my=screenToGame(ctx.pointerPosition())
-            if Util.pointIn(mx,my,ui.battleWeapons[i]) then
+            if not mobile and Util.pointIn(mx,my,ui.battleWeapons[i]) then
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
                 local combat=Catalog.weaponCombat[w] or Catalog.weaponCombat.scratch
                 local durability=(w=="scratch") and 100 or (saveData.weaponDurability[w] or 100)
@@ -206,7 +217,7 @@ function BattleUI.draw(ctx)
                 if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
                 details=details.."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or "")
                 love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
-                love.graphics.setColor(colors.cream); love.graphics.printf(details,200,546,560,"center",0,.58,.58)
+                love.graphics.setColor(colors.cream); text(details,200,538,560,32,.67,.60,"center")
             end
         end
         ui.battleMove=button(battle.moveUsed and "MOVE USED" or "MOVE",mobile and 20 or 548,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.moveUsed,.66)
@@ -229,14 +240,14 @@ function BattleUI.draw(ctx)
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
         ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
         if mobile and Accessibility.enabled(saveData,"controlHints") then
-            local hintScale=.68*math.min(textScale,1.15)
+            local hintScale=.76*math.min(textScale,1.15)
             love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",240,634,200,54,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." R"..abilityProfile.rank.."  •  "..abilityProfile.description,246,640,188/hintScale,"center",0,hintScale,hintScale)
+            love.graphics.setColor(colors.cream); text(abilityProfile.description,246,637,188,48,hintScale,.65,"center")
         end
         local mx,my=screenToGame(ctx.pointerPosition())
-        if Util.pointIn(mx,my,ui.battleAbility) then
+        if not mobile and Util.pointIn(mx,my,ui.battleAbility) then
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
-            love.graphics.setColor(colors.cream); love.graphics.printf(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,535,371,"center",0,.60,.60)
+            love.graphics.setColor(colors.cream); text(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,522,371,46,.72,.60,"center")
         end
     end
     if battle.intro then
@@ -244,15 +255,15 @@ function BattleUI.draw(ctx)
         local fadeIn=math.min(1,p/.35); local fadeOut=math.min(1,math.max(0,(1-p)/.45))
         local alpha=math.max(0,math.min(1,math.max(fadeIn,fadeOut)))
         love.graphics.setColor(0.025,0.018,0.012,alpha*.78); love.graphics.rectangle("fill",0,0,W,H)
-        love.graphics.setColor(colors.cream,alpha); love.graphics.printf("ENCOUNTER",0,300,W,"center",0,2.3,2.3)
-        love.graphics.printf("A threat blocks the trail",0,350,W,"center",0,1.05,1.05)
+        love.graphics.setColor(colors.cream,alpha); text("ENCOUNTER",0,298,W,50,2.3,1.8,"center")
+        text("A threat blocks the trail",0,350,W,30,1.05,1,"center")
     end
     if inventoryOpen then
         love.graphics.setColor(0,0,0,.58); love.graphics.rectangle("fill",0,0,W,H)
         ui.drawInventory()
-        ui.battleInventoryClose=button(mobile and "CLOSE BACKPACK" or "CLOSE [I]",mobile and 375 or 425,35,mobile and 210 or 105,mobile and 66 or 38,true)
+        ui.battleInventoryClose=button(mobile and "CLOSE BACKPACK" or "CLOSE [I]",mobile and 300 or 425,35,mobile and 210 or 105,mobile and 66 or 38,true)
         love.graphics.setColor(colors.cream)
-        love.graphics.printf("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,88,480,"center",0,.78,.78)
+        text("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,mobile and 112 or 88,480,96,mobile and 1 or .85,.78,"center")
     else ui.battleInventoryClose=nil end
     love.graphics.setLineWidth(1)
 end

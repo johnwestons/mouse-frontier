@@ -88,7 +88,7 @@ local function new(context)
     npcImages=content.npcImages,npcWalkImages=content.npcWalkImages,familyImages=content.familyImages,
     mobImages=content.mobImages,mobIdleImages=content.mobIdleImages,mobWalkImages=content.mobWalkImages,
     mobHitImages=content.mobHitImages,mobDeathImages=content.mobDeathImages,
-    drawStopSludges=world.worldScene.drawStopSludges,drawStopActivity=world.worldScene.drawStopActivity,drawShootingRangeSpot=world.worldScene.drawShootingRangeSpot,drawWildlife=world.worldScene.drawWildlife,
+    drawStopSludges=world.worldScene.drawStopSludges,drawShootingRangeSpot=world.worldScene.drawShootingRangeSpot,drawWildlife=world.worldScene.drawWildlife,
     drawExpedition=world.worldScene.drawExpedition,drawExpeditionTrailhead=world.worldScene.drawExpeditionTrailhead,
     drawCaravanRuntime=world.worldScene.drawCaravan,drawCaravanGate=world.worldScene.drawCaravanGate,
     train=Train,characterAnimation=CharacterAnimation,catalog=Catalog,family=Family,settlements=Settlements,stops=Stops,util=Util,ui=ui,

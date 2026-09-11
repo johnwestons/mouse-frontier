@@ -69,7 +69,7 @@ local function install(context)
     local helpBalanceAudit=required(context,"helpBalanceAudit","function")
     local helpQuestAudit=required(context,"helpQuestAudit","function")
     local trainPresentationAudit=required(context,"trainPresentationAudit","function")
-    local stopActivityAudit=required(context,"stopActivityAudit","function")
+    local shootingRangeAudit=required(context,"shootingRangeAudit","function")
     local relationshipAudit=required(context,"relationshipAudit","function")
     local characterIdentityAudit=required(context,"characterIdentityAudit","function")
     local accessibilityAudit=required(context,"accessibilityAudit","function")
@@ -331,12 +331,8 @@ local function install(context)
                 return result.ready and dialogue.ready and dialogue.definitions==4 and dialogue.completed==4 and dialogue.branchChoices>=8
                     and dialogue.totalGoodwill>=8 and dialogue.rewardOnce and dialogue.curve=="branching-dialogue-v1"
             end},
-            {name="stop_world_variety",action=stopActivityAudit,check=function(_,_,_,result)
-                local range=result.shootingRange or {}
-                return result.ready and result.onlyWaterPump and result.profileCount==1 and result.migrated
-                    and result.damage==1 and result.goodwill==1 and result.scrap==2
-                    and result.persistent and result.curve=="water-pump-help-v1"
-                    and range.ready and range.hostCount==9 and range.ownedWeapons==3
+            {name="shooting_range_audit",action=shootingRangeAudit,check=function(_,_,_,range)
+                return range.ready and range.hostCount==9 and range.ownedWeapons==3
                     and range.goodwill==2 and range.replayGoodwill==0 and range.version==3
                     and range.sparseOwned==2 and range.brokenRejected and range.zeroGoodwill==0
                     and range.movingMultiplier==1.30 and range.targetPattern=="pop-up" and range.stageLength==60
@@ -552,17 +548,16 @@ local function install(context)
                 expect={food=9,water=9,coal=9,traveling=true}},
             {name="complete_travel",action=function() return true end,expect={location=2,traveling=false},timeout=20},
             fixtureStep("stop"),
-            {name="settlement_activity_help",action=function()
-                local layout=ensureStopLayout(); local activity=layout.worldActivity
-                if not activity then return false end
-                local beforeHealth,beforeGoodwill=game.saveData.health,game.saveData.goodwill
-                game.dialogue=nil; game.questOffer=nil
-                game.player.x,game.player.y=activity.x,activity.y
-                ui.smokeUpdate(.05); ui.smokeDraw(); ui.interaction={kind="stopActivity",label=activity.label}; love.keypressed("q")
-                return {completed=activity.completed,hazardTriggered=activity.hazardTriggered,healthBefore=beforeHealth,
-                    healthAfter=game.saveData.health,goodwillBefore=beforeGoodwill,goodwillAfter=game.saveData.goodwill,kind=activity.kind}
+            {name="settlement_without_water_pump",action=function()
+                local layout=ensureStopLayout()
+                ui.smokeUpdate(.05); ui.smokeDraw()
+                local retiredSession=false
+                for _,quest in pairs(game.saveData.helpQuestSessions or {}) do
+                    retiredSession=retiredSession or quest.kind=="settlement-activity" or quest.source=="community-water-pump"
+                end
+                return {noActivity=layout.worldActivity==nil,noRetiredSession=not retiredSession}
             end,check=function(_,_,snapshot,result)
-                return result and result.completed and result.goodwillAfter==result.goodwillBefore+1 and snapshot.scene=="stop"
+                return result.noActivity and result.noRetiredSession and snapshot.scene=="stop"
             end},
             {name="shared_shooting_range_playable",action=function()
                 local layout=ensureStopLayout(); local spot=layout.shootingRange
@@ -815,19 +810,6 @@ local function install(context)
                 end,check=function(_,_,snapshot,result)
                     return result and result.width>=220 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
                 end},
-                {name="mobile_settlement_help_touch",action=function()
-                    local layout=ensureStopLayout(); local activity=layout.worldActivity
-                    if not activity then return false end
-                    local beforeGoodwill=game.saveData.goodwill
-                    game.dialogue=nil; game.questOffer=nil
-                    game.player.x,game.player.y=activity.x,activity.y
-                    ui.smokeUpdate(.05); ui.smokeDraw()
-                    love.touchpressed("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
-                    love.touchreleased("smoke-community-help",mobileControls.primary.x,mobileControls.primary.y)
-                    return {completed=activity.completed,beforeGoodwill=beforeGoodwill,goodwill=game.saveData.goodwill}
-                end,check=function(_,_,snapshot,result)
-                    return result and result.completed and result.goodwill==result.beforeGoodwill+1 and snapshot.scene=="stop"
-                end},
                 {name="mobile_return_to_train_touch",action=function()
                     ui.smokeDraw()
                     local control=ui.returnTrain
@@ -856,14 +838,16 @@ local function install(context)
                     if not target then return false end
                     local ammoBefore=game.saveData.ammo.rocks
                     love.touchpressed("smoke-range-ads",217,675); love.touchreleased("smoke-range-ads",217,675)
-                    love.touchpressed("smoke-range-aim",target.x-35,target.y-25)
-                    love.touchmoved("smoke-range-aim",target.x,target.y,35,25)
+                    local gripX,gripY=require("game.mobile_weapon_aim").gripForAim(range.weapon,range.aimMode,target.x,target.y,960,720)
+                    love.touchpressed("smoke-range-aim",gripX-35,gripY-25)
+                    love.touchmoved("smoke-range-aim",gripX,gripY,35,25)
                     local aimedOnly=range.shots==0 and game.saveData.ammo.rocks==ammoBefore
                         and math.abs(range.aimX-target.x)<.01 and math.abs(range.aimY-target.y)<.01
-                    love.touchpressed("smoke-range-fire",mobileControls.primary.x,mobileControls.primary.y)
-                    local fireHeld=mobileControls:isHeld("space")
-                    love.touchreleased("smoke-range-fire",mobileControls.primary.x,mobileControls.primary.y)
-                    love.touchreleased("smoke-range-aim",target.x,target.y)
+                    love.touchpressed("smoke-range-fire",480,675)
+                    local fireHeld=mobileControls.touches["smoke-range-fire"]~=nil
+                        and mobileControls.rangeAimTouch=="smoke-range-aim"
+                    love.touchreleased("smoke-range-fire",480,675)
+                    love.touchreleased("smoke-range-aim",gripX,gripY)
                     local result={aimedOnly=aimedOnly,fireHeld=fireHeld,shots=range.shots,
                         ammoUsed=ammoBefore-game.saveData.ammo.rocks,aimMode=range.aimMode,
                         controlsClear=next(mobileControls.touches)==nil}

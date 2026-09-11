@@ -1,4 +1,9 @@
+local Typography=require("game.typography")
 local FirstAid={}
+
+local function text(value,x,y,w,h,scale,minimum)
+    return Typography.drawText(love.graphics,value,x,y,w,h,{scale=scale,minScale=minimum or scale,align="center",valign="center"})
+end
 
 FirstAid.phaseCount=6
 FirstAid.treatmentStepCount=5
@@ -11,11 +16,11 @@ local wound={x=480,y=370,r=92}
 local cancel={x=350,y=608,w=260,h=42}
 local phaseNames={"FIND THE INJURY","DISINFECT","CLEAN","APPLY OINTMENT","PLACE GAUZE","WRAP"}
 local instructions={
-    "The critter is hurting. Click the red-tinted area to inspect the injury.",
+    "The critter is hurting. Select the red-tinted area to inspect the injury.",
     "Move the bottle opening over the cut and hold it there to pour disinfectant.",
     "Press and drag the clean rag back and forth across the cut three times.",
     "Press and swipe the ointment swab across the cut until it is covered.",
-    "Hover the gauze pad over the cut, then click to place it.",
+    "Move the gauze pad over the cut, then tap or click to place it.",
     "Start at LEFT, then drag the roll back and forth for three wrapping passes.",
 }
 
@@ -245,7 +250,7 @@ local function drawNpcWithInjury(image,session,cream)
     local pulse=6+3*math.sin((session.elapsed or 0)*4)
     love.graphics.setColor(1,.08,.08,.22); love.graphics.circle("fill",injury.x,injury.y,injury.r+pulse)
     love.graphics.setColor(1,.30,.24,.95); love.graphics.setLineWidth(4); love.graphics.circle("line",injury.x,injury.y,injury.r+pulse)
-    love.graphics.setColor(cream); love.graphics.printf("CLICK HURT AREA",injury.x-88,injury.y+76,176,"center",0,.64,.64)
+    love.graphics.setColor(cream); text("SELECT HURT AREA",injury.x-100,injury.y+73,200,25,.82,.75)
 end
 
 local function drawOintmentTrail(progress)
@@ -302,8 +307,8 @@ local function drawTreatment(session,assets,cream,brass)
         local left,right=wound.x-wound.r*.82,wound.x+wound.r*.82
         love.graphics.setColor(brass); love.graphics.setLineWidth(3)
         love.graphics.line(left,wound.y-116,left,wound.y+116); love.graphics.line(right,wound.y-116,right,wound.y+116)
-        love.graphics.setColor(cream); love.graphics.printf("LEFT",left-38,wound.y+121,76,"center",0,.58,.58)
-        love.graphics.printf("RIGHT",right-38,wound.y+121,76,"center",0,.58,.58)
+        love.graphics.setColor(cream); text("LEFT",left-38,wound.y+116,76,24,.82,.75)
+        text("RIGHT",right-38,wound.y+116,76,24,.82,.75)
         drawImage(assets.bandage,pointer.x,pointer.y,170)
     end
 end
@@ -315,26 +320,26 @@ function FirstAid.draw(session,colors,assets)
     love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,960,720)
     love.graphics.setColor(panel); love.graphics.rectangle("fill",105,40,750,635,18,18)
     love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",105,40,750,635,18,18)
-    love.graphics.setColor(brass); love.graphics.printf("FIRST AID  •  SMALL CUT",155,69,650,"center",0,1.32,1.32)
+    love.graphics.setColor(brass); text("FIRST AID  •  SMALL CUT",155,63,650,39,1.32,1.1)
     local step=session.phase==1 and phaseNames[1] or ("TREATMENT STEP "..(session.phase-1).." OF "..FirstAid.treatmentStepCount.."  •  "..phaseNames[session.phase])
-    love.graphics.setColor(cream); love.graphics.printf(step,160,112,640,"center",0,.76,.76)
-    love.graphics.printf(session.message or instructions[session.phase],175,147,610,"center",0,.68,.68)
+    love.graphics.setColor(cream); text(step,160,108,640,27,.95,.82)
+    text(session.message or instructions[session.phase],175,143,610,42,.90,.82)
 
     love.graphics.setColor(.12,.085,.06,.95); love.graphics.rectangle("fill",125,188,105,332,12,12)
-    love.graphics.setColor(brass); love.graphics.printf("SUPPLY",130,207,95,"center",0,.62,.62)
+    love.graphics.setColor(brass); text("SUPPLY",130,202,95,26,.90,.82)
     if assets.medical then drawImage(assets.medical,177,294,92) end
-    love.graphics.setColor(cream); love.graphics.printf(title(session.itemName),135,350,85,"center",0,.54,.54)
-    love.graphics.printf("Used when treatment is complete",135,430,85,"center",0,.50,.50)
+    love.graphics.setColor(cream); text(title(session.itemName),131,346,93,78,.78,.68)
+    text("Used after treatment",131,428,93,76,.74,.68)
 
     if session.phase==1 then drawNpcWithInjury(assets.npc,session,cream) else drawTreatment(session,assets,cream,brass) end
 
     local amount=progressAmount(session)
     love.graphics.setColor(.10,.07,.05,1); love.graphics.rectangle("fill",245,548,470,20,8,8)
     love.graphics.setColor(brass); love.graphics.rectangle("fill",247,550,466*amount,16,7,7)
-    love.graphics.setColor(cream); love.graphics.printf(math.floor(amount*100+0.5).."%",735,549,55,"center",0,.56,.56)
-    love.graphics.printf("MOUSE / TOUCH  •  ENTER = ACCESSIBLE STEP  •  Q = PAUSE",190,578,580,"center",0,.56,.56)
+    love.graphics.setColor(cream); text(math.floor(amount*100+0.5).."%",735,545,55,27,.85,.75)
+    text("DRAG TO TREAT  •  ENTER: ACCESSIBLE STEP  •  Q: PAUSE",140,574,680,27,.84,.76)
     love.graphics.setColor(brass); love.graphics.rectangle("fill",cancel.x,cancel.y,cancel.w,cancel.h,7,7)
-    love.graphics.setColor(cream); love.graphics.printf("PAUSE TREATMENT",cancel.x,cancel.y+12,cancel.w,"center",0,.72,.72)
+    love.graphics.setColor(.10,.06,.025,1); text("PAUSE TREATMENT",cancel.x+8,cancel.y+5,cancel.w-16,cancel.h-10,1,.85)
     love.graphics.setLineWidth(1); love.graphics.setColor(1,1,1,1)
 end
 

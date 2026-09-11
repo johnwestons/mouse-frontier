@@ -12,6 +12,8 @@ local Train = {
     trackRailSourceY=354,
     trackScale=96/181,
     trackEdgeCrop=4,
+    trackSourceWidth=2172,
+    trackSourceHeight=724,
 
     carVisibleLeft=10,
     carVisibleRight=630,
@@ -144,8 +146,8 @@ function Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight)
     windowHeight=windowHeight or 720
     local visibleLeft,visibleRight=viewportSpan(width,720,windowWidth,windowHeight)
     visibleLeft,visibleRight=visibleLeft-12,visibleRight+12
-    local sourceWidth=2172-Train.trackEdgeCrop*2
-    local tileWidth=2172*Train.trackScale
+    local sourceWidth=Train.trackSourceWidth-Train.trackEdgeCrop*2
+    local tileWidth=Train.trackSourceWidth*Train.trackScale
     local period=tileWidth*2
     scrollOffset=scrollOffset or 0
     local phase=scrollOffset%period
@@ -168,7 +170,8 @@ local function baseTrackQuad(track)
     local cached=trackQuadCache[track]
     if cached then return cached end
     local width,height=track:getDimensions()
-    cached=love.graphics.newQuad(Train.trackEdgeCrop,0,width-Train.trackEdgeCrop*2,height,width,height)
+    local edgeCrop=Train.trackEdgeCrop*width/Train.trackSourceWidth
+    cached=love.graphics.newQuad(edgeCrop,0,width-edgeCrop*2,height,width,height)
     trackQuadCache[track]=cached
     return cached
 end
@@ -179,13 +182,19 @@ function Train.drawTracks(trackAssets,width,scrollOffset)
     local windowWidth,windowHeight=love.graphics.getDimensions()
     local plan=Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight)
     local quad=baseTrackQuad(track)
+    -- Mobile packing shrinks the base and the four-frame ballast atlas by
+    -- different amounts. Keep their authored anchors in world space while
+    -- converting each texture's actual pixels back to that shared canvas.
+    local imageWidth,imageHeight=track:getDimensions()
+    local baseScaleX=plan.drawScaleX*Train.trackSourceWidth/imageWidth
+    local baseScaleY=plan.scale*Train.trackSourceHeight/imageHeight
     love.graphics.push("all")
     love.graphics.setColor(1,1,1)
     for _,tile in ipairs(plan.tiles) do
         if tile.mirrored then
-            love.graphics.draw(track,quad,tile.x+plan.tileWidth,plan.trackTop,0,-plan.drawScaleX,plan.scale)
+            love.graphics.draw(track,quad,tile.x+plan.tileWidth,plan.trackTop,0,-baseScaleX,baseScaleY)
         else
-            love.graphics.draw(track,quad,tile.x,plan.trackTop,0,plan.drawScaleX,plan.scale)
+            love.graphics.draw(track,quad,tile.x,plan.trackTop,0,baseScaleX,baseScaleY)
         end
     end
 
@@ -197,14 +206,17 @@ function Train.drawTracks(trackAssets,width,scrollOffset)
         })
         local frame=((motion.vibrationFrame-1)%ballastFrames.count)+1
         local ballastQuad=ballastFrames.quads[frame]
+        local _,_,frameWidth,frameHeight=ballastQuad:getViewport()
+        local ballastScaleX=plan.drawScaleX*Train.trackSourceWidth/frameWidth
+        local ballastScaleY=plan.scale*Train.trackSourceHeight/frameHeight
         love.graphics.setColor(1,1,1)
         for _,tile in ipairs(plan.tiles) do
             if tile.mirrored then
                 love.graphics.draw(ballastFrames.image,ballastQuad,
-                    tile.x+plan.tileWidth,plan.trackTop,0,-plan.drawScaleX,plan.scale)
+                    tile.x+plan.tileWidth,plan.trackTop,0,-ballastScaleX,ballastScaleY)
             else
                 love.graphics.draw(ballastFrames.image,ballastQuad,
-                    tile.x,plan.trackTop,0,plan.drawScaleX,plan.scale)
+                    tile.x,plan.trackTop,0,ballastScaleX,ballastScaleY)
             end
         end
     end

@@ -2,6 +2,36 @@
   "version": 1,
   "scope": "assets/sprites/MainCharacters",
   "total_characters": 47,
+  "completion_note": "The completed list is the legacy overhaul ledger, not proof of current strict acceptance. Use verification below and per-character semantic-review.json for current acceptance. Reopened and evidence-gap characters remain eligible.",
+  "verification": {
+    "audited_on": "2026-09-11",
+    "roster_report": "output/character-motion/roster-audit-2026-09-10.md",
+    "strictly_accepted_current": [
+      "scholar-mouse",
+      "scout-frog",
+      "scout-lizard"
+    ],
+    "legacy_acceptance_count": 16,
+    "legacy_completed_evidence_gap_count": 23,
+    "reopened": [
+      "signal-hedgehog"
+    ],
+    "mirrored_asymmetric_review_required": [
+      "ferret-engineer",
+      "ferret-medic",
+      "ferret-scout",
+      "ferret-trapper"
+    ],
+    "installed_without_acceptance": [
+      "tinker-fox"
+    ],
+    "unstarted": [
+      "tortoise-conductor",
+      "trail-fox",
+      "watch-raccoon"
+    ],
+    "next_action": "Scholar Mouse, Scout Frog and Scout Lizard now have current strict acceptance and installed reviewed assets with verified preinstall backups. Lizard passed78 postinstall regressions, desktop88/mobile96 smoke, desktop/mobile-logical native previews and16 mobile source-pixel equivalence checks. Finish signal-hedgehog next, then tinker-fox, tortoise-conductor, trail-fox, watch-raccoon; then resolve mirrored ferret asymmetry and older evidence gaps one character at a time. Legacy completion counts are not current strict approval."
+  },
   "completed": [
     "botanist-frog",
     "conductor-cat",
@@ -41,13 +71,13 @@
     "raccoon-witch",
     "radio-cat",
     "river-raccoon",
-    "scavenger-mouse"
-  ],
-  "in_progress": "scholar-mouse",
-  "remaining": [
+    "scavenger-mouse",
+    "scholar-mouse",
     "scout-frog",
-    "scout-lizard",
-    "signal-hedgehog",
+    "scout-lizard"
+  ],
+  "in_progress": "signal-hedgehog",
+  "remaining": [
     "tinker-fox",
     "tortoise-conductor",
     "trail-fox",

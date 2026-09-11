@@ -1,4 +1,5 @@
 local EventUI = {}
+local Typography=require("game.typography")
 local quadCache=setmetatable({},{__mode="k"})
 
 function EventUI.load(loadImage)
@@ -10,7 +11,7 @@ function EventUI.load(loadImage)
 end
 
 function EventUI.choiceRects()
-    return {{x=205,y=525,w=175,h=88},{x=393,y=525,w=175,h=88},{x=581,y=525,w=175,h=88}}
+    return {{x=135,y=525,w=220,h=116},{x=370,y=525,w=220,h=116},{x=605,y=525,w=220,h=116}}
 end
 
 function EventUI.drawArt(event,images,x,y,w,h)
@@ -31,20 +32,23 @@ function EventUI.drawArt(event,images,x,y,w,h)
 end
 
 function EventUI.draw(event,images,drawFrame,button,colors,progress,canChoose)
+    local function text(text,x,y,w,h,scale)
+        Typography.drawText(love.graphics,text,x,y,w,h,{scale=scale or 1,minScale=.75,align="center",valign="center"})
+    end
     drawFrame(95,35,770,625,1,1)
-    love.graphics.setColor(colors.brass); love.graphics.printf(string.upper(event.category).." EVENT",125,58,710,"center",0,1.05,1.05)
+    love.graphics.setColor(colors.brass); text(string.upper(event.category).." EVENT",125,48,710,32,1.05)
     drawFrame(135,86,690,258,3,1); EventUI.drawArt(event,images,142,93,676,244)
     love.graphics.setColor(0.04,0.025,0.02,.73); love.graphics.rectangle("fill",142,276,676,61)
-    love.graphics.setColor(colors.cream); love.graphics.printf(event.title,160,284,640,"center",0,1.32,1.32)
-    love.graphics.printf(event.text,150,355,660,"center",0,.78,.78)
+    love.graphics.setColor(colors.cream); text(event.title,160,281,640,48,1.25)
+    text(event.text,150,352,660,72,.95)
     if event.category=="story" then love.graphics.setColor(colors.brass); love.graphics.printf("FAMILY TRAIL  "..math.min(10,(progress.story or 0)+1).." / 10",185,430,590,"center",0,.72,.72)
     elseif event.category=="mystery" then love.graphics.setColor(colors.brass); love.graphics.printf("MISSING CRITTER CLUE  "..math.min(5,(progress.mystery or 0)+1).." / 5",185,430,590,"center",0,.72,.72) end
-    love.graphics.setColor(colors.cream); love.graphics.printf("Choose a response — every path has a different consequence.",170,462,620,"center",0,.68,.68)
+    love.graphics.setColor(colors.cream); text("Choose a response. Each path has a different consequence.",150,459,660,45,.85)
     local rects=EventUI.choiceRects()
     for index,choice in ipairs(event.choices) do
         local r=rects[index]; local enabled=not canChoose or canChoose(choice); button("",r.x,r.y,r.w,r.h,enabled); r.enabled=enabled
-        love.graphics.setColor(colors.cream); love.graphics.printf(enabled and choice.label or "CAN'T AFFORD",r.x+8,r.y+10,r.w-16,"center",0,.92,.92)
-        love.graphics.setColor(colors.cream); love.graphics.printf(choice.hint or "",r.x+8,r.y+53,r.w-16,"center",0,.58,.58)
+        love.graphics.setColor(colors.cream); text(enabled and choice.label or "CAN'T AFFORD",r.x+10,r.y+8,r.w-20,44,.95)
+        text(choice.hint or "",r.x+10,r.y+58,r.w-20,50,.82)
     end
     return rects
 end

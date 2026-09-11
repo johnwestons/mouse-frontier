@@ -43,7 +43,6 @@ local function new(context)
   local FinaleProgression=required(domain,"domain","finaleProgression","table")
   local StopHelpProgression=required(domain,"domain","stopHelpProgression","table")
   local HelpQuestSession=required(domain,"domain","helpQuestSession","table")
-  local StopActivities=required(domain,"domain","stopActivities","table")
   local ShootingRange=required(domain,"domain","shootingRange","table")
   local CrowCaravans=required(domain,"domain","crowCaravans","table")
   local CrowCaravanArea=required(domain,"domain","crowCaravanArea","table")
@@ -219,11 +218,7 @@ local function new(context)
       audioAudit=function() return AudioSelfTest.run(Audio,AudioCatalog) end,
       trainPresentationAudit=function() return Train.audit(car,960) end,
       finaleAudit=function() return FinaleProgression.audit(StopHelpProgression,Maintenance) end,
-      stopActivityAudit=function()
-        local result=StopActivities.audit(StopHelpProgression)
-        result.shootingRange=ShootingRange.audit(Catalog)
-        return result
-      end,
+      shootingRangeAudit=function() return ShootingRange.audit(Catalog) end,
       caravanAudit=composition.caravanAudit,
       helpQuestAudit=function() return HelpQuestSession.audit() end,
       relationshipAudit=function() return NpcRelationships.audit() end,

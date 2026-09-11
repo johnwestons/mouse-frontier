@@ -11,6 +11,8 @@ Only uniform scale adjustments within 5 percent of authored size are accepted.
 The x/y factors may differ by at most 0.5 percentage points to tolerate decimal
 rounding.  Larger uniform changes and all anisotropic stretching are source-art
 problems and must be re-authored instead of hidden by the build pipeline.
+Measured normalization of a higher-resolution replacement to its original
+atlas-cell height is separate from that body-size correction budget.
 """
 
 from __future__ import annotations
@@ -279,6 +281,71 @@ def audit_per_frame_geometry(build_manifest: dict[str, Any]) -> list[GateIssue]:
     return issues
 
 
+def audit_source_resolution_normalization(
+    build_manifest: dict[str, Any], project_root: Path
+) -> list[GateIssue]:
+    """Separate measured image-resolution changes from per-frame body resizing.
+
+    A large replacement image can legitimately be reduced to its original atlas
+    cell's visible height. Reviewed numeric heights are not independent scale
+    authority: measure both images, then apply the same 5% body-size limit to
+    the combined resolution ratio and ordinary frame adjustment.
+    """
+    try:
+        from tools.build_directional_character_assets import (
+            reorder_walk_source_frames, split_grid_atlas, visible_height_for_resolution_normalization,
+        )
+    except ModuleNotFoundError:  # Direct ``python tools/<script>.py`` execution.
+        from build_directional_character_assets import (
+            reorder_walk_source_frames, split_grid_atlas, visible_height_for_resolution_normalization,
+        )
+
+    issues: list[GateIssue] = []
+    source_root = project_path(project_root, str(build_manifest.get("source_root", "")))
+    default_checker = build_manifest.get("framing", {}).get("remove_edge_connected_checker", False)
+    for output, walk in build_manifest.get("walks", {}).items():
+        if not isinstance(walk, dict) or not walk.get("frame_sources"):
+            continue
+        location = f"walks.{output}.frame_sources"
+        try:
+            columns, rows = int(walk.get("source_columns", 8)), int(walk.get("rows", 1))
+            cells = split_grid_atlas(source_root / walk["source"], columns, rows, bool(walk.get("fixed_grid", False)))
+            cells = [cells[row * columns + column] for row in walk.get("row_indices", list(range(rows))) for column in range(columns)]
+            cells = reorder_walk_source_frames(cells, walk.get("source_frame_indices", list(range(len(cells)))))
+            cleanup = {
+                "drop_boundary_spill": bool(walk.get("drop_boundary_spill", False)),
+                "remove_edge_connected_checker": walk.get("remove_edge_connected_checker", default_checker),
+                "remove_edge_connected_magenta_fringe": walk.get("remove_edge_connected_magenta_fringe", build_manifest.get("framing", {}).get("remove_edge_connected_magenta_fringe", False)),
+            }
+            for index, override in enumerate(walk["frame_sources"]):
+                if not isinstance(override, dict):
+                    continue
+                normalization = override.get("resolution_normalization")
+                if normalization == "match_base_visible_height":
+                    continue  # Builder measures both heights; ordinary adjustment was checked above.
+                if not isinstance(normalization, dict) or normalization.get("mode", "reviewed_visible_height") != "reviewed_visible_height":
+                    raise ValueError("unknown source resolution normalization")
+                with Image.open(source_root / override["source"]) as replacement:
+                    measured_source = visible_height_for_resolution_normalization(replacement, **cleanup)
+                measured_target = visible_height_for_resolution_normalization(cells[index], **cleanup)
+                declared_source = float(normalization["source_visible_height"])
+                declared_target = float(normalization["target_visible_height"])
+                if not all(math.isfinite(value) and value > 0 for value in (declared_source, declared_target)):
+                    raise ValueError("reviewed heights must be positive finite numbers")
+                item_location = f"{location}[{index}].resolution_normalization"
+                if abs(declared_source - measured_source) > 1:
+                    issues.append(GateIssue("unverified_source_resolution_height", f"declared source height {declared_source:g} differs from measured height {measured_source}", item_location))
+                body_scale = (declared_target / declared_source) / (measured_target / measured_source)
+                adjustment = walk.get("frame_adjustments", {}).get(str(index + 1), {})
+                scale_x = body_scale * float(adjustment.get("scale_x", 1.0))
+                scale_y = body_scale * float(adjustment.get("scale_y", 1.0))
+                if max(abs(scale_x - 1), abs(scale_y - 1)) > UNIFORM_SCALE_LIMIT + 1e-9:
+                    issues.append(GateIssue("excessive_resolution_body_scale", f"measured resolution normalization plus frame adjustment resizes the body by ({scale_x:.4f}, {scale_y:.4f}); the allowed body-size correction remains +/-5%", item_location))
+        except (KeyError, IndexError, OSError, TypeError, ValueError) as exc:
+            issues.append(GateIssue("invalid_source_resolution_normalization", str(exc), location))
+    return issues
+
+
 def _build_source_paths(build_manifest: dict[str, Any], project_root: Path) -> tuple[Path, set[Path]]:
     source_root_value = build_manifest.get("source_root")
     if not isinstance(source_root_value, str) or not source_root_value.strip():
@@ -286,7 +353,7 @@ def _build_source_paths(build_manifest: dict[str, Any], project_root: Path) -> t
     source_root = project_path(project_root, source_root_value)
     sources: set[Path] = set()
 
-    idle_sets = build_manifest.get("idle_sets", [])
+    idle_sets = build_manifest.get("idle_sets") or [build_manifest.get("idle", {})]
     if isinstance(idle_sets, list):
         for item in idle_sets:
             if isinstance(item, dict) and isinstance(item.get("source"), str):
@@ -294,8 +361,14 @@ def _build_source_paths(build_manifest: dict[str, Any], project_root: Path) -> t
     walks = build_manifest.get("walks", {})
     if isinstance(walks, dict):
         for item in walks.values():
+            if isinstance(item, str):
+                sources.add((source_root / item).resolve())
             if isinstance(item, dict) and isinstance(item.get("source"), str):
                 sources.add((source_root / item["source"]).resolve())
+                for override in item.get("frame_sources", []):
+                    source = override.get("source") if isinstance(override, dict) else override
+                    if isinstance(source, str):
+                        sources.add((source_root / source).resolve())
     return source_root, sources
 
 
@@ -544,6 +617,122 @@ def evidence_reference(project_root: Path, path: Path) -> dict[str, str]:
     }
 
 
+def motion_spec_digest(motion_spec: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(motion_spec, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def validate_motion_center_contract(
+    motion_spec: dict[str, Any], build_manifest: dict[str, Any]
+) -> list[GateIssue]:
+    settings = motion_spec.get("audit", {})
+    metric = settings.get("center_metric", "bbox")
+    if not isinstance(metric, str) or metric not in {"bbox", "core"}:
+        return [GateIssue("invalid_motion_center_metric", "center_metric must be bbox or core", "audit.center_metric")]
+    if metric == "core":
+        if settings.get("alpha_threshold", 16) != 16:
+            return [GateIssue("invalid_core_alpha_threshold", "core measurement uses the builder's alpha threshold16", "audit.alpha_threshold")]
+        if build_manifest.get("framing", {}).get("horizontal_anchor", "bbox") != "core":
+            return [GateIssue("motion_center_contract_mismatch", "core motion audit requires a core-anchored build manifest", "audit.center_metric")]
+        idle_definitions = build_manifest.get("idle_sets") or ([build_manifest["idle"]] if "idle" in build_manifest else [])
+        definitions = list(build_manifest.get("walks", {}).values()) + list(idle_definitions)
+        if any(isinstance(item, dict) and item.get("horizontal_anchor", "core") != "core" for item in definitions):
+            return [GateIssue("motion_center_contract_mismatch", "all walk and idle overrides must retain the declared core anchor", "audit.center_metric")]
+    return []
+
+
+def validate_motion_center_metrics(
+    record: dict[str, Any], frames: list[Image.Image], settings: dict[str, Any], location: str
+) -> list[GateIssue]:
+    """Recompute opted-in core evidence; a report cannot waive actual drift."""
+    if settings.get("center_metric", "bbox") != "core":
+        return []  # Existing bbox audit evidence remains backward-compatible.
+    try:
+        from tools.build_directional_character_assets import core_horizontal_anchor_x, visible_bbox
+    except ModuleNotFoundError:
+        from build_directional_character_assets import core_horizontal_anchor_x, visible_bbox
+    threshold = int(settings.get("alpha_threshold", 16))
+    positions, bbox_positions = [], []
+    for frame in frames:
+        bbox = frame.getchannel("A").point(lambda value: 255 if value > threshold else 0).getbbox()
+        if bbox is not None:
+            positions.append(core_horizontal_anchor_x(frame, visible_bbox(frame)))
+            bbox_positions.append((bbox[0] + bbox[2]) / 2)
+    tolerance = int(settings.get("center_tolerance", max(6, round(frames[0].width * 0.03))))
+    expected = {"metric": "core", "positions": positions, "bbox_positions": bbox_positions, "tolerance": tolerance}
+    issues = []
+    if record.get("center_metrics") != expected:
+        issues.append(GateIssue("stale_motion_center_metrics", "declared core center evidence differs from current sprite pixels or tolerance", location))
+    if positions and max(positions) - min(positions) > tolerance:
+        issues.append(GateIssue("motion_core_center_jitter", "current body-core positions exceed the unchanged center tolerance", location))
+    return issues
+
+
+def audit_current_motion_evidence(
+    motion_spec: dict[str, Any], project_root: Path, character_root: Path
+) -> list[GateIssue]:
+    """Verify the audit describes current strips and its displayed sprite pixels.
+
+    The shared auditor does not emit source digests. Check its per-frame alpha
+    metrics and the actual 192px contact-sheet panels before binding the full
+    resolution source hashes to the semantic review. Headers are deliberately
+    ignored so installed font differences cannot invalidate reviewed sprites.
+    """
+    issues: list[GateIssue] = []
+    try:
+        report = load_json(character_root / "audit" / "report.json")
+        audited = {item["name"]: item for item in report.get("animations", [])}
+        threshold = int(motion_spec.get("audit", {}).get("alpha_threshold", 16))
+        for name, definition in motion_spec.get("animations", {}).items():
+            if definition.get("role") not in {"gait", "directional_idle"}:
+                continue
+            location = f"reports.motion_audit.animations.{name}"
+            record = audited.get(name)
+            if not isinstance(record, dict):
+                issues.append(GateIssue("missing_audited_animation", f"motion audit has no record for {name}", location))
+                continue
+            frames = split_animation_frames(definition, project_root)
+            metrics = []
+            for index, frame in enumerate(frames, 1):
+                alpha = frame.getchannel("A")
+                bbox = alpha.point(lambda value: 255 if value > threshold else 0).getbbox()
+                metrics.append({"frame": index, "bbox": list(bbox) if bbox else None, "visible_pixels": sum(alpha.histogram()[threshold + 1:])})
+            if record.get("frames") != metrics or project_path(project_root, str(record.get("path", ""))) != project_path(project_root, definition["path"]):
+                issues.append(GateIssue("stale_motion_audit_inputs", f"motion audit metrics or input path differ from current {name}; rerun the strict audit", location))
+            issues.extend(validate_motion_center_metrics(record, frames, motion_spec.get("audit", {}), location))
+            sheet_path = character_root / "audit" / "contact-sheets" / f"{name}.png"
+            with Image.open(sheet_path) as opened:
+                sheet = opened.convert("RGBA")
+            cell, header, columns = 192, 42, min(8, len(frames))
+            if sheet.size != (columns * cell, math.ceil(len(frames) / columns) * (cell + header)):
+                issues.append(GateIssue("stale_motion_contact_sheet", f"contact sheet dimensions differ from current {name}", location))
+                continue
+            for index, frame in enumerate(frames):
+                panel = Image.new("RGBA", (cell, cell), (238, 238, 238, 255))
+                draw = ImageDraw.Draw(panel)
+                for y in range(0, cell, 16):
+                    for x in range(0, cell, 16):
+                        if (x // 16 + y // 16) % 2:
+                            draw.rectangle((x, y, x + 15, y + 15), fill=(210, 210, 210, 255))
+                preview = frame.copy()
+                preview.thumbnail((cell, cell), Image.Resampling.NEAREST)
+                panel.alpha_composite(preview, ((cell - preview.width) // 2, (cell - preview.height) // 2))
+                bbox = metrics[index]["bbox"]
+                if bbox:
+                    scale = min(cell / frame.width, cell / frame.height)
+                    offset_x, offset_y = round((cell - frame.width * scale) / 2), round((cell - frame.height * scale) / 2)
+                    baseline = offset_y + round(bbox[3] * scale)
+                    draw.line((0, baseline, cell - 1, baseline), fill=(255, 90, 90, 180), width=1)
+                    center = offset_x + round(((bbox[0] + bbox[2]) / 2) * scale)
+                    draw.line((center, 0, center, cell - 1), fill=(90, 190, 255, 150), width=1)
+                x, y = (index % columns) * cell, (index // columns) * (cell + header) + header
+                if sheet.crop((x, y, x + cell, y + cell)).tobytes() != panel.tobytes():
+                    issues.append(GateIssue("stale_motion_contact_sheet", f"contact sheet frame {index + 1} does not show current {name}; rerun the strict audit", location))
+                    break
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        issues.append(GateIssue("unverifiable_motion_audit_inputs", str(exc), "reports.motion_audit"))
+    return issues
+
+
 def expected_review_artifacts(
     motion_spec: dict[str, Any], project_root: Path, character_root: Path
 ) -> dict[str, dict[str, Path]]:
@@ -564,7 +753,8 @@ def expected_review_artifacts(
 
 
 def prepare_review_artifacts(
-    motion_spec: dict[str, Any], project_root: Path, character_root: Path
+    motion_spec: dict[str, Any], project_root: Path, character_root: Path,
+    *, build_manifest: dict[str, Any] | None = None,
 ) -> tuple[Path, list[GateIssue]]:
     issues: list[GateIssue] = []
     animations = motion_spec.get("animations", {})
@@ -596,6 +786,13 @@ def prepare_review_artifacts(
         "reviewer": "",
         "reviewed_on": "",
         "overall_notes": "",
+        "motion_spec_sha256": motion_spec_digest(motion_spec),
+        "build_manifest_sha256": motion_spec_digest(build_manifest) if build_manifest is not None else None,
+        "animations": {
+            name: evidence_reference(project_root, project_path(project_root, animation["path"]))
+            for name, animation in animations.items()
+            if animation.get("role") in {"gait", "directional_idle"}
+        },
         "directions": {},
         "reports": {
             "motion_audit": evidence_reference(project_root, character_root / "audit" / "report.json"),
@@ -662,12 +859,61 @@ def _validate_clean_reports(report_paths: dict[str, Path]) -> list[GateIssue]:
     return issues
 
 
+def validate_sprite_doctor_inputs(
+    report: dict[str, Any], motion_spec: dict[str, Any], project_root: Path, character_root: Path,
+    build_manifest: dict[str, Any] | None = None,
+) -> list[GateIssue]:
+    """Require the doctor to have inspected these exact locomotion bytes."""
+    records = report.get("audited_inputs")
+    if not isinstance(records, list) or not records:
+        return [GateIssue("missing_sprite_doctor_input_hashes", "rerun sprite doctor on current staged or installed locomotion strips to record audited input hashes", "reports.sprite_doctor.audited_inputs")]
+    issues: list[GateIssue] = []
+    character = str(motion_spec.get("character", ""))
+    framing = report.get("framing_contract")
+    if framing is not None:
+        path, path_issues = _validate_hash_bound_path(framing, project_root=project_root, character_root=character_root, location="reports.sprite_doctor.framing_contract", require_character_local=False)
+        issues.extend(path_issues)
+        if path is not None and path.is_file():
+            try:
+                manifest = load_json(path)
+                if build_manifest is None or manifest != build_manifest or manifest.get("character") != character:
+                    issues.append(GateIssue("wrong_sprite_doctor_framing_contract", "doctor framing must come from the current character build manifest", "reports.sprite_doctor.framing_contract"))
+                try:
+                    from tools.character_sprite_doctor import SpriteDoctor
+                except ModuleNotFoundError:
+                    from character_sprite_doctor import SpriteDoctor
+                expected = SpriteDoctor(project_root, build_manifest=path).framing_contract
+                if framing.get("actions") != expected.get("actions"):
+                    issues.append(GateIssue("wrong_sprite_doctor_framing_measurements", "doctor effective framing does not match the referenced build manifest", "reports.sprite_doctor.framing_contract.actions"))
+            except (KeyError, OSError, TypeError, ValueError) as exc:
+                issues.append(GateIssue("invalid_sprite_doctor_framing_contract", str(exc), "reports.sprite_doctor.framing_contract"))
+    for name, definition in motion_spec.get("animations", {}).items():
+        if definition.get("role") not in {"gait", "directional_idle"}:
+            continue
+        staged_path = project_path(project_root, definition["path"])
+        action = staged_path.stem
+        location = f"reports.sprite_doctor.audited_inputs.{action}"
+        matches = [record for record in records if isinstance(record, dict) and record.get("character") == character and record.get("action") == action]
+        if len(matches) != 1:
+            issues.append(GateIssue("missing_or_ambiguous_doctor_input", f"sprite doctor must record exactly one audited input for {character}/{action}", location))
+            continue
+        path, path_issues = _validate_hash_bound_path(matches[0], project_root=project_root, character_root=character_root, location=location, require_character_local=False)
+        issues.extend(path_issues)
+        installed_path = project_root / "assets" / "sprites" / "character-animations" / character / f"{action}.png"
+        if path is not None and path not in {staged_path.resolve(), installed_path.resolve()}:
+            issues.append(GateIssue("wrong_sprite_doctor_input", f"doctor input must be the staged or installed {character}/{action} strip", location))
+        if not staged_path.is_file() or matches[0].get("sha256") != sha256_file(staged_path):
+            issues.append(GateIssue("stale_sprite_doctor_input", f"doctor did not inspect the current staged bytes for {name}", location))
+    return issues
+
+
 def validate_manual_review(
     review: dict[str, Any],
     *,
     motion_spec: dict[str, Any],
     project_root: Path,
     character_root: Path,
+    build_manifest: dict[str, Any] | None = None,
 ) -> list[GateIssue]:
     issues: list[GateIssue] = []
     character = str(motion_spec.get("character", ""))
@@ -685,6 +931,19 @@ def validate_manual_review(
         issues.append(GateIssue("invalid_review_date", "reviewed_on must use YYYY-MM-DD", "reviewed_on"))
     if not str(review.get("overall_notes", "")).strip():
         issues.append(GateIssue("missing_overall_review_notes", "overall_notes must record the review conclusion", "overall_notes"))
+    if review.get("motion_spec_sha256") != motion_spec_digest(motion_spec):
+        issues.append(GateIssue("stale_review_motion_spec", "motion specification changed or was not bound to this review; prepare and review current evidence", "motion_spec_sha256"))
+    if build_manifest is not None and review.get("build_manifest_sha256") != motion_spec_digest(build_manifest):
+        issues.append(GateIssue("stale_review_build_manifest", "build manifest changed or was not bound to this review; rebuild and prepare current evidence", "build_manifest_sha256"))
+    reviewed_animations = review.get("animations", {})
+    for name, definition in motion_spec.get("animations", {}).items():
+        if definition.get("role") not in {"gait", "directional_idle"}:
+            continue
+        reference = reviewed_animations.get(name) if isinstance(reviewed_animations, dict) else None
+        path, path_issues = _validate_hash_bound_path(reference, project_root=project_root, character_root=character_root, location=f"animations.{name}")
+        issues.extend(path_issues)
+        if path is not None and path != project_path(project_root, definition["path"]):
+            issues.append(GateIssue("wrong_reviewed_animation", f"reviewed source does not match {name}", f"animations.{name}"))
 
     expected_artifacts = expected_review_artifacts(motion_spec, project_root, character_root)
     directions = review.get("directions")
@@ -763,6 +1022,12 @@ def validate_manual_review(
                         )
                     )
     issues.extend(_validate_clean_reports(report_paths))
+    sprite_path = report_paths.get("sprite_doctor")
+    if sprite_path and sprite_path.is_file():
+        try:
+            issues.extend(validate_sprite_doctor_inputs(load_json(sprite_path), motion_spec, project_root, character_root, build_manifest))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            issues.append(GateIssue("invalid_sprite_doctor_inputs", str(exc), "reports.sprite_doctor"))
     return issues
 
 
@@ -804,10 +1069,13 @@ def run_gate(
 
     issues.extend(audit_locomotion_mattes(motion_spec, project_root))
     issues.extend(audit_per_frame_geometry(build_manifest))
+    issues.extend(audit_source_resolution_normalization(build_manifest, project_root))
+    issues.extend(validate_motion_center_contract(motion_spec, build_manifest))
+    issues.extend(audit_current_motion_evidence(motion_spec, project_root, character_root))
 
     template_path: Path | None = None
     if prepare_review:
-        template_path, generation_issues = prepare_review_artifacts(motion_spec, project_root, character_root)
+        template_path, generation_issues = prepare_review_artifacts(motion_spec, project_root, character_root, build_manifest=build_manifest)
         issues.extend(generation_issues)
     else:
         try:
@@ -831,6 +1099,7 @@ def run_gate(
                     motion_spec=motion_spec,
                     project_root=project_root,
                     character_root=character_root,
+                    build_manifest=build_manifest,
                 )
             )
         except (OSError, ValueError, json.JSONDecodeError) as exc:

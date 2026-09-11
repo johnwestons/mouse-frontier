@@ -289,16 +289,18 @@ public class GameActivity extends SDLActivity {
     $deviceLaunchVerified = $false
     if ($Install) {
         if ($devices.Count -ne 1) { throw "Expected one connected Android device, found $($devices.Count)" }
-        & $adb install -r $apkPath
+        $deviceSerial = ($devices[0] -split '\s+')[0]
+        & $adb -s $deviceSerial install -r $apkPath
         if ($LASTEXITCODE -ne 0) { throw "APK installation failed with exit code $LASTEXITCODE" }
-        & $adb shell am force-stop $config.applicationId
-        & $adb logcat -c
-        & $adb shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
+        & $adb -s $deviceSerial shell am force-stop $config.applicationId
+        # A fresh process gives us scoped startup logs without clearing the
+        # device-wide logs belonging to other applications.
+        & $adb -s $deviceSerial shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
         if ($LASTEXITCODE -ne 0) { throw 'Installed APK did not launch' }
         for ($attempt=1; $attempt -le 30; $attempt++) {
-            $devicePid = (& $adb shell pidof $config.applicationId | Out-String).Trim()
+            $devicePid = (& $adb -s $deviceSerial shell pidof $config.applicationId | Out-String).Trim()
             if ($devicePid) {
-                $deviceLog = (& $adb logcat -d --pid=$devicePid -v brief | Out-String)
+                $deviceLog = (& $adb -s $deviceSerial logcat -d --pid=$devicePid -v brief | Out-String)
                 if ($deviceLog -match '\[LOVE\].*\[AUDIO\] Registered') { $deviceLaunchVerified = $true; break }
                 if ($deviceLog -match 'FATAL EXCEPTION|stack traceback|Lua error') { throw 'Installed APK reported a startup error' }
             }

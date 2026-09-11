@@ -1,3 +1,5 @@
+local Typography = require("game.typography")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"startup runtime requires "..name)
@@ -48,7 +50,7 @@ local function new(context)
   local function load()
       if loaded then return false end
       Graphics.setDefaultFilter("nearest","nearest")
-      Graphics.setFont(Graphics.newFont(16))
+      Typography.install(Graphics)
       initializeAudio()
       Filesystem.createDirectory("saves")
 

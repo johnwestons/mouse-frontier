@@ -11,15 +11,102 @@ from PIL import Image, ImageDraw
 from tools.build_directional_character_assets import (
     apply_frame_source_overrides,
     build,
+    core_horizontal_anchor_x,
     keep_primary_component,
     normalize_strip,
     remove_edge_connected_checker_matte,
+    remove_edge_connected_magenta_fringe_pixels,
+    reorder_walk_source_frames,
     sha256,
     visible_bbox,
+    visible_height_for_resolution_normalization,
 )
 
 
 class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
+    @staticmethod
+    def _magenta_fringed_subject() -> Image.Image:
+        image = Image.new("RGBA", (48, 48), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((8, 6, 34, 41), fill=(108, 8, 112, 255))
+        draw.rectangle((9, 7, 33, 40), fill=(8, 8, 8, 255))
+        draw.rectangle((11, 9, 31, 38), fill=(20, 105, 230, 255))
+        draw.rectangle((17, 17, 24, 24), fill=(112, 4, 116, 255))
+        draw.rectangle((14, 29, 25, 35), fill=(235, 120, 20, 255))
+        return image
+
+    def test_connected_magenta_fringe_removal_preserves_enclosed_art_and_outline(self) -> None:
+        image = self._magenta_fringed_subject()
+        image.putpixel((27, 14), (255, 0, 255, 255))
+        before = image.tobytes()
+        cleaned = remove_edge_connected_magenta_fringe_pixels(image)
+        self.assertEqual(image.tobytes(), before)
+        self.assertEqual(cleaned.getpixel((8, 20)), (0, 0, 0, 0))
+        for position in [(9, 20), (12, 20), (20, 20), (20, 32), (27, 14)]:
+            self.assertEqual(cleaned.getpixel(position), image.getpixel(position))
+        self.assertEqual(cleaned.getpixel((20, 20)), (112, 4, 116, 255))
+
+    def test_magenta_cleanup_cannot_cross_a_diagonal_one_pixel_outline(self) -> None:
+        image = Image.new("RGBA", (25, 25), (108, 8, 112, 255))
+        ImageDraw.Draw(image).polygon(((12, 2), (22, 12), (12, 22), (2, 12)), outline=(8, 8, 8, 255))
+        cleaned = remove_edge_connected_magenta_fringe_pixels(image)
+        self.assertEqual(cleaned.getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertEqual(cleaned.getpixel((12, 12)), image.getpixel((12, 12)))
+
+    def test_magenta_cleanup_is_opt_in_and_reports_removal_counts(self) -> None:
+        image = self._magenta_fringed_subject()
+        options = dict(frame_size=48, target_height=36, max_width=44, center_x=24, baseline=42)
+        default, default_report = normalize_strip([image], **options)
+        unchanged, _ = normalize_strip([image], **options, remove_edge_connected_magenta_fringe=False)
+        cleaned, report = normalize_strip([image], **options, remove_edge_connected_magenta_fringe=True)
+        self.assertEqual(default.tobytes(), unchanged.tobytes())
+        self.assertFalse(default_report["remove_edge_connected_magenta_fringe"])
+        self.assertNotEqual(default.tobytes(), cleaned.tobytes())
+        self.assertTrue(report["remove_edge_connected_magenta_fringe"])
+        self.assertEqual(report["magenta_matte_and_fringe_removed_pixels"], [122])
+        self.assertEqual(report["edge_connected_magenta_fringe_removed_pixels"], [122])
+        rgba = np.asarray(cleaned)
+        self.assertTrue(np.any(np.all(rgba == (112, 4, 116, 255), axis=2)), "normalization must also preserve enclosed dark magenta when opted in")
+        self.assertEqual(visible_height_for_resolution_normalization(image, remove_edge_connected_magenta_fringe=True), 34)
+        with self.assertRaisesRegex(ValueError, "must be a boolean"):
+            normalize_strip([image], **options, remove_edge_connected_magenta_fringe="yes")
+
+    def test_build_propagates_magenta_option_and_measures_replacements_consistently(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            sprite = self._magenta_fringed_subject()
+            atlas = Image.new("RGBA", (48 * 8, 48))
+            for index in range(8):
+                atlas.alpha_composite(sprite, (index * 48, 0))
+            atlas.save(source / "walk.png")
+            idle = Image.new("RGBA", (48, 96))
+            idle.alpha_composite(sprite)
+            idle.alpha_composite(sprite, (0, 48))
+            idle.save(source / "idle.png")
+            sprite.resize((96, 96), Image.Resampling.NEAREST).save(source / "replacement.png")
+            original_hashes = {path.name: sha256(path) for path in source.glob("*.png")}
+            manifest = {
+                "version": 1, "character": "test-frog", "source_root": str(source), "runtime_root": str(root / "runtime"),
+                "framing": {"frame_size": 48, "target_height": 36, "max_width": 44, "center_x": 24, "baseline": 42, "remove_edge_connected_magenta_fringe": True},
+                "idle_sets": [{"source": "idle.png", "outputs": ["idle.png"], "fixed_grid": True, "remove_edge_connected_magenta_fringe": False}],
+                "walks": {"walk.png": {"source": "walk.png", "fixed_grid": True, "frame_sources": [None, None, {"source": "replacement.png", "resolution_normalization": "match_base_visible_height"}] + [None] * 5}},
+            }
+            path = root / "build.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            report = build(path)
+            self.assertTrue(report["default_remove_edge_connected_magenta_fringe"])
+            self.assertFalse(report["outputs"]["idle.png"]["remove_edge_connected_magenta_fringe"])
+            walk = report["outputs"]["walk.png"]
+            self.assertTrue(walk["remove_edge_connected_magenta_fringe"])
+            normalization = walk["frame_source_overrides"][0]["resolution_normalization"]
+            self.assertEqual(normalization["source_visible_height"], 68)
+            self.assertEqual(normalization["target_visible_height"], 34)
+            self.assertEqual(normalization["uniform_scale"], 0.5)
+            self.assertEqual(walk["edge_connected_magenta_fringe_removed_pixels"][2], 488)
+            self.assertEqual(original_hashes, {path.name: sha256(path) for path in source.glob("*.png")})
+
     @staticmethod
     def _checker_backed_subject() -> Image.Image:
         image = Image.new("RGBA", (96, 96), (0, 0, 0, 255))
@@ -105,6 +192,23 @@ class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
         self.assertEqual(report["horizontal_anchor"], "core")
         for frame_report in report["normalized_frames"]:
             self.assertAlmostEqual(frame_report["output_anchor_x"], 64, delta=0.5)
+
+    def test_core_anchor_is_measured_after_pixel_resampling(self) -> None:
+        frame = Image.new("RGBA", (48, 48))
+        draw = ImageDraw.Draw(frame)
+        draw.rectangle((10, 4, 30, 40), fill=(40, 100, 190, 255))
+        draw.rectangle((30, 28, 44, 32), fill=(40, 100, 190, 255))
+        original = frame.tobytes()
+        for height in (21, 39):
+            with self.subTest(height=height):
+                strip, report = normalize_strip(
+                    [frame], 96, height, 70, 48, 80, horizontal_anchor="core"
+                )
+                measured = core_horizontal_anchor_x(strip, visible_bbox(strip))
+                self.assertEqual(measured, 48)
+                self.assertEqual(report["normalized_frames"][0]["output_anchor_x"], measured)
+                self.assertEqual(visible_bbox(strip)[3], 80)
+        self.assertEqual(frame.tobytes(), original)
 
     def test_core_anchor_rejects_extensions_that_would_be_clipped(self) -> None:
         frame = self._tailed_frame("left")
@@ -253,6 +357,7 @@ class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
             report = build(manifest_path)
 
             self.assertEqual(sha256(atlas_path), atlas_hash_before_build)
+            self.assertEqual(report["outputs"]["walk.png"]["source_frame_indices"], list(range(8)))
             with Image.open(runtime_root / "walk.png") as strip:
                 rgba_strip = strip.convert("RGBA")
                 phase_three = self._strip_frame(rgba_strip, 2, 32)
@@ -306,6 +411,95 @@ class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
         cells = [Image.new("RGBA", (8, 8), (0, 0, 0, 0)) for _ in range(8)]
         with self.assertRaisesRegex(ValueError, "8-item list"):
             apply_frame_source_overrides(cells, [None] * 7, Path("unused"))
+
+    def test_source_frame_indices_rejects_invalid_or_duplicate_phases(self) -> None:
+        cells = [Image.new("RGBA", (8, 8), (index, 0, 0, 255)) for index in range(8)]
+        invalid = [
+            None,
+            tuple(range(8)),
+            list(range(7)),
+            list(range(9)),
+            [0, 1, 2, 3, 4, 5, 6, 6],
+            [-1, 1, 2, 3, 4, 5, 6, 7],
+            [0, 1, 2, 3, 4, 5, 6, 8],
+            [False, 1, 2, 3, 4, 5, 6, 7],
+            [0, True, 2, 3, 4, 5, 6, 7],
+            [0.0, 1, 2, 3, 4, 5, 6, 7],
+            ["0", 1, 2, 3, 4, 5, 6, 7],
+            [[0], 1, 2, 3, 4, 5, 6, 7],
+        ]
+        for indices in invalid:
+            with self.subTest(indices=indices):
+                with self.assertRaisesRegex(ValueError, "source_frame_indices.*permutation"):
+                    reorder_walk_source_frames(cells, indices)
+
+    def test_source_frame_indices_resequences_after_rows_and_before_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            atlas = Image.new("RGBA", (128, 96), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(atlas)
+            for index in range(12):
+                x, y = (index % 4) * 32, (index // 4) * 32
+                draw.rectangle((x + 10, y + 4, x + 21, y + 15 + index),
+                               fill=(80 + index, 70, 150, 255))
+            atlas_path = source_root / "walk-atlas.png"
+            atlas.save(atlas_path)
+            original_hash = sha256(atlas_path)
+            idle = atlas.crop((0, 0, 32, 64))
+            idle.save(source_root / "idle.png")
+            replacement = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+            ImageDraw.Draw(replacement).rectangle((10, 5, 21, 24), fill=(25, 230, 40, 255))
+            replacement.save(source_root / "override.png")
+            indices = [0, 5, 6, 3, 4, 1, 2, 7]
+            overrides = [None] * 8
+            overrides[1] = {
+                "source": "override.png",
+                "resolution_normalization": "match_base_visible_height",
+            }
+            manifest = {
+                "version": 1,
+                "character": "phase-order-fixture",
+                "source_root": str(source_root),
+                "runtime_root": str(root / "runtime"),
+                "framing": {
+                    "frame_size": 32, "target_height": 23, "max_width": 28,
+                    "center_x": 16, "baseline": 30,
+                },
+                "idle_sets": [{
+                    "source": "idle.png", "source_columns": 1,
+                    "rows": 2, "fixed_grid": True, "outputs": ["idle.png"],
+                }],
+                "walks": {"walk.png": {
+                    "source": atlas_path.name, "source_columns": 4,
+                    "rows": 3, "row_indices": [2, 0], "fixed_grid": True,
+                    "source_frame_indices": indices, "frame_sources": overrides,
+                }},
+            }
+            manifest_path = root / "build.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            report = build(manifest_path)
+
+            self.assertEqual(sha256(atlas_path), original_hash)
+            details = report["outputs"]["walk.png"]
+            self.assertEqual(details["source_frame_indices"], indices)
+            # Selected cells are atlas cells 8..11,0..3. The override for output
+            # slot 2 must measure mapped atlas cell 1 (13px), not cell 9 (21px).
+            self.assertEqual(
+                details["frame_source_overrides"][0]["resolution_normalization"]["target_visible_height"],
+                13,
+            )
+            expected_colors = [88, 25, 82, 91, 80, 89, 90, 83]
+            with Image.open(root / "runtime" / "walk.png") as strip:
+                for index, red in enumerate(expected_colors):
+                    frame = self._strip_frame(strip.convert("RGBA"), index, 32)
+                    pixels = np.asarray(frame)
+                    colors = set(pixels[:, :, 0][pixels[:, :, 3] > 0].tolist())
+                    self.assertEqual(colors, {red}, f"Wrong source cell in output slot {index + 1}")
+            persisted = json.loads((root / "runtime" / "build-report.json").read_text())
+            self.assertEqual(persisted["outputs"]["walk.png"]["source_frame_indices"], indices)
 
     def test_unit_resolution_scales_are_pixel_identical_to_legacy_normalization(self) -> None:
         frames = [self._tailed_frame("left"), self._tailed_frame("right")]

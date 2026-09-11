@@ -33,6 +33,17 @@ class MobilePackageTests(unittest.TestCase):
             with self.subTest(action=action):
                 self.assertTrue(runtime_asset(character_root / f"{action}.png"))
 
+    def test_typewriter_fonts_and_license_are_runtime_assets(self) -> None:
+        font_root = ROOT / "assets" / "fonts"
+        for filename in ("CourierPrime-Regular.ttf", "CourierPrime-Bold.ttf"):
+            with self.subTest(font=filename):
+                path = font_root / filename
+                self.assertTrue(runtime_asset(path), "mobile builds must keep the shared game font")
+                self.assertEqual(b"\x00\x01\x00\x00", path.read_bytes()[:4], "font must be valid TrueType data")
+        license_path = font_root / "OFL.txt"
+        self.assertTrue(runtime_asset(license_path), "font license must ship alongside the font binaries")
+        self.assertIn("SIL OPEN FONT LICENSE Version 1.1", license_path.read_text(encoding="utf-8"))
+
     def test_last_stand_mobile_package_excludes_concepts_and_candidates(self) -> None:
         for relative in (
             "assets/concepts/last-stand/last-stand-backyard-concept.png",

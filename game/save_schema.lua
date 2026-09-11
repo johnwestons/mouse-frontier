@@ -3,7 +3,7 @@ local Accessibility = require("game.accessibility")
 local HelpQuestSession = require("game.help_quest_session")
 
 local SaveSchema = {
-    CURRENT_VERSION = 33,
+    CURRENT_VERSION = 34,
     LEGACY_VERSION = 1,
 }
 
@@ -174,6 +174,25 @@ local function ensureCrowCaravans(data)
     caravans.camps=camps
 end
 
+local function removeRetiredStopActivities(data)
+    -- Stop activities are retired. Clear every saved stop and any orphaned
+    -- quest session while preserving rewards already earned and other quests.
+    for _,layout in pairs(data.stopLayouts) do
+        if type(layout)=="table" then
+            local activity=layout.worldActivity
+            if type(activity)=="table" and activity.sessionId then
+                data.helpQuestSessions[activity.sessionId]=nil
+            end
+            layout.worldActivity=nil
+        end
+    end
+    for id,session in pairs(data.helpQuestSessions) do
+        if type(session)=="table" and (session.kind=="settlement-activity" or session.source=="community-water-pump") then
+            data.helpQuestSessions[id]=nil
+        end
+    end
+end
+
 local function ensureRootTables(data)
     for _,field in ipairs(STRUCTURAL_TABLES) do data[field]=data[field] or {} end
     ensureCrowCaravans(data)
@@ -205,6 +224,7 @@ local function ensureRootTables(data)
     data.audio.musicPaused=data.audio.musicPaused==true
     data.audio.musicMuted=data.audio.musicMuted==true
     Accessibility.ensure(data)
+    removeRetiredStopActivities(data)
     HelpQuestSession.ensureData(data)
     for _,item in pairs(data.droppedItems) do
         item.scene=type(item.scene)=="string" and item.scene or "train"

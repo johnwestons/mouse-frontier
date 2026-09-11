@@ -4,7 +4,7 @@ This roadmap orders the remaining work by dependency and gameplay impact. Every 
 
 Current content: the shooting range, Last Stand rescue, crow-caravan trading camps, and the stop-6 surface/dungeon expedition are integrated into the shared game, with persistent progress and return paths.
 
-First aid now uses cut inspection and five treatment steps. Water-pump repair remains a short instant chore. The four retired community minigames and their regional variants are absent from this release; their redesign remains future content work.
+First aid now uses cut inspection and five treatment steps. Water-pump repair and the four retired community minigames are absent from this release.
 
 Latest visual polish: every help-minigame stage now presents its authored full-color atlas art with distinct scene and choice treatments instead of repeated stage-one placeholders. First aid also displays the actual medical-supply sprite being used. The enlarged locomotive now has distance-accurate drivers, rigid coupling and connecting rods, animated car bogies, layered vibrating ballast, and fullscreen seam regression captures. Desktop car selectors no longer cover the exit control, long battle weapon/item labels are compacted into their buttons, and the two Ferret Scout idle frames have repaired crops and baselines.
 
@@ -62,7 +62,7 @@ Latest visual polish: every help-minigame stage now presents its authored full-c
 - **Complete:** Attach melee and ranged weapons to per-character, per-frame hand points in battle and world attacks. Sprite Doctor generates, reviews, validates, and permits authored corrections to the shared desktop/mobile attachment list.
 - **Complete:** Redesign sludge creatures with mouse ears instead of antennae while preserving their established silhouette and animation contract. Four-frame idle/walk, attack, hit, and collapse atlases share one mouse-eared identity and render from the shared desktop/mobile source.
 - **Complete:** Add a clearly clickable `EXIT HOME` button inside every home. The shared scene control has a compact desktop layout, a larger Android touch target, and uses the same save-safe exit action as the nearby-door shortcut.
-- **Revised:** Water-pump repair remains available with a telegraphed nonlethal runoff hazard and persistent goodwill/scrap reward. Sludge containment, debris clearing, garden rescue, and trough care were retired for individual redesign. Ambient critters still respond to nearby travelers.
+- **Revised:** Water-pump repair, sludge containment, debris clearing, garden rescue, and trough care have been removed along with their activity spots and hazards. Ambient critters still respond to nearby travelers.
 
 ## 9. NPC relationships and character identity — Complete
 
@@ -83,10 +83,10 @@ Latest visual polish: every help-minigame stage now presents its authored full-c
 
 ## 12. Deeper help quests and authored minigames — In progress
 
-- **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and community activities now share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
+- **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and dialogue quests share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
 - **Complete:** Replace placeholder first aid with cut inspection, tool selection, five treatment steps, mouse/touch dragging, keyboard treatment, and saved pause/resume progress.
 - **Retired:** Sludge containment, track-debris clearing, garden rescue, and wildlife-trough care were removed with their world spots and assets so they can be redesigned individually.
-- **Planned:** Add the sprite-driven water-pump repair activity.
+- **Retired:** Water-pump repair was removed with its world spot, runoff hazard, and quest objective. Existing saves clear the retired activity and its help-quest session.
 - **Complete:** Add the first four branching investigation and conversation quests: Missing Family Trail, Crop Dispute, Bandit Warning, and Broken Promise. Choices and evidence persist, every conclusion remains constructive, stronger investigation can earn exceptional goodwill, and NPC follow-ups reflect the saved relationship.
 - **Planned:** Expand the authored dialogue pool beyond the first four quests and connect later-stop variants to regional characters and world-state consequences.
 

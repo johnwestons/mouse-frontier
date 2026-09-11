@@ -76,7 +76,6 @@ local function new(context)
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
     firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
-    completeStopActivity=worldScene.completeStopActivity,
     beginShootingRange=worldScene.beginShootingRange,handleShootingRange=worldScene.handleShootingRange,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
   })

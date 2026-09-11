@@ -1,6 +1,12 @@
 local SoundProfiles=require("game.weapon_sound_profiles")
 local FirstPersonWeaponManifest=require("game.first_person_weapon_manifest")
+local MobileAim=require("game.mobile_weapon_aim")
+local Typography=require("game.typography")
 local Range={}
+
+local function text(value,x,y,w,h,scale,minimum,align,singleLine)
+    return Typography.drawText(love.graphics,value,x,y,w,h,{scale=scale or 1,minScale=minimum or .78,align=align or "center",valign="center",singleLine=singleLine})
+end
 
 Range.version=3
 Range.roundSeconds=45
@@ -34,6 +40,7 @@ local lobbyRows={
 }
 
 local DEFAULT_SIGHT_ANCHOR={x=.5,y=.35}
+local MOBILE_FIRE_BUTTON={x=410,y=654,w=140,h=42}
 
 local function title(value)
     return (value or "unknown"):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
@@ -196,6 +203,7 @@ local function loadWeapon(session,data,catalog)
     session.loaded=math.min(session.capacity,availableAmmo(data,combat))
     session.needsReload=false
     clearWeaponViewSequence(session)
+    MobileAim.refresh(session,session.weapon,session.aimMode)
 end
 
 function Range.new(data,spot,catalog,options)
@@ -391,12 +399,14 @@ end
 function Range.toggleAim(session)
     if not session or session.phase~="play" then return false end
     session.aimMode=session.aimMode=="sights" and "hip" or "sights"
+    MobileAim.refresh(session,session.weapon,session.aimMode)
     return true
 end
 
 function Range.setAim(session,aiming)
     if not session or session.phase~="play" then return false end
     session.aimMode=aiming and "sights" or "hip"
+    MobileAim.refresh(session,session.weapon,session.aimMode)
     return true
 end
 
@@ -423,8 +433,13 @@ function Range.weaponViewPlacement(session)
     return session and session.aimMode=="sights" and "sights" or "hip"
 end
 
-function Range.mousemoved(session,x,y)
+function Range.mousemoved(session,x,y,touch)
     if not session or session.phase~="play" then return end
+    if touch then
+        MobileAim.set(session,x,y,session.weapon,session.aimMode,960,720,{left=30,top=55,right=930,bottom=625})
+        return
+    end
+    session.touchAim=nil
     session.aimX=math.max(30,math.min(930,x)); session.aimY=math.max(55,math.min(625,y))
 end
 
@@ -450,8 +465,12 @@ function Range.mousepressed(session,x,y,data,catalog,button)
         if hit({x=154,y=654,w=126,h=42},x,y) then Range.toggleAim(session); return "aim" end
         if hit({x=680,y=654,w=126,h=42},x,y) then Range.returnToSetup(session); return "setup" end
         if hit({x=816,y=654,w=126,h=42},x,y) then return "close" end
-        Range.mousemoved(session,x,y)
-        if button==4 then return "aim" end
+        if (button==4 or button==5) and hit(MOBILE_FIRE_BUTTON,x,y) then
+            return shoot(session,data,catalog,session.aimX,session.aimY)
+        end
+        if button==5 then return shoot(session,data,catalog,session.aimX,session.aimY) end
+        Range.mousemoved(session,x,y,button==4)
+        if button==4 then return "aimPointer" end
         return shoot(session,data,catalog,session.aimX,session.aimY)
     elseif session.phase=="results" then
         if hit({x=238,y=548,w=150,h=58},x,y) then
@@ -533,7 +552,7 @@ local function drawButton(label,rect,enabled)
     love.graphics.rectangle("fill",rect.x,rect.y,rect.w,rect.h,7,7)
     love.graphics.setColor(enabled==false and .45 or .93,enabled==false and .43 or .75,enabled==false and .40 or .30,1)
     love.graphics.rectangle("line",rect.x,rect.y,rect.w,rect.h,7,7)
-    love.graphics.printf(label,rect.x,rect.y+rect.h/2-7,rect.w,"center")
+    text(label,rect.x+8,rect.y+6,rect.w-16,rect.h-12,1,rect.h<50 and .74 or .82)
 end
 
 local function drawWeapon(ui,name)
@@ -566,7 +585,10 @@ local function drawFirstPersonWeapon(assets,ui,session,aimX,aimY,swayX,swayY,pla
     if not image then drawWeapon(ui,session.weapon); return false end
     local width,height=image:getDimensions()
     love.graphics.setColor(1,1,1,1)
-    if placement=="sights" then
+    if session.touchAim then
+        local place=MobileAim.placement(session.weapon,state,session.aimMode,aimX,aimY,960,720)
+        love.graphics.draw(image,place.x,place.y,0,place.width/width,place.height/height)
+    elseif placement=="sights" then
         local anchor=DEFAULT_SIGHT_ANCHOR
         if views and type(views.anchor)=="function" then anchor=select(1,views:anchor(session.weapon)) end
         local scale=math.min(560/width,650/height)
@@ -618,7 +640,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); love.graphics.print(string.format("TIME  %02d",math.ceil(session.time)),28,24,0,1.15,1.15)
         love.graphics.print("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,58)
-        love.graphics.printf("SCORE\n"..session.score,750,24,180,"center")
+        text("SCORE\n"..session.score,750,21,180,59,1,.88)
         local sx,sy=Range.sway(session,catalog); local x,y=session.aimX+sx,session.aimY+sy
         local placement=Range.weaponViewPlacement(session)
         drawFirstPersonWeapon(assets,ui,session,x,y,sx,sy,placement)
@@ -631,8 +653,8 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             local pulse=.72+.28*math.abs(math.sin((session.reloadPulse or 0)*5))
             love.graphics.setColor(.32,.035,.02,.94); love.graphics.rectangle("fill",310,108,340,58,8,8)
             love.graphics.setColor(1,.28,.12,pulse); love.graphics.rectangle("line",310,108,340,58,8,8)
-            love.graphics.printf(mobile and "RELOAD REQUIRED  —  TAP RELOAD" or "RELOAD REQUIRED  —  PRESS R",320,128,320,"center",0,1.25,1.25)
-        elseif session.message then love.graphics.setColor(1,.45,.25); love.graphics.printf(session.message,340,112,280,"center",0,1.15,1.15) end
+            text(mobile and "RELOAD REQUIRED\nTAP RELOAD" or "RELOAD REQUIRED\nPRESS R",320,113,320,48,1.08,.92)
+        elseif session.message then love.graphics.setColor(1,.45,.25); text(session.message,320,108,320,60,1,.82) end
         local reloadLabel=combat.ammo and (session.needsReload and "RELOAD!  [R]" or "RELOAD  [R]")
             or (session.weaponViewSequence and "RETURNING" or "REUSABLE")
         if mobile then reloadLabel=combat.ammo and (session.needsReload and "RELOAD!" or "RELOAD") or reloadLabel end
@@ -640,29 +662,36 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         drawButton(session.aimMode=="sights" and "AIMING" or (mobile and "AIM" or "AIM  [RMB]"),{x=154,y=654,w=126,h=42},true)
         drawButton(mobile and "SETUP" or "SETUP  [TAB]",{x=680,y=654,w=126,h=42},true)
         drawButton(mobile and "LEAVE" or "LEAVE  [Q]",{x=816,y=654,w=126,h=42},true)
+        love.graphics.setColor(.045,.03,.02,.93); love.graphics.rectangle("fill",286,mobile and 592 or 648,388,mobile and 128 or 62,7,7)
         if mobile then
             love.graphics.setColor(1,.88,.58)
-            love.graphics.printf("DRAG TO AIM  •  TAP FIRE TO SHOOT",292,620,376,"center",0,.78,.78)
+            text(title(session.weapon),292,596,376,26,.90,.78,"center",true)
+            text("HOLD THE GRIP • SECOND TOUCH / FIRE",292,624,376,24,.86,.78)
+            drawButton("FIRE",MOBILE_FIRE_BUTTON,true)
+            love.graphics.setColor(1,.88,.58)
+            text(string.upper(session.motion).." "..string.upper(session.material).." | "
+                ..string.upper(session.targetPattern).." | "..session.stageLength.." SEC",292,698,376,20,.78,.72,"center",true)
+        else
+            love.graphics.setColor(1,.88,.58); text(title(session.weapon).."  |  "..string.upper(session.motion).." "..string.upper(session.material)
+                .."  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,650,376,56,.82,.72)
         end
-        love.graphics.setColor(1,.88,.58); love.graphics.printf(title(session.weapon).."  |  "..string.upper(session.motion).." "..string.upper(session.material)
-            .."  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,676,376,"center",0,.78,.78)
         return
     end
 
     love.graphics.setColor(.055,.04,.03,.91); love.graphics.rectangle("fill",154,92,652,544,12,12)
     love.graphics.setColor(.87,.65,.25); love.graphics.rectangle("line",154,92,652,544,12,12)
     if session.phase=="lobby" then
-        love.graphics.setColor(1,.86,.58); love.graphics.printf("COMMUNITY TARGET RANGE",180,126,600,"center",0,1.35,1.35)
-        love.graphics.setColor(.92,.86,.72); love.graphics.printf("Choose a weapon and course. Live ammunition is used; more is sold here for scrap.",220,158,520,"center",0,.9,.9)
+        love.graphics.setColor(1,.86,.58); text("COMMUNITY TARGET RANGE",180,118,600,33,1.35,1.1)
+        love.graphics.setColor(.92,.86,.72); text("Live ammo is used. Buy more below.",220,155,520,23,.95,.85)
         local combat=catalog.weaponCombat[session.weapon]; local reserve=availableAmmo(data or {},combat); local durability=weaponDurability(data,session.weapon)
         for index,row in ipairs(lobbyRows) do
             local selected=session.menuRow==index
             love.graphics.setColor(selected and 1 or .74,selected and .77 or .70,selected and .28 or .62)
-            love.graphics.printf(row.label,300,row.y-36,360,"center")
+            text(row.label,300,row.y-36,360,22,.92,.85)
             local value=row.kind=="weapon" and title(session.weapon) or row.kind=="motion" and title(session.motion)
                 or row.kind=="material" and title(session.material) or row.kind=="pattern" and title(session.targetPattern)
                 or tostring(session.stageLength).." Seconds"
-            love.graphics.setColor(1,.89,.68); love.graphics.printf(value,290,row.y-4,380,"center",0,row.kind=="weapon" and 1.16 or 1.08,row.kind=="weapon" and 1.16 or 1.08)
+            love.graphics.setColor(1,.89,.68); text(value,290,row.y-9,380,30,row.kind=="weapon" and 1.16 or 1.08,.82,"center",true)
             drawButton("<",{x=218,y=row.y-21,w=62,h=46},true); drawButton(">",{x=680,y=row.y-21,w=62,h=46},true)
         end
         local offer=Range.ammoOffer(session,catalog)
@@ -670,32 +699,32 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         love.graphics.setColor(.78,.77,.70)
         local status=durability<=0 and "BROKEN - REPAIR IN THE TRAIN WORKSHOP"
             or combat.ammo and (string.upper(combat.ammo).." AVAILABLE: "..reserve) or "REUSABLE PROJECTILE"
-        love.graphics.printf(status.."  |  SCRAP: "..scrap,250,497,460,"center",0,.84,.84)
-        love.graphics.printf("SCORE MULTIPLIER x"..string.format("%.2f",Range.scoreMultiplier(session)),300,518,360,"center",0,.78,.78)
-        local ammoLabel=offer and ("BUY "..offer.amount.." "..string.upper(offer.ammo).." - "..offer.cost.." SCRAP  [B]") or "NO AMMO NEEDED"
+        text(status.."  |  SCRAP: "..scrap,185,489,590,25,.86,.75)
+        text("SCORE MULTIPLIER x"..string.format("%.2f",Range.scoreMultiplier(session)),300,516,360,22,.86,.78)
+        local ammoLabel=offer and ("BUY "..offer.amount.." "..string.upper(offer.ammo).."\n"..offer.cost.." SCRAP"..(mobile and "" or "  [B]")) or "NO AMMO NEEDED"
         drawButton(ammoLabel,{x=185,y=542,w=290,h=54},offer~=nil and scrap>=offer.cost)
         drawButton("START COURSE",{x=500,y=542,w=275,h=54},weaponReady(data,catalog,session.weapon))
         drawButton("LEAVE",{x=800,y=654,w=130,h=42},true)
     else
         local result=session.result
-        love.graphics.setColor(1,.86,.58); love.graphics.printf("ROUND COMPLETE",180,128,600,"center",0,1.45,1.45)
-        love.graphics.setColor(1,.72,.24); love.graphics.printf(result.rank,220,210,520,"center",0,1.45,1.45)
+        love.graphics.setColor(1,.86,.58); text("ROUND COMPLETE",180,123,600,38,1.45,1.15)
+        love.graphics.setColor(1,.72,.24); text(result.rank,220,200,520,45,1.45,1.15)
         love.graphics.setColor(.92,.86,.72)
-        love.graphics.printf("SCORE  "..result.score.."\nACCURACY  "..math.floor(result.accuracy*100+.5).."%\nHIGH SCORE  "..result.highScore,250,282,460,"center",0,1.18,1.18)
+        text("SCORE  "..result.score.."\nACCURACY  "..math.floor(result.accuracy*100+.5).."%\nHIGH SCORE  "..result.highScore,250,275,460,105,1.18,1)
         local reward=result.gained>0 and ("GOODWILL +"..result.gained)
             or result.rewardTier==0 and "HIT A TARGET TO EARN GOODWILL"
             or result.earnedRewardTier<result.rewardTier and ("GOODWILL BEST TIER +"..result.rewardTier)
             or "GOODWILL TIER ALREADY EARNED"
-        love.graphics.setColor(.52,1,.57); love.graphics.printf(reward,230,420,500,"center")
-        love.graphics.setColor(.82,.78,.68); love.graphics.printf(string.upper(session.motion).."  •  "..string.upper(session.material)
-            .."  •  "..string.upper(session.targetPattern).."  •  "..session.stageLength.." SEC  •  SCORE x"..string.format("%.2f",Range.scoreMultiplier(session)),220,474,520,"center",0,.88,.88)
+        love.graphics.setColor(.52,1,.57); text(reward,230,410,500,40,1,.85)
+        love.graphics.setColor(.82,.78,.68); text(string.upper(session.motion).."  •  "..string.upper(session.material)
+            .."  •  "..string.upper(session.targetPattern).."  •  "..session.stageLength.." SEC  •  SCORE x"..string.format("%.2f",Range.scoreMultiplier(session)),220,464,520,36,.92,.78)
         drawButton("REPLAY",{x=238,y=548,w=150,h=58},weaponReady(data,catalog,session.weapon))
         drawButton("SETUP",{x=405,y=548,w=150,h=58},true)
         drawButton("DONE",{x=572,y=548,w=150,h=58},true)
     end
     if session.message then
         love.graphics.setColor(1,.42,.28)
-        love.graphics.printf(session.message,220,session.phase=="lobby" and 610 or 500,520,"center")
+        text(session.message,190,session.phase=="lobby" and 600 or 501,580,42,.92,.78)
     end
 end
 

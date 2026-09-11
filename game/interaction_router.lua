@@ -20,10 +20,6 @@ function InteractionRouter.select(ctx)
     if ctx.scene=="stop" and ctx.nearTrain(ctx.player.x,ctx.player.y,ctx.data.location) then
         local x,y=ctx.trainPoint(ctx.data.location); candidates[#candidates+1]={kind="returnTrain",x=x,y=y,hoverRadius=48}
     end
-    local activity=ctx.scene=="stop" and ctx.stopActivity
-    if activity and not activity.completed and math.sqrt((ctx.player.x-activity.x)^2+(ctx.player.y-activity.y)^2)<82 then
-        candidates[#candidates+1]={kind="stopActivity",x=activity.x,y=activity.y,hoverRadius=62,label=activity.label}
-    end
     local range=ctx.scene=="stop" and ctx.shootingRange
     if range and math.sqrt((ctx.player.x-range.x)^2+(ctx.player.y-range.y)^2)<82 then
         candidates[#candidates+1]={kind="shootingRange",x=range.x,y=range.y,hoverRadius=62,label="TARGET RANGE"}
@@ -69,7 +65,6 @@ function InteractionRouter.flags(selected)
     elseif selected.kind=="npc" then result.nearNPC=true
     elseif selected.kind=="passenger" then result.nearPassenger=selected.index
     elseif selected.kind=="returnTrain" then result.nearReturnTrain=true
-    elseif selected.kind=="stopActivity" then result.nearStopActivity=true
     elseif selected.kind=="shootingRange" then result.nearShootingRange=true
     elseif selected.kind=="expedition" then result.nearExpedition=true
     elseif selected.kind=="crowCaravan" then result.nearCaravan=true
@@ -90,7 +85,6 @@ function InteractionRouter.keyAction(ctx,key)
         elseif selected and selected.kind=="npc" then return "talkNPC"
         elseif selected and selected.kind=="house" then return "enterHouse",selected.index
         elseif selected and selected.kind=="houseExit" then return "exitHouse"
-        elseif selected and selected.kind=="stopActivity" then return "stopActivity"
         elseif selected and selected.kind=="shootingRange" then return "shootingRange"
         elseif selected and selected.kind=="expedition" then return "expedition",selected
         elseif selected and selected.kind=="crowCaravan" then return "caravan",selected
@@ -108,7 +102,7 @@ end
 
 function InteractionRouter.mouseAction(selected,button)
     if button==1 and selected and selected.hovered then
-        local qKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,stopActivity=true,shootingRange=true,returnTrain=true,expedition=true,crowCaravan=true}
+        local qKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,shootingRange=true,returnTrain=true,expedition=true,crowCaravan=true}
         local eKinds={mailbox=true,chest=true,item=true,fire=true}
         if qKinds[selected.kind] then return "routeKey","q" end
         if eKinds[selected.kind] then return "routeKey","e" end

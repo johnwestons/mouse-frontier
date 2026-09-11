@@ -1,6 +1,7 @@
 local MobileControls = {}
 MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
+local Typography=require("game.typography")
 
 local function distance(x1,y1,x2,y2)
     local dx,dy=x1-x2,y1-y2
@@ -80,6 +81,10 @@ function MobileControls:_updateCornerLayout()
     self.primary.y=bottom-self.primary.radius-self.primary.edgeInsetY
     self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-28
     self.secondary.y=self.primary.y
+    -- Keep menu navigation in the same safe outer gutters as the thumb
+    -- controls so it cannot sit on the journey statistics or modal headings.
+    self.back.x,self.back.y=left+48,top+20
+    self.menu.x,self.menu.y=right-self.menu.w-48,top+20
 end
 
 function MobileControls:_feedback(x,y)
@@ -145,14 +150,20 @@ function MobileControls:touchpressed(id,x,y)
     if self.menuVisible() and gx>=self.menu.x and gx<=self.menu.x+self.menu.w and gy>=self.menu.y and gy<=self.menu.y+self.menu.h then
         self:_feedback(gx,gy); self.touches[id]={kind="menu"}; self.menuAction(); return true
     end
-    if self.shootingRangeActive() then
-        if distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
-            self:_feedback(gx,gy); self.touches[id]={kind="key",key="space"}; self.pressKey("space"); return true
+    local rangeSession=self.shootingRangeActive()
+    if self.rangeSession~=rangeSession then self.rangeAimTouch=nil; self.rangeSession=rangeSession end
+    if rangeSession then
+        -- Only the first field touch owns the grip. A second field touch fires
+        -- at the existing aim; the range owns all footer buttons, including FIRE.
+        local button=self.rangeAimTouch and 5 or 4
+        local outcome=self.pressPointer(x,y,button)
+        if outcome=="aimPointer" then
+            self.rangeAimTouch=id
+            self.touches[id]={kind="rangePointer",button=4,session=rangeSession}
+        else
+            self:_feedback(gx,gy)
+            self.touches[id]={kind="rangeControl",button=button}
         end
-        -- Button 4 is the range's touch-only aiming pointer. It lets taps and
-        -- drags move the weapon without sharing the desktop left-click trigger.
-        self.touches[id]={kind="rangePointer",button=4}
-        self.pressPointer(x,y,4)
         return true
     end
     if self:isGameplayActive() then
@@ -187,7 +198,9 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
         local gx,gy=self.toGame(x,y)
         self:_updateJoystick(gx,gy)
     elseif touch.kind=="rangePointer" then
-        self.movePointer(x,y,dx or 0,dy or 0)
+        if self.rangeAimTouch==id and touch.session==self.shootingRangeActive() then
+            self.movePointer(x,y,dx or 0,dy or 0,true)
+        end
     elseif touch.kind=="canvasPointer" then
         touch.x,touch.y=x,y
         if self.pinch then
@@ -214,7 +227,10 @@ function MobileControls:touchreleased(id,x,y)
     if touch.kind=="joystick" then
         if self.joystickTouch==id then self.joystickTouch=nil; self.axisX,self.axisY=0,0 end
     elseif touch.kind=="key" then self.releaseKey(touch.key)
-    elseif touch.kind=="rangePointer" then self.releasePointer(x,y,touch.button)
+    elseif touch.kind=="rangePointer" then
+        if self.rangeAimTouch==id then self.rangeAimTouch=nil end
+        self.releasePointer(x,y,touch.button)
+    elseif touch.kind=="rangeControl" then self.releasePointer(x,y,touch.button)
     elseif touch.kind=="canvasPointer" then
         if touch.pressed then self.releasePointer(x,y,1)
         elseif not touch.pinching then local gx,gy=self.toGame(x,y); self:_feedback(gx,gy); self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
@@ -232,6 +248,7 @@ end
 function MobileControls:cancelAll()
     for _,touch in pairs(self.touches) do if touch.kind=="key" then self.releaseKey(touch.key) end end
     self.touches={}
+    self.rangeAimTouch=nil; self.rangeSession=nil
     self.joystickTouch=nil
     self.pinch=nil
     self.endCameraPan()
@@ -239,17 +256,17 @@ function MobileControls:cancelAll()
 end
 
 local function drawButton(button,label,active,textScale)
-    love.graphics.setColor(.055,.038,.028,.78)
+    love.graphics.setColor(.055,.038,.028,.92)
     love.graphics.circle("fill",button.x,button.y,button.radius)
     love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.92)
     love.graphics.setLineWidth(4)
     love.graphics.circle("line",button.x,button.y,button.radius)
     love.graphics.setColor(1,.93,.75,.96)
-    local scale=math.min(.98,.72*(textScale or 1))
-    local font=love.graphics.getFont()
     local width=button.radius*2-14
-    scale=math.min(scale,width/math.max(1,font:getWidth(label)))
-    love.graphics.printf(label,button.x-width/2,button.y-font:getHeight()*scale/2,width/scale,"center",0,scale,scale)
+    local height=button.radius*1.4
+    Typography.drawText(love.graphics,label,button.x-width/2,button.y-height/2,width,height,{
+        scale=1.05*(textScale or 1),minScale=.90,maxLines=2,align="center",valign="center",
+    })
 end
 
 local function drawRectButton(button,label,active,textScale)
@@ -259,8 +276,9 @@ local function drawRectButton(button,label,active,textScale)
     love.graphics.setLineWidth(4)
     love.graphics.rectangle("line",button.x,button.y,button.w,button.h,12,12)
     love.graphics.setColor(1,.93,.75,.98)
-    local scale=math.min(1.12,.92*(textScale or 1))
-    love.graphics.printf(label,button.x+6,button.y+button.h/2-9*scale,(button.w-12)/scale,"center",0,scale,scale)
+    Typography.drawText(love.graphics,label,button.x+8,button.y+6,button.w-16,button.h-12,{
+        scale=1.1*(textScale or 1),minScale=.95,singleLine=true,align="center",valign="center",
+    })
 end
 
 function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
@@ -287,8 +305,6 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
         drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey),textScale)
         local secondaryKey,secondaryLabel=self.secondaryAction()
         if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey),textScale) end
-    elseif self.shootingRangeActive() then
-        drawButton(self.primary,"FIRE",self:isHeld("space"),textScale)
     end
     if self.backVisible() then drawRectButton(self.back,self.backLabel(),false,textScale) end
     if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false,textScale) end

@@ -36,5 +36,5 @@
     "speed_multipliers": [0.96, 0.94, 1.04, 1.06, 0.96, 0.94, 1.04, 1.06],
     "acceleration_multipliers": [0.92, 0.90, 1.08, 1.10, 0.92, 0.90, 1.08, 1.10]
   },
-  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 12, "center_tolerance": 20 }
+  "audit": { "alpha_threshold": 16, "edge_margin": 2, "detached_component_ratio": 0.003, "baseline_tolerance": 12, "center_tolerance": 20, "center_metric": "core" }
 }

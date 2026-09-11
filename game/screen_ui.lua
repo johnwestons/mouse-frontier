@@ -1,4 +1,5 @@
 local Accessibility=require("game.accessibility")
+local Typography=require("game.typography")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -60,41 +61,78 @@ local function new(context)
       end
   end
 
+  local function textBox(text,x,y,w,h,scale,align,minimum)
+      return Typography.drawText(love.graphics,text,x,y,w,h,{scale=(scale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1),
+          minScale=minimum or (mobileEnabled() and .75 or .65),align=align or "left",valign="center"})
+  end
+
   function ui.drawJourneyHUD()
-      -- Consolidate the loose journey text into the same brass-and-iron visual
-      -- language as the rest of the interface.
-      drawMenuFrame(10,58,410,132,4,.90)
-      love.graphics.setColor(colors.brass)
-      love.graphics.rectangle("fill",25,91,378,2)
-      love.graphics.setColor(colors.cream)
-      love.graphics.print("STOP "..runtime.saveData.location,26,70,0,1.05,1.05)
-      local goodwill=StopHelpProgression.status(runtime.saveData)
-      love.graphics.printf((runtime.saveData.trait and runtime.saveData.trait.name or "Survivor").."  •  GOODWILL "..goodwill.points.."  •  CARS "..#(runtime.saveData.trainCars or {}),145,72,255,"right",0,.66,.66)
-      local mobile=mobileEnabled()
-      love.graphics.print("MOVE",26,99,0,.70,.70)
-      love.graphics.print(mobile and "TOUCH JOYSTICK" or "WASD / ARROWS",80,98,0,mobile and .70 or .80,mobile and .70 or .80)
-      ui.drawHealthBar("HP",runtime.saveData.health,runtime.saveData.maxHealth,25,119,220)
-
-      local progression=PlayerProgression.status(runtime.saveData)
-      local level,xp,nextXP=progression.level,progression.xp,progression.nextXP
-      love.graphics.setColor(colors.cream)
-      love.graphics.print("LV "..level.."  ABILITY R"..progression.abilityRank,265,119,0,.66,.66)
-      love.graphics.printf(progression.maximum and "MAX" or (xp.." / "..nextXP.." XP"),265,135,130,"center",0,.58,.58)
-      love.graphics.setColor(.08,.06,.045,.92); love.graphics.rectangle("fill",265,149,130,12,3,3)
-      local progress=progression.maximum and 1 or math.min(1,xp/math.max(1,nextXP))
-      love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",267,151,126*progress,8,2,2)
-      local trainStatus=Maintenance.status(runtime.saveData)
-      love.graphics.setColor(colors.cream); love.graphics.printf("LV BONUS AIM +"..progression.bonuses.attack.." ARM +"..progression.bonuses.armor.." MOVE +"..progression.bonuses.move.."  •  TRAIN "..math.floor(trainStatus.condition).."% "..trainStatus.label.."  NEXT -"..trainStatus.projectedWear,25,169,370,"center",0,.46,.46)
-
-      local ammoParts={}
-      for i=1,2 do
-          local weapon=runtime.saveData.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
-          if combat and combat.ammo then ammoParts[#ammoParts+1]=Util.titleFromFile(combat.ammo).."  "..(runtime.saveData.ammo[combat.ammo] or 0) end
+      if mobileEnabled() then
+          local data=runtime.saveData
+          local progression=PlayerProgression.status(data)
+          local condition=Maintenance.status(data)
+          local goodwill=StopHelpProgression.status(data)
+          local windowWidth,windowHeight=love.graphics.getDimensions()
+          local viewportScale=math.min(windowWidth/W,windowHeight/H)
+          local visibleWidth=windowWidth/viewportScale
+          local left=(W-visibleWidth)/2+20
+          local available=visibleWidth-40
+          -- HUD uses the entire phone width and stays fixed while the world zooms.
+          love.graphics.push("all"); love.graphics.origin()
+          love.graphics.translate((windowWidth-W*viewportScale)/2,(windowHeight-H*viewportScale)/2)
+          love.graphics.scale(viewportScale,viewportScale)
+          local resourceWidth=(available-180-36)/4
+          for index,spec in ipairs({{"FOOD","food",colors.green},{"WATER","water",colors.blue},{"COAL","coal",colors.red},{"OIL","oil",colors.brass}}) do
+              local capacity=spec[2]=="oil" and Maintenance.oilCapacity(data) or TrainUpgradeBalance.resourceCapacity(data,spec[2])
+              ui.drawResource(spec[1],data.resources[spec[2]],left+(index-1)*(resourceWidth+12),spec[3],resourceWidth,capacity)
+          end
+          local column=(available-36)/4
+          local x1,x2,x3,x4=left,left+column+12,left+2*(column+12),left+3*(column+12)
+          for _,x in ipairs({x1,x2,x3,x4}) do drawMenuFrame(x,91,column,106,4,1) end
+          love.graphics.setColor(colors.cream)
+          textBox("STOP "..data.location,x1+16,102,column-32,36,1.35)
+          textBox(data.trait and data.trait.name or "Survivor",x1+16,145,column-32,34,1.05)
+          textBox("HEALTH",x2+16,101,column-32,26,.98)
+          textBox(data.health.." / "..data.maxHealth,x2+16,131,column-32,34,1.35)
+          love.graphics.setColor(.28,.08,.06,1); love.graphics.rectangle("fill",x2+16,176,column-32,7,2,2)
+          love.graphics.setColor(.95,.26,.20,1); love.graphics.rectangle("fill",x2+16,176,(column-32)*math.max(0,math.min(1,data.health/math.max(1,data.maxHealth))),7,2,2)
+          love.graphics.setColor(colors.cream)
+          textBox("LEVEL "..progression.level.." / ABILITY "..progression.abilityRank,x3+16,100,column-32,28,1.02)
+          textBox(progression.maximum and "MAX LEVEL" or ("XP "..progression.xp.." / "..progression.nextXP),x3+16,129,column-32,22,.92)
+          textBox("GOODWILL "..goodwill.points.." / TRAIN "..math.floor(condition.condition).."%",x3+16,153,column-32,38,.98)
+          local ammo={}
+          for i=1,2 do
+              local weapon=data.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
+              if combat and combat.ammo then ammo[#ammo+1]=Util.titleFromFile(combat.ammo)..": "..(data.ammo[combat.ammo] or 0) end
+          end
+          love.graphics.setColor(colors.brass); textBox("AMMUNITION",x4+16,101,column-32,27,.98)
+          love.graphics.setColor(colors.cream); textBox(#ammo>0 and table.concat(ammo,"\n") or "No ranged weapon",x4+16,134,column-32,52,1.10)
+          ui.mobileHeaderBounds={x=left,y=18,w=available,h=179,resourceRight=left+4*resourceWidth+36}
+          love.graphics.pop()
+          return
       end
-      if #ammoParts>0 then
-          drawMenuFrame(500,143,225,42,4,.90)
-          love.graphics.setColor(colors.brass); love.graphics.print("AMMO",516,156,0,.66,.66)
-          love.graphics.setColor(colors.cream); love.graphics.printf(table.concat(ammoParts,"   •   "),568,155,140,"center",0,.66,.66)
+      local data=runtime.saveData
+      local progression=PlayerProgression.status(data)
+      local condition=Maintenance.status(data)
+      local goodwill=StopHelpProgression.status(data)
+      drawMenuFrame(10,58,410,142,4,1)
+      love.graphics.setColor(colors.cream)
+      textBox("STOP "..data.location,25,67,113,32,1.05)
+      textBox(data.trait and data.trait.name or "Survivor",150,67,253,32,.85,"right")
+      ui.drawHealthBar("HP",data.health,data.maxHealth,25,108,222)
+      love.graphics.setColor(colors.cream)
+      textBox("LEVEL "..progression.level,264,108,138,24,.8)
+      textBox(progression.maximum and "MAX LEVEL" or ("XP "..progression.xp.."/"..progression.nextXP),264,137,138,24,.76)
+      textBox("GOODWILL "..goodwill.points.." / TRAIN "..math.floor(condition.condition).."% / "..#(data.trainCars or {}).." CARS",25,169,378,24,.78,"center")
+      local ammo={}
+      for i=1,2 do
+          local weapon=data.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
+          if combat and combat.ammo then ammo[#ammo+1]=Util.titleFromFile(combat.ammo)..": "..(data.ammo[combat.ammo] or 0) end
+      end
+      if #ammo>0 then
+          drawMenuFrame(500,150,225,77,4,1)
+          love.graphics.setColor(colors.brass); textBox("AMMUNITION",516,157,193,22,.75)
+          love.graphics.setColor(colors.cream); textBox(table.concat(ammo,"\n"),516,181,193,39,.78)
       end
   end
 
@@ -107,8 +145,10 @@ local function new(context)
       local scale=(textScale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1)
       if mobileEnabled() then scale=math.max(scale,.78) end
       scale=math.min(scale,mobileEnabled() and 1.18 or 1.22)
-      love.graphics.setColor(colors.cream); love.graphics.printf(text, x+5, y+h/2-8*scale, w-10, "center",0,scale,scale)
-      return {x=x,y=y,w=w,h=h,textScale=scale}
+      love.graphics.setColor(colors.cream)
+      local fitted,height,lines,fits=Typography.drawText(love.graphics,text,x+10,y+6,w-20,h-12,
+          {scale=scale,minScale=mobileEnabled() and .75 or .60,align="center",valign="center"})
+      return {x=x,y=y,w=w,h=h,textScale=fitted,textHeight=height,textLines=lines,textFits=fits}
   end
 
   local function requestExitPrompt(kind)
@@ -135,7 +175,7 @@ local function new(context)
       drawMenuFrame(270,252,420,196,2,.99)
       love.graphics.setColor(colors.cream)
       local title=runtime.exitPrompt=="quit" and "Quit Game?" or "Return to Title Screen?"
-      love.graphics.printf(title,290,290,380,"center",0,1.25,1.25)
+      textBox(title,290,274,380,62,1.15,"center")
       love.graphics.setColor(colors.brass)
       love.graphics.rectangle("fill",315,340,330,2)
       local mobile=mobileEnabled()
@@ -158,13 +198,13 @@ local function new(context)
       local mobile=mobileEnabled()
       for i=1,3 do
           local data, y = readSave(i), (mobile and 215+(i-1)*150 or 225+(i-1)*125)
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", mobile and 160 or 210, y, mobile and 640 or 540, mobile and 126 or 96, 12, 12)
-          love.graphics.setColor(colors.cream); love.graphics.print("SAVE "..i, mobile and 182 or 232, y+18, 0, 1.3, 1.3)
-          love.graphics.print(data and (Util.titleFromFile(data.character).."  •  Stop "..tostring(data.location or 1)) or "New journey", mobile and 182 or 232, y+52)
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", mobile and 90 or 210, y, mobile and 780 or 540, mobile and 126 or 96, 12, 12)
+          love.graphics.setColor(colors.cream); textBox("SAVE "..i,mobile and 114 or 232,y+15,mobile and 330 or 250,32,1.15)
+          textBox(data and (Util.titleFromFile(data.character).."\nStop "..tostring(data.location or 1)) or "New journey",mobile and 114 or 232,y+52,mobile and 340 or 260,mobile and 60 or 40,mobile and .95 or .8)
           if data and mobile then
-              ui.slots[i]=button("CONTINUE",475,y+31,135,64,true)
-              ui.slotNew[i]=button("NEW",620,y+31,82,64,true)
-              ui.slotDelete[i]=button("DELETE",712,y+31,76,64,true,.78)
+              ui.slots[i]=button("CONTINUE",485,y+31,175,64,true)
+              ui.slotNew[i]=button("NEW",677,y+31,75,64,true)
+              ui.slotDelete[i]=button("DELETE",765,y+31,88,64,true,.85)
           elseif data then
               ui.slots[i]=button("CONTINUE",500,y+16,105,32,true)
               ui.slotNew[i]=button("NEW",612,y+16,52,32,true)
@@ -174,28 +214,29 @@ local function new(context)
   end
 
   function ui.drawCharacterSelect()
+      local mobile=mobileEnabled()
       love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
-      love.graphics.printf("CHOOSE YOUR TRAVELER", 0, 34, W, "center", 0, 1.6, 1.6)
-      love.graphics.printf("Everyone else will remain available as an NPC.", 0, 70, W, "center")
+      textBox("CHOOSE YOUR TRAVELER",80,25,W-160,40,1.35,"center")
+      textBox("Tap a traveler to read their profile.",80,67,W-160,27,.85,"center")
       ui.characters = {}
-      local rows=math.ceil(#characters/5); local maxScroll=math.max(0,rows-3); runtime.characterScroll=math.max(0,math.min(maxScroll,runtime.characterScroll))
+      local columns=mobile and 4 or 5
+      local rows=math.ceil(#characters/columns); local maxScroll=math.max(0,rows-3); runtime.characterScroll=math.max(0,math.min(maxScroll,runtime.characterScroll))
       local hoveredFile
       local mouseX,mouseY=screenToGame(love.mouse.getPosition())
       for i, file in ipairs(characters) do
-          local col, row = (i-1)%5, math.floor((i-1)/5); local x, y = 42+col*182, 100+(row-runtime.characterScroll)*198
-          local r={x=x,y=y,w=150,h=180,visible=y>78 and y<700}; ui.characters[i]=r
+          local col, row = (i-1)%columns, math.floor((i-1)/columns); local x, y = (mobile and 26 or 42)+col*(mobile and 216 or 182), 100+(row-runtime.characterScroll)*198
+          local r={x=x,y=y,w=mobile and 194 or 150,h=180,visible=y>78 and y<700}; ui.characters[i]=r
           if y>78 and y<700 then
           love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", x,y,r.w,r.h,10,10)
           local img=characterImages[file]
-          if img then local s=math.min(112/img:getWidth(),120/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,x+75,y+68,0,s,s,img:getWidth()/2,img:getHeight()/2) end
+          if img then local s=math.min(112/img:getWidth(),108/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,x+r.w/2,y+60,0,s,s,img:getWidth()/2,img:getHeight()/2) end
           local identity=Catalog.characterIdentity(file)
-          love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),x+5,y+132,r.w-10,"center",0,0.72,0.72)
-          love.graphics.setColor(colors.brass); love.graphics.printf(identity.trait.name.." • "..identity.ability.name,x+4,y+151,r.w-8,"center",0,.47,.47)
-          love.graphics.setColor(colors.cream); love.graphics.printf(identity.role,x+4,y+166,r.w-8,"center",0,.48,.48)
+          love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(file),x+8,y+118,r.w-16,38,mobile and .92 or .72,"center")
+          love.graphics.setColor(colors.brass); textBox(identity.role,x+8,y+158,r.w-16,20,mobile and .76 or .6,"center")
           if Util.pointIn(mouseX,mouseY,r) then hoveredFile=file end
           end
       end
-      if hoveredFile then
+      if hoveredFile and not mobile then
           local lower=hoveredFile:lower()
           local trait=Catalog.characterTrait(hoveredFile)
           local abilityProfile=Catalog.characterAbility(hoveredFile)
@@ -212,23 +253,22 @@ local function new(context)
           love.graphics.setColor(colors.brass); love.graphics.print("TRAIT  "..trait.name,tx+12,ty+79,0,.65,.65)
           love.graphics.setColor(colors.cream); love.graphics.printf(trait.description,tx+12,ty+96,tooltipW-24,"left",0,.58,.58)
       end
-      local mobile=mobileEnabled()
-      ui.characterUp=button("^",mobile and 876 or 905,110,mobile and 68 or 38,mobile and 70 or 42,runtime.characterScroll>0); ui.characterDown=button("v",mobile and 876 or 905,mobile and 565 or 590,mobile and 68 or 38,mobile and 70 or 42,runtime.characterScroll<maxScroll)
-      love.graphics.setColor(colors.cream); love.graphics.print("SCROLL",898,165,0,0.65,0.65)
+      ui.characterUp=button("^",mobile and 888 or 905,110,mobile and 58 or 38,mobile and 70 or 42,runtime.characterScroll>0); ui.characterDown=button("v",mobile and 888 or 905,mobile and 565 or 590,mobile and 58 or 38,mobile and 70 or 42,runtime.characterScroll<maxScroll)
+      love.graphics.setColor(colors.cream); textBox(tostring(runtime.characterScroll+1).."/"..(maxScroll+1),888,192,58,35,.78,"center")
       if runtime.characterPreviewFile then
           local file=runtime.characterPreviewFile; local identity=Catalog.characterIdentity(file)
           love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
           drawMenuFrame(185,115,590,500,1,1)
-          love.graphics.setColor(colors.cream); love.graphics.printf("TRAVELER PROFILE",205,140,550,"center",0,1.15,1.15)
+          love.graphics.setColor(colors.cream); textBox("TRAVELER PROFILE",205,136,550,38,1.15,"center")
           local img=characterImages[file]
           if img then local s=math.min(180/img:getWidth(),205/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,330,300,0,s,s,img:getWidth()/2,img:getHeight()/2) end
-          love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(file),435,195,290,"left",0,1.1,1.1)
-          love.graphics.setColor(colors.brass); love.graphics.print("ROLE  "..string.upper(identity.role),435,230,0,.75,.75)
-          love.graphics.print("TRAIT  "..string.upper(identity.trait.name),435,270,0,.72,.72)
-          love.graphics.setColor(colors.cream); love.graphics.printf(identity.trait.description,435,294,290,"left",0,.68,.68)
-          love.graphics.setColor(colors.brass); love.graphics.print("ABILITY  "..identity.ability.name,435,355,0,.72,.72)
-          love.graphics.setColor(colors.cream); love.graphics.printf(identity.ability.description,435,379,290,"left",0,.68,.68)
-          love.graphics.printf("This traveler becomes your player character. Every other eligible traveler remains in the NPC roster.",240,455,480,"center",0,.64,.64)
+          love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(file),435,188,310,44,1.05)
+          love.graphics.setColor(colors.brass); textBox("ROLE: "..identity.role,435,236,310,27,.78)
+          textBox("TRAIT: "..identity.trait.name,435,268,310,27,.8)
+          love.graphics.setColor(colors.cream); textBox(identity.trait.description,435,297,310,52,.8)
+          love.graphics.setColor(colors.brass); textBox("ABILITY: "..identity.ability.name,435,358,310,27,.8)
+          love.graphics.setColor(colors.cream); textBox(identity.ability.description,435,390,310,59,.8)
+          textBox("Your chosen traveler becomes the player. The others can be met along the journey.",220,455,525,51,.8,"center")
           ui.characterConfirm=button("CHOOSE THIS TRAVELER",mobile and 260 or 275,520,mobile and 280 or 250,mobile and 66 or 48,true,.78)
           ui.characterCancel=button("BACK",mobile and 565 or 555,520,mobile and 135 or 130,mobile and 66 or 48,true,.82)
       else ui.characterConfirm=nil; ui.characterCancel=nil end
@@ -238,6 +278,13 @@ local function new(context)
   function ui.drawResource(name, value, x, color, width, capacity)
       width=width or 150
       capacity=capacity or 20
+      if mobileEnabled() then
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,18,width,61,7,7)
+          love.graphics.setColor(colors.cream); textBox(name,x+12,25,width*.45-12,35,1.04)
+          textBox(value.." / "..capacity,x+width*.45,25,width*.55-12,35,1.15,"right")
+          love.graphics.setColor(color); love.graphics.rectangle("fill",x+12,68,(width-24)*math.max(0,math.min(1,value/capacity)),5,2,2)
+          return
+      end
       local barWidth=math.max(20,width-66)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,width,34,7,7)
       love.graphics.setColor(color); love.graphics.rectangle("fill",x+58,29,math.max(0,math.min(barWidth,value*barWidth/capacity)),16,4,4)
@@ -245,69 +292,68 @@ local function new(context)
   end
 
   function ui.drawHealthBar(label,value,maxValue,x,y,w)
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,w,30,6,6)
-      love.graphics.setColor(0.25,0.08,0.07); love.graphics.rectangle("fill",x+55,y+8,w-65,14,3,3)
-      love.graphics.setColor(0.78,0.18,0.16); love.graphics.rectangle("fill",x+55,y+8,(w-65)*math.max(0,value)/math.max(1,maxValue),14,3,3)
-      love.graphics.setColor(colors.cream); love.graphics.print(label.." "..value.."/"..maxValue,x+7,y+7)
+      love.graphics.setColor(.055,.035,.025,1); love.graphics.rectangle("fill",x,y,w,39,5,5)
+      love.graphics.setColor(colors.cream); textBox(label.." "..value.." / "..maxValue,x+8,y+2,w-16,26,.92)
+      love.graphics.setColor(.28,.08,.06,1); love.graphics.rectangle("fill",x+8,y+31,w-16,5,2,2)
+      love.graphics.setColor(.95,.26,.20,1); love.graphics.rectangle("fill",x+8,y+31,(w-16)*math.max(0,math.min(1,value/math.max(1,maxValue))),5,2,2)
   end
 
   local function drawTrade()
       local source=currentTradeSource()
       if not source then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; return end
-      local mobile=mobileEnabled()
       local merchant=source.relationshipId or source.merchant or runtime.tradeNPC or runtime.saveData.currentNPC
       local terms=MerchantTrade.terms(runtime.saveData,source)
       local availableBudget=MerchantTrade.availableBudget(runtime.saveData,source)
-      love.graphics.setColor(0,0,0,.72); love.graphics.rectangle("fill",0,0,W,H)
-      drawMenuFrame(90,65,780,600,1,1); love.graphics.setColor(colors.cream)
-      love.graphics.printf((source.title or Util.titleFromFile(merchant).."'S TRADING POST"),110,95,740,"center",0,1.35,1.35)
-      love.graphics.printf("YOUR SCRAP: "..(runtime.saveData.scrap or 0).."   •   "..terms.tier.." terms: "..math.floor(terms.discount*100+.5).."% buy discount, "..math.floor(terms.saleBonus*100+.5).."% sell bonus",120,135,720,"center",0,.76,.76)
-      if runtime.tradeMessage then love.graphics.setColor(colors.brass); love.graphics.printf(runtime.tradeMessage,120,158,720,"center",0,.68,.68) end
-      ui.tradeBuy={}; love.graphics.print("FOR SALE",135,180)
-      local stockIndices={}
-      for index in pairs(source.stock or {}) do
-          if type(index)=="number" and MerchantTrade.stockItem(source,index) then stockIndices[#stockIndices+1]=index end
-      end
-      table.sort(stockIndices)
-      local buyPageSize=4; local maxBuyPage=math.max(0,math.ceil(#stockIndices/buyPageSize)-1)
-      runtime.tradeBuyPage=math.max(0,math.min(maxBuyPage,math.floor(runtime.tradeBuyPage or 0)))
-      local firstBuy=runtime.tradeBuyPage*buyPageSize+1
-      for row=0,buyPageSize-1 do
-          local i=stockIndices[firstBuy+row]
-          local name,entry
-          if i then name,entry=MerchantTrade.stockItem(source,i) end
-          if name then
-              local y=210+row*82; local price=MerchantTrade.buyPrice(runtime.saveData,Catalog,source,i)
-              local canBuy,target=MerchantTrade.canBuy(runtime.saveData,Catalog,source,i)
-              ui.drawItem(name,{x=135,y=y,w=62,h=62}); love.graphics.setColor(colors.cream)
-              local quantity=tonumber(entry and entry.quantity) or 1
-              love.graphics.print(Util.titleFromFile(name)..(quantity>1 and ("  x"..quantity) or ""),210,y+8,0,.82,.82)
-              love.graphics.print(price.." SCRAP",210,y+35,0,.72,.72)
-              ui.tradeBuy[i]=button(target=="train" and "SEND" or "BUY",mobile and 345 or 365,y+(mobile and 2 or 12),mobile and 115 or 90,mobile and 58 or 38,canBuy)
+      do
+          love.graphics.setColor(0,0,0,.86); love.graphics.rectangle("fill",0,0,W,H)
+          drawMenuFrame(60,42,840,640,1,1)
+          love.graphics.setColor(colors.cream); textBox(source.title or Util.titleFromFile(merchant).."'S TRADING POST",85,59,790,45,1.2,"center")
+          textBox("YOUR SCRAP "..runtime.saveData.scrap.." / MERCHANT BUDGET "..math.max(0,availableBudget),85,108,790,27,.9,"center")
+          love.graphics.setColor(colors.brass); textBox(runtime.tradeMessage or (terms.tier.." terms / "..math.floor(terms.discount*100+.5).."% buying discount"),85,139,790,32,.82,"center")
+          local stockIndices,occupied={},{}
+          for index in pairs(source.stock or {}) do if type(index)=="number" and MerchantTrade.stockItem(source,index) then stockIndices[#stockIndices+1]=index end end
+          table.sort(stockIndices)
+          for index=1,(runtime.saveData.inventoryCapacity or 6) do if runtime.saveData.inventory[index] then occupied[#occupied+1]=index end end
+          local buyPages=math.max(0,math.ceil(#stockIndices/3)-1)
+          local sellPages=math.max(0,math.ceil(#occupied/3)-1)
+          runtime.tradeBuyPage=math.max(0,math.min(buyPages,runtime.tradeBuyPage or 0))
+          runtime.tradeSellPage=math.max(0,math.min(sellPages,runtime.tradeSellPage or 0))
+          ui.tradeBuy,ui.tradeSell,ui.tradeGive={},{},{}
+          textBox("FOR SALE",90,177,350,26,.95)
+          textBox("YOUR ITEMS",490,177,375,26,.95)
+          for row=0,2 do
+              local y=210+row*116
+              local index=stockIndices[runtime.tradeBuyPage*3+row+1]
+              if index then
+                  local name,entry=MerchantTrade.stockItem(source,index)
+                  local price=MerchantTrade.buyPrice(runtime.saveData,Catalog,source,index)
+                  local enabled,target=MerchantTrade.canBuy(runtime.saveData,Catalog,source,index)
+                  ui.drawItem(name,{x=90,y=y,w=54,h=54})
+                  love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(name)..((tonumber(entry and entry.quantity) or 1)>1 and (" x"..entry.quantity) or ""),154,y,290,43,.85)
+                  ui.tradeBuy[index]=button(target=="train" and "SEND" or "BUY",154,y+49,130,56,enabled,.95)
+                  love.graphics.setColor(colors.cream); textBox(price.." SCRAP",297,y+49,150,56,.9,"center")
+              end
+              local ownedIndex=occupied[runtime.tradeSellPage*3+row+1]
+              local name=ownedIndex and runtime.saveData.inventory[ownedIndex]
+              if name then
+                  ui.drawItem(name,{x=490,y=y,w=54,h=54})
+                  love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(name),556,y,306,43,.85)
+                  local price=MerchantTrade.sellPrice(runtime.saveData,Catalog,source,ownedIndex)
+                  local gift=isWeapon(name) and source.allowGifts
+                  ui.tradeSell[ownedIndex]=button("SELL +"..price,556,y+49,gift and 143 or 306,56,availableBudget>=price,.95)
+                  if gift then ui.tradeGive[ownedIndex]=button("GIVE",716,y+49,146,56,true,.95) end
+              end
           end
+          ui.tradeBuyPrev=button("<",90,559,65,52,runtime.tradeBuyPage>0)
+          ui.tradeBuyNext=button(">",382,559,65,52,runtime.tradeBuyPage<buyPages)
+          ui.tradePrev=button("<",490,559,65,52,runtime.tradeSellPage>0)
+          ui.tradeNext=button(">",797,559,65,52,runtime.tradeSellPage<sellPages)
+          love.graphics.setColor(colors.cream)
+          textBox((runtime.tradeBuyPage+1).." / "..(buyPages+1),170,559,196,52,.95,"center")
+          textBox((runtime.tradeSellPage+1).." / "..(sellPages+1),570,559,212,52,.95,"center")
+          ui.tradeClose=button("DONE TRADING",340,622,280,48,true,.95)
+          return
       end
-      ui.tradeBuyPrev=button("<",135,548,58,mobile and 44 or 34,runtime.tradeBuyPage>0)
-      ui.tradeBuyNext=button(">",397,548,58,mobile and 44 or 34,runtime.tradeBuyPage<maxBuyPage)
-      love.graphics.setColor(colors.cream); love.graphics.printf((runtime.tradeBuyPage+1).." / "..(maxBuyPage+1),215,556,160,"center",0,.66,.66)
-      love.graphics.setColor(colors.cream); love.graphics.print("YOUR ITEMS",500,180); love.graphics.print("BUDGET: "..math.max(0,availableBudget).." SCRAP",500,202); ui.tradeSell={}; ui.tradeGive={}
-      local occupied={}
-      for i=1,(runtime.saveData.inventoryCapacity or 6) do if runtime.saveData.inventory[i] then occupied[#occupied+1]=i end end
-      local pageSize=5; local maxPage=math.max(0,math.ceil(#occupied/pageSize)-1)
-      runtime.tradeSellPage=math.max(0,math.min(maxPage,math.floor(runtime.tradeSellPage or 0)))
-      local first=runtime.tradeSellPage*pageSize+1
-      for row=0,pageSize-1 do
-          local i=occupied[first+row]; local name=i and runtime.saveData.inventory[i]
-          if name then
-              local y=210+row*72; ui.drawItem(name,{x=495,y=y,w=54,h=54}); love.graphics.setColor(colors.cream); love.graphics.print(Util.titleFromFile(name),555,y+5,0,.72,.72)
-              local weapon=isWeapon(name); local sellPrice=MerchantTrade.sellPrice(runtime.saveData,Catalog,source,i)
-              ui.tradeSell[i]=button("SELL +"..sellPrice,mobile and 675 or 700,y+(mobile and 1 or 5),mobile and (weapon and source.allowGifts and 105 or 140) or 110,mobile and 58 or 30,availableBudget>=sellPrice)
-              if weapon and source.allowGifts then ui.tradeGive[i]=button("GIVE",mobile and 790 or 700,y+(mobile and 1 or 37),mobile and 70 or 110,mobile and 58 or 28,true) end
-          end
-      end
-      ui.tradePrev=button("<",500,562,58,mobile and 44 or 34,runtime.tradeSellPage>0)
-      ui.tradeNext=button(">",636,562,58,mobile and 44 or 34,runtime.tradeSellPage<maxPage)
-      love.graphics.setColor(colors.cream); love.graphics.printf((runtime.tradeSellPage+1).." / "..(maxPage+1),558,570,78,"center",0,.66,.66)
-      ui.tradeClose=button("DONE TRADING",mobile and 360 or 375,mobile and 600 or 605,mobile and 240 or 210,mobile and 58 or 40,true)
   end
 
   function ui.drawMap()
@@ -316,7 +362,7 @@ local function new(context)
       love.graphics.setColor(0.66,0.47,0.27)
       for y=95,625,20 do for x=90+(y%37),870,43 do love.graphics.rectangle("fill",x,y,3,2) end end
       love.graphics.setColor(0.49,0.31,0.18); love.graphics.setLineWidth(8); love.graphics.rectangle("line",70,75,820,570,18,18)
-      love.graphics.setColor(0.35,0.23,0.13); love.graphics.printf("THE MOUSE FRONTIER TRAIL",70,96,820,"center",0,1.5,1.5)
+      love.graphics.setColor(0.22,0.13,0.065); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
       local visited=math.max(1,runtime.saveData.location); local points={}; local biomes={"Desert","Wetland","Canyon","Ruins","Badlands","Forest","Old City","River","Deep Woods","Pale City","Autumn Wood","Wastes"}
       local maxScroll=math.max(0,math.floor((visited-1)/6)-2); runtime.mapScroll=math.max(0,math.min(maxScroll,runtime.mapScroll))
       for i=1,visited do
@@ -344,17 +390,17 @@ local function new(context)
       for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
           love.graphics.setColor(i==#points and colors.red or colors.cream); love.graphics.circle("fill",p[1],p[2],i==#points and 13 or 9)
           love.graphics.setColor(colors.ink); love.graphics.printf(tostring(i),p[1]-14,p[2]-7,28,"center")
-          love.graphics.setColor(0.30,0.19,0.11); love.graphics.printf(biomes[((i-1)%#biomes)+1],p[1]-52,p[2]+16,104,"center",0,0.78,0.78)
+          love.graphics.setColor(0.22,0.13,0.065); textBox(biomes[((i-1)%#biomes)+1],p[1]-58,p[2]+16,116,37,.84,"center")
       end end
       local enc=runtime.saveData.encounters[tostring(runtime.saveData.location)]; local status=not enc and "Unexplored stop" or (enc.hasMob and not enc.resolved and "Danger nearby" or (enc.hasMob and "Mob cleared" or "Peaceful stop"))
       love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,62,8,8)
-      love.graphics.setColor(colors.cream); love.graphics.printf("CURRENT: Stop "..runtime.saveData.location.." - "..biomes[((runtime.saveData.location-1)%#biomes)+1].." - "..status,120,562,720,"center")
+      love.graphics.setColor(colors.cream); textBox("STOP "..runtime.saveData.location.." / "..biomes[((runtime.saveData.location-1)%#biomes)+1].." / "..status,120,552,720,29,.88,"center")
       local quests=questSummary()
       local questLine=quests.count>0 and ("ACTIVE: "..quests.first..(quests.count>1 and ("  +"..(quests.count-1).." more") or "")) or "No active deliveries or passengers."
-      love.graphics.printf(questLine,120,586,720,"center",0,0.8,0.8)
+      textBox(questLine,120,582,720,25,.8,"center")
       local mobile=mobileEnabled()
       ui.mapUp=button("^",mobile and 790 or 805,105,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0); ui.mapDown=button("v",mobile and 790 or 805,mobile and 181 or 155,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
-      love.graphics.setColor(colors.ink); love.graphics.print("PAGE "..(runtime.mapScroll+1).."/"..(maxScroll+1),720,130,0,0.75,0.75)
+      love.graphics.setColor(colors.ink); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,250,68,30,.85,"center")
       love.graphics.setLineWidth(1)
   end
 
@@ -364,48 +410,55 @@ local function new(context)
       if runtime.helpDialogue then
           local view=runtime.helpDialogue; local mobile=mobileEnabled(); local x,y,w,h=145,66,670,590
           drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
-          love.graphics.setColor(colors.brass); love.graphics.printf(view.title or "HELP A CRITTER",x+24,y+26,w-48,"center",0,1.35,1.35)
-          love.graphics.setColor(colors.cream); love.graphics.printf("OBJECTIVE  •  "..(view.objective or "Listen and choose a thoughtful response."),x+35,y+72,w-70,"center",0,.68,.68)
+          love.graphics.setColor(colors.brass); textBox(view.title or "HELP A CRITTER",x+24,y+18,w-48,43,1.2,"center")
+          love.graphics.setColor(colors.cream); textBox("OBJECTIVE: "..(view.objective or "Listen and choose a thoughtful response."),x+35,y+66,w-70,37,.85,"center")
           love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",x+45,y+104,w-90,3)
           love.graphics.setColor(colors.cream)
           local bodyScale=math.min(1.02,.82*textScale)
-          love.graphics.printf(view.text or runtime.dialogue.text,x+48,y+128,w-96,"left",0,bodyScale,bodyScale)
+          textBox(view.text or runtime.dialogue.text,x+48,y+120,w-96,177,.98)
           ui.helpDialogueChoices={}
           local buttonHeight=mobile and 62 or 48; local gap=mobile and 12 or 10; local startY=y+318
           for index,choice in ipairs(view.choices or {}) do
               ui.helpDialogueChoices[index]=button(index.."  •  "..choice.label,x+45,startY+(index-1)*(buttonHeight+gap),w-90,buttonHeight,true,mobile and .76 or .72)
           end
-          ui.helpDialoguePause=button("PAUSE AND CONTINUE LATER",x+185,y+h-55,300,mobile and 48 or 36,true,.68)
-          love.graphics.setColor(colors.cream); love.graphics.printf(mobile and "Tap a response" or "Press 1, 2, or 3 to choose",x+45,y+h-82,w-90,"center",0,.62,.62)
+          ui.helpDialoguePause=button("CONTINUE LATER",x+185,y+h-55,300,mobile and 48 or 36,true,.9)
+          love.graphics.setColor(colors.cream); textBox(mobile and "Tap a response" or "Press 1, 2, or 3 to choose",x+45,y+h-83,w-90,22,.75,"center")
           ui.questAccept,ui.questDecline=nil,nil
           return
       end
       ui.helpDialogueChoices,ui.helpDialoguePause=nil,nil
-      local x,y,w,h=230,115,500,textScale>1.15 and 140 or 118
+      local mobile=mobileEnabled()
+      local x,y,w=mobile and 110 or 170,mobile and 225 or 115,mobile and 740 or 620
+      local bodyScale=(mobile and 1 or .95)*textScale
+      local _,wrapped=love.graphics.getFont():getWrap(runtime.dialogue.text,(w-48)/bodyScale)
+      local h=math.min(mobile and 330 or 360,math.max(158,78+#wrapped*love.graphics.getFont():getHeight()*love.graphics.getFont():getLineHeight()*bodyScale))
       drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
-      love.graphics.setColor(colors.cream); love.graphics.print(runtime.dialogue.speaker or "Traveler",x+20,y+17,0,1.15*math.min(textScale,1.15),1.15*math.min(textScale,1.15)); love.graphics.printf(runtime.dialogue.text,x+20,y+52,w-40,"left",0,textScale,textScale)
+      love.graphics.setColor(colors.brass); textBox(runtime.dialogue.speaker or "Traveler",x+24,y+13,w-48,36,1.1)
+      love.graphics.setColor(colors.cream); textBox(runtime.dialogue.text,x+24,y+61,w-48,h-77,mobile and 1 or .95)
       if runtime.dialogue.choice and runtime.questOffer then
           local agreeing=runtime.questOffer.kind=="trade" and "YES, AGREE TO TRADE" or "YES, I'LL HELP"
           local declining=runtime.questOffer.kind=="trade" and "NO, DECLINE TRADE" or "SORRY, NO"
-          local mobile=mobileEnabled()
-          ui.questAccept=button(agreeing,x+(mobile and 35 or 70),y+h+12,mobile and 205 or 165,mobile and 62 or 40,true); ui.questDecline=button(declining,x+(mobile and 260 or 265),y+h+12,mobile and 205 or 165,mobile and 62 or 40,true)
+          local buttonWidth=(w-60)/2
+          ui.questAccept=button(agreeing,x+20,y+h+15,buttonWidth,mobile and 64 or 48,true)
+          ui.questDecline=button(declining,x+40+buttonWidth,y+h+15,buttonWidth,mobile and 64 or 48,true)
       else ui.questAccept=nil; ui.questDecline=nil end
   end
 
   function ui.drawTravelConfirm()
       drawLandscape(); drawTracks(); drawLocomotive(); drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",255,185,450,330,16,16)
-      local cost=travelCost(); love.graphics.setColor(colors.cream); love.graphics.printf("TRAVEL TO STOP "..(runtime.saveData.location+1),275,220,410,"center",0,1.5,1.5)
-      love.graphics.printf("Distance, terrain, passengers, and train condition shape this leg.\nThis journey will consume:",300,275,360,"center")
-      love.graphics.printf(cost.food.." FOOD     "..cost.water.." WATER     "..cost.coal.." COAL",280,350,400,"center",0,1.2,1.2)
+      drawMenuFrame(140,142,680,456,1,1)
+      local cost=travelCost(); love.graphics.setColor(colors.cream); textBox("TRAVEL TO STOP "..(runtime.saveData.location+1),170,169,620,46,1.3,"center")
+      textBox("Distance, terrain, passengers and train condition shape the cost of this journey.",178,229,604,56,.95,"center")
+      love.graphics.setColor(colors.brass); textBox(cost.food.." FOOD / "..cost.water.." WATER / "..cost.coal.." COAL",178,301,604,42,1.15,"center")
       local terrain=TrainUpgradeBalance.revealsTerrain(runtime.saveData) and string.upper(cost.terrain or "plains") or "UNCHARTED — NAVIGATOR REQUIRED"
       if (cost.navigatorSaved or 0)>0 then terrain=terrain.."  •  SAVES 1 COAL" end
-      love.graphics.printf("TERRAIN: "..terrain,280,377,400,"center",0,.78,.78)
-      if cost.passengers>0 then love.graphics.printf(cost.passengers.." passenger"..(cost.passengers==1 and "" or "s").." add "..cost.passengerLoad.." food and water.",280,385,400,"center",0,0.82,0.82) end
-      if cost.maintenanceCoal>0 then love.graphics.setColor(colors.red); love.graphics.printf("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",280,404,400,"center",0,.68,.68) end
+      love.graphics.setColor(colors.cream); textBox("TERRAIN: "..terrain,178,356,604,45,.9,"center")
+      if cost.passengers>0 then textBox(cost.passengers.." passengers add "..cost.passengerLoad.." food and water.",178,408,604,31,.85,"center") end
+      if cost.maintenanceCoal>0 then love.graphics.setColor(.98,.57,.43); textBox("LOW MAINTENANCE ADDS +"..cost.maintenanceCoal.." COAL",178,447,604,31,.85,"center") end
       local enough=runtime.saveData.resources.food>=cost.food and runtime.saveData.resources.water>=cost.water and runtime.saveData.resources.coal>=cost.coal
       local mobile=mobileEnabled()
-      ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",mobile and 275 or 305,420,mobile and 270 or 220,mobile and 68 or 48,enough); ui.travelNo=button("CANCEL",mobile and 565 or 545,420,mobile and 150 or 110,mobile and 68 or 48,true)
+      ui.travelYes=button(enough and "CONFIRM JOURNEY" or "NOT ENOUGH SUPPLIES",175,505,365,68,enough)
+      ui.travelNo=button("CANCEL",565,505,220,68,true)
   end
 
   function ui.drawRandomEvent()
@@ -418,17 +471,23 @@ local function new(context)
       local mobile=mobileEnabled()
       love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
-      love.graphics.setColor(colors.brass); love.graphics.printf("TRAIN WORKSHOP",150,95,660,"center",0,1.7,1.7)
+      love.graphics.setColor(colors.brass); textBox("TRAIN WORKSHOP",170,88,620,40,1.35,"center")
       local engine=EngineUpgrades.profile(runtime.saveData.engineLevel); local engineStatus=TrainUpgradeBalance.engineStatus(runtime.saveData,EngineUpgrades); local nextEngine=engineStatus.entry
       local maintenance=Maintenance.status(runtime.saveData)
-      love.graphics.setColor(colors.cream); love.graphics.printf("Scrap "..runtime.saveData.scrap.."  •  Condition "..math.floor(maintenance.condition).."% "..maintenance.label.."  •  Oil "..maintenance.oil.."/"..maintenance.oilCapacity,170,132,620,"center",0,.78,.78)
+      love.graphics.setColor(colors.cream); textBox("Scrap "..runtime.saveData.scrap.." / Train "..math.floor(maintenance.condition).."% / Oil "..maintenance.oil.."/"..maintenance.oilCapacity,170,130,620,26,.88,"center")
       love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
-      love.graphics.setColor(colors.brass); love.graphics.print("ENGINE  "..engine.name,205,166,0,.88,.88)
-      love.graphics.setColor(colors.cream); love.graphics.print("Fuel "..math.floor(engine.coal*100).."%  •  Provisions "..math.floor(engine.supplies*100).."%  •  Speed "..math.floor(engine.speed*100).."%  •  Wear -"..(engine.wearReduction or 0),205,190,0,.62,.62)
+      love.graphics.setColor(colors.brass); textBox("ENGINE: "..engine.name,201,163,394,24,.88)
+      love.graphics.setColor(colors.cream); textBox("Fuel "..math.floor(engine.coal*100).."% / Supplies "..math.floor(engine.supplies*100).."% / Speed "..math.floor(engine.speed*100).."%",201,188,394,29,.75)
       local engineLabel=engineStatus.maximum and "MAX LEVEL" or (engineStatus.locked and ("UNLOCK "..engineStatus.unlockStop) or (nextEngine.cost.." SCRAP"))
       ui.engineUpgrade=button(engineLabel,mobile and 610 or 630,mobile and 162 or 170,mobile and 155 or 125,mobile and 54 or 36,engineStatus.affordable==true)
       ui.trainCars={}
-      for i,c in ipairs(Catalog.trainCarCatalog) do local y=230+(i-1)*58; local status=TrainUpgradeBalance.carStatus(runtime.saveData,c); love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7); love.graphics.setColor(colors.cream); love.graphics.printf(c.name.."  —  "..c.description,205,y+8,400,"left",0,.68,.68); local label=status.owned and "OWNED" or (status.locked and ("UNLOCK "..status.unlockStop) or c.cost.." SCRAP"); ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable) end
+      for i,c in ipairs(Catalog.trainCarCatalog) do
+          local y=230+(i-1)*58; local status=TrainUpgradeBalance.carStatus(runtime.saveData,c)
+          love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7)
+          love.graphics.setColor(colors.cream); textBox(c.name..": "..c.description,201,y+4,394,44,.85)
+          local label=status.owned and "OWNED" or (status.locked and ("UNLOCK "..status.unlockStop) or c.cost.." SCRAP")
+          ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable)
+      end
       local repair=repairStatus()
       local repairLabel=repair.needed and ("REPAIR EQUIPPED  "..repair.cost.." SCRAP") or "EQUIPPED WEAPONS READY"
       ui.weaponRepair=button(repairLabel,185,mobile and 578 or 594,mobile and 285 or 280,mobile and 64 or 38,repair.affordable==true)
@@ -484,8 +543,8 @@ local function new(context)
       drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",80,55,800,610,20,20)
       local finale=FinaleProgression.evaluate(runtime.saveData,StopHelpProgression,Maintenance)
-      love.graphics.setColor(colors.brass); love.graphics.printf(finale.choice and finale.tier or "THE LAST SWITCH",80,88,800,"center",0,finale.choice and 1.65 or 1.85,finale.choice and 1.65 or 1.85)
-      love.graphics.setColor(colors.cream); love.graphics.printf(finale.reunion,170,155,620,"center",0,.86,.86)
+      love.graphics.setColor(colors.brass); textBox(finale.choice and finale.tier or "THE LAST SWITCH",110,83,740,58,1.5,"center")
+      love.graphics.setColor(colors.cream); textBox(finale.reunion,145,151,670,86,.95,"center")
       love.graphics.setColor(colors.brass)
       love.graphics.printf("GOODWILL "..finale.goodwill.."  •  FAMILY CLUES "..finale.storyClues.."/10  •  MYSTERY CLUES "..finale.mysteryClues.."/5",120,245,720,"center",0,.66,.66)
       love.graphics.printf("HELP "..finale.helpCount.."  •  RIDES "..finale.rides.."  •  TRAIN "..finale.condition.."%  •  CARS "..finale.cars.."  •  LEVEL "..finale.level,120,271,720,"center",0,.66,.66)
@@ -494,7 +553,7 @@ local function new(context)
           ui.endingChoices={}
           for index,choice in ipairs(FinaleProgression.choices) do
               local x=115+(index-1)*245
-              love.graphics.setColor(colors.cream); love.graphics.printf(choice.description,x,365,220,"center",0,.55,.55)
+              love.graphics.setColor(colors.cream); textBox(choice.description,x,362,220,73,.8,"center")
               ui.endingChoices[index]=button(index.."  "..choice.title,x,440,220,58,true)
               ui.endingChoices[index].id=choice.id
           end
@@ -502,8 +561,8 @@ local function new(context)
           ui.endingButton=nil
       else
           ui.endingChoices=nil
-          love.graphics.setColor(colors.cream); love.graphics.printf(finale.outcome,175,325,610,"center",0,.82,.82)
-          love.graphics.setColor(colors.brass); love.graphics.printf(finale.tierText,185,405,590,"center",0,.70,.70)
+          love.graphics.setColor(colors.cream); textBox(finale.outcome,145,313,670,82,.92,"center")
+          love.graphics.setColor(colors.brass); textBox(finale.tierText,155,404,650,63,.85,"center")
           local family={runtime.saveData.character,(runtime.saveData.npcRoster or {})[1],(runtime.saveData.npcRoster or {})[2]}
           for i,file in ipairs(family) do local img=characterImages[file] or npcImages[file]; if img then local s=math.min(72/img:getWidth(),96/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,380+(i-1)*100,520+math.sin(runtime.animationClock*3+i)*3,0,s,s,img:getWidth()/2,img:getHeight()/2) end end
           ui.endingButton=button("CAMPAIGN COMPLETE  •  RETURN",330,590,300,45,true)

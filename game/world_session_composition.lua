@@ -26,7 +26,6 @@ local function new(context)
   local Wildlife=required(context,"wildlife","table")
   local Mice=required(context,"mice","table")
   local StopSludges=required(context,"stopSludges","table")
-  local StopActivities=required(context,"stopActivities","table")
   local ShootingRange=required(context,"shootingRange","table")
   local CrowCaravans=required(context,"crowCaravans","table")
   local CrowCaravanArea=required(context,"crowCaravanArea","table")
@@ -47,7 +46,7 @@ local function new(context)
 
   local worldScene=WorldScene.new({
     runtime=runtime,ui=ui,scenery=content.scenery,catalog=Catalog,util=Util,house=House,stops=Stops,
-    family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,stopActivities=StopActivities,shootingRange=ShootingRange,
+    family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,shootingRange=ShootingRange,
     events=Events,
     stopHelpProgression=StopHelpProgression,
     crowCaravans=CrowCaravans,crowCaravanArea=CrowCaravanArea,
