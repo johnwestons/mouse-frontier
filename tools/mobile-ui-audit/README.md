@@ -6,6 +6,10 @@ extra-large text settings, trade, dialogue, travel, battle, and activity screens
 It also verifies that the mobile HUD spans the physical screen without touching
 the menu control at phone, 16:9, and 4:3 sizes, and remains fixed during world zoom.
 Text boxes that cannot fit at their readable minimum are listed in `report.txt`.
+Before screenshots, the audit measures every authored event choice using the
+real event renderer, every help-quest map summary at normal and extra-large text,
+and every three-choice help dialogue. It fails on overflow or intersecting
+dialogue controls, so longer branches remain covered between visual reviews.
 
 On Windows, run `tools/mobile-ui-audit/run.ps1`. It creates ignored asset
 junctions as needed, launches the audit hidden, and prints its capture report.

@@ -11,7 +11,7 @@ function EventUI.load(loadImage)
 end
 
 function EventUI.choiceRects()
-    return {{x=135,y=525,w=220,h=116},{x=370,y=525,w=220,h=116},{x=605,y=525,w=220,h=116}}
+    return {{x=135,y=511,w=220,h=140},{x=370,y=511,w=220,h=140},{x=605,y=511,w=220,h=140}}
 end
 
 function EventUI.drawArt(event,images,x,y,w,h)
@@ -41,14 +41,14 @@ function EventUI.draw(event,images,drawFrame,button,colors,progress,canChoose)
     love.graphics.setColor(0.04,0.025,0.02,.73); love.graphics.rectangle("fill",142,276,676,61)
     love.graphics.setColor(colors.cream); text(event.title,160,281,640,48,1.25)
     text(event.text,150,352,660,72,.95)
-    if event.category=="story" then love.graphics.setColor(colors.brass); love.graphics.printf("FAMILY TRAIL  "..math.min(10,(progress.story or 0)+1).." / 10",185,430,590,"center",0,.72,.72)
-    elseif event.category=="mystery" then love.graphics.setColor(colors.brass); love.graphics.printf("MISSING CRITTER CLUE  "..math.min(5,(progress.mystery or 0)+1).." / 5",185,430,590,"center",0,.72,.72) end
+    if event.category=="story" then love.graphics.setColor(colors.brass); text("FAMILY TRAIL  "..math.min(10,(progress.story or 0)+1).." / 10",185,430,590,25,.85)
+    elseif event.category=="mystery" then love.graphics.setColor(colors.brass); text("MISSING CRITTER CLUE  "..math.min(5,(progress.mystery or 0)+1).." / 5",185,430,590,25,.85) end
     love.graphics.setColor(colors.cream); text("Choose a response. Each path has a different consequence.",150,459,660,45,.85)
     local rects=EventUI.choiceRects()
     for index,choice in ipairs(event.choices) do
         local r=rects[index]; local enabled=not canChoose or canChoose(choice); button("",r.x,r.y,r.w,r.h,enabled); r.enabled=enabled
         love.graphics.setColor(colors.cream); text(enabled and choice.label or "CAN'T AFFORD",r.x+10,r.y+8,r.w-20,44,.95)
-        text(choice.hint or "",r.x+10,r.y+58,r.w-20,50,.82)
+        text(choice.hint or "",r.x+10,r.y+58,r.w-20,72,.82)
     end
     return rects
 end

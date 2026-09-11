@@ -170,6 +170,7 @@ function love.load()
         end
         record("Real application "..(mobile and "mobile" or "desktop").." audit "..love.graphics.getWidth().."x"..love.graphics.getHeight())
         setupStages()
+        require("tools.mobile-ui-audit.content_fit").run({graphics=love.graphics,game=game,ui=ui,record=record})
     end,debug.traceback)
     if not ok then fail(message) end
 end

@@ -393,11 +393,11 @@ local function new(context)
           love.graphics.setColor(0.22,0.13,0.065); textBox(biomes[((i-1)%#biomes)+1],p[1]-58,p[2]+16,116,37,.84,"center")
       end end
       local enc=runtime.saveData.encounters[tostring(runtime.saveData.location)]; local status=not enc and "Unexplored stop" or (enc.hasMob and not enc.resolved and "Danger nearby" or (enc.hasMob and "Mob cleared" or "Peaceful stop"))
-      love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,62,8,8)
+      love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,78,8,8)
       love.graphics.setColor(colors.cream); textBox("STOP "..runtime.saveData.location.." / "..biomes[((runtime.saveData.location-1)%#biomes)+1].." / "..status,120,552,720,29,.88,"center")
       local quests=questSummary()
       local questLine=quests.count>0 and ("ACTIVE: "..quests.first..(quests.count>1 and ("  +"..(quests.count-1).." more") or "")) or "No active deliveries or passengers."
-      textBox(questLine,120,582,720,25,.8,"center")
+      textBox(questLine,120,582,720,38,.8,"center")
       local mobile=mobileEnabled()
       ui.mapUp=button("^",mobile and 790 or 805,105,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0); ui.mapDown=button("v",mobile and 790 or 805,mobile and 181 or 155,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
       love.graphics.setColor(colors.ink); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,250,68,30,.85,"center")
@@ -422,7 +422,7 @@ local function new(context)
               ui.helpDialogueChoices[index]=button(index.."  •  "..choice.label,x+45,startY+(index-1)*(buttonHeight+gap),w-90,buttonHeight,true,mobile and .76 or .72)
           end
           ui.helpDialoguePause=button("CONTINUE LATER",x+185,y+h-55,300,mobile and 48 or 36,true,.9)
-          love.graphics.setColor(colors.cream); textBox(mobile and "Tap a response" or "Press 1, 2, or 3 to choose",x+45,y+h-83,w-90,22,.75,"center")
+          if not mobile then love.graphics.setColor(colors.cream); textBox("Press 1, 2, or 3 to choose",x+45,y+h-83,w-90,22,.75,"center") end
           ui.questAccept,ui.questDecline=nil,nil
           return
       end
