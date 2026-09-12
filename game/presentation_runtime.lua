@@ -1,3 +1,5 @@
+local TrainView=require("game.train_view")
+
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"presentation runtime requires "..name)
@@ -20,8 +22,17 @@ local function new(context)
   local drawExitPrompt=required(context,"drawExitPrompt","function")
   local drawMobileControls=required(context,"drawMobileControls","function")
   local getWorldOffset=required(context,"getWorldOffset","function")
+  local car=required(context,"car","table")
+  local mobileEnabled=required(context,"mobileEnabled","function")
 
   Camera:configure(W,H)
+
+  local function getTrainView()
+      if runtime.state~="game" or runtime.scene~="train" then return nil end
+      local windowWidth,windowHeight=love.graphics.getDimensions()
+      return TrainView.layout(car,W,H,windowWidth,windowHeight,
+          {mobile=mobileEnabled(),carCount=#(runtime.saveData and runtime.saveData.trainCars or {})})
+  end
 
   local function surface()
       if runtime.state~="game" then
@@ -48,6 +59,8 @@ local function new(context)
           and not ui.optionsOpen and not ui.mobileMenuOpen and not runtime.dialogue
       if worldSurface and runtime.player then
           local offsetX,offsetY=getWorldOffset()
+          local trainView=getTrainView()
+          if trainView then return TrainView.toView(trainView,runtime.player.x,runtime.player.y) end
           return runtime.player.x-(offsetX or 0),runtime.player.y-(offsetY or 0)
       end
       return W/2,H/2
@@ -68,6 +81,8 @@ local function new(context)
   end
 
   local function worldCoordinates(x,y)
+      local trainView=getTrainView()
+      if trainView then return TrainView.toWorld(trainView,x,y) end
       local offsetX,offsetY=getWorldOffset()
       return x+(offsetX or 0),y+(offsetY or 0)
   end
@@ -148,6 +163,7 @@ local function new(context)
       screenToGame=screenToGame,
       screenToWorld=screenToWorld,
       worldCoordinates=worldCoordinates,
+      getTrainView=getTrainView,
       isPanning=isPanning,
       beginPan=beginPan,
       movePan=movePan,

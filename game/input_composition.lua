@@ -37,6 +37,15 @@ local function new(context)
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local FinaleProgression=required(context,"finaleProgression","table")
 
+  -- Editor controls use UI coordinates, while train objects retain their
+  -- authored positions beneath the train's shared presentation transform.
+  local function trainItemAt(x,y)
+    return views.worldRenderer.trainItemAt(platform.presentationRuntime.worldCoordinates(x,y))
+  end
+  local function placeEditedItem(x,y)
+    return platform.trainCarRuntime.placeEditedItem(platform.presentationRuntime.worldCoordinates(x,y))
+  end
+
   local gameplayInput=GameplayInput.new({
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
     inventory=Inventory,catalog=Catalog,npcRelationships=NpcRelationships,merchantTrade=MerchantTrade,util=Util,readSave=platform.persistenceRuntime.read,
@@ -59,7 +68,7 @@ local function new(context)
     playTrainDepart=platform.audioRuntime.playTrainDepart,audioResetMusic=platform.audioRuntime.resetMusic,
     audioPreviousTrack=platform.audioRuntime.previousTrack,audioTogglePause=platform.audioRuntime.togglePause,
     audioNextTrack=platform.audioRuntime.nextTrack,audioToggleMute=platform.audioRuntime.toggleMute,
-    enterTrain=platform.trainCarRuntime.enterTrain,placeEditedItem=platform.trainCarRuntime.placeEditedItem,
+    enterTrain=platform.trainCarRuntime.enterTrain,placeEditedItem=placeEditedItem,
     newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,chooseEvent=adventure.eventRuntime.choose,
     handleEventClick=adventure.eventRuntime.handleClick,enterStop=adventure.journeyRules.enterStop,
     handleBattleMouse=adventure.battleRuntime.handleMouse,battleAttack=adventure.battleRuntime.attack,
@@ -72,7 +81,7 @@ local function new(context)
     pickUpNearby=adventure.inventoryActions.pickUpNearby,addCoalToFire=adventure.inventoryActions.addCoalToFire,
     handleInventoryClick=views.inventoryPresenter.handleClick,handleInventoryRelease=views.inventoryPresenter.handleRelease,
     requestExitPrompt=views.screenUI.requestExitPrompt,resolveExitPrompt=views.screenUI.resolveExitPrompt,
-    trainItemAt=views.worldRenderer.trainItemAt,skipIntro=Intro.skip,
+    trainItemAt=trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairEquipped=adventure.inventoryActions.repairEquipped,
     firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,

@@ -4,7 +4,9 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.8` (`versionCode` 8) includes the September 11,
+Build `0.7.0-mobile.9` (`versionCode` 9) adds the September 12, 2026 train fit update. The locomotive, active car, characters, furniture and running gear share one uniform transform that fills the available screen without cropping. Saved positions stay unchanged; world picking and editor dragging use the matching inverse transform. Resized mobile bogie textures retain their original wheel-contact anchors.
+
+It also includes the September 11,
 2026 mobile UI and shooting update. It bundles Courier Prime regular and bold typewriter
 fonts at a shared 20-pixel base size, measured text wrapping, and a larger
 journey HUD spanning the physical screen width while staying fixed during world
@@ -15,13 +17,13 @@ second touch or the footer FIRE button shoots without moving the reticle.
 Last Stand now visibly crouches below the sill, shields the player while covered,
 and applies enemy hits to persistent player health while exposed.
 
-Build 8 artifact:
-`output/mobile/MouseFrontier-0.7.0-mobile.8-debug.apk`.
+Build 9 artifact:
+`output/mobile/MouseFrontier-0.7.0-mobile.9-debug.apk`.
 
 Last installed build:
 
 - Application ID: `com.mousefrontier.game`
-- Version: `0.7.0-mobile.7` (`versionCode` 7)
+- Version: `0.7.0-mobile.8` (`versionCode` 8)
 - Engine: LÖVE 11.5
 - Orientation: landscape fullscreen
 - Architectures: ARM64 and ARMv7; debug builds also contain x86-64 for emulator testing
@@ -29,7 +31,9 @@ Last installed build:
 
 The last installed file was:
 
-`output/mobile/MouseFrontier-0.7.0-mobile.7-debug.apk`
+`output/mobile/MouseFrontier-0.7.0-mobile.8-debug.apk`
+
+Build 8 was installed and visually checked on the connected Galaxy S25 Ultra. All three save slots and their backups were byte-for-byte unchanged; evidence is in `output/mobile/ui-audit/root-device-verification.json`. Build 9 device validation is pending reconnection of the phone.
 
 This update packages the current shared gameplay, Last Stand quest, wilderness
 expeditions, crow caravans, first-person weapons, and directional character

@@ -140,11 +140,12 @@ local function viewportSpan(width,height,windowWidth,windowHeight)
     return -(visibleWidth-width)/2,width+(visibleWidth-width)/2,viewportScale
 end
 
-function Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight)
+function Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight,visibleBounds)
     width=width or 960
     windowWidth=windowWidth or width
     windowHeight=windowHeight or 720
     local visibleLeft,visibleRight=viewportSpan(width,720,windowWidth,windowHeight)
+    if visibleBounds then visibleLeft,visibleRight=visibleBounds.worldLeft,visibleBounds.worldRight end
     visibleLeft,visibleRight=visibleLeft-12,visibleRight+12
     local sourceWidth=Train.trackSourceWidth-Train.trackEdgeCrop*2
     local tileWidth=Train.trackSourceWidth*Train.trackScale
@@ -176,11 +177,11 @@ local function baseTrackQuad(track)
     return cached
 end
 
-function Train.drawTracks(trackAssets,width,scrollOffset)
+function Train.drawTracks(trackAssets,width,scrollOffset,visibleBounds)
     local track=type(trackAssets)=="table" and trackAssets.base or trackAssets
     if not track then return false end
     local windowWidth,windowHeight=love.graphics.getDimensions()
-    local plan=Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight)
+    local plan=Train.trackDrawPlan(width,scrollOffset,windowWidth,windowHeight,visibleBounds)
     local quad=baseTrackQuad(track)
     -- Mobile packing shrinks the base and the four-frame ballast atlas by
     -- different amounts. Keep their authored anchors in world space while
@@ -369,6 +370,10 @@ function Train.drawCarRunningGear(atlas,car,distance,generatedShader)
     local quad=atlas.quads[frame]
     local carScale=car.w/(Train.carVisibleRight-Train.carVisibleLeft)
     local scale=Train.carBogieScale*carScale
+    -- The anchors use the authored 543x724 frame. Phone packing rounds each
+    -- texture axis independently, so normalize both the scale and origin.
+    local _,_,frameWidth,frameHeight=quad:getViewport()
+    local sourceScaleX,sourceScaleY=543/frameWidth,724/frameHeight
     love.graphics.push("all")
     -- Cover only the retired wheel faces. A former rectangular underlay was
     -- visible around the transparent bogie sprite in fullscreen.
@@ -384,8 +389,9 @@ function Train.drawCarRunningGear(atlas,car,distance,generatedShader)
     love.graphics.setColor(1,1,1)
     for _,sourceCenter in ipairs(Train.carBogieCenters) do
         local centerX=car.x+(sourceCenter-Train.carVisibleLeft)*carScale
-        love.graphics.draw(atlas.image,quad,centerX,Train.railY,0,scale,scale,
-            Train.carBogieAtlasOriginX,Train.carBogieStrongBottom)
+        love.graphics.draw(atlas.image,quad,centerX,Train.railY,0,
+            scale*sourceScaleX,scale*sourceScaleY,
+            Train.carBogieAtlasOriginX/sourceScaleX,Train.carBogieStrongBottom/sourceScaleY)
     end
     love.graphics.pop()
     return true
@@ -396,7 +402,7 @@ function Train.consistLayout(width,count,options)
     count=math.max(1,math.floor(count or 1))
     local left,right,gap,height,y
     if options.mobile then left,right,gap,height,y=250,(width or 960)-25,6,58,140
-    else left,right,gap,height,y=430,730,4,28,154 end
+    else left,right,gap,height,y=10,410,4,28,214 end
     local cellWidth=math.min(options.mobile and 76 or 48,math.floor((right-left-gap*(count-1))/count))
     local total=cellWidth*count+gap*(count-1)
     local start=right-total
@@ -407,24 +413,50 @@ end
 
 function Train.layoutAudit(car,width,height)
     width,height=width or 960,height or 720
+    local View=require("game.train_view")
     local engine=Train.locomotiveLayout(car)
-    local sizes={{960,720},{1920,1080},{2560,1080},{3440,1440},{1280,1024},{2400,1080}}
-    local anchorsStable=true
+    local sizes={{960,720},{1920,1080},{2560,1080},{3440,1440},{1280,1024},{2340,1080}}
+    local modes={{mobile=false,carCount=1},{mobile=true,carCount=1},{mobile=true,carCount=7}}
+    local anchorsStable=nearlyEqual(engine.nose,-115) and nearlyEqual(engine.coupler,431)
+        and nearlyEqual(engine.carFront,429) and nearlyEqual(engine.wheelContactY,Train.railY)
     local coverageReady=true
+    local fitted=true
+    local maximized=true
+    local transformsReady=true
     local layouts={}
     for _,size in ipairs(sizes) do
-        local left,right,scale=viewportSpan(width,height,size[1],size[2])
-        local trackPlan=Train.trackDrawPlan(width,0,size[1],size[2])
-        local covers=trackPlan.tiles[1].x<=trackPlan.visibleLeft
-            and trackPlan.tiles[#trackPlan.tiles].x+trackPlan.tileWidth>=trackPlan.visibleRight
-        anchorsStable=anchorsStable and nearlyEqual(engine.nose,-115) and nearlyEqual(engine.coupler,431)
-            and nearlyEqual(engine.carFront,429) and nearlyEqual(engine.wheelContactY,Train.railY)
-        coverageReady=coverageReady and covers
-        layouts[#layouts+1]={windowWidth=size[1],windowHeight=size[2],visibleLeft=left,
-            visibleRight=right,scale=scale,trackTiles=#trackPlan.tiles,covers=covers}
+        for _,options in ipairs(modes) do
+            local view=View.layout(car,width,height,size[1],size[2],options)
+            local trackPlan=Train.trackDrawPlan(width,0,size[1],size[2],view)
+            local covers=trackPlan.tiles[1].x<=view.worldLeft
+                and trackPlan.tiles[#trackPlan.tiles].x+trackPlan.tileWidth>=view.worldRight
+            local fits=view.scale>0 and view.left>=view.visibleLeft+20-1e-6
+                and view.right<=view.visibleRight-20+1e-6
+                and view.top>=view.headerBottom-1e-6 and view.bottom<=height
+            local fills=nearlyEqual(view.left,view.visibleLeft+20)
+                or nearlyEqual(view.top,view.headerBottom)
+            local centered=nearlyEqual((view.left+view.right)/2,width/2)
+            local engineX,contactY=View.toView(view,engine.coupler,engine.wheelContactY)
+            local carX,carY=View.toView(view,car.x,Train.railY)
+            local worldX,worldY=View.toWorld(view,engineX,contactY)
+            local transform=nearlyEqual(engineX-carX,engine.overlap*view.scale)
+                and nearlyEqual(contactY,view.rail) and nearlyEqual(carY,view.rail)
+                and nearlyEqual(carX,view.couplerX)
+                and nearlyEqual(worldX,engine.coupler) and nearlyEqual(worldY,Train.railY)
+            coverageReady=coverageReady and covers
+            fitted=fitted and fits and centered
+            maximized=maximized and fills
+            transformsReady=transformsReady and transform
+            layouts[#layouts+1]={windowWidth=size[1],windowHeight=size[2],mobile=options.mobile,
+                carCount=options.carCount,visibleLeft=view.visibleLeft,visibleRight=view.visibleRight,
+                left=view.left,right=view.right,top=view.top,bottom=view.bottom,
+                scale=view.scale,viewportScale=view.viewportScale,trackTiles=#trackPlan.tiles,
+                covers=covers,fits=fits,centered=centered,maximized=fills,transformReady=transform}
+        end
     end
-    return {ready=anchorsStable and coverageReady,count=#layouts,layouts=layouts,
-        anchorsStable=anchorsStable,coverageReady=coverageReady,curve="train-layout-matrix-v1"}
+    return {ready=anchorsStable and coverageReady and fitted and maximized and transformsReady,
+        count=#layouts,layouts=layouts,anchorsStable=anchorsStable,coverageReady=coverageReady,
+        fitted=fitted,maximized=maximized,transformsReady=transformsReady,curve="train-layout-matrix-v2"}
 end
 
 function Train.animationAudit()
@@ -433,19 +465,19 @@ end
 
 function Train.audit(car,width)
     width=width or 960
+    local View=require("game.train_view")
     local engine=Train.locomotiveLayout(car)
     local carRight=car.x+car.w
     local tabs=Train.consistLayout(width,7)
-    local interactiveRight=car.x+405
     local tabsFit=#tabs==7 and tabs[1].x>=0 and tabs[#tabs].x+tabs[#tabs].w<=width
     local floorLeft,floorRight=Train.characterBounds(car,nil,30)
     local motion=Train.animationAudit()
     local matrix=Train.layoutAudit(car,width,720)
-    local consistCenter=(engine.nose+carRight)/2
+    local view=View.layout(car,width,720,width,720,{mobile=false,carCount=7})
+    local consistCenter=(view.left+view.right)/2
     local centerError=math.abs(consistCenter-width/2)
     local aligned=nearlyEqual(engine.nose,-115) and nearlyEqual(engine.coupler,431)
-        and nearlyEqual(engine.overlap,2) and nearlyEqual(centerError,13)
-        and interactiveRight<=width
+        and nearlyEqual(engine.overlap,2) and nearlyEqual(centerError,0)
         and floorLeft>=car.x and floorRight<=carRight
     return {
         ready=aligned and tabsFit and motion.ready and matrix.ready,
@@ -454,7 +486,11 @@ function Train.audit(car,width)
         couplingRodThicknessScale=Train.engineCouplingRodThicknessScale,
         connectingRodThicknessScale=Train.engineConnectingRodThicknessScale,
         carFront=car.x,carRight=carRight,couplerOverlap=engine.overlap,
-        croppedRight=math.max(0,carRight-width),croppedLeft=math.max(0,-engine.nose),
+        croppedRight=math.max(0,view.right-view.visibleRight),
+        croppedLeft=math.max(0,view.visibleLeft-view.left),
+        fittedLeft=view.left,fittedRight=view.right,fittedTop=view.top,fittedBottom=view.bottom,
+        fittedScale=view.scale,fullyVisible=matrix.fitted,maximized=matrix.maximized,
+        transformsReady=matrix.transformsReady,anchorsStable=matrix.anchorsStable,
         consistCenter=consistCenter,centerError=centerError,
         tabs=#tabs,tabsFit=tabsFit,aligned=aligned,
         wheelContactY=engine.wheelContactY,railY=Train.railY,
@@ -464,7 +500,7 @@ function Train.audit(car,width)
         ballastMode="anchored-four-frame-pockets",ballastFrameCount=4,
         ballastAnchored=true,connectionMode="sprite-atlas",
         layoutMatrixReady=matrix.ready,layoutCount=matrix.count,trackCoverage=matrix.coverageReady,
-        transitionDistance=width,curve="train-presentation-v7",
+        transitionDistance=view.transitionDistance,curve="train-presentation-v8",
     }
 end
 

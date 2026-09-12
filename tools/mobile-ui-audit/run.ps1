@@ -2,11 +2,15 @@ param(
     [string]$OutputPath = (Join-Path $PSScriptRoot '../../.stabilization/mobile-ui-audit'),
     [string]$LovePath = 'C:\Program Files\LOVE\lovec.exe',
     [switch]$Desktop,
+    [switch]$Train,
     [switch]$Visible
 )
 $ErrorActionPreference = 'Stop'
 if ($Desktop -and -not $PSBoundParameters.ContainsKey('OutputPath')) {
     $OutputPath = Join-Path $PSScriptRoot '../../.stabilization/desktop-ui-audit'
+}
+if ($Train -and -not $PSBoundParameters.ContainsKey('OutputPath')) {
+    $OutputPath = Join-Path $PSScriptRoot $(if ($Desktop) { '../../.stabilization/desktop-train-audit' } else { '../../.stabilization/mobile-train-audit' })
 }
 $repoPath = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $auditPath = (Resolve-Path $PSScriptRoot).Path
@@ -21,10 +25,12 @@ foreach ($name in @('assets', 'sounds')) {
 $previousMobile = $env:MOUSE_FRONTIER_MOBILE
 $previousRoot = $env:MOBILE_UI_AUDIT_ROOT
 $previousOutput = $env:MOBILE_UI_AUDIT_OUTPUT
+$previousTrain = $env:MOBILE_UI_AUDIT_TRAIN
 try {
     $env:MOUSE_FRONTIER_MOBILE = if ($Desktop) { '0' } else { '1' }
     $env:MOBILE_UI_AUDIT_ROOT = $repoPath
     $env:MOBILE_UI_AUDIT_OUTPUT = $resolvedOutput
+    $env:MOBILE_UI_AUDIT_TRAIN = if ($Train) { '1' } else { '0' }
     $windowStyle = if ($Visible) { 'Normal' } else { 'Hidden' }
     $auditProcess = Start-Process -FilePath $LovePath -ArgumentList ('"' + $auditPath + '"') -WindowStyle $windowStyle -PassThru `
         -RedirectStandardOutput (Join-Path $resolvedOutput 'stdout.txt') -RedirectStandardError (Join-Path $resolvedOutput 'stderr.txt')
@@ -40,4 +46,5 @@ try {
     $env:MOUSE_FRONTIER_MOBILE = $previousMobile
     $env:MOBILE_UI_AUDIT_ROOT = $previousRoot
     $env:MOBILE_UI_AUDIT_OUTPUT = $previousOutput
+    $env:MOBILE_UI_AUDIT_TRAIN = $previousTrain
 }

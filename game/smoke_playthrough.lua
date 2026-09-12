@@ -210,17 +210,22 @@ local function install(context)
                     return result.ready and result.aligned and result.tabsFit and result.tabs==7
                         and result.engineLeft==-115 and result.engineRight==431 and result.engineWidth==546
                         and result.carFront==429 and result.carRight==1049 and result.couplerOverlap==2
-                        and result.croppedLeft==115 and result.croppedRight==89
-                        and result.consistCenter==467 and result.centerError==13
+                        and result.croppedLeft==0 and result.croppedRight==0
+                        and result.fullyVisible and result.maximized and result.transformsReady and result.anchorsStable
+                        and result.fittedScale>0 and result.fittedScale<1
+                        and result.fittedLeft>=20-1e-6 and result.fittedRight<=940+1e-6
+                        and result.fittedTop>=238 and result.fittedBottom<=720
+                        and result.consistCenter==480 and result.centerError==0
                         and result.frontWheelCount==2 and result.couplingRodThicknessScale==.55
                         and result.connectingRodThicknessScale==.42
                         and result.wheelContactY==result.railY
-                        and result.animationReady and result.layoutMatrixReady and result.layoutCount==6
+                        and result.animationReady and result.layoutMatrixReady and result.layoutCount==18
                         and result.trackCoverage and result.trackLayerCount==2 and result.phaseCount==12
                         and result.ballastMode=="anchored-four-frame-pockets"
                         and result.ballastFrameCount==4 and result.ballastAnchored
                         and result.connectionMode=="sprite-atlas"
-                        and result.transitionDistance==960 and result.curve=="train-presentation-v7"
+                        and result.transitionDistance*result.fittedScale>960
+                        and result.curve=="train-presentation-v8"
                 end},
             {name="train_motion_kinematics",action=trainPresentationAudit,
                 check=function(_,_,_,result)

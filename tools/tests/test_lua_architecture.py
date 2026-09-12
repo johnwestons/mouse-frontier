@@ -584,7 +584,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("if options.mobile then", train)
         self.assertIn("function Train.audit", train)
         self.assertIn('engineTargetWidth=546', train)
-        self.assertIn('curve="train-presentation-v7"', train)
+        self.assertIn('curve="train-presentation-v8"', train)
         self.assertIn('local Animation = require("game.train_animation")', train)
         self.assertIn("function Train.drawCarRunningGear", train)
         self.assertIn("function Train.trackDrawPlan", train)

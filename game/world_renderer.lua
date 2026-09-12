@@ -122,16 +122,17 @@ local function new(context)
       }
   end
 
-  local function drawTracks()
+  local function drawTracks(trainView)
       if Train.drawTracks({base=scenery.track,ballastFrames=scenery.ballastPocketFrames},
-          W,runtime.sceneryOffset) then return end
+          W,runtime.sceneryOffset,trainView) then return end
       -- Fallback track uses the same rail baseline as the artwork-backed path.
       local railY=Train.railY
       local farRailY=railY-(414-300)*(W/2172)
-      love.graphics.setColor(0.16,0.12,0.09); love.graphics.rectangle("fill",0,farRailY-2,W,12); love.graphics.rectangle("fill",0,railY-2,W,12)
+      local left,right=trainView and trainView.worldLeft or 0,trainView and trainView.worldRight or W
+      love.graphics.setColor(0.16,0.12,0.09); love.graphics.rectangle("fill",left,farRailY-2,right-left,12); love.graphics.rectangle("fill",left,railY-2,right-left,12)
       love.graphics.setColor(0.28,0.20,0.12)
-      for x=runtime.sceneryOffset%70-70, W,70 do love.graphics.rectangle("fill",x,farRailY-12,18,railY-farRailY+34) end
-      love.graphics.setColor(0.52,0.48,0.42); love.graphics.rectangle("fill",0,farRailY+2,W,5); love.graphics.rectangle("fill",0,railY+2,W,5)
+      for x=left-70+(runtime.sceneryOffset-left)%70,right,70 do love.graphics.rectangle("fill",x,farRailY-12,18,railY-farRailY+34) end
+      love.graphics.setColor(0.52,0.48,0.42); love.graphics.rectangle("fill",left,farRailY+2,right-left,5); love.graphics.rectangle("fill",left,railY+2,right-left,5)
   end
 
   local function drawLocomotive()

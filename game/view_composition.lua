@@ -105,6 +105,7 @@ local function new(context)
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,
     screenToGame=platform.presentationRuntime.screenToGame,pointerPosition=platform.mobileRuntime.pointerPosition,
+    getTrainView=platform.presentationRuntime.getTrainView,
     getAudioStatus=platform.audioRuntime.status,drawLandscape=worldRenderer.drawLandscape,
     drawTracks=worldRenderer.drawTracks,drawTrainView=worldRenderer.drawTrainView,
     drawHouse=worldRenderer.drawHouse,drawStop=worldRenderer.drawStop,drawExpedition=worldRenderer.drawExpedition,drawCaravan=worldRenderer.drawCaravan,

@@ -445,7 +445,8 @@ local function new(context)
   end
 
   function ui.drawTravelConfirm()
-      drawLandscape(); drawTracks(); drawLocomotive(); drawTrainCar(1); love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
+      -- The gameplay renderer already drew the fitted train and its contents.
+      love.graphics.setColor(0,0,0,0.72); love.graphics.rectangle("fill",0,0,W,H)
       drawMenuFrame(140,142,680,456,1,1)
       local cost=travelCost(); love.graphics.setColor(colors.cream); textBox("TRAVEL TO STOP "..(runtime.saveData.location+1),170,169,620,46,1.3,"center")
       textBox("Distance, terrain, passengers and train condition shape the cost of this journey.",178,229,604,56,.95,"center")

@@ -2,6 +2,7 @@ local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
 local WorldPause = require("game.world_pause")
 local Typography = require("game.typography")
+local TrainView = require("game.train_view")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -40,6 +41,7 @@ local function new(context)
   local containerValue=required(context,"containerValue","function")
   local travelStatus=required(context,"travelStatus","function")
   local screenToGame=required(context,"screenToGame","function")
+  local getTrainView=required(context,"getTrainView","function")
   local pointerPosition=required(context,"pointerPosition","function")
   local getAudioStatus=required(context,"getAudioStatus","function")
   local drawLandscape=required(context,"drawLandscape","function")
@@ -111,19 +113,25 @@ local function new(context)
       local cloudLayer=getCloudLayer()
       ui.returnDoor,ui.returnTrain,ui.returnStop,ui.exitHome=nil,nil,nil,nil
       if runtime.scene=="train" then
-          drawLandscape(); drawTracks(); local tx=0
+          drawLandscape()
+          local trainView=getTrainView()
+          love.graphics.push(); TrainView.apply(trainView)
+          drawTracks(trainView)
+          local tx=0
+          local slide=trainView.transitionDistance
           if runtime.travelTransition then
               local t=runtime.travelTransition.t; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,runtime.travelTransition.maintenanceCondition or Maintenance.condition(runtime.saveData))
-              if t<timing.depart then local p=t/timing.depart; tx=-W*(p*p*p)
-              elseif t<timing.arrive then tx=-W
-              else local p=math.min(1,(t-timing.arrive)/timing.arrivalDuration); local eased=1-(1-p)^3; tx=W*(1-eased) end
+              if t<timing.depart then local p=t/timing.depart; tx=-slide*(p*p*p)
+              elseif t<timing.arrive then tx=-slide
+              else local p=math.min(1,(t-timing.arrive)/timing.arrivalDuration); local eased=1-(1-p)^3; tx=slide*(1-eased) end
           end
           love.graphics.push(); love.graphics.translate(tx,0)
           if runtime.carTransition then
               local p=math.min(1,runtime.carTransition.t/runtime.carTransition.duration); local eased=p*p*(3-2*p); local direction=runtime.carTransition.to>runtime.carTransition.from and -1 or 1
-              drawTrainView(runtime.carTransition.from,direction*W*eased,runtime.carTransition.from,runtime.player.x,runtime.player.y)
-              drawTrainView(runtime.carTransition.to,direction*W*(eased-1),nil)
+              drawTrainView(runtime.carTransition.from,direction*slide*eased,runtime.carTransition.from,runtime.player.x,runtime.player.y)
+              drawTrainView(runtime.carTransition.to,direction*slide*(eased-1),nil)
           else drawTrainView(runtime.saveData.activeCar or 1,0,runtime.saveData.activeCar or 1,runtime.player.x,runtime.player.y) end
+          love.graphics.pop()
           love.graphics.pop()
       elseif runtime.scene=="house" then drawHouse()
       elseif runtime.scene=="expedition" then drawExpedition()
@@ -199,8 +207,10 @@ local function new(context)
           ui.exitHome=mobile and button("EXIT HOME",650,214,288,66,true) or button("EXIT HOME",790,194,135,38,true,.78)
       end
       local pendingMail=0; for _,mail in ipairs(runtime.saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
-      if not mobile and pendingMail>0 and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,470,127,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2); love.graphics.setColor(colors.cream); love.graphics.print("x"..pendingMail,487,117,0,.9,.9) end
-      if not mobile and #(runtime.saveData.passengers or {})>0 then love.graphics.setColor(colors.cream); love.graphics.print("Passengers: "..#runtime.saveData.passengers,560,151,0,.82,.82) end
+      if not mobile and (pendingMail>0 or #(runtime.saveData.passengers or {})>0) then
+          love.graphics.setColor(colors.cream)
+          textIn("MAIL "..pendingMail.." / RIDERS "..#(runtime.saveData.passengers or {}),745,153,180,33,.75,"center")
+      end
       ui.exitTrain = nil
       local tipColor={colors.panel[1],colors.panel[2],colors.panel[3],.50}
       local nearbyFurniture=runtime.nearbyItem and isFurnitureItem(runtime.saveData.droppedItems[runtime.nearbyItem] and runtime.saveData.droppedItems[runtime.nearbyItem].name)
@@ -244,6 +254,15 @@ local function new(context)
               hintX,hintY,hintW,hintH=230,344,500,58
               if runtime.scene=="expedition" then hintX,hintY,hintW,hintH=526,250,410,76 end
           end
+          if runtime.scene=="train" then
+              local trainView=getTrainView()
+              hintX,hintY=trainView.visibleLeft+20,214
+              if not mobile and #(runtime.saveData.trainCars or {})>1 then hintY=284 end
+              local right=trainView.couplerX-24
+              if mobile and #(runtime.saveData.trainCars or {})>1 then right=math.min(right,230) end
+              hintW=math.min(mobile and 500 or 410,right-hintX)
+              hintH=mobile and 78 or 48
+          end
           love.graphics.setColor(highContrast and {0,0,0,.96} or (mobile and {colors.panel[1],colors.panel[2],colors.panel[3],.92} or tipColor)); love.graphics.rectangle("fill",hintX,hintY,hintW,hintH,6,6)
           if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",hintX,hintY,hintW,hintH,6,6); love.graphics.setLineWidth(1) end
           love.graphics.setColor(colors.cream)
@@ -265,7 +284,7 @@ local function new(context)
           if mobile then
               drawMenuFrame(350,280,585,32,4,.94)
               textIn("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),360,282,565,28,.9,"center")
-          else textIn("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),430,183,300,26,.58,"center") end
+          else textIn("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),10,246,400,26,.72,"center") end
       end
       ui.pickup = not mobile and runtime.nearbyItem and not nearbyFurniture and not runtime.editMode and not ui.mobileMenuOpen and button("PICK UP  [E]",390,650,180,38,true) or nil
       if runtime.inventoryOpen then if runtime.chestOpen then ui.drawChestInventory() end; ui.drawInventory() end

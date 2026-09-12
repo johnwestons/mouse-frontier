@@ -55,6 +55,7 @@ local function new(context)
     viewport=Viewport,camera=Camera,engineUpgrades=EngineUpgrades,maintenance=Maintenance,width=W,height=H,
     drawExitPrompt=drawExitPrompt,drawMobileControls=function(...) return mobileRuntime.draw(...) end,
     getWorldOffset=getWorldOffset,
+    car=car,mobileEnabled=function() return mobileRuntime and mobileRuntime.isEnabled() or false end,
   })
 
   mobileRuntime=MobileRuntime.new({

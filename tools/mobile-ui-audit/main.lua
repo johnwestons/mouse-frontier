@@ -8,6 +8,7 @@ local report,overflow={},{}
 local failed=false
 local headerTextPoint,phoneHeaderPoint
 local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1"
+local trainOnly=os.getenv("MOBILE_UI_AUDIT_TRAIN")=="1"
 
 local function record(line)
     report[#report+1]=line; print(line); io.stdout:flush()
@@ -150,7 +151,9 @@ function love.load()
         assert(services.sessionBootstrap.enterGame(data),"isolated journey must load")
         assert(game.selectedSlot==nil,"audit journey must remain unslotted")
         assert(love.filesystem.getIdentity()==(mobile and "mouse-frontier-mobile-ui-audit" or "mouse-frontier-desktop-ui-audit"),"audit identity must stay separate")
-        for slot=1,3 do assert(context.domain.save.write(slot,data),"create synthetic audit slot") end
+        if not trainOnly then
+            for slot=1,3 do assert(context.domain.save.write(slot,data),"create synthetic audit slot") end
+        end
         local typography=require("game.typography")
         local drawText=typography.drawText
         typography.drawText=function(Graphics,text,x,y,w,h,options)
@@ -169,8 +172,13 @@ function love.load()
             return scale,height,lines,fits
         end
         record("Real application "..(mobile and "mobile" or "desktop").." audit "..love.graphics.getWidth().."x"..love.graphics.getHeight())
-        setupStages()
-        require("tools.mobile-ui-audit.content_fit").run({graphics=love.graphics,game=game,ui=ui,record=record})
+        if trainOnly then
+            require("tools.mobile-ui-audit.train_fit").setup({context=context,game=game,ui=ui,services=services,
+                catalog=catalog,mobile=mobile,add=add,record=record})
+        else
+            setupStages()
+            require("tools.mobile-ui-audit.content_fit").run({graphics=love.graphics,game=game,ui=ui,record=record})
+        end
     end,debug.traceback)
     if not ok then fail(message) end
 end
