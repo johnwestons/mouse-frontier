@@ -2,6 +2,7 @@ local MobileControls = {}
 MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
+local ControlLayout=require("game.control_layout")
 
 local function distance(x1,y1,x2,y2)
     local dx,dy=x1-x2,y1-y2
@@ -26,6 +27,7 @@ function MobileControls.new(options)
     self.pressPointer=assert(options.pressPointer,"mobile controls require pressPointer")
     self.movePointer=assert(options.movePointer,"mobile controls require movePointer")
     self.releasePointer=assert(options.releasePointer,"mobile controls require releasePointer")
+    self.beginTouchPickup=options.beginTouchPickup or function() return false end
     self.gameplayActive=options.gameplayActive or function() return false end
     self.primaryAction=options.primaryAction or function() return "e","USE" end
     self.secondaryAction=options.secondaryAction or function() return nil end
@@ -41,6 +43,8 @@ function MobileControls.new(options)
     self.menuVisible=options.menuVisible or function() return false end
     self.menuLabel=options.menuLabel or function() return "MENU" end
     self.menuAction=options.menuAction or function() end
+    self.backpackVisible=options.backpackVisible or function() return false end
+    self.backpackAction=options.backpackAction or function() end
     self.accessibilityData=options.accessibilityData or function() return {} end
     self.touches={}
     self.axisX,self.axisY=0,0
@@ -50,8 +54,30 @@ function MobileControls.new(options)
     self.secondary={x=self.width-218,y=self.height-72,radius=38}
     self.back={x=22,y=68,w=126,h=66}
     self.menu={x=self.width-166,y=68,w=144,h=66}
+    self.backpack={x=self.width-282,y=self.height-110,w=180,h=62}
     self.feedback=nil
+    self.controlLayout=love and love.filesystem and ControlLayout.load(love.filesystem) or nil
     return self
+end
+
+function MobileControls:setLayout(layout)
+    self:cancelAll()
+    self.controlLayout=layout and ControlLayout.normalize(layout) or nil
+    self:_updateCornerLayout()
+end
+
+function MobileControls:layout()
+    if self.controlLayout then return ControlLayout.normalize(self.controlLayout) end
+    self:_updateCornerLayout()
+    local w,h=love.graphics.getDimensions()
+    local left,top=self.toGame(0,0)
+    local right,bottom=self.toGame(w,h)
+    local result={}
+    for _,key in ipairs(ControlLayout.order) do
+        local control=self[key]
+        result[key]={x=(control.x+(control.w or 0)/2-left)/(right-left),y=(control.y+(control.h or 0)/2-top)/(bottom-top)}
+    end
+    return ControlLayout.normalize(result)
 end
 
 function MobileControls:isEnabled() return self.enabled end
@@ -65,11 +91,12 @@ function MobileControls:ignoreSyntheticMouse(isTouch)
 end
 
 function MobileControls:_updateCornerLayout()
-    if not self.enabled or not love or not love.graphics then return end
+    if not love or not love.graphics then return end
     local profile=Accessibility.touchProfile(self.accessibilityData())
     self.joystick.radius,self.joystick.knob=profile.joystick,profile.knob
     self.primary.radius,self.secondary.radius=profile.primary,profile.secondary
     self.back.h,self.menu.h=profile.barHeight,profile.barHeight
+    self.backpack.h=profile.barHeight
     local windowWidth,windowHeight=love.graphics.getDimensions()
     local left,top=self.toGame(0,0)
     local right,bottom=self.toGame(windowWidth,windowHeight)
@@ -85,6 +112,16 @@ function MobileControls:_updateCornerLayout()
     -- controls so it cannot sit on the journey statistics or modal headings.
     self.back.x,self.back.y=left+48,top+20
     self.menu.x,self.menu.y=right-self.menu.w-48,top+20
+    self.backpack.x,self.backpack.y=self.primary.x-self.backpack.w/2,bottom-self.backpack.h-48
+    if self.controlLayout then
+        for _,key in ipairs(ControlLayout.order) do
+            local control,point=self[key],self.controlLayout[key]
+            local rx,ry=control.w and control.w/2 or control.radius,control.h and control.h/2 or control.radius
+            local cx=math.max(left+rx+8,math.min(right-rx-8,left+point.x*(right-left)))
+            local cy=math.max(top+ry+8,math.min(bottom-ry-8,top+point.y*(bottom-top)))
+            control.x,control.y=cx-(control.w or 0)/2,cy-(control.h or 0)/2
+        end
+    end
 end
 
 function MobileControls:_feedback(x,y)
@@ -134,6 +171,7 @@ function MobileControls:_registerCanvasPointer(id,x,y)
         self.pinch={first=firstId,second=id,startDistance=math.max(1,distance(first.x,first.y,x,y)),
             startZoom=self.getZoom(),midX=midX,midY=midY}
         first.pinching=true; self.touches[id].pinching=true
+        if first.key then self.releaseKey(first.key); first.key=nil; first.holding=false end
         self.beginCameraPan(midX,midY)
     end
     return true
@@ -149,6 +187,10 @@ function MobileControls:touchpressed(id,x,y)
     end
     if self.menuVisible() and gx>=self.menu.x and gx<=self.menu.x+self.menu.w and gy>=self.menu.y and gy<=self.menu.y+self.menu.h then
         self:_feedback(gx,gy); self.touches[id]={kind="menu"}; self.menuAction(); return true
+    end
+    if self.backpackVisible() and gx>=self.backpack.x and gx<=self.backpack.x+self.backpack.w and gy>=self.backpack.y and gy<=self.backpack.y+self.backpack.h then
+        self:cancelAll()
+        self:_feedback(gx,gy); self.touches[id]={kind="backpack"}; self.backpackAction(); return true
     end
     local rangeSession=self.shootingRangeActive()
     if self.rangeSession~=rangeSession then self.rangeAimTouch=nil; self.rangeSession=rangeSession end
@@ -168,7 +210,8 @@ function MobileControls:touchpressed(id,x,y)
     end
     if self:isGameplayActive() then
         local stick=self.joystick
-        if not self.joystickTouch and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7 then
+        if not self.joystickTouch and ((self.controlLayout and distance(gx,gy,stick.x,stick.y)<=stick.radius*1.2)
+            or (not self.controlLayout and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7)) then
             self.joystickTouch=id
             self.touches[id]={kind="joystick"}
             self:_updateJoystick(gx,gy)
@@ -184,7 +227,13 @@ function MobileControls:touchpressed(id,x,y)
         end
         -- Canvas taps are deferred until release. This leaves the first touch
         -- available to become a camera gesture without activating the surface.
-        return self:_registerCanvasPointer(id,x,y)
+        self:_registerCanvasPointer(id,x,y)
+        local touch=self.touches[id]
+        if not touch.pinching and self.beginTouchPickup(x,y) then
+            touch.key="e"; touch.holding=true; touch.suppressClick=true
+            self:_feedback(gx,gy)
+        end
+        return true
     end
     return self:_registerCanvasPointer(id,x,y)
 end
@@ -203,15 +252,21 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
         end
     elseif touch.kind=="canvasPointer" then
         touch.x,touch.y=x,y
+        if touch.holding then
+            if distance(touch.startX,touch.startY,x,y)>14 then
+                self.releaseKey(touch.key); touch.key=nil; touch.holding=false
+            end
+            return true
+        end
         if self.pinch then
             local a,b=self.touches[self.pinch.first],self.touches[self.pinch.second]
             if a and b then
                 local midX,midY=(a.x+b.x)/2,(a.y+b.y)/2
-                self.setZoom(self.pinch.startZoom*distance(a.x,a.y,b.x,b.y)/self.pinch.startDistance,midX,midY)
+                self.setZoom(self.pinch.startZoom*distance(a.x,a.y,b.x,b.y)/self.pinch.startDistance,self.pinch.midX,self.pinch.midY)
                 self.moveCameraPan(midX,midY)
                 self.pinch.midX,self.pinch.midY=midX,midY
             end
-        elseif not touch.pinching and distance(touch.startX,touch.startY,x,y)>14 then
+        elseif not touch.pinching and not touch.suppressClick and distance(touch.startX,touch.startY,x,y)>14 then
             if not touch.pressed then self.pressPointer(touch.startX,touch.startY,1); touch.pressed=true end
             self.movePointer(x,y,dx or 0,dy or 0)
         end
@@ -232,8 +287,9 @@ function MobileControls:touchreleased(id,x,y)
         self.releasePointer(x,y,touch.button)
     elseif touch.kind=="rangeControl" then self.releasePointer(x,y,touch.button)
     elseif touch.kind=="canvasPointer" then
+        if touch.key then self.releaseKey(touch.key) end
         if touch.pressed then self.releasePointer(x,y,1)
-        elseif not touch.pinching then local gx,gy=self.toGame(x,y); self:_feedback(gx,gy); self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
+        elseif not touch.pinching and not touch.suppressClick then local gx,gy=self.toGame(x,y); self:_feedback(gx,gy); self.pressPointer(x,y,1); self.releasePointer(x,y,1) end
     end
     self.touches[id]=nil
     if self.pinch and (self.pinch.first==id or self.pinch.second==id) then
@@ -246,7 +302,7 @@ function MobileControls:touchreleased(id,x,y)
 end
 
 function MobileControls:cancelAll()
-    for _,touch in pairs(self.touches) do if touch.kind=="key" then self.releaseKey(touch.key) end end
+    for _,touch in pairs(self.touches) do if touch.key then self.releaseKey(touch.key) end end
     self.touches={}
     self.rangeAimTouch=nil; self.rangeSession=nil
     self.joystickTouch=nil
@@ -308,6 +364,7 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     end
     if self.backVisible() then drawRectButton(self.back,self.backLabel(),false,textScale) end
     if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false,textScale) end
+    if self.backpackVisible() then drawRectButton(self.backpack,"BACKPACK",false,textScale) end
     if self.feedback then
         local now=love and love.timer and love.timer.getTime and love.timer.getTime() or self.feedback.time+.3
         local elapsed=now-self.feedback.time

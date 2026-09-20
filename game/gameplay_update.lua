@@ -152,7 +152,7 @@ local function new(context)
       if runtime.holdPickupIndex then
           local item=runtime.saveData and runtime.saveData.droppedItems[runtime.holdPickupIndex]
           local useHeld=love.keyboard.isDown("e") or mobileHeld("e")
-          if not useHeld or not item or not itemIsHere(item) or math.sqrt((runtime.player.x-item.x)^2+(runtime.player.y-item.y)^2)>=75 then
+          if WorldPause.isPaused(runtime,ui,maintenanceSession) or not useHeld or not item or not itemIsHere(item) or math.sqrt((runtime.player.x-item.x)^2+(runtime.player.y-item.y)^2)>=75 then
               runtime.holdPickupIndex,runtime.holdPickupTime=nil,0
           else
               runtime.holdPickupTime=runtime.holdPickupTime+dt

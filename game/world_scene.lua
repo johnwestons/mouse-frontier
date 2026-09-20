@@ -158,12 +158,7 @@ local function new(context)
       runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
       local root=runtime.saveData.crowCaravans
       if firstVisit then root.meetings=math.max(0,math.floor(tonumber(root.meetings) or 0))+1 end
-      local meeting=root.meetings or 1
-      local greeting=firstVisit and (meeting==1 and "Warm your paws. Three wagons, three trades, and no trouble inside the firelight."
-          or (meeting==2 and "The rails cross our road again. The flock saved its better crates for you."
-          or "There you are, rail-friend. See what the Rookery gathered beyond the next bend."))
-          or "Back for another look? The wagons have not rolled on yet."
-      runtime.dialogue={speaker="The Rookery Caravan",text=greeting,timer=5}
+      runtime.dialogue={speaker="CARAVAN",text="Three merchant wagons. Trading available at each stall.",timer=5}
       ui.playSfx("doors"); writeSave(); return true
   end
 

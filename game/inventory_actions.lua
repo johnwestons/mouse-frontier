@@ -151,11 +151,11 @@ local function new(context)
           return
       end
       local slot,name=findInventoryItem({"coal-bucket","coal-chunk"})
-      if not slot then runtime.dialogue={speaker="Fire",text="Bring me coal from your backpack!",timer=2}; return end
+      if not slot then runtime.dialogue={speaker="Fire",text="Coal from the backpack is required.",timer=2}; return end
       local amount=name=="coal-bucket" and 3 or 1
       runtime.saveData.inventory[slot]=nil
       local gained=TrainUpgradeBalance.addResource(runtime.saveData,"coal",amount)
-      runtime.dialogue={speaker="Fire",text="That's the good stuff!  +"..gained.." fuel",timer=2}
+      runtime.dialogue={speaker="Fire",text="Fuel added: +"..gained.." fuel",timer=2}
       writeSave()
   end
 

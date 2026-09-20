@@ -19,7 +19,8 @@ CharacterAnimation.actions={
 CharacterAnimation.requiredActions={"idle","sit","lay","melee","ranged","use","hit"}
 
 local function isWalkAction(action)
-    return type(action)=="string" and (action=="walk" or action:match("^walk_")~=nil)
+    return type(action)=="string" and (action=="walk" or action:match("^walk_")~=nil
+        or action=="run" or action:match("^run_")~=nil)
 end
 
 local function loadSet(manager,file)
@@ -28,7 +29,13 @@ local function loadSet(manager,file)
     local set={}
     local generatedSet=love.filesystem.getInfo(manager.root.."/"..directory.."/unconscious.png")~=nil
     local motionProfile=CharacterMotion.profileFor(file)
-    for action,count in pairs(CharacterAnimation.actions) do
+    local actions=CharacterAnimation.actions
+    if motionProfile and motionProfile.runPixelsPerFrame then
+        actions={}
+        for action,count in pairs(CharacterAnimation.actions) do actions[action]=count end
+        for _,action in ipairs(CharacterMotion.runActions) do actions[action]=8 end
+    end
+    for action,count in pairs(actions) do
         if action=="walk" then count=motionProfile and 8 or (generatedSet and 6 or 3) end
         local path=manager.root.."/"..directory.."/"..action..".png"
         local image=manager.loadImage(path)
@@ -45,6 +52,10 @@ local function loadSet(manager,file)
     set.motionProfile=motionProfile
     set.directional=motionProfile~=nil and CharacterMotion.hasDirectionalSet(set)
     set.authoredWest=set.directional and CharacterMotion.hasAuthoredWestSet(set)
+    set.runDirectional=set.directional and CharacterMotion.hasRunSet(set)
+    if motionProfile and motionProfile.runPixelsPerFrame then
+        assert(set.runDirectional, "Run profile requires eight authored run views: "..file)
+    end
     manager.sets[file]=set
     return set
 end
@@ -100,7 +111,11 @@ function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,
     local directionalMirror=1
     if set and set.directional and motion and (action=="walk" or action=="idle") then
         if action=="walk" then
-            action,directionalMirror=CharacterMotion.directionalWalkAction(motion.intentX,motion.intentY,set.authoredWest)
+            if set.runDirectional and motion.locomotionMode=="run" then
+                action,directionalMirror=CharacterMotion.directionalRunAction(motion.intentX,motion.intentY)
+            else
+                action,directionalMirror=CharacterMotion.directionalWalkAction(motion.intentX,motion.intentY,set.authoredWest)
+            end
         else
             action,directionalMirror=CharacterMotion.directionalIdleAction(motion.intentX,motion.intentY,set.authoredWest)
         end
@@ -112,13 +127,16 @@ function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,
     if not animation then return false end
     local passiveRate={idle=.70,idle_north=.70,idle_northeast=.70,idle_southeast=.70,idle_south=.70,sit=.55,lay=.38,walk=5.2}
     local frameRate=action=="hit" and 8.5 or (passiveRate[action] or 6)
+    -- All authored directional idles share the motion-spec cadence. Western
+    -- sectors must not fall through to the six-fps action default.
+    if set.directional and (action=="idle" or action:match("^idle_")~=nil) then frameRate=.65 end
     -- The lay sheets face opposite the rest of the character set, so mirror
     -- the authored two-frame resting loop once to follow the normal facing
     -- convention: +1 faces right, -1 faces left.
     local layCorrection = action == "lay"
     local frame
     if set.directional and isWalkAction(action) and motion then
-        frame=CharacterMotion.frameForDistance(animation.count,motion.animationDistance,set.motionProfile.pixelsPerFrame)
+        frame=CharacterMotion.frameForActor(animation.count,motion,set.motionProfile)
     else
         frame=action=="death" and animation.count or (math.floor((phase or clock)*frameRate)%animation.count)+1
     end

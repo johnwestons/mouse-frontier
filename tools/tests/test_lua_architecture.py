@@ -20,7 +20,7 @@ class LuaArchitectureTests(unittest.TestCase):
         expected_callbacks = {
             "load", "update", "draw", "mousepressed", "mousemoved", "mousereleased",
             "wheelmoved", "keypressed", "keyreleased", "touchpressed", "touchmoved",
-            "touchreleased", "focus", "quit",
+            "touchreleased", "focus", "quit", "textinput",
         }
         forwarded = set(re.findall(r"function love\.([a-z]+)\(", source))
         self.assertEqual(forwarded, expected_callbacks)
@@ -116,7 +116,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotRegex(app, r"local\s+state\s*=")
         self.assertNotRegex(app, r"local\s+selectedSlot\s*[,=]")
         self.assertNotRegex(app, r"local\s+scene\s*[,=]")
-        self.assertIn("CURRENT_VERSION = 34", schema)
+        self.assertIn("CURRENT_VERSION = 35", schema)
         self.assertIn("function SaveSchema.migrate", schema)
         self.assertIn("function SaveSchema.validate", schema)
         self.assertIn("SaveSchema.migrations=migrations", schema)
@@ -356,7 +356,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("FirstAid.mousemoved(runtime.firstAid", gameplay_input)
         self.assertIn("FirstAid.mousereleased(runtime.firstAid", gameplay_input)
         self.assertIn("FirstAid.keypressed(runtime.firstAid", gameplay_input)
-        self.assertIn("not runtime.firstAid", presentation_runtime)
+        self.assertIn("WorldView.configure", presentation_runtime)
         self.assertIn("not runtime.firstAid", mobile_runtime)
         self.assertIn('local helpBalanceAudit=required(context,"helpBalanceAudit","function")', smoke_playthrough)
         self.assertIn('name="stop_help_goodwill"', smoke_playthrough)
@@ -374,13 +374,8 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("function HelpQuest.summary", help_quest_session)
         self.assertIn('name="help_quest_session_lifecycle"', smoke_playthrough)
         self.assertIn('helpDialogueQuests = require("game.help_dialogue_quests")', systems)
-        self.assertIn('DialogueQuests.order={"missing-family","crop-dispute","bandit-warning","broken-promise"}', help_dialogue_quests)
-        self.assertIn("function DialogueQuests.ensure", help_dialogue_quests)
-        self.assertIn("function DialogueQuests.begin", help_dialogue_quests)
-        self.assertIn("function DialogueQuests.choose", help_dialogue_quests)
-        self.assertIn("function DialogueQuests.pause", help_dialogue_quests)
-        self.assertIn("function DialogueQuests.followup", help_dialogue_quests)
-        self.assertIn("HelpQuest.claim(data,session.id,award)", help_dialogue_quests)
+        self.assertIn('order={},definitions={}', help_dialogue_quests)
+        self.assertIn('require("game.npc_conversations").audit()', help_dialogue_quests)
         self.assertIn('name="branching_help_dialogue_quests"', smoke_playthrough)
         self.assertIn("runtime.helpDialogue", screen_ui)
         self.assertIn("ui.helpDialogueChoices", screen_ui)
@@ -577,7 +572,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("BattleRules.canMove", battle_controller)
         self.assertIn("BattleRules.lineOfSight", battle_controller)
         self.assertNotIn("battleZoom", battle_ui)
-        self.assertIn("Camera:setScope(surface())", presentation_runtime)
+        self.assertIn('Camera:setScope("world")', presentation_runtime)
         self.assertIn("Camera:setZoomAt", presentation_runtime)
         self.assertIn('name="global_camera_input"', smoke_playthrough)
         self.assertIn("function Train.consistLayout", train)
@@ -800,7 +795,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("persistenceRuntime=PersistenceRuntime.new({", platform_composition)
         self.assertNotIn("local function writeSave", app)
         self.assertIn("writeSave=platform.persistenceRuntime.schedule", app)
-        self.assertRegex(app, r"function application\.focus\(focused\)\s+lastStand:focus\(focused\)\s+return services\.persistenceRuntime\.focus\(focused\)\s+end")
+        self.assertRegex(app, r"function application\.focus\(focused\)\s+if not focused then sceneGesture:cancel\(\) end\s+lastStand:focus\(focused\)\s+return services\.persistenceRuntime\.focus\(focused\)\s+end")
         self.assertIn("function application.quit() services.persistenceRuntime.shutdown() end", app)
         self.assertNotIn("Save.flush()", app)
         self.assertNotIn("Maintenance.release(maintenanceSession)", app)

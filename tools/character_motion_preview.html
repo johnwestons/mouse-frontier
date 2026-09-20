@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Directional motion review</title>
+<style>
+body{margin:20px;background:#202b35;color:#f5f1e7;font:16px system-ui}h1{font-size:22px}h2{font-size:16px;margin:8px 0}
+main{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}section{border:1px solid #586774;padding:8px}canvas{width:100%;image-rendering:pixelated}button,select{padding:7px;margin-right:10px}p{max-width:1050px}
+</style>
+<h1>Directional motion review</h1>
+<p>Private drafts. Each pair shows normal cadence (left) and half cadence (right). This page reviews baked artwork; the production renderer and actual-travel checks are separate acceptance requirements.</p>
+<select id="mode"><option>walk</option><option>run</option><option>idle</option></select><button id="pause">Pause</button>
+<main></main>
+<script>
+const params=new URLSearchParams(location.search), selectionURL=new URL(params.get('selection'),location.href);
+const evidence={elapsed_ms:0,mode:'walk',seen:{},frames:{},errors:[]};window.captureState=evidence;
+let paused=false,elapsed=0,previous=0,mode=params.get('mode')||'walk';document.querySelector('select').value=mode;
+document.querySelector('select').onchange=e=>{mode=e.target.value;elapsed=0;evidence.seen={}};
+document.querySelector('button').onclick=()=>{paused=!paused;document.querySelector('button').textContent=paused?'Play':'Pause'};
+(async()=>{
+ const selection=await(await fetch(selectionURL)).json();document.querySelector('h1').textContent=selection.character+' — eight-direction '+selection.status;
+ const views=await Promise.all(Object.entries(selection.directions).map(async([direction,folder])=>{
+  const section=document.createElement('section');section.innerHTML='<h2>'+direction+'</h2><canvas width="512" height="256"></canvas>';document.querySelector('main').append(section);
+  const images={};for(const action of ['walk','run','idle']){
+   const path=(action==='idle'?(selection.idle_folder||'../idle-review-v2'):folder)+'/'+action+(direction==='east'?'':'_'+direction)+'.png';
+   const img=new Image();img.src=new URL(path,selectionURL);await img.decode();images[action]=img;
+  }return{direction,images,canvas:section.querySelector('canvas')};
+ }));
+ requestAnimationFrame(function tick(now){
+  if(previous&&!paused)elapsed+=now-previous;previous=now;
+  const rate=mode==='idle'?.65:selection[mode+'_pose_rate'],count=mode==='idle'?2:8;
+  const frames=[1,.5].map(f=>Math.floor(elapsed/1000*rate*f)%count);
+  for(const view of views){const ctx=view.canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+   for(let y=0;y<256;y+=16)for(let x=0;x<512;x+=16){ctx.fillStyle=(x/16+y/16)%2?'#c8c6c1':'#e1dfda';ctx.fillRect(x,y,16,16)}
+   frames.forEach((frame,i)=>ctx.drawImage(view.images[mode],frame*512,0,512,512,i*256,0,256,256));
+   evidence.frames[view.direction]=frames.map(f=>f+1);const seen=evidence.seen[view.direction]??=[[],[]];frames.forEach((f,i)=>{if(!seen[i].includes(f+1))seen[i].push(f+1)});
+  }evidence.mode=mode;evidence.elapsed_ms=elapsed;evidence.paused=paused;window.ready=true;requestAnimationFrame(tick);
+ });
+})().catch(error=>{evidence.errors.push(String(error));document.querySelector('h1').textContent=String(error)});
+</script>

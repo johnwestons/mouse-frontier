@@ -3,6 +3,7 @@ local LootProgression = require("game.loot_progression")
 local QuestProgression = require("game.quest_progression")
 local StopHelpProgression = require("game.stop_help_progression")
 local HelpDialogueQuests = require("game.help_dialogue_quests")
+local Conversations = require("game.npc_conversations")
 
 local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree","autumn-tree","white-birch","dead-white-tree","dead-brown-tree","tall-stump","mossy-stump","flowering-shrub","white-flower-shrub","red-berry-bush","fern-cluster","tall-reeds","red-mushrooms","brown-mushrooms","wild-herb-patch","butterfly-flowers","mossy-boulders","fallen-log","hollow-log","branch-pile","broken-fence","signpost","straight-fence","stone-fire-ring","lit-campfire","patched-tent","rusty-barrel","wooden-barrel","supply-crate","reinforced-crate","old-stone-well","weathered-gravestone","loose-stones"}
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
@@ -95,6 +96,7 @@ function Stops.ensure(data,catalog,scene)
     -- Additional house doors can introduce NPCs beyond the two legacy slots.
     -- Give those residents their own independent offer as well.
     if data.currentNPC and layout.npcOffers[data.currentNPC]==nil then assignOffer(data.currentNPC,"none") end
+    Conversations.assign(data,layout)
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"
     if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end

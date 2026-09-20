@@ -79,6 +79,7 @@ local function new(context)
     ensureHouseItems=worldScene.ensureHouseItems,setupNPC=worldScene.setupNPC,
     giveWeaponToNearby=adventure.inventoryActions.giveWeaponToNearby,
     pickUpNearby=adventure.inventoryActions.pickUpNearby,addCoalToFire=adventure.inventoryActions.addCoalToFire,
+    itemIsHere=worldScene.itemIsHere,
     handleInventoryClick=views.inventoryPresenter.handleClick,handleInventoryRelease=views.inventoryPresenter.handleRelease,
     requestExitPrompt=views.screenUI.requestExitPrompt,resolveExitPrompt=views.screenUI.resolveExitPrompt,
     trainItemAt=trainItemAt,skipIntro=Intro.skip,

@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
 
@@ -411,7 +412,8 @@ local function new(context)
           local view=runtime.helpDialogue; local mobile=mobileEnabled(); local x,y,w,h=145,66,670,590
           drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
           love.graphics.setColor(colors.brass); textBox(view.title or "HELP A CRITTER",x+24,y+18,w-48,43,1.2,"center")
-          love.graphics.setColor(colors.cream); textBox("OBJECTIVE: "..(view.objective or "Listen and choose a thoughtful response."),x+35,y+66,w-70,37,.85,"center")
+          local subtitle=view.authored and (runtime.dialogue.speaker or "") or ("OBJECTIVE: "..(view.objective or "Listen and choose a thoughtful response."))
+          love.graphics.setColor(colors.cream); textBox(subtitle,x+35,y+66,w-70,37,.85,"center")
           love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",x+45,y+104,w-90,3)
           love.graphics.setColor(colors.cream)
           local bodyScale=math.min(1.02,.82*textScale)
@@ -419,7 +421,8 @@ local function new(context)
           ui.helpDialogueChoices={}
           local buttonHeight=mobile and 62 or 48; local gap=mobile and 12 or 10; local startY=y+318
           for index,choice in ipairs(view.choices or {}) do
-              ui.helpDialogueChoices[index]=button(index.."  •  "..choice.label,x+45,startY+(index-1)*(buttonHeight+gap),w-90,buttonHeight,true,mobile and .76 or .72)
+              local label=index.."  •  "..choice.label
+              ui.helpDialogueChoices[index]=button(label,x+45,startY+(index-1)*(buttonHeight+gap),w-90,buttonHeight,choice.enabled~=false,mobile and .76 or .72)
           end
           ui.helpDialoguePause=button("CONTINUE LATER",x+185,y+h-55,300,mobile and 48 or 36,true,.9)
           if not mobile then love.graphics.setColor(colors.cream); textBox("Press 1, 2, or 3 to choose",x+45,y+h-83,w-90,22,.75,"center") end
@@ -430,14 +433,15 @@ local function new(context)
       local mobile=mobileEnabled()
       local x,y,w=mobile and 110 or 170,mobile and 225 or 115,mobile and 740 or 620
       local bodyScale=(mobile and 1 or .95)*textScale
-      local _,wrapped=love.graphics.getFont():getWrap(runtime.dialogue.text,(w-48)/bodyScale)
+      local displayText=runtime.dialogue.text..(runtime.dialogue.notice and ("\n\n"..runtime.dialogue.notice) or "")
+      local _,wrapped=love.graphics.getFont():getWrap(displayText,(w-48)/bodyScale)
       local h=math.min(mobile and 330 or 360,math.max(158,78+#wrapped*love.graphics.getFont():getHeight()*love.graphics.getFont():getLineHeight()*bodyScale))
       drawMenuFrame(x-6,y-6,w+12,h+12,1,1)
       love.graphics.setColor(colors.brass); textBox(runtime.dialogue.speaker or "Traveler",x+24,y+13,w-48,36,1.1)
-      love.graphics.setColor(colors.cream); textBox(runtime.dialogue.text,x+24,y+61,w-48,h-77,mobile and 1 or .95)
+      love.graphics.setColor(colors.cream); textBox(displayText,x+24,y+61,w-48,h-77,mobile and 1 or .95)
       if runtime.dialogue.choice and runtime.questOffer then
-          local agreeing=runtime.questOffer.kind=="trade" and "YES, AGREE TO TRADE" or "YES, I'LL HELP"
-          local declining=runtime.questOffer.kind=="trade" and "NO, DECLINE TRADE" or "SORRY, NO"
+          local agreeing=runtime.questOffer.kind=="trade" and "TRADE" or "ACCEPT"
+          local declining="DECLINE"
           local buttonWidth=(w-60)/2
           ui.questAccept=button(agreeing,x+20,y+h+15,buttonWidth,mobile and 64 or 48,true)
           ui.questDecline=button(declining,x+40+buttonWidth,y+h+15,buttonWidth,mobile and 64 or 48,true)
@@ -463,7 +467,7 @@ local function new(context)
   end
 
   function ui.drawRandomEvent()
-      drawLandscape(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
+      WorldView.begin(); drawLandscape(); WorldView.finish(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
       ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},canChooseEvent)
   end
 
@@ -541,7 +545,7 @@ local function new(context)
   end
 
   local function drawEnding()
-      drawLandscape(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
+      WorldView.begin(); drawLandscape(); WorldView.finish(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",80,55,800,610,20,20)
       local finale=FinaleProgression.evaluate(runtime.saveData,StopHelpProgression,Maintenance)
       love.graphics.setColor(colors.brass); textBox(finale.choice and finale.tier or "THE LAST SWITCH",110,83,740,58,1.5,"center")

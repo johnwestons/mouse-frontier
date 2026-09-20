@@ -1,0 +1,4 @@
+sounds/**/*.ogg filter=lfs diff=lfs merge=lfs -text
+sounds/**/*.wav filter=lfs diff=lfs merge=lfs -text
+sounds/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
+sounds/**/*.flac filter=lfs diff=lfs merge=lfs -text

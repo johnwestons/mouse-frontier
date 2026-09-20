@@ -1,9 +1,10 @@
-# Local Audio Asset Placeholders
+# Shared audio assets
 
-Audio binaries are intentionally omitted from this private repository so it can preserve and share the complete code history.
-Keep licensed audio locally at the exact paths below. These files are ignored by Git and remain available in the original working copy.
+The complete audio library is included in this repository using Git LFS. Install Git LFS before cloning, then run `git lfs pull` in the clone to ensure all audio files are downloaded. The library is approximately 3.2 GB. Keep files at their original paths so the game's audio catalog can find them.
 
-Expected local audio files: 145
+Earlier commits deliberately omitted audio; the current shared version includes it. When adding audio, keep the Git LFS rules in `.gitattributes` so large recordings do not enter ordinary Git history.
+
+Audio files: 147
 
 - sounds/music/battle/Pixel Clash.wav
 - sounds/music/battle/Pixel Clash2.wav
@@ -65,6 +66,8 @@ Expected local audio files: 145
 - sounds/music/vibes/Downpour (8-Bit Game Instrumental)2.wav
 - sounds/music/vibes/Go in Peace (8-Bit Quest Mix).wav
 - sounds/music/vibes/Go in Peace (8-Bit Quest Mix)2.wav
+- sounds/music/vibes/Goodbye, You’re Waking Up (8‑Bit Game OST Version).wav
+- sounds/music/vibes/Goodbye, You’re Waking Up (8‑Bit Game OST Version)2.wav
 - sounds/music/vibes/Pixel Memory (8-Bit Journey).wav
 - sounds/music/vibes/Pixel Memory (8-Bit Journey)2.wav
 - sounds/music/vibes/Pull Back the Veil (8-Bit Boss Battle Mix).wav

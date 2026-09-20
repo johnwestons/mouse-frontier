@@ -347,6 +347,8 @@ Catalog.mobTiers = {
     hard={"ghost-tall.png","purple-dragon.png","mutant-horned-owl.png","tunnel-badger-raider.png","wasteland-human-zombie.png","wasteland-human-zombie.png","vampire-mouse.png","mouse-bandit.png"}
 }
 
+-- Original regular talk explicitly confirmed by the user on September 19, 2026.
+-- Exact wording restored from docs/dialogue-review/changed-text.md (R001).
 Catalog.dialogueLines = {
     "Hello", "Howdy stranger", "Nice train", "Sure is hot out", "Where'd you come from?", "Where you headed?",
     "Be careful out there", "Hi", "Don't get much visitors these days", "How's yer mom and them?",
@@ -361,11 +363,10 @@ Catalog.dialogueLines = {
     "How are the tracks holding up?", "How many of us are out there?",
     "Wish we could all get along...", "Safe travels friend", "Maybe we will all get our happy endings..."
 }
-
-Catalog.mailRequestLines={"Could you take this letter west for me?","If you see my brother, will you give him this letter?","My sister went west. If you see her, will you give her this letter?","My family is out there somewhere. Could you carry this letter?","If my dad is still alive, please show him the picture in this letter."}
-Catalog.rideRequestLines={"I have to get to the next town. Could I ride with you?","Could I bother you for a ride down the tracks?","My family went west. Could I ride on your train for a couple stops?","Do you have room on your train for little ol' me?","Can I ride with you for a few? I won't take up much room."}
-Catalog.passengerLines={"Thank you so much for your help.","Thank you for sharing some food with me.","I'll see my family again one day thanks to you.","I don't know what I'd do if you hadn't come along.","Wow, this old train is somethin' else, huh.","*Hums softly*","This is the most peaceful I've been in a while.","Those mean critters can't get us in here.","You're a life saver.","I hope we can be friends..."}
-Catalog.mailThanksLines={"A letter for me?!","Oh my gosh, thank you so much!","It's from my family! Where did you get this? Thank you!","I can't believe they are okay and still looking for me...","A letter from my family—this brings me so much hope.","I knew they would make it! I'm so happy!"}
+Catalog.mailRequestLines={"Delivery: carry a letter west."}
+Catalog.rideRequestLines={"Passenger transport: provide a ride for a few stops."}
+Catalog.passengerLines={}
+Catalog.mailThanksLines={"Letter delivered."}
 Catalog.questRewardItems={"food-ration","water-bottle","field-bandage-roll","wrapped-sweet","coal-chunk","herbal-tonic"}
 Catalog.ammoPickupAmounts={rocks=8,arrows=6,["ball-bearings"]=8,["9mm"]=12,["45-cal"]=8,["556"]=10,["22lr"]=15,["30-carbine"]=10,["8mm"]=8,["380-acp"]=8,["32-acp"]=8,["12-gauge"]=6,["762x39"]=10}
 

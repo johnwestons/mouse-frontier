@@ -42,8 +42,8 @@ local function new(context)
           {"game",{
               update=function() return false end,
               draw=function()
+                  drawGameplay()
                   if runtime.travelConfirm then return ui.drawTravelConfirm() end
-                  return drawGameplay()
               end,
           }},
       }

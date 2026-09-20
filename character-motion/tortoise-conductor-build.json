@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "character": "tortoise-conductor",
+  "source_root": "output/character-motion/tortoise-conductor/source",
+  "runtime_root": "output/character-motion/tortoise-conductor/walk-review-eight-pass4",
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458,
+    "horizontal_anchor": "core",
+    "remove_edge_connected_magenta_fringe": true
+  },
+  "idle_sets": [
+    {
+      "source": "idle-western-background-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "outputs": [
+        "idle_south.png",
+        "idle_southwest.png",
+        "idle_west.png",
+        "idle_northwest.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-eastern-camera-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0,
+        1,
+        2
+      ],
+      "outputs": [
+        "idle_north.png",
+        "idle_northeast.png",
+        "idle.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-southeast-isolated-v3.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_boundaries": [
+        0,
+        704,
+        1536
+      ],
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_southeast.png"
+      ],
+      "fixed_grid": true
+    }
+  ],
+  "walks": {
+    "walk.png": {
+      "source": "walk-east-assembled-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_west.png": {
+      "source": "walk-west-assembled-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_south.png": {
+      "source": "walk-south-clean-background-v8.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_north.png": {
+      "source": "walk-north-empty-arm-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_northeast.png": {
+      "source": "walk-northeast-assembled-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_southeast.png": {
+      "source": "walk-southeast-unified-palette-v5.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_northwest.png": {
+      "source": "walk-northwest-unified-palette-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_southwest.png": {
+      "source": "walk-southwest-assembled-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    }
+  }
+}

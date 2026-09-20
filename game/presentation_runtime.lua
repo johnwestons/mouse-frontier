@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local TrainView=require("game.train_view")
 
 local function required(context,name,expected)
@@ -34,29 +35,14 @@ local function new(context)
           {mobile=mobileEnabled(),carCount=#(runtime.saveData and runtime.saveData.trainCars or {})})
   end
 
-  local function surface()
-      if runtime.state~="game" then
-          return runtime.state..(runtime.state=="battle" and runtime.inventoryOpen and ":inventory" or "")
-      end
-      local lastStandCaptures=runtime.lastStand and runtime.lastStand.capture==true
-      local overlay=runtime.exitPrompt and "exit" or lastStandCaptures and "last-stand" or runtime.shootingRange and "shooting-range" or runtime.firstAid and "first-aid" or runtime.travelConfirm and "travel"
-          or maintenanceSession.open and "maintenance" or ui.radioOpen and "radio" or runtime.inventoryOpen and "inventory"
-          or runtime.mapOpen and "map" or runtime.tradeOpen and "trade" or runtime.trainUpgradeOpen and "upgrades"
-          or runtime.editMode and "editor" or runtime.poseMenu and "pose" or ui.optionsOpen and "options"
-          or ui.mobileMenuOpen and "mobile-menu" or runtime.dialogue and "dialogue" or runtime.scene or "world"
-      return "game:"..overlay
-  end
-
   local function activateSurface()
-      Camera:setScope(surface())
+      Camera:setScope("world")
   end
 
   local function focus()
-      local lastStandCaptures=runtime.lastStand and runtime.lastStand.capture==true
-      local worldSurface=runtime.state=="game" and not runtime.exitPrompt and not lastStandCaptures and not runtime.shootingRange and not runtime.firstAid and not runtime.travelConfirm
-          and not maintenanceSession.open and not ui.radioOpen and not runtime.inventoryOpen and not runtime.mapOpen
-          and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode and not runtime.poseMenu
-          and not ui.optionsOpen and not ui.mobileMenuOpen and not runtime.dialogue
+      if runtime.state=="battle" then return W/2,250 end
+      local lastStandCaptures=runtime.lastStand and runtime.lastStand.capture==true and runtime.lastStand.mode~="offer"
+      local worldSurface=runtime.state=="game" and not lastStandCaptures and not runtime.shootingRange
       if worldSurface and runtime.player then
           local offsetX,offsetY=getWorldOffset()
           local trainView=getTrainView()
@@ -70,17 +56,41 @@ local function new(context)
       return Viewport.toGame(x,y,W,H)
   end
 
-  local function screenToGame(x,y)
+  local function sceneCoordinates(x,y)
       activateSurface()
-      x,y=viewportToGame(x,y)
-      if Camera:isActive() then
+      local focusX,focusY=focus()
+      return Camera:toWorld(x,y,focusX,focusY)
+  end
+
+  WorldView.configure({
+      apply=function(options)
+          activateSurface()
+          if options and options.fullscreen then
+              local width,height=options.fullscreen[1],options.fullscreen[2]
+              local scale=height/H
+              love.graphics.translate(width/2+Camera.panX*scale,height/2+Camera.panY*scale)
+              love.graphics.scale(Camera.zoom,Camera.zoom)
+              love.graphics.translate(-width/2,-height/2)
+              return
+          end
           local focusX,focusY=focus()
-          x,y=Camera:toWorld(x,y,focusX,focusY)
-      end
-      return x,y
+          Camera:apply(focusX,focusY)
+      end,
+      toWorld=sceneCoordinates,
+      toScreen=function(x,y)
+          activateSurface()
+          local focusX,focusY=focus()
+          return (x-focusX)*Camera.zoom+focusX+Camera.panX,
+              (y-focusY)*Camera.zoom+focusY+Camera.panY
+      end,
+  })
+
+  local function screenToGame(x,y)
+      return viewportToGame(x,y)
   end
 
   local function worldCoordinates(x,y)
+      x,y=sceneCoordinates(x,y)
       local trainView=getTrainView()
       if trainView then return TrainView.toWorld(trainView,x,y) end
       local offsetX,offsetY=getWorldOffset()
@@ -105,21 +115,15 @@ local function new(context)
   local function draw()
       love.graphics.clear(0.025,0.02,0.025,1)
       if screens:is("intro") then
-          local windowWidth,windowHeight=love.graphics.getDimensions()
-          screens:draw(windowWidth,windowHeight)
+          screens:draw(love.graphics.getDimensions())
           return
       end
-
       local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
       activateSurface()
       love.graphics.push()
       love.graphics.translate(offsetX,offsetY)
       love.graphics.scale(scaleX,scaleY)
-      if Camera:isActive() then
-          local focusX,focusY=focus()
-          Camera:apply(focusX,focusY)
-      end
-      screens:draw()
+      screens:draw(W,H)
       if runtime.exitPrompt then drawExitPrompt() end
       love.graphics.pop()
 

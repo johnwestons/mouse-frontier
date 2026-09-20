@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local Scene={}
 local WindowScene=require("game.window_scene")
 
@@ -241,6 +242,7 @@ end
 
 function Scene.draw(scene,width,height,playerImage,needsLoan)
     love.graphics.push("all")
+    WorldView.begin()
     drawBackground(scene,width,height)
     love.graphics.setColor(.08,.045,.02,.11)
     love.graphics.rectangle("fill",0,0,width,height)
@@ -259,6 +261,7 @@ function Scene.draw(scene,width,height,playerImage,needsLoan)
         if scene.defenders.fox.flash and scene.defenders.fox.flash>0 then WindowScene.drawEffect(0,347,247,.065,1) end
         if scene.defenders.gecko.flash and scene.defenders.gecko.flash>0 then WindowScene.drawEffect(0,666,248,.06,1) end
     end
+    WorldView.finish()
     drawAction(Scene.action(scene,needsLoan),width,height)
     love.graphics.pop()
 end
@@ -272,22 +275,26 @@ function Scene.drawApproach(state)
     if not scout then return end
     love.graphics.push("all")
     love.graphics.setColor(0,0,0,.28)
+    WorldView.begin()
     love.graphics.ellipse("fill",scout.x,scout.y+2,28,9)
     local frame=state.arrival and state.arrival>0 and 0 or math.floor((state.walkDistance or 0)/8)%8
     drawAtlas(PATHS.otterWalk,frame,scout.x,scout.y,.23,320,512,8)
+    WorldView.finish()
+    local hintX,hintY=WorldView.toScreen(scout.x,scout.y)
     if state.arrival and state.arrival>0 then
         love.graphics.setColor(.08,.05,.03,.92)
-        love.graphics.rectangle("fill",scout.x-104,scout.y-145,208,44,8,8)
+        love.graphics.rectangle("fill",hintX-104,hintY-145,208,44,8,8)
         love.graphics.setColor(.98,.88,.68,1)
         local bark=state.quest.state=="paused" and "[E] Return to the homestead"
-            or state.manualOffer and "[E] Talk to the scout" or "Please, we need your help!"
-        love.graphics.printf(bark,scout.x-96,scout.y-132,192,"center")
+            or state.manualOffer and "[E] Talk to the scout" or "[E] Farmhouse defense"
+        love.graphics.printf(bark,hintX-96,hintY-132,192,"center")
     end
     love.graphics.pop()
 end
 
 function Scene.drawTransition(state,width,height,returning,playerImage)
     love.graphics.push("all")
+    WorldView.begin()
     WindowScene.drawBackground({quest=state.quest,clock=state.clock,reducedMotion=state.reducedMotion},width,height)
     local travel=state.reducedMotion and width*.5 or (state.clock*85)% (width+260)
     if not returning and state.clock>5 then
@@ -300,6 +307,7 @@ function Scene.drawTransition(state,width,height,returning,playerImage)
     local scoutX=returning and width-travel*.45 or 120+math.min(width*.58,travel*.45)
     drawAtlas(PATHS.otterWalk,state.reducedMotion and 0 or math.floor(state.clock*10)%8,scoutX,height*.69,.34,320,512,8)
     drawPlayer({x=scoutX+(returning and 95 or -95),y=height*.71},playerImage)
+    WorldView.finish()
     love.graphics.setColor(.04,.025,.016,.82)
     love.graphics.rectangle("fill",110,height*.14,width-220,118,12,12)
     love.graphics.setColor(.96,.84,.62,1)

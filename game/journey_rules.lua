@@ -1,3 +1,5 @@
+local Conversations=require("game.npc_conversations")
+
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"journey rules require "..name)
@@ -101,7 +103,7 @@ local function new(context)
   local function giveQuestReward(kind,origin,destination,message)
       local reward=grantProgressionReward(kind,origin,destination)
       local _,goodwill=StopHelpProgression.add(runtime.saveData,1,kind,runtime.saveData.currentNPC,destination)
-      runtime.dialogue={speaker="Traveler",text=(message or "Thank you!").."  Reward: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total).",timer=5}
+      runtime.dialogue={speaker="TASK",text=(message or "Task completed.").."  Reward: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total).",timer=5}
       return reward
   end
 
@@ -124,7 +126,7 @@ local function new(context)
   local function showDialogueQuest(view)
       if not view then return false end
       runtime.helpDialogue=view
-      runtime.dialogue={speaker=Util.titleFromFile(view.request.npc or runtime.saveData.currentNPC or "Traveler"),text=view.text,timer=120}
+      runtime.dialogue={speaker=Util.titleFromFile(view.request.npc or runtime.saveData.currentNPC or "Traveler"),text=view.text,timer=math.huge,authored=view.authored}
       return true
   end
 
@@ -135,6 +137,18 @@ local function new(context)
   local function chooseHelpDialogue(index)
       local active=runtime.helpDialogue; local request=active and active.request
       if not request then return false end
+      if active.authored then
+          if not index then runtime.helpDialogue=nil; runtime.dialogue=nil; writeSave(); return true end
+          local result=Conversations.choose(runtime.saveData,request,index,{
+              storeItem=storeRewardItem,
+              gainExperience=function(xp) return BattleRules.gainExperience(runtime.saveData,xp) end,
+          })
+          if result.completed then
+              runtime.helpDialogue=nil
+              runtime.dialogue={speaker=Util.titleFromFile(request.npc),text=result.text,notice=result.notice,authored=true,timer=math.huge}
+          elseif result.view then showDialogueQuest(result.view) end
+          writeSave(); return result
+      end
       if not index then
           HelpDialogueQuests.pause(runtime.saveData,request); runtime.helpDialogue=nil; runtime.dialogue=nil; writeSave(); return true
       end
@@ -155,9 +169,9 @@ local function new(context)
       local result=StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
       local speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler")
       if result.completed then
-          runtime.dialogue={speaker=speaker,text="That is exactly what we needed. Thank you! +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
+          runtime.dialogue={speaker="TASK",text="Item delivered. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
       else
-          runtime.dialogue={speaker=speaker,text="Thank you for offering. Please bring me "..(request.label or Util.titleFromFile(request.item)).." when you find one.",timer=6}
+          runtime.dialogue={speaker="TASK",text="Required item: "..(request.label or Util.titleFromFile(request.item))..".",timer=6}
       end
       return result
   end
@@ -169,7 +183,7 @@ local function new(context)
       local slot,name=StopHelpProgression.medicalItem(runtime.saveData,Catalog)
       if not slot then
           if quest then HelpQuestSession.investigate(runtime.saveData,quest.id,"Find a medical supply and return to the wounded critter.") end
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler"),text="I still need medical help, but you'll need a bandage, salve, tonic, splint, or medkit before we can begin.",timer=6}
+          runtime.dialogue={speaker="TASK",text="Treatment requires a bandage, salve, tonic, splint, or medkit.",timer=6}
           return false
       end
       if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Find the small cut, then complete all five treatment steps.") end
@@ -186,7 +200,7 @@ local function new(context)
           local roster=runtime.saveData.npcRoster or {}; layout.npc=layout.npc or roster[love.math.random(math.max(1,#roster))] or runtime.saveData.currentNPC; runtime.saveData.stopLayouts[tostring(destination)]=layout
           runtime.saveData.mailQuests[#runtime.saveData.mailQuests+1]={sender=runtime.saveData.currentNPC,recipient=layout.npc,origin=runtime.saveData.location,destination=destination,complete=false}
           local reward=QuestProgression.rewardProfile("mail",distance,runtime.saveData.trait,destination)
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you. Find "..Util.titleFromFile(layout.npc).." at stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
+          runtime.dialogue={speaker="TASK",text="Deliver the letter to "..Util.titleFromFile(layout.npc).." at stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
       elseif kind=="ride" then
           local remaining=math.max(1,50-runtime.saveData.location); local job=Passengers.jobFor(runtime.saveData.currentNPC); local rideStops=Passengers.rideLength(job,remaining,runtime.saveData.resources.food,runtime.saveData.resources.water,love.math.random(-1,1))
           local index=#runtime.saveData.passengers+1; local px=car.x+225+(index-1)*85
@@ -195,7 +209,7 @@ local function new(context)
           runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
           NpcRelationships.recordRide(runtime.saveData,runtime.saveData.currentNPC)
           local reward=QuestProgression.rewardProfile("ride",rideStops,runtime.saveData.trait,destination)
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="Thank you! I'll help as your "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
+          runtime.dialogue={speaker="TASK",text="Passenger job: "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
       elseif kind=="trade" then
           runtime.tradeOpen=true; runtime.tradeNPC=runtime.saveData.currentNPC; runtime.tradeMerchantId=nil
           runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; runtime.dialogue=nil
@@ -214,7 +228,7 @@ local function new(context)
           local profile=QuestProgression.deliveryProfile(cargoKind)
           runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=profile.amount,cargoKind=cargoKind,complete=false}
           local reward=QuestProgression.rewardProfile(cargoKind,distance,runtime.saveData.trait,destination)
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=string.format(profile.accepted,destination).." Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=7}
+          runtime.dialogue={speaker="TASK",text=string.format(profile.accepted,destination).." Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=7}
       end
       runtime.questOffer=nil; writeSave()
   end
@@ -228,19 +242,25 @@ local function new(context)
       local speaker=Util.titleFromFile(session.npc or "Traveler")
       if outcome=="complete" then
           local result=StopHelpProgression.completeAid(runtime.saveData,request,session,session.npc,session.location)
-          if result.completed then runtime.dialogue={speaker=speaker,text="That feels much better. The cut is clean, covered, and wrapped. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
-          else runtime.dialogue={speaker=speaker,text="The medical supply went missing before the treatment was finished. We can try again.",timer=6} end
+          if result.completed then runtime.dialogue={speaker="TASK",text="Treatment complete. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
+          else runtime.dialogue={speaker="TASK",text="Medical supply unavailable. Treatment can be retried.",timer=6} end
       elseif outcome=="failed" then
           if session.helpQuestId then HelpQuestSession.retry(runtime.saveData,session.helpQuestId,"Return to the wounded critter to try treatment again.") end
-          runtime.dialogue={speaker=speaker,text="That did not work, but thank you for trying. We can try again when you're ready.",timer=6}
+          runtime.dialogue={speaker="TASK",text="Treatment failed. Retry available.",timer=6}
       else
           if session.helpQuestId then HelpQuestSession.pause(runtime.saveData,session.helpQuestId,"Return to the wounded critter to continue treatment.") end
-          runtime.dialogue={speaker=speaker,text="We can continue the treatment when you're ready.",timer=5}
+          runtime.dialogue={speaker="TASK",text="Treatment paused.",timer=5}
       end
       writeSave(); return true
   end
 
   local function talkToNPC()
+      ensureStopLayout()
+      local authored=Conversations.begin(runtime.saveData,runtime.saveData.currentNPC)
+      if authored then
+          runtime.questOffer=nil
+          showDialogueQuest(authored); writeSave(); return
+      end
       for _,supply in ipairs(runtime.saveData.supplyQuests or {}) do
           if not supply.complete and supply.destination==runtime.saveData.location then
               local result=QuestProgression.consumeCargo(runtime.saveData,Catalog,supply)
@@ -273,6 +293,7 @@ local function new(context)
       -- Read the offer for the NPC being spoken to. A stop can have several
       -- critters, and their quest rolls must not leak between conversations.
       local kind=(layout.npcOffers and layout.npcOffers[runtime.saveData.currentNPC]) or "none"
+      if kind=="dialogue" then kind="none" end
       if not runtime.saveData.questAsked[key] and kind~="none" and runtime.saveData.location<50 then
           runtime.saveData.questAsked[key]=true; runtime.questOffer={kind=kind}
           local request=StopHelpProgression.request(layout,runtime.saveData.currentNPC)
@@ -284,11 +305,13 @@ local function new(context)
               text=QuestProgression.deliveryProfile(runtime.questOffer.deliveryKind).request
           elseif (kind=="item" or kind=="aid") and request then text=request.text
           elseif kind=="dialogue" and dialogueRequest then text=HelpDialogueQuests.offer(dialogueRequest)
-          else text="I've got supplies to trade. Want to take a look?" end
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text=text,timer=30,choice=true}; writeSave(); return
+          else text="Trade available." end
+          runtime.dialogue={speaker="TASK",text=text,timer=30,choice=true}; writeSave(); return
       end
       local line,status=NpcRelationships.npcDialogue(runtime.saveData,runtime.saveData.currentNPC,Catalog.dialogueLines)
-      runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler").." • "..status.name,text=line,timer=6}
+      runtime.questOffer=nil
+      runtime.dialogue={speaker=line and (Util.titleFromFile(runtime.saveData.currentNPC or "Traveler").." • "..status.name) or "CONVERSATION",
+          text=line or "No new conversation available.",timer=6}
       writeSave()
   end
 

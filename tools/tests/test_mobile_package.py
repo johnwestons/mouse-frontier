@@ -33,6 +33,15 @@ class MobilePackageTests(unittest.TestCase):
             with self.subTest(action=action):
                 self.assertTrue(runtime_asset(character_root / f"{action}.png"))
 
+    def test_future_run_sheets_pass_runtime_asset_filter(self) -> None:
+        # Run art remains privately staged; classify synthetic present files
+        # without installing test sprites into the game's asset directory.
+        character_root = ROOT / "assets/sprites/character-animations/trail-fox"
+        with patch.object(Path, "is_file", return_value=True):
+            for suffix in ("", "_north", "_northeast", "_east", "_southeast", "_south", "_southwest", "_west", "_northwest"):
+                expected = suffix != "_east"  # Canonical east action is run.png.
+                self.assertEqual(expected, runtime_asset(character_root / f"run{suffix}.png"))
+
     def test_typewriter_fonts_and_license_are_runtime_assets(self) -> None:
         font_root = ROOT / "assets" / "fonts"
         for filename in ("CourierPrime-Regular.ttf", "CourierPrime-Bold.ttf"):
@@ -81,6 +90,10 @@ class MobilePackageTests(unittest.TestCase):
         )
         self.assertEqual((frame_size * 2, frame_size), idle_bounds)
         self.assertEqual((frame_size * 8, frame_size), walk_bounds)
+        run_bounds = image_bounds(
+            "assets/sprites/character-animations/trail-fox/run_northwest.png",
+            self.config, (4096, 512))
+        self.assertEqual((frame_size * 8, frame_size), run_bounds)
 
     def test_caravan_animation_mobile_bounds_preserve_both_grids(self) -> None:
         root = "assets/sprites/caravans/rookery/animations/"

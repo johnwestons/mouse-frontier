@@ -16,14 +16,56 @@ from tools.build_directional_character_assets import (
     normalize_strip,
     remove_edge_connected_checker_matte,
     remove_edge_connected_magenta_fringe_pixels,
+    remove_magenta_matte,
     reorder_walk_source_frames,
     sha256,
+    split_idle_atlas,
     visible_bbox,
     visible_height_for_resolution_normalization,
 )
 
 
 class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
+    def test_explicit_idle_gutter_preserves_uneven_rows_and_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "idle.png"
+            for background in [(0, 0, 0, 0), (255, 0, 255, 255)]:
+                with self.subTest(background=background):
+                    atlas = Image.new("RGBA", (40, 100), background)
+                    draw = ImageDraw.Draw(atlas)
+                    draw.rectangle((8, 5, 31, 30), fill=(200, 100, 20, 255))
+                    draw.rectangle((8, 43, 31, 68), fill=(200, 100, 20, 255))
+                    atlas.save(path)
+                    before = sha256(path)
+                    for fixed_grid in [False, True]:
+                        frames = split_idle_atlas(path, 1, 2, fixed_grid, [0, 37, 100])
+                        boxes = [visible_bbox(remove_magenta_matte(frame)) for frame in frames]
+                        self.assertEqual([box[3] - box[1] for box in boxes], [26, 26])
+                    self.assertEqual(sha256(path), before)
+
+    def test_explicit_idle_gutter_rejects_invalid_boundaries_and_art_cuts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "idle.png"
+            atlas = Image.new("RGBA", (40, 100))
+            ImageDraw.Draw(atlas).rectangle((8, 43, 31, 68), fill=(200, 100, 20, 255))
+            atlas.save(path)
+            for boundaries in [[0, 100], [0, True, 100], [0, 37.0, 100], [1, 37, 100], [0, 37, 99], [0, 0, 100], [0, -1, 100], [0, 101, 100], "0,37,100"]:
+                with self.subTest(boundaries=boundaries), self.assertRaisesRegex(ValueError, "row_boundaries"):
+                    split_idle_atlas(path, 1, 2, True, boundaries)
+            for cut in [43, 50, 69]:
+                with self.subTest(cut=cut), self.assertRaisesRegex(ValueError, "crosses visible source art"):
+                    split_idle_atlas(path, 1, 2, True, [0, cut, 100])
+
+    def test_idle_default_row_splitting_is_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "idle.png"
+            atlas = Image.new("RGBA", (40, 100))
+            ImageDraw.Draw(atlas).rectangle((8, 43, 31, 68), fill=(200, 100, 20, 255))
+            atlas.save(path)
+            frames = split_idle_atlas(path, 1, 2, True)
+            self.assertEqual(frames[0].tobytes(), atlas.crop((0, 0, 40, 50)).tobytes())
+            self.assertEqual(frames[1].tobytes(), atlas.crop((0, 50, 40, 100)).tobytes())
+
     @staticmethod
     def _magenta_fringed_subject() -> Image.Image:
         image = Image.new("RGBA", (48, 48), (0, 0, 0, 0))
@@ -90,7 +132,7 @@ class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
             manifest = {
                 "version": 1, "character": "test-frog", "source_root": str(source), "runtime_root": str(root / "runtime"),
                 "framing": {"frame_size": 48, "target_height": 36, "max_width": 44, "center_x": 24, "baseline": 42, "remove_edge_connected_magenta_fringe": True},
-                "idle_sets": [{"source": "idle.png", "outputs": ["idle.png"], "fixed_grid": True, "remove_edge_connected_magenta_fringe": False}],
+                "idle_sets": [{"source": "idle.png", "outputs": ["idle.png"], "fixed_grid": True, "row_boundaries": [0, 48, 96], "remove_edge_connected_magenta_fringe": False}],
                 "walks": {"walk.png": {"source": "walk.png", "fixed_grid": True, "frame_sources": [None, None, {"source": "replacement.png", "resolution_normalization": "match_base_visible_height"}] + [None] * 5}},
             }
             path = root / "build.json"
@@ -98,6 +140,9 @@ class DirectionalCharacterAssetBuilderTests(unittest.TestCase):
             report = build(path)
             self.assertTrue(report["default_remove_edge_connected_magenta_fringe"])
             self.assertFalse(report["outputs"]["idle.png"]["remove_edge_connected_magenta_fringe"])
+            self.assertEqual(report["outputs"]["idle.png"]["source_row_boundaries"], [0, 48, 96])
+            self.assertEqual(report["outputs"]["idle.png"]["source_row_indices"], [0, 1])
+            self.assertEqual(report["outputs"]["idle.png"]["source_column_index"], 0)
             walk = report["outputs"]["walk.png"]
             self.assertTrue(walk["remove_edge_connected_magenta_fringe"])
             normalization = walk["frame_source_overrides"][0]["resolution_normalization"]

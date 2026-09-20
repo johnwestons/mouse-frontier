@@ -17,6 +17,7 @@ import math
 import os
 import shutil
 import tempfile
+import sys
 from collections import Counter, deque
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -29,6 +30,8 @@ from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DEFAULT_ANIMATION_ROOT = ROOT / "assets" / "sprites" / "character-animations"
 DEFAULT_OUTPUT_ROOT = ROOT / "output" / "sprite-doctor"
 DEFAULT_WEAPON_ANCHOR_OVERRIDES = ROOT / "tools" / "weapon_attachment_overrides.json"
@@ -82,7 +85,11 @@ AUTHORED_WEST_ACTION_SPECS: dict[str, ActionSpec] = {
     "walk_southwest": ActionSpec(8),
 }
 
-ALL_ACTION_SPECS = ACTION_SPECS | DIRECTIONAL_ACTION_SPECS | AUTHORED_WEST_ACTION_SPECS
+RUN_ACTION_SPECS = {name: ActionSpec(8) for name in (
+    'run', 'run_north', 'run_northeast', 'run_southeast', 'run_south',
+    'run_west', 'run_northwest', 'run_southwest',
+)}
+ALL_ACTION_SPECS = ACTION_SPECS | DIRECTIONAL_ACTION_SPECS | AUTHORED_WEST_ACTION_SPECS | RUN_ACTION_SPECS
 
 # Established 6x4 complete-atlas layout.  A three-frame walk is expanded to
 # the modern six-frame loop only when the character also has unconscious art.
@@ -800,6 +807,12 @@ class SpriteDoctor:
             if Path(output).name != output or Path(output).suffix != ".png":
                 raise ValueError("build framing outputs must be PNG filenames")
             contract = {**base, "horizontal_anchor": source.get("horizontal_anchor", base["horizontal_anchor"])}
+            if Path(output).stem in RUN_ACTION_SPECS:
+                from tools.character_gait_contract import run_ground_clearance
+                contract['ground_clearance'] = run_ground_clearance(source.get('ground_clearance'), base['frame_size'])
+                contract['size_metric'] = 'flight_height_envelope'
+            elif 'ground_clearance' in source:
+                raise ValueError('Flight framing cannot be assigned to walking or idle')
             if contract["horizontal_anchor"] not in {"bbox", "core"}:
                 raise ValueError("build framing horizontal_anchor must be bbox or core")
             key = (character, Path(output).stem)
@@ -810,7 +823,8 @@ class SpriteDoctor:
         for idle in manifest.get("idle_sets") or [manifest.get("idle", {})]:
             for output in idle.get("outputs", []):
                 register(output, idle)
-        for output, walk in manifest.get("walks", {}).items():
+        from tools.character_gait_contract import locomotion_sources
+        for output, walk in locomotion_sources(manifest).items():
             register(output, walk if isinstance(walk, dict) else {})
         if not self.action_framing:
             raise ValueError("build manifest has no framed animation outputs")
@@ -888,14 +902,14 @@ class SpriteDoctor:
         character: str,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
     ) -> bool:
-        return any(self.has_action(character, action, overrides) for action in DIRECTIONAL_ACTION_SPECS)
+        return any(self.has_action(character, action, overrides) for action in (*DIRECTIONAL_ACTION_SPECS, *RUN_ACTION_SPECS))
 
     def uses_authored_west_contract(
         self,
         character: str,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
     ) -> bool:
-        return any(self.has_action(character, action, overrides) for action in AUTHORED_WEST_ACTION_SPECS)
+        return any(self.has_action(character, action, overrides) for action in (*AUTHORED_WEST_ACTION_SPECS, *RUN_ACTION_SPECS))
 
     def audit_actions(
         self,
@@ -907,6 +921,8 @@ class SpriteDoctor:
             actions.extend(DIRECTIONAL_ACTION_SPECS)
         if self.uses_authored_west_contract(character, overrides):
             actions.extend(AUTHORED_WEST_ACTION_SPECS)
+        if any(self.has_action(character, action, overrides) for action in RUN_ACTION_SPECS):
+            actions.extend(RUN_ACTION_SPECS)
         return tuple(actions)
 
     def expected_frame_count(
@@ -915,7 +931,10 @@ class SpriteDoctor:
         action: str,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
     ) -> int:
-        if action == "walk" and self.uses_directional_contract(character, overrides):
+        # A directional build manifest also identifies an isolated east draft;
+        # sibling camera files need not exist yet for its eight-pose contract.
+        if action == "walk" and ((character, action) in self.action_framing
+                                 or self.uses_directional_contract(character, overrides)):
             return 8
         if action == "walk" and not self.has_action(character, "unconscious", overrides):
             return 3
@@ -1022,7 +1041,7 @@ class SpriteDoctor:
         center_target = float(framing["center_x"]) if framing else TARGET_CENTER_X
         baseline_target = float(framing["baseline"]) if framing else TARGET_BASELINE
         anchor_mode = str(framing["horizontal_anchor"]) if framing else "bbox"
-        size_metric = "height" if framing else "extent"
+        size_metric = str(framing.get('size_metric', 'height')) if framing else 'extent'
         expected_size = (frame_size * expected_count, frame_size)
         if image.size != expected_size:
             issues.append(Issue(
@@ -1068,13 +1087,17 @@ class SpriteDoctor:
                 continue
             assert metric.extent is not None and metric.center_x is not None and metric.bottom is not None
             measured_size = metric.bbox[3] - metric.bbox[1] if framing and metric.bbox else metric.extent
+            clearance = framing.get('ground_clearance', [0] * expected_count)[metric.frame - 1] if framing else 0
             measured_anchor = metric.center_x
             if anchor_mode == "core" and metric.bbox:
                 measured_anchor, core_widths[metric.frame] = core_framing_measurements(sprite_frame, metric.bbox)
             anchor_positions[metric.frame] = measured_anchor
             if framing:
                 framing_measurements.append({"frame": metric.frame, "horizontal_anchor": anchor_mode, "anchor_x": measured_anchor, "target_center_x": center_target, "height": measured_size, "target_height": size_target, "baseline": metric.bottom, "target_baseline": baseline_target, "bbox_width": metric.bbox[2] - metric.bbox[0], "core_width": core_widths.get(metric.frame)})
-            extent_delta = abs(measured_size - size_target)
+            # A lifted/tucked foot changes the visible head-to-foot extent.
+            # Bound this by the explicit flight clearance; contact/loading and
+            # every existing walking/idle size check keep their original limits.
+            extent_delta = max(0, abs(measured_size - size_target) - clearance)
             if extent_delta > max(8, round(size_target * 0.03)):
                 severity = "error" if extent_delta / size_target > 0.08 else "warning"
                 issues.append(Issue(
@@ -1090,12 +1113,13 @@ class SpriteDoctor:
                     frame=metric.frame, repairable=not bool(framing), confidence="high",
                     details={"center_x": measured_anchor, "target": center_target, "horizontal_anchor": anchor_mode, "bbox_center_x": metric.center_x},
                 ))
-            if abs(metric.bottom - baseline_target) > 2:
+            frame_baseline_target = baseline_target - clearance
+            if abs(metric.bottom - frame_baseline_target) > 2:
                 issues.append(Issue(
                     "warning", "baseline_mismatch", character, action,
-                    f"frame {metric.frame} baseline is y={metric.bottom}; target is {baseline_target:g}",
+                    f"frame {metric.frame} baseline is y={metric.bottom}; target is {frame_baseline_target:g}",
                     frame=metric.frame, repairable=not bool(framing), confidence="high",
-                    details={"bottom": metric.bottom, "target": baseline_target},
+                    details={"bottom": metric.bottom, "target": frame_baseline_target},
                 ))
             if metric.halo_spread > 8:
                 issues.append(Issue(
@@ -1255,7 +1279,7 @@ class SpriteDoctor:
         audited_inputs: list[dict[str, str]] = []
         for character in names:
             for action in self.audit_actions(character, overrides):
-                if locomotion_only and action not in {"idle", "walk"} and not action.startswith(("idle_", "walk_")):
+                if locomotion_only and action not in {"idle", "walk", "run"} and not action.startswith(("idle_", "walk_", "run_")):
                     continue
                 if self.framing_contract and (action in {"idle", "walk"} or action.startswith(("idle_", "walk_"))) and (character, action) not in self.action_framing:
                     issues.append(Issue("error", "missing_framing_action", character, action, "build manifest has no framing contract for this locomotion strip"))
@@ -2012,7 +2036,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--report", help="write the machine-readable JSON report here")
     audit.add_argument("--animation-root", type=Path, help="read character directories from this root instead of installed assets")
     audit.add_argument("--animation-subdirectory", help="read strips from this relative subdirectory inside each character (for example runtime)")
-    audit.add_argument("--locomotion-only", action="store_true", help="audit only idle/walk actions in the detected directional contract")
+    audit.add_argument("--locomotion-only", action="store_true", help="audit idle/walk/run actions in the detected directional contract")
     audit.add_argument("--build-manifest", type=Path, help="use this hash-bound character build manifest's height, core/bbox anchor, and baseline contract")
     audit.add_argument("--contact-sheets", metavar="DIR", help="render visual QA sheets into this directory")
     audit.add_argument("--require-death", action="store_true", help="treat missing death art as an error")

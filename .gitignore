@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 .codex-remote-attachments/
 .tmp-*/
+backups/
 
 # Local runtime save data
 saves/
@@ -15,6 +16,4 @@ save*.json
 Thumbs.db
 .DS_Store
 
-# Local audio library (intentionally omitted from the remote history)
-sounds/*
-!sounds/AUDIO_ASSETS.md
+# Audio binaries are shared through Git LFS; see .gitattributes.

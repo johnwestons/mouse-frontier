@@ -4,12 +4,12 @@ QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","dial
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
 
 local deliveryProfiles={
-    food={amount=3,label="3 food portions",objective="FOOD SUPPLIES",request="Settlers farther west are hungry. Could you deliver three food portions?",accepted="Please take three food portions to stop %d. Your backpack food will be used first, then the train pantry.",thanks="Those food supplies will keep us going. Thank you!"},
-    water={amount=3,label="3 water supplies",objective="WATER SUPPLIES",request="Our neighbors' well ran dry. Could you deliver three water supplies?",accepted="Please take three water supplies to stop %d. Bottled water will be used first, then the train tank.",thanks="Clean water means everything out here. Thank you!"},
-    medicine={amount=2,label="2 medical supplies",objective="MEDICAL SUPPLIES",request="The next settlement is running out of medicine. Could you bring them two medical supplies?",accepted="Please bring two bandages, salves, tonics, splints, or medkits to stop %d.",thanks="This medicine will save lives. Thank you!"},
-    repair={amount=3,label="3 repair materials",objective="REPAIR MATERIALS",request="A settlement farther on needs materials to repair its pump. Can you bring three?",accepted="Please bring three repair materials to stop %d. Coal or oil canisters in your pack count before train coal.",thanks="We can get the pump running again. Thank you!"},
-    ammunition={amount=8,label="8 rounds of ammunition",objective="AMMUNITION",request="Bandits have been circling the next settlement. Could you spare eight rounds of ammunition?",accepted="Please deliver eight rounds from your ammunition reserves to stop %d.",thanks="Now we can defend the settlement. Thank you!"},
-    recovery={amount=1,label="a lost keepsake",objective="RECOVERY",request="A family lost a keepsake near the next settlement. Could you search for it once the area is safe?",accepted="Search the area around stop %d after dealing with any danger there.",thanks="You found it. Our family will treasure this. Thank you!"},
+    food={amount=3,label="3 food portions",objective="FOOD SUPPLIES",request="Delivery: 3 food portions.",accepted="Deliver 3 food portions to stop %d. Backpack food is used before train storage.",thanks="Delivery completed."},
+    water={amount=3,label="3 water supplies",objective="WATER SUPPLIES",request="Delivery: 3 water supplies.",accepted="Deliver 3 water supplies to stop %d. Backpack water is used before train storage.",thanks="Delivery completed."},
+    medicine={amount=2,label="2 medical supplies",objective="MEDICAL SUPPLIES",request="Delivery: 2 medical supplies.",accepted="Deliver 2 bandages, salves, tonics, splints, or medkits to stop %d.",thanks="Delivery completed."},
+    repair={amount=3,label="3 repair materials",objective="REPAIR MATERIALS",request="Delivery: 3 repair materials.",accepted="Deliver 3 repair materials to stop %d. Backpack coal/oil is used before train coal.",thanks="Delivery completed."},
+    ammunition={amount=8,label="8 rounds of ammunition",objective="AMMUNITION",request="Delivery: 8 rounds of ammunition.",accepted="Deliver 8 rounds from ammunition reserves to stop %d.",thanks="Delivery completed."},
+    recovery={amount=1,label="a lost keepsake",objective="RECOVERY",request="Recovery: a lost keepsake.",accepted="Search the area around stop %d after resolving any danger.",thanks="Delivery completed."},
 }
 
 function QuestProgression.deliveryProfile(kind)

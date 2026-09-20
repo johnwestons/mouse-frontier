@@ -1,0 +1,1094 @@
+# Original dialogue review inventory
+
+Captured before the September 14, 2026 dialogue changes. Authorship is unverified: these are review candidates, not a claim that every line was AI-written. Original line numbers refer to the pre-change files. Nearby gameplay notices and narrative text are included for context; they are not automatically dialogue.
+
+The 13 conversations in user-conversations.txt are approved. On September 19, 2026, the user also confirmed and requested restoration of the original regular `Catalog.dialogueLines` array (33 lines). Other archived text still requires review. Reply with an entry ID and KEEP, DELETE, or your replacement. KEEP requires confirmation that the line is your supplied/approved text.
+
+## game/catalog.lua
+
+- **D0001** (original line 2): game.train_upgrade_balance
+- **D0002** (original line 5): Finds 25% more scrap and quest rewards.
+- **D0003** (original line 6): Uses 20% less coal and has extra armor.
+- **D0004** (original line 7): Better aim and efficient travel.
+- **D0005** (original line 8): Earns better rewards from critters.
+- **D0006** (original line 9): Uses 20% less food on every journey.
+- **D0007** (original line 10): Uses 20% less water on every journey.
+- **D0008** (original line 11): Moves one extra space in battle and aims better.
+- **D0009** (original line 12): Field Medic
+- **D0010** (original line 12): Has 4 extra maximum health in every battle.
+- **D0011** (original line 13): Finds 2 extra scrap after every victory.
+- **D0012** (original line 18): HEAL ALLY
+- **D0013** (original line 18): Restore 4 HP to nearby allies.
+- **D0014** (original line 19): Give nearby allies +2 armor this round.
+- **D0015** (original line 20): Slow the nearest enemy for one turn.
+- **D0016** (original line 21): Put the nearest enemy to sleep for two turns.
+- **D0017** (original line 22): Strike the nearest enemy for 5 damage.
+- **D0018** (original line 23): Heal nearby allies and give them +1 move.
+- **D0019** (original line 24): Restore nearby allies with +2 armor and 2 HP.
+- **D0020** (original line 25): Give nearby allies +1 aim and +2 move.
+- **D0021** (original line 26): Reduce the nearest enemy's aim by 2.
+- **D0022** (original line 27): Stop the nearest enemy's next turn.
+- **D0023** (original line 28): AREA ATTACK
+- **D0024** (original line 28): Damage nearby enemies.
+- **D0025** (original line 29): Give nearby allies +2 aim and movement.
+- **D0026** (original line 37): Field Medic
+- **D0027** (original line 84): Patched Canvas Pack
+- **D0028** (original line 85): Bedroll Hiking Pack
+- **D0029** (original line 86): Frontier Leather Pack
+- **D0030** (original line 87): Scavenger Frame Pack
+- **D0031** (original line 88): Weathered Leather Pack
+- **D0032** (original line 89): Red Leather Pack
+- **D0033** (original line 90): Compact Sling Pack
+- **D0034** (original line 91): Black Sling Pack
+- **D0035** (original line 114): Next battle: +3 attack.
+- **D0036** (original line 115): Next battle: +6 max health and heal 6 HP.
+- **D0037** (original line 116): Next battle: +2 movement.
+- **D0038** (original line 117): Next battle: +45% rare-loot chance.
+- **D0039** (original line 118): Next battle: +3 defense.
+- **D0040** (original line 119): 2X ATTACK
+- **D0041** (original line 119): This battle: attack twice during one turn.
+- **D0042** (original line 120): 2X MOVE
+- **D0043** (original line 120): This battle: move twice during one turn.
+- **D0044** (original line 121): GUARD ALL
+- **D0045** (original line 121): This battle: guard yourself and allies for one turn.
+- **D0046** (original line 122): This battle: your attacks have 100% accuracy for one turn.
+- **D0047** (original line 123): This battle: heal yourself and allies for 2 HP over 3 turns.
+- **D0048** (original line 127): Adds 1 oil to the train supply.
+- **D0049** (original line 128): Adds 5 oil to the train supply.
+- **D0050** (original line 129): Adds 10 oil to the train supply.
+- **D0051** (original line 134): Savage Claw
+- **D0052** (original line 135): Toxic Spit
+- **D0053** (original line 136): Brass Knuckles
+- **D0054** (original line 137): Train Wrench
+- **D0055** (original line 138): Salvage Pry Bar
+- **D0056** (original line 139): Scrap Hatchet
+- **D0057** (original line 140): Rusty Cleaver
+- **D0058** (original line 141): Frontier Sword
+- **D0059** (original line 142): Patched Trench Knife
+- **D0060** (original line 143): Scrap Hunting Spear
+- **D0061** (original line 144): Salvaged Track Hatchet
+- **D0062** (original line 145): Miner's Pick
+- **D0063** (original line 146): Hunting Bow
+- **D0064** (original line 147): Gear Hammer
+- **D0065** (original line 148): Rail Spike Spear
+- **D0066** (original line 149): Gear-Toothed Falchion
+- **D0067** (original line 150): Frontier Fork Trident
+- **D0068** (original line 151): Gearwright Bearded Axe
+- **D0069** (original line 152): Critter Crossbow
+- **D0070** (original line 153): Chain Flail
+- **D0071** (original line 154): Scrap Pistol
+- **D0072** (original line 155): Railway Cutlass
+- **D0073** (original line 156): Hooked Railway Halberd
+- **D0074** (original line 157): Rail-Splitter Axe
+- **D0075** (original line 158): Sawed-Off Shotgun
+- **D0076** (original line 159): Trail Slingshot
+- **D0077** (original line 160): Rail Spike Dagger
+- **D0078** (original line 161): Scrap Boomerang
+- **D0079** (original line 162): Frontier Hook Sickle
+- **D0080** (original line 163): Frontier Curved Saber
+- **D0081** (original line 164): Steam Shock Baton
+- **D0082** (original line 165): Frontier Lever Rifle
+- **D0083** (original line 166): Compact Scrap Pistol
+- **D0084** (original line 168): Heavy Frontier Pistol
+- **D0085** (original line 169): Machine Pistol
+- **D0086** (original line 170): Weathered Lever Rifle
+- **D0087** (original line 171): Improvised Service Rifle
+- **D0088** (original line 172): Compact Carbine
+- **D0089** (original line 173): Rugged Submachine Gun
+- **D0090** (original line 174): Wrist-Braced Slingshot
+- **D0091** (original line 175): Metal Scrap Slingshot
+- **D0092** (original line 176): Long Hunting Slingshot
+- **D0093** (original line 177): Patched .22 Survival Rifle
+- **D0094** (original line 179): Long-Barrel Frontier Revolver
+- **D0095** (original line 180): Frontier .22 Lever Rifle
+- **D0096** (original line 183): Frontier Long .22 Target Pistol
+- **D0097** (original line 184): Wood-Stock Survival Carbine
+- **D0098** (original line 185): Vintage Bolt-Action Rifle
+- **D0099** (original line 186): Frontier Katana
+- **D0100** (original line 187): Frontier Mace
+- **D0101** (original line 188): Frontier Battle Axe
+- **D0102** (original line 189): Frontier Longsword
+- **D0103** (original line 190): Frontier Machete
+- **D0104** (original line 191): Frontier Spear
+- **D0105** (original line 192): Frontier Cavalry Saber
+- **D0106** (original line 193): Frontier Hatchet
+- **D0107** (original line 194): Frontier Hand Axe
+- **D0108** (original line 195): Boiler-Smith Maul
+- **D0109** (original line 196): Railway War Pick
+- **D0110** (original line 197): Brass-Backed Greatsword
+- **D0111** (original line 198): Wasteland Partisan
+- **D0112** (original line 199): Frontier Executioner Axe
+- **D0113** (original line 201): Frontier 9mm SMG
+- **D0114** (original line 202): Frontier .22 Target Pistol
+- **D0115** (original line 203): Frontier .380 Pocket Pistol
+- **D0116** (original line 204): Frontier 12-Gauge Pump Shotgun
+- **D0117** (original line 206): Frontier .22 Target Pistol
+- **D0118** (original line 207): Frontier 9mm Service Pistol
+- **D0119** (original line 208): Frontier Compact 9mm
+- **D0120** (original line 209): Frontier .32 Pocket Pistol
+- **D0121** (original line 210): Frontier .22 Pocket Pistol
+- **D0122** (original line 211): Frontier Silver .22 Revolver
+- **D0123** (original line 212): Frontier Compact AK
+- **D0124** (original line 213): Frontier 9mm Service Sidearm
+- **D0125** (original line 214): Frontier Pearl Pocket Pistol
+- **D0126** (original line 215): Frontier Silver Compact Pistol
+- **D0127** (original line 216): Frontier Compact 9mm Pistol
+- **D0128** (original line 217): Frontier Single-Shot Hunter
+- **D0129** (original line 218): Frontier Lever Carbine
+- **D0130** (original line 343): flower-bird.png
+- **D0131** (original line 343): ghost-small.png
+- **D0132** (original line 343): pumpkin-bat.png
+- **D0133** (original line 343): dust-beetle.png
+- **D0134** (original line 343): cactus-rat.png
+- **D0135** (original line 343): red-hood-mouse.png
+- **D0136** (original line 343): shield-mouse.png
+- **D0137** (original line 343): cowboy-mouse-no-skull.png
+- **D0138** (original line 344): attacking-eagle.png
+- **D0139** (original line 344): pumpkin-cat.png
+- **D0140** (original line 344): pumpkin-vampire.png
+- **D0141** (original line 344): wasteland-scorpion.png
+- **D0142** (original line 344): raccoon-cape.png
+- **D0143** (original line 344): raccoon-heart.png
+- **D0144** (original line 344): mouse-bandit.png
+- **D0145** (original line 347): ghost-tall.png
+- **D0146** (original line 347): purple-dragon.png
+- **D0147** (original line 347): mutant-horned-owl.png
+- **D0148** (original line 347): tunnel-badger-raider.png
+- **D0149** (original line 347): wasteland-human-zombie.png
+- **D0150** (original line 347): wasteland-human-zombie.png
+- **D0151** (original line 347): vampire-mouse.png
+- **D0152** (original line 347): mouse-bandit.png
+- **D0153** (original line 351): Howdy stranger
+- **D0154** (original line 351): Nice train
+- **D0155** (original line 351): Sure is hot out
+- **D0156** (original line 351): Where'd you come from?
+- **D0157** (original line 351): Where you headed?
+- **D0158** (original line 352): Be careful out there
+- **D0159** (original line 352): Don't get much visitors these days
+- **D0160** (original line 352): How's yer mom and them?
+- **D0161** (original line 353): Hope you find what you're looking for
+- **D0162** (original line 353): Got any grapes?
+- **D0163** (original line 353): Can I borrow $3.50?
+- **D0164** (original line 354): What happened to the rest of the people?
+- **D0165** (original line 354): I hope my family is ok...
+- **D0166** (original line 354): What are we gonna do come winter...
+- **D0167** (original line 355): How far have you traveled so far?
+- **D0168** (original line 355): Some critters got mutated in the great flash.
+- **D0169** (original line 356): We need more people like you...
+- **D0170** (original line 356): Wow, what an adventure!
+- **D0171** (original line 357): Those darn sludges keep tainting my crops...
+- **D0172** (original line 357): I would go myself but I know there will be bandits...
+- **D0173** (original line 358): We need to work together.
+- **D0174** (original line 358): If you see a sludge you gotta mash it!
+- **D0175** (original line 359): I hope you guys make it to the next stop safely.
+- **D0176** (original line 359): I've not seen my family in ages it feels like...
+- **D0177** (original line 360): Have you ever seen a human?
+- **D0178** (original line 360): Grab whatever you need for the journey.
+- **D0179** (original line 361): How are the tracks holding up?
+- **D0180** (original line 361): How many of us are out there?
+- **D0181** (original line 362): Wish we could all get along...
+- **D0182** (original line 362): Safe travels friend
+- **D0183** (original line 362): Maybe we will all get our happy endings...
+- **D0184** (original line 365): Could you take this letter west for me?
+- **D0185** (original line 365): If you see my brother, will you give him this letter?
+- **D0186** (original line 365): My sister went west. If you see her, will you give her this letter?
+- **D0187** (original line 365): My family is out there somewhere. Could you carry this letter?
+- **D0188** (original line 365): If my dad is still alive, please show him the picture in this letter.
+- **D0189** (original line 366): I have to get to the next town. Could I ride with you?
+- **D0190** (original line 366): Could I bother you for a ride down the tracks?
+- **D0191** (original line 366): My family went west. Could I ride on your train for a couple stops?
+- **D0192** (original line 366): Do you have room on your train for little ol' me?
+- **D0193** (original line 366): Can I ride with you for a few? I won't take up much room.
+- **D0194** (original line 367): Thank you so much for your help.
+- **D0195** (original line 367): Thank you for sharing some food with me.
+- **D0196** (original line 367): I'll see my family again one day thanks to you.
+- **D0197** (original line 367): I don't know what I'd do if you hadn't come along.
+- **D0198** (original line 367): Wow, this old train is somethin' else, huh.
+- **D0199** (original line 367): *Hums softly*
+- **D0200** (original line 367): This is the most peaceful I've been in a while.
+- **D0201** (original line 367): Those mean critters can't get us in here.
+- **D0202** (original line 367): You're a life saver.
+- **D0203** (original line 367): I hope we can be friends...
+- **D0204** (original line 368): A letter for me?!
+- **D0205** (original line 368): Oh my gosh, thank you so much!
+- **D0206** (original line 368): It's from my family! Where did you get this? Thank you!
+- **D0207** (original line 368): I can't believe they are okay and still looking for me...
+- **D0208** (original line 368): A letter from my family—this brings me so much hope.
+- **D0209** (original line 368): I knew they would make it! I'm so happy!
+
+## game/npc_relationships.lua
+
+- **D0210** (original line 5): New Face
+- **D0211** (original line 6): Familiar Face
+- **D0212** (original line 8): Trusted Friend
+- **D0213** (original line 76): I'll keep this close if trouble finds us. Thank you.
+- **D0214** (original line 77): This could save somebody's life. I won't waste it.
+- **D0215** (original line 78): A shared meal means more out here than you might think.
+- **D0216** (original line 79): Clean water is a precious gift. Thank you, friend.
+- **D0217** (original line 80): This will make the road a little kinder. Thank you.
+- **D0218** (original line 81): You just helped keep a cold night away.
+- **D0219** (original line 82): I can put this to good use. I'll remember your kindness.
+- **D0220** (original line 96): You're kind to offer, but someone else will need that more than I do.
+- **D0221** (original line 97): I appreciate the thought, but I can't make use of that right now.
+- **D0222** (original line 132): I know that when you say you'll help, you mean it.
+- **D0223** (original line 132): Folks here still talk about everything you've done for us.
+- **D0224** (original line 132): You're family along this stretch of track now.
+- **D0225** (original line 134): I remember the help you gave us. It mattered.
+- **D0226** (original line 134): Good to see you again, friend.
+- **D0227** (original line 134): You left this place better than you found it.
+- **D0228** (original line 136): I still remember your gift. That was mighty thoughtful.
+- **D0229** (original line 136): You didn't have to share what you had, but you did.
+- **D0230** (original line 136): It's good to see a generous face again.
+- **D0231** (original line 138): Word about your good deeds reached us before your train did.
+- **D0232** (original line 138): People down the line say you're someone we can trust.
+- **D0233** (original line 138): Your train has become a welcome sight around here.
+- **D0234** (original line 140): Safe travels, friend.
+- **D0235** (original line 150): The greenhouse car makes me think we can grow something lasting.
+- **D0236** (original line 151): I'll keep listening to the engine. She tells you what she needs.
+- **D0237** (original line 152): If anyone gets hurt, bring them to me before the wound worsens.
+- **D0238** (original line 153): I'll keep an eye out for useful salvage along the rails.
+- **D0239** (original line 156): I haven't forgotten the gift you shared with me.
+- **D0240** (original line 157): Whatever waits at my stop, I'm glad I'm traveling with a trusted friend.
+- **D0241** (original line 158):  We're headed together to stop 
+- **D0242** (original line 168): merchant.png
+- **D0243** (original line 169): merchant.png
+- **D0244** (original line 170): merchant.png
+- **D0245** (original line 171): merchant.png
+- **D0246** (original line 172): merchant.png
+- **D0247** (original line 173): merchant.png
+- **D0248** (original line 174): merchant.png
+- **D0249** (original line 175): merchant.png
+- **D0250** (original line 176): merchant.png
+
+## game/help_dialogue_quests.lua
+
+- **D0251** (original line 1): game.help_quest_session
+- **D0252** (original line 2): game.npc_relationships
+- **D0253** (original line 10): MISSING FAMILY TRAIL
+- **D0254** (original line 10): I have not seen my sister in ages. Could you help me work out where she went?
+- **D0255** (original line 11): The last message came from somewhere along these tracks, but the directions were smudged.
+- **D0256** (original line 13): Learn something distinctive about the missing traveler.
+- **D0257** (original line 14): Ask what she was carrying
+- **D0258** (original line 14): She wore a red scarf sewn with little white stars.
+- **D0259** (original line 15): Ask where she planned to travel
+- **D0260** (original line 15): She meant to visit the northern switch house before heading west.
+- **D0261** (original line 17): Compare the story with a reliable trail clue.
+- **D0262** (original line 18): Compare the station ledger
+- **D0263** (original line 18): The ledger records a traveler heading north, delayed but safe.
+- **D0264** (original line 19): Ask about a family keepsake
+- **D0265** (original line 19): She carries a brass locket engraved with two field mice.
+- **D0266** (original line 20): Follow the freshest wagon marks
+- **D0267** (original line 20): The newest marks turn north instead of following the western rail.
+- **D0268** (original line 22): Give the family a careful, useful next step.
+- **D0269** (original line 23): Send a detailed message north
+- **D0270** (original line 23): That gives us a real trail without sending anyone into danger.
+- **D0271** (original line 24): Describe her identifying keepsake
+- **D0272** (original line 24): Other settlements will know exactly who to look for.
+- **D0273** (original line 25): Organize safe check-ins along both routes
+- **D0274** (original line 25): We can search together without anyone traveling alone.
+- **D0275** (original line 28): Word is already moving between the switch houses. You gave this family hope with a direction.
+- **D0276** (original line 31): SHARE THE WATER
+- **D0277** (original line 31): Our growers are arguing over the last working irrigation line. Will you help us find a fair answer?
+- **D0278** (original line 32): The upper beds say they receive nothing. The lower beds say closing their gate will ruin the seedlings.
+- **D0279** (original line 34): Hear one side of the irrigation dispute.
+- **D0280** (original line 35): Listen to the upper-bed growers
+- **D0281** (original line 35): Their soil is cracked, and the morning flow never reaches them.
+- **D0282** (original line 36): Listen to the lower-bed growers
+- **D0283** (original line 36): Their new seedlings need a small steady flow, not the whole channel.
+- **D0284** (original line 38): Inspect the water system before proposing a compromise.
+- **D0285** (original line 39): Inspect the leaking channel
+- **D0286** (original line 39): A split board wastes nearly a third of the water before either field.
+- **D0287** (original line 40): Read the old watering schedule
+- **D0288** (original line 40): The original schedule alternated short morning and evening turns.
+- **D0289** (original line 41): Measure both garden beds
+- **D0290** (original line 41): The lower seedlings need less water than everyone assumed.
+- **D0291** (original line 43): Recommend a fair plan the whole settlement can follow.
+- **D0292** (original line 44): Repair the leak, then alternate turns
+- **D0293** (original line 44): Fixing the waste gives both gardens enough for a fair schedule.
+- **D0294** (original line 45): Restore the morning/evening schedule
+- **D0295** (original line 45): Everyone knows when their turn begins, and the seedlings stay safe.
+- **D0296** (original line 46): Build a shared measuring basin
+- **D0297** (original line 46): A measured share makes the agreement visible and easier to trust.
+- **D0298** (original line 49): The growers are tending one another's beds now. They remember who helped them listen.
+- **D0299** (original line 52): A TRUSTWORTHY WARNING
+- **D0300** (original line 52): Someone spotted possible bandits, but every witness tells it differently. Can you help us send an honest warning?
+- **D0301** (original line 53): One traveler heard engines east of town. Another saw dust near the northern ridge.
+- **D0302** (original line 55): Record one witness account without spreading a rumor.
+- **D0303** (original line 56): Calmly question the frightened traveler
+- **D0304** (original line 56): They heard one rough engine, then silence—no gunfire and no voices.
+- **D0305** (original line 57): Ask the ridge lookout for details
+- **D0306** (original line 57): The lookout saw a narrow dust trail moving north, not toward the homes.
+- **D0307** (original line 59): Check physical evidence before choosing the warning.
+- **D0308** (original line 60): Inspect the tire marks
+- **D0309** (original line 60): Only one light vehicle passed, heading away from the settlement.
+- **D0310** (original line 61): Check the abandoned camp
+- **D0311** (original line 61): The ashes are cold. Whoever camped here left before dawn.
+- **D0312** (original line 62): Follow the ridge tracks briefly
+- **D0313** (original line 62): The tracks continue north and never turn toward the stop.
+- **D0314** (original line 64): Send a warning that protects travelers without causing panic.
+- **D0315** (original line 65): Report one unconfirmed vehicle northbound
+- **D0316** (original line 65): That is precise enough to help travelers without inventing an army.
+- **D0317** (original line 66): Mark the old camp and advise caution
+- **D0318** (original line 66): The warning names what we know and admits what we do not.
+- **D0319** (original line 67): Organize paired watches and safe travel
+- **D0320** (original line 67): No one has to face the uncertainty alone, and the stop stays calm.
+- **D0321** (original line 70): Travelers trust this stop's warnings now because they are careful, specific, and never exaggerated.
+- **D0322** (original line 73): THE UNFINISHED PROMISE
+- **D0323** (original line 73): A friend promised to return, but the last train came without them. Could you help me decide what to do?
+- **D0324** (original line 74): I do not want to abandon them, but waiting without a plan is wearing everyone down.
+- **D0325** (original line 76): Understand what was promised and why it matters.
+- **D0326** (original line 77): Ask about the promise
+- **D0327** (original line 77): They promised to return with medicine for an elderly neighbor.
+- **D0328** (original line 78): Read the last letter together
+- **D0329** (original line 78): The letter says the western bridge was damaged and travel might be delayed.
+- **D0330** (original line 80): Find a practical way to keep the promise alive.
+- **D0331** (original line 81): Check the departure ledger
+- **D0332** (original line 81): A traveler with their name booked passage on a later northbound train.
+- **D0333** (original line 82): Ask the mail runner about delays
+- **D0334** (original line 82): The mail runner confirms the bridge detour adds several days.
+- **D0335** (original line 83): Inventory the neighbor's medicine
+- **D0336** (original line 83): There is enough for a few days, but a backup supply would ease the fear.
+- **D0337** (original line 85): Choose a compassionate plan that does not leave anyone stranded.
+- **D0338** (original line 86): Leave messages along the later route
+- **D0339** (original line 86): They will know where we are, and we will know where to listen for news.
+- **D0340** (original line 87): Arrange medicine while the friend travels
+- **D0341** (original line 87): The neighbor is cared for without treating the promise as broken.
+- **D0342** (original line 88): Set a safe check-in date before moving on
+- **D0343** (original line 88): Waiting has an end point now, and nobody has to choose in panic.
+- **D0344** (original line 91): The promise feels possible again—not because anyone ignored the delay, but because the community made a plan.
+- **D0345** (original line 161): Return to this critter to continue the conversation.
+- **D0346** (original line 172): Agree on a compassionate solution.
+- **D0347** (original line 193):  I knew I could trust you to listen.
+- **D0348** (original line 193):  I will remember that you listened.
+- **D0349** (original line 205): Helping Hand
+- **D0350** (original line 208): Helping Hand
+- **D0351** (original line 211): Helping Hand
+- **D0352** (original line 217): duplicate reward
+
+## game/journey_rules.lua
+
+- **D0353** (original line 3): journey rules require 
+- **D0354** (original line 4): journey rules 
+- **D0355** (original line 66):  in your 
+- **D0356** (original line 67):  XP, +
+- **D0357** (original line 67):  coal, +
+- **D0358** (original line 67):  scrap, and 
+- **D0359** (original line 67):   LEVEL UP!
+- **D0360** (original line 80):  reached their stop: 
+- **D0361** (original line 104): Thank you!
+- **D0362** (original line 148):  goodwill. Total goodwill: 
+- **D0363** (original line 158): That is exactly what we needed. Thank you! +
+- **D0364** (original line 158):  goodwill. Total goodwill: 
+- **D0365** (original line 160): Thank you for offering. Please bring me 
+- **D0366** (original line 160):  when you find one.
+- **D0367** (original line 171): Find a medical supply and return to the wounded critter.
+- **D0368** (original line 172): I still need medical help, but you'll need a bandage, salve, tonic, splint, or medkit before we can begin.
+- **D0369** (original line 175): Find the small cut, then complete all five treatment steps.
+- **D0370** (original line 189): Thank you. Find 
+- **D0371** (original line 189):  at stop 
+- **D0372** (original line 189):  scrap, 
+- **D0373** (original line 189):  XP, coal, and 
+- **D0374** (original line 198): Thank you! I'll help as your 
+- **D0375** (original line 198):  until stop 
+- **D0376** (original line 198): . Arrival reward: 
+- **D0377** (original line 198):  scrap, 
+- **D0378** (original line 198):  XP, coal, and loot.
+- **D0379** (original line 217):  scrap, 
+- **D0380** (original line 217):  XP, coal, and 
+- **D0381** (original line 231): That feels much better. The cut is clean, covered, and wrapped. +
+- **D0382** (original line 231):  goodwill. Total goodwill: 
+- **D0383** (original line 232): The medical supply went missing before the treatment was finished. We can try again.
+- **D0384** (original line 234): Return to the wounded critter to try treatment again.
+- **D0385** (original line 235): That did not work, but thank you for trying. We can try again when you're ready.
+- **D0386** (original line 237): Return to the wounded critter to continue treatment.
+- **D0387** (original line 238): We can continue the treatment when you're ready.
+- **D0388** (original line 251): The keepsake is still somewhere in the dangerous area. Make the stop safe first.
+- **D0389** (original line 252): You still need 
+- **D0390** (original line 252):  more for this delivery (
+- **D0391** (original line 252):  total). Nothing has been taken yet.
+- **D0392** (original line 287): I've got supplies to trade. Want to take a look?
+
+## game/quest_progression.lua
+
+- **D0393** (original line 7): 3 food portions
+- **D0394** (original line 7): FOOD SUPPLIES
+- **D0395** (original line 7): Settlers farther west are hungry. Could you deliver three food portions?
+- **D0396** (original line 7): Please take three food portions to stop %d. Your backpack food will be used first, then the train pantry.
+- **D0397** (original line 7): Those food supplies will keep us going. Thank you!
+- **D0398** (original line 8): 3 water supplies
+- **D0399** (original line 8): WATER SUPPLIES
+- **D0400** (original line 8): Our neighbors' well ran dry. Could you deliver three water supplies?
+- **D0401** (original line 8): Please take three water supplies to stop %d. Bottled water will be used first, then the train tank.
+- **D0402** (original line 8): Clean water means everything out here. Thank you!
+- **D0403** (original line 9): 2 medical supplies
+- **D0404** (original line 9): MEDICAL SUPPLIES
+- **D0405** (original line 9): The next settlement is running out of medicine. Could you bring them two medical supplies?
+- **D0406** (original line 9): Please bring two bandages, salves, tonics, splints, or medkits to stop %d.
+- **D0407** (original line 9): This medicine will save lives. Thank you!
+- **D0408** (original line 10): 3 repair materials
+- **D0409** (original line 10): REPAIR MATERIALS
+- **D0410** (original line 10): A settlement farther on needs materials to repair its pump. Can you bring three?
+- **D0411** (original line 10): Please bring three repair materials to stop %d. Coal or oil canisters in your pack count before train coal.
+- **D0412** (original line 10): We can get the pump running again. Thank you!
+- **D0413** (original line 11): 8 rounds of ammunition
+- **D0414** (original line 11): Bandits have been circling the next settlement. Could you spare eight rounds of ammunition?
+- **D0415** (original line 11): Please deliver eight rounds from your ammunition reserves to stop %d.
+- **D0416** (original line 11): Now we can defend the settlement. Thank you!
+- **D0417** (original line 12): a lost keepsake
+- **D0418** (original line 12): A family lost a keepsake near the next settlement. Could you search for it once the area is safe?
+- **D0419** (original line 12): Search the area around stop %d after dealing with any danger there.
+- **D0420** (original line 12): You found it. Our family will treasure this. Thank you!
+- **D0421** (original line 171): local supply crate
+- **D0422** (original line 188): MAIL delivery to Stop 
+- **D0423** (original line 192):  to Stop 
+- **D0424** (original line 195): PASSENGER ride to Stop 
+
+## game/stop_help_progression.lua
+
+- **D0425** (original line 1): game.npc_relationships
+- **D0426** (original line 2): game.help_quest_session
+- **D0427** (original line 7): a bottle of clean water
+- **D0428** (original line 7): Our well tastes like rust. Could you spare a bottle of clean water?
+- **D0429** (original line 8): a food ration
+- **D0430** (original line 8): We have a hungry youngster here. Could you spare a food ration?
+- **D0431** (original line 9): a bandage roll
+- **D0432** (original line 9): We used our last clean bandage. Could you bring us a bandage roll?
+- **D0433** (original line 10): a chunk of coal
+- **D0434** (original line 10): The night will be cold. Could you spare a chunk of coal for our stove?
+- **D0435** (original line 11): a small oil canister
+- **D0436** (original line 11): Our water pump is seizing up. Could you spare a small oil canister?
+- **D0437** (original line 30): Trail Guardian
+- **D0438** (original line 30): A whole network of settlements remembers your help.
+- **D0439** (original line 31): Trusted Friend
+- **D0440** (original line 31): Families along the rails know they can rely on you.
+- **D0441** (original line 32): Helping Hand
+- **D0442** (original line 32): Word of your kindness is spreading down the tracks.
+- **D0443** (original line 33): New Neighbor
+- **D0444** (original line 33): Every act of help can make the frontier kinder.
+- **D0445** (original line 66): I've been hurt. This small cut needs medical help - could you treat it?
+- **D0446** (original line 70): TREAT A WOUNDED CRITTER
+- **D0447** (original line 70): BRING A NEEDED ITEM
+- **D0448** (original line 71): Talk to the wounded critter and offer treatment.
+- **D0449** (original line 72): the requested item
+- **D0450** (original line 77): This critter was already helped.
+- **D0451** (original line 111):  and return to this critter.
+- **D0452** (original line 114): Give the requested item to the critter.
+- **D0453** (original line 118): The requested item was delivered.
+- **D0454** (original line 134): The wounded critter was treated.
+- **D0455** (original line 145): settler.png
+- **D0456** (original line 146): medic.png
+- **D0457** (original line 148): settler.png
+- **D0458** (original line 149): medic.png
+- **D0459** (original line 152): Helping Hand
+
+## game/gameplay_input.lua
+
+- **D0460** (original line 1): game.accessibility
+- **D0461** (original line 2): game.world_pause
+- **D0462** (original line 7): gameplay input 
+- **D0463** (original line 128): The next leg still needs 
+- **D0464** (original line 192):  sent to the train mailbox.
+- **D0465** (original line 193):  added to ammunition reserves.
+- **D0466** (original line 197): Not enough scrap.
+- **D0467** (original line 198): Your backpack and train mailbox are full.
+- **D0468** (original line 198): Your backpack is full.
+- **D0469** (original line 199): That item is no longer available.
+- **D0470** (original line 208): The caravan cannot afford that item.
+- **D0471** (original line 208): This merchant cannot afford that item.
+- **D0472** (original line 272): Train Workshop
+- **D0473** (original line 272):  installed! Future journeys use fewer supplies and finish faster.
+- **D0474** (original line 275): Train Workshop
+- **D0475** (original line 275):  added to your train! 
+- **D0476** (original line 295): This stays aboard the train.
+- **D0477** (original line 296): Empty this container before picking it up.
+- **D0478** (original line 367): I understand. Safe travels.
+- **D0479** (original line 389): The next leg still needs 
+- **D0480** (original line 469): game.interaction_beacon
+- **D0481** (original line 600): Choose a highlighted terrain piece to move.
+- **D0482** (original line 607): I understand. Safe travels.
+- **D0483** (original line 682): game.interaction_beacon
+
+## game/inventory_actions.lua
+
+- **D0484** (original line 3): inventory actions require 
+- **D0485** (original line 4): inventory actions 
+- **D0486** (original line 77): Weapon Given
+- **D0487** (original line 77):  is now equipped by your ally.
+- **D0488** (original line 82): Your current backpack already carries at least that much.
+- **D0489** (original line 84): Equipped! Carry capacity increased to 
+- **D0490** (original line 89): Special Heart
+- **D0491** (original line 89): Your maximum health increased by 5!
+- **D0492** (original line 94):  It will activate at the next battle.
+- **D0493** (original line 105): Oil storage is full.
+- **D0494** (original line 105): Food and water storage are full.
+- **D0495** (original line 105): Food storage is full.
+- **D0496** (original line 105): Water storage is full.
+- **D0497** (original line 106): Storage Full
+- **D0498** (original line 113):  train oil.
+- **D0499** (original line 113): That helped. 
+- **D0500** (original line 113): Supplies restored.
+- **D0501** (original line 120): This stays aboard the train.
+- **D0502** (original line 123): Special Heart
+- **D0503** (original line 123): Your maximum health increased by 5!
+- **D0504** (original line 128): Picked up 
+- **D0505** (original line 131): Empty this container before picking it up.
+- **D0506** (original line 134): Backpack Full
+- **D0507** (original line 134): There is no room in your backpack.
+- **D0508** (original line 150): Storage Full
+- **D0509** (original line 150): Coal storage is full.
+- **D0510** (original line 154): Bring me coal from your backpack!
+- **D0511** (original line 158): That's the good stuff!  +
+- **D0512** (original line 178): Train Workshop
+- **D0513** (original line 178):  repaired to 100% for 
+
+## game/world_scene.lua
+
+- **D0514** (original line 4): world scene 
+- **D0515** (original line 134): VISIT CROW CARAVAN
+- **D0516** (original line 146): Crow Caravan
+- **D0517** (original line 146): Only wagon tracks remain here.
+- **D0518** (original line 146): The caravan cannot make camp here yet.
+- **D0519** (original line 162): Warm your paws. Three wagons, three trades, and no trouble inside the firelight.
+- **D0520** (original line 163): The rails cross our road again. The flock saved its better crates for you.
+- **D0521** (original line 164): There you are, rail-friend. See what the Rookery gathered beyond the next bend.
+- **D0522** (original line 165): Back for another look? The wagons have not rolled on yet.
+- **D0523** (original line 166): The Rookery Caravan
+- **D0524** (original line 211):   •  THE ROOKERY CARAVAN
+- **D0525** (original line 231): 'S TRADING POST
+- **D0526** (original line 254): The Rookery Caravan crow banner sprite has invalid dimensions
+- **D0527** (original line 311): Target Range
+
+## game/last_stand_quest.lua
+
+- **D0528** (original line 1): game.last_stand_scene
+- **D0529** (original line 2): game.last_stand_shootout
+- **D0530** (original line 3): game.first_aid
+- **D0531** (original line 4): game.world_pause
+- **D0532** (original line 5): game.first_person_shooting
+- **D0533** (original line 6): game.last_stand_tuning
+- **D0534** (original line 12): My friends are trapped at a farmhouse beyond the town. A railway gang has them pinned from an old relay depot.
+- **D0535** (original line 13): The wounded are in the yard. The others are holding two front windows, but they cannot hold them forever.
+- **D0536** (original line 14): Come with me. Help us keep those windows firing until the gang loses its nerve.
+- **D0537** (original line 15): The relay is about three hundred meters across the fields. We need to hold for three minutes and break their will to fight.
+- **D0538** (original line 16): Guard Fox has a spare lever rifle and ammunition. If your own gun runs dry, ask for it. Nobody will leave you without a way to help.
+- **D0539** (original line 35): last stand quest 
+- **D0540** (original line 190): Otter Scout
+- **D0541** (original line 190): I understand. If you change your mind, I will keep looking for help.
+- **D0542** (original line 200): Guard Fox lends you a Frontier .22 lever rifle and 48 rounds.
+- **D0543** (original line 200): Guard Fox passes you another pouch of .22 ammunition.
+- **D0544** (original line 222): Guard Fox: Your window. I will cover the other side.
+- **D0545** (original line 223): Gecko Ranger: Taking a step back. You have the narrow angle.
+- **D0546** (original line 231): The dressing holds. The defender can rest, and another pair of paws is free to help.
+- **D0547** (original line 251): Guard Fox: We will mend the house. Take your time, and find the scout when you are ready.
+- **D0548** (original line 252): Guard Fox: They have broken for the tracks. Check on the others, then come back to me.
+- **D0549** (original line 253): Guard Fox: Use either window. Call for my spare rifle with L if yours runs dry.
+- **D0550** (original line 257): Gecko Ranger: Not another shot. You gave this family time to get through it.
+- **D0551** (original line 258): Gecko Ranger: The narrow window gives better cover. Duck when they raise their rifles.
+- **D0552** (original line 261): Otter Scout: We will bring the wounded into town when they can travel. I can lead you back through the gate.
+- **D0553** (original line 262): Otter Scout: The wounded are behind the house. The gate leads safely back to the stop.
+- **D0554** (original line 266): The defender is resting comfortably. Your dressing is holding.
+- **D0555** (original line 270): house medical supplies
+- **D0556** (original line 275): Check on a resident and speak to Guard Fox before leaving. They want to thank you.
+- **D0557** (original line 285): Otter Scout
+- **D0558** (original line 285): I will wait by the trail. Your friends are keeping the position until you return.
+- **D0559** (original line 338): Otter Scout
+- **D0560** (original line 339): They are safe. The relay gang will think twice before coming back.
+- **D0561** (original line 514): Guard Fox pulls you below the window, badly wounded. Your health is still low. Return to the train to heal before trying again.
+- **D0562** (original line 515): The defenders pull you back. The current phase will restart; earlier progress and eliminations are safe.
+- **D0563** (original line 525): Gecko Ranger: They are leaving the windows. Check on the residents, then speak to Guard Fox.
+- **D0564** (original line 580): The pinned-down critters are counting on you. The back door remains open.
+- **D0565** (original line 750): A LIGHT IN THE WINDOWS
+- **D0566** (original line 757): I'LL HELP  [Y]
+- **D0567** (original line 758): NOT NOW  [N]
+- **D0568** (original line 763): HOW BAD IS IT?  [Q]
+- **D0569** (original line 764): WHAT ABOUT AMMO?  [F]
+- **D0570** (original line 776): guard-fox.png
+- **D0571** (original line 788): THE RELAY GOES QUIET
+- **D0572** (original line 789): The gang has withdrawn. The defenders lower their weapons one by one. Reward: 
+- **D0573** (original line 789):  scrap, 3 goodwill, and 2 food.
+- **D0574** (original line 796): RETURN TO THE STOP  [E]
+- **D0575** (original line 800): STAY A LITTLE LONGER  [T]
+- **D0576** (original line 809): Press P, Enter, or tap to return to the defense.
+
+## game/last_stand_tuning.lua
+
+- **D0577** (original line 13): Finding the rhythm
+- **D0578** (original line 15): Guard Fox: That bought us a breath. Check your ammunition and anyone in the yard.
+- **D0579** (original line 16): Holding under pressure
+- **D0580** (original line 17): Gecko Ranger: They are moving shooters through the loading bays. The upper floor is still their best angle.
+- **D0581** (original line 18): Breaking their nerve
+
+## game/last_stand_shootout.lua
+
+- **D0582** (original line 1): game.first_person_shooting
+- **D0583** (original line 2): game.window_scene
+- **D0584** (original line 3): game.last_stand_tuning
+- **D0585** (original line 4): game.typography
+- **D0586** (original line 5): game.accessibility
+- **D0587** (original line 110): You were hit! Take cover below the window.
+- **D0588** (original line 261): They are pulling back. Hold your fire and watch the doors.
+- **D0589** (original line 287): No rounds available to reload.
+- **D0590** (original line 300): HOUSE RIFLE: 
+- **D0591** (original line 300): YOUR WEAPON: 
+- **D0592** (original line 311): Guard Fox: Take my lever rifle. Forty-eight rounds.
+- **D0593** (original line 312): Guard Fox: Another pouch. Make every shot count.
+- **D0594** (original line 313): Guard Fox: Your house rifle is ready with its remaining ammunition.
+- **D0595** (original line 323): Magazine empty. Press R to reload.
+- **D0596** (original line 323): The weapon is not ready.
+- **D0597** (original line 372): The defenders pull back, regroup, and reopen the firing line.
+- **D0598** (original line 520): HOLD  
+- **D0599** (original line 521): HOSTILES  
+- **D0600** (original line 522): MORALE  
+- **D0601** (original line 526): HEALTH  
+- **D0602** (original line 527): POSITION  
+- **D0603** (original line 529): MAG  
+- **D0604** (original line 530): ROUNDS  
+- **D0605** (original line 545): Hold the grip. Second touch or FIRE to shoot.
+- **D0606** (original line 546): LMB fire  •  RMB aim  •  R reload  •  C cover  •  TAB weapon  •  ESC leave
+- **D0607** (original line 551): IN COVER  •  PROTECTED\n
+- **D0608** (original line 551): Tap COVER to return to the window
+- **D0609** (original line 551): [C] Return to the window
+- **D0610** (original line 567): GUARD FOX
+- **D0611** (original line 570): You are dry again. I found another pouch of .22s.
+- **D0612** (original line 570): Use my lever rifle and ammunition. It comes back when this is over.
+- **D0613** (original line 577): TAKE AMMO
+- **D0614** (original line 577): USE FOX'S RIFLE
+- **D0615** (original line 586): THE FIRING LINE GIVES WAY
+- **D0616** (original line 588): The defenders pull everyone back from the windows. Your progress is saved. Stabilize the position to continue.
+- **D0617** (original line 593): REGROUP AND RETRY
+
+## game/events.lua
+
+- **D0618** (original line 2): game.loot_progression
+- **D0619** (original line 16): RAIL BANDITS
+- **D0620** (original line 16): Masked scavengers have chained scrap across the rails and demand your provisions.
+- **D0621** (original line 17): BREAK THE BLOCKADE
+- **D0622** (original line 17): Fight for valuable gear; risk health and ammunition.
+- **D0623** (original line 18): PAY THE TOLL
+- **D0624** (original line 18): Lose supplies, but avoid wounds.
+- **D0625** (original line 19): CUT A SIDE PATH
+- **D0626** (original line 19): Spend coal and arrive safely with a little salvage.
+- **D0627** (original line 20): NEST IN THE TUNNEL
+- **D0628** (original line 20): Mutated creatures have nested between the sleepers inside a dark tunnel.
+- **D0629** (original line 21): CLEAR THE NEST
+- **D0630** (original line 21): Hard fight; strong weapon and ammunition rewards.
+- **D0631** (original line 22): SMOKE THEM OUT
+- **D0632** (original line 22): Spend coal and lose some health, but collect scrap.
+- **D0633** (original line 23): WAIT FOR DAYLIGHT
+- **D0634** (original line 23): Lose food and water, avoiding combat.
+- **D0635** (original line 24): DERAILED RAIDERS
+- **D0636** (original line 24): Raiders are stripping a derailed freight car and turn their weapons toward your train.
+- **D0637** (original line 25): TAKE THE FREIGHT
+- **D0638** (original line 25): Fight multiple raiders for premium loot.
+- **D0639** (original line 26): TRADE INFORMATION
+- **D0640** (original line 26): Spend scrap to learn a safe route and gain water.
+- **D0641** (original line 27): BACK THE TRAIN UP
+- **D0642** (original line 27): Burn extra coal and avoid the confrontation.
+- **D0643** (original line 28): AMBUSH AT THE BRIDGE
+- **D0644** (original line 28): Shapes move beneath a patched bridge as the locomotive slows to cross.
+- **D0645** (original line 29): CHARGE ACROSS
+- **D0646** (original line 29): Immediate battle with increased salvage.
+- **D0647** (original line 30): REINFORCE THE BRIDGE
+- **D0648** (original line 30): Spend supplies and cross without a fight.
+- **D0649** (original line 31): SCOUT THE RIVERBED
+- **D0650** (original line 31): Risk injury but uncover ammunition.
+- **D0651** (original line 32): NIGHT STALKERS
+- **D0652** (original line 32): Glowing eyes pace the train while everyone tries to sleep.
+- **D0653** (original line 33): HUNT THE PACK
+- **D0654** (original line 33): Dangerous battle; excellent equipment reward.
+- **D0655** (original line 34): KEEP THE FIRE HIGH
+- **D0656** (original line 34): Consume coal and remain safe.
+- **D0657** (original line 35): MOVE WITHOUT LIGHTS
+- **D0658** (original line 35): Save fuel but suffer damage and lose food.
+- **D0659** (original line 38): THE DRY CAMP
+- **D0660** (original line 38): A tired family has no water left and their cart animal cannot stand.
+- **D0661** (original line 39): SHARE WATER
+- **D0662** (original line 39): Lose water; receive scrap and goodwill.
+- **D0663** (original line 40): REPAIR THEIR CART
+- **D0664** (original line 40): Spend coal and gain a useful item.
+- **D0665** (original line 41): MARK A WELL
+- **D0666** (original line 41): No cost or reward, but they can help themselves.
+- **D0667** (original line 42): INJURED COURIER
+- **D0668** (original line 42): A courier lies beside a torn mailbag while shapes circle in the brush.
+- **D0669** (original line 43): TREAT THE WOUND
+- **D0670** (original line 43): Use food and gain medicine plus scrap.
+- **D0671** (original line 44): ESCORT THE COURIER
+- **D0672** (original line 44): Fight the circling mobs for good loot.
+- **D0673** (original line 45): TAKE THE MAIL WEST
+- **D0674** (original line 45): Lose time and water, but gain scrap.
+- **D0675** (original line 46): SETTLEMENT PUMP
+- **D0676** (original line 46): A settlement's hand pump has seized and their storage jars are nearly empty.
+- **D0677** (original line 47): FIX THE PUMP
+- **D0678** (original line 47): Spend coal; settlers share food and water.
+- **D0679** (original line 48): DONATE WATER
+- **D0680** (original line 48): Large water cost, larger scrap reward.
+- **D0681** (original line 49): POINT TO THE OLD ROAD
+- **D0682** (original line 49): Share a safe route without spending supplies.
+- **D0683** (original line 50): LOST CARAVAN
+- **D0684** (original line 50): A caravan has followed old rails into a dead end and asks for directions west.
+- **D0685** (original line 51): GUIDE THEM PERSONALLY
+- **D0686** (original line 51): Spend food and water; earn a rare item.
+- **D0687** (original line 52): DRAW A ROUTE
+- **D0688** (original line 52): Small food cost for scrap.
+- **D0689** (original line 53): POINT TO THE TRACKS
+- **D0690** (original line 53): Neutral; save your provisions.
+- **D0691** (original line 54): COLD NIGHT SHELTER
+- **D0692** (original line 54): Several critters huddle around a dead stove while freezing wind tears at their tent.
+- **D0693** (original line 55): SHARE THE TRAIN
+- **D0694** (original line 55): Spend food; receive coal and medicine.
+- **D0695** (original line 56): REPAIR THE STOVE
+- **D0696** (original line 56): Spend coal; receive scrap and ammunition.
+- **D0697** (original line 57): BUILD A WINDBREAK
+- **D0698** (original line 57): Help them brace the tent without spending supplies.
+- **D0699** (original line 60): SEALED PANTRY
+- **D0700** (original line 60): A collapsed station wall hides a pantry untouched since the flash.
+- **D0701** (original line 61): OPEN IT CAREFULLY
+- **D0702** (original line 61): Gain food and water, spend time and health.
+- **D0703** (original line 62): PRY OUT THE LOCKBOX
+- **D0704** (original line 62): Gain a scaled item and scrap.
+- **D0705** (original line 63): MARK IT FOR OTHERS
+- **D0706** (original line 63): Take only a little food.
+- **D0707** (original line 64): EXPOSED COAL SEAM
+- **D0708** (original line 64): Rain has uncovered a dark coal seam beside the tracks.
+- **D0709** (original line 65): MINE DEEPLY
+- **D0710** (original line 65): Gain plenty of coal, lose health.
+- **D0711** (original line 66): TAKE THE LOOSE PIECES
+- **D0712** (original line 66): Safe, moderate coal reward.
+- **D0713** (original line 67): SEARCH THE CUT
+- **D0714** (original line 67): Gain scrap and ammunition instead.
+- **D0715** (original line 68): OLD RELIEF CACHE
+- **D0716** (original line 68): A faded relief marker points toward buried emergency supplies.
+- **D0717** (original line 69): DIG UP EVERYTHING
+- **D0718** (original line 69): Gain mixed supplies but lose health.
+- **D0719** (original line 70): TAKE THE MEDICAL CASE
+- **D0720** (original line 70): Receive scaled medicine.
+- **D0721** (original line 71): TAKE THE AMMO TIN
+- **D0722** (original line 71): Receive level-appropriate ammunition.
+- **D0723** (original line 72): TRAVELING TINKER
+- **D0724** (original line 72): A cheerful tinker offers one favorable exchange before moving east.
+- **D0725** (original line 73): BUY A WEAPON
+- **D0726** (original line 73): Spend scrap for a scaled weapon.
+- **D0727** (original line 74): BUY PROVISIONS
+- **D0728** (original line 74): Spend scrap for food and water.
+- **D0729** (original line 75): TRADE STORIES
+- **D0730** (original line 75): No cost; the tinker gifts a little scrap.
+- **D0731** (original line 76): CLEAN RAIN
+- **D0732** (original line 76): A brief clean storm fills every sound container around the stop.
+- **D0733** (original line 77): FILL EVERY VESSEL
+- **D0734** (original line 77): Gain lots of water but lose food to wet storage.
+- **D0735** (original line 78): WASH AND REST
+- **D0736** (original line 78): Recover health and some water.
+- **D0737** (original line 79): KEEP MOVING
+- **D0738** (original line 79): Gain a little water without delay.
+- **D0739** (original line 82): BROKEN AXLE
+- **D0740** (original line 82): The train lurches sideways as a patched axle begins to split.
+- **D0741** (original line 83): USE PROPER PARTS
+- **D0742** (original line 83): Spend scrap and coal; avoid injury.
+- **D0743** (original line 84): IMPROVISE A SPLINT
+- **D0744** (original line 84): Lose health but use less coal.
+- **D0745** (original line 85): LIMP TO THE STOP
+- **D0746** (original line 85): Use whatever food and water remain; this last resort never blocks.
+- **D0747** (original line 86): SPOILED RATIONS
+- **D0748** (original line 86): A leaking roof has soaked several sacks of food.
+- **D0749** (original line 87): SALVAGE WHAT YOU CAN
+- **D0750** (original line 87): Lose some food and health.
+- **D0751** (original line 88): BURN THE SPOILED FOOD
+- **D0752** (original line 88): Lose more food; preserve health.
+- **D0753** (original line 89): DISCARD WHAT REMAINS
+- **D0754** (original line 89): Lose up to two food; this last resort never blocks.
+- **D0755** (original line 90): DRY BOILER
+- **D0756** (original line 90): The boiler drinks the last clean water during a steep climb.
+- **D0757** (original line 91): USE DRINKING WATER
+- **D0758** (original line 91): Lose water but protect the engine.
+- **D0759** (original line 92): RUN IT LOW
+- **D0760** (original line 92): Lose health and coal from the rough ride.
+- **D0761** (original line 93): COLLECT MUDDY WATER
+- **D0762** (original line 93): Use what water remains and risk health; this last resort never blocks.
+- **D0763** (original line 94): SHIFTING CARGO
+- **D0764** (original line 94): A hard turn sends unsecured furniture and crates across the car.
+- **D0765** (original line 95): STOP AND SECURE IT
+- **D0766** (original line 95): Lose coal and water.
+- **D0767** (original line 96): CATCH THE HEAVY CRATE
+- **D0768** (original line 96): Lose health but find scrap.
+- **D0769** (original line 97): LET IT SETTLE
+- **D0770** (original line 97): Risk one backpack item; this last resort never blocks.
+- **D0771** (original line 98): ASH STORM
+- **D0772** (original line 98): A wall of ash swallows the tracks and chokes the locomotive.
+- **D0773** (original line 99): PUSH THROUGH FAST
+- **D0774** (original line 99): Spend coal and suffer some damage.
+- **D0775** (original line 100): SEAL THE TRAIN
+- **D0776** (original line 100): Lose food and water while waiting.
+- **D0777** (original line 101): FOLLOW OLD SIGNALS
+- **D0778** (original line 101): Use whatever scrap and coal remain; this last resort never blocks.
+- **D0779** (original line 104): SETTLEMENT UNDER SIEGE
+- **D0780** (original line 104): A ring of mobs closes around a patched settlement while defenders wave from the roofs.
+- **D0781** (original line 105): JOIN THE DEFENDERS
+- **D0782** (original line 105): Large allied battle; premium rewards.
+- **D0783** (original line 106): EVACUATE THE CHILDREN
+- **D0784** (original line 106): Spend food and water; earn scrap and medicine.
+- **D0785** (original line 107): DRAW THE MOBS AWAY
+- **D0786** (original line 107): Lose coal and health; settlement survives.
+- **D0787** (original line 108): CARAVAN CIRCLE
+- **D0788** (original line 108): Travelers have circled their wagons as predators test the barricade.
+- **D0789** (original line 109): HOLD THE BARRICADE
+- **D0790** (original line 109): Fight beside three travelers for good gear.
+- **D0791** (original line 110): REPAIR THEIR WAGONS
+- **D0792** (original line 110): Spend coal; gain food, water, and scrap.
+- **D0793** (original line 111): COVER THEIR ESCAPE
+- **D0794** (original line 111): Lose ammunition and health; gain an item.
+- **D0795** (original line 112): FARM RAID
+- **D0796** (original line 112): Mutated pests tear through a settlement's final crop while farmers fight with tools.
+- **D0797** (original line 113): SAVE THE HARVEST
+- **D0798** (original line 113): Allied battle; receive food and scaled loot.
+- **D0799** (original line 114): MOVE THE FOOD
+- **D0800** (original line 114): Lose health; gain part of the harvest.
+- **D0801** (original line 115): FORTIFY THE HOUSE
+- **D0802** (original line 115): Spend scrap and coal; gain water.
+- **D0803** (original line 116): LAST STAND AT THE STATION
+- **D0804** (original line 116): A handful of railway workers are trapped inside an old signal house.
+- **D0805** (original line 117): STORM THE PLATFORM
+- **D0806** (original line 117): Hard allied battle with weapon reward.
+- **D0807** (original line 118): OPEN AN ESCAPE ROUTE
+- **D0808** (original line 118): Spend coal and health; gain scrap.
+- **D0809** (original line 119): DISTRACT THE PACK
+- **D0810** (original line 119): Spend food and water; recover ammo.
+- **D0811** (original line 120): REFUGEES AT THE BRIDGE
+- **D0812** (original line 120): Refugees are pinned against a broken bridge with nowhere left to run.
+- **D0813** (original line 121): FORM A FIRING LINE
+- **D0814** (original line 121): Large allied battle; best scaled loot.
+- **D0815** (original line 122): FERRY THEM ACROSS
+- **D0816** (original line 122): Lose food, water, and health; receive scrap.
+- **D0817** (original line 123): REBUILD THE SPAN
+- **D0818** (original line 123): Spend coal and scrap; gain supplies.
+- **D0819** (original line 126): THE EMPTY BEDROLL
+- **D0820** (original line 126): A tiny bedroll and a carved acorn token lie beside cold ashes. A young critter vanished before dawn.
+- **D0821** (original line 127): SEARCH THE CAMPSITE
+- **D0822** (original line 127): Lose water; recover the first clue.
+- **D0823** (original line 128): QUESTION THE CAMPERS
+- **D0824** (original line 128): Share food and learn which way the tracks lead.
+- **D0825** (original line 129): STUDY THE FOOTPRINTS
+- **D0826** (original line 129): Read the trail carefully without spending supplies.
+- **D0827** (original line 129): The acorn token bears three parallel scratches.
+- **D0828** (original line 130): PRINTS IN THE ASH
+- **D0829** (original line 130): Small pawprints cross a field of ash, joined by a much larger set of tracks.
+- **D0830** (original line 131): FOLLOW BOTH TRACKS
+- **D0831** (original line 131): Lose health; find the second clue and ammunition.
+- **D0832** (original line 132): CIRCLE AHEAD BY TRAIN
+- **D0833** (original line 132): Spend coal; intercept the trail safely.
+- **D0834** (original line 133): WATCH FROM COVER
+- **D0835** (original line 133): Study where the two trails separate.
+- **D0836** (original line 133): The larger tracks stop wherever old signal bells still hang.
+- **D0837** (original line 134): THE TORN RED THREAD
+- **D0838** (original line 134): A red thread matching the missing critter's scarf hangs from a thorn beside a service tunnel.
+- **D0839** (original line 135): ENTER THE TUNNEL
+- **D0840** (original line 135): Fight tunnel creatures and secure the clue.
+- **D0841** (original line 136): CLEAR THE ENTRANCE
+- **D0842** (original line 136): Spend coal and health to search safely.
+- **D0843** (original line 137): MARK IT AND LISTEN
+- **D0844** (original line 137): Lose food while waiting; hear a distant bell.
+- **D0845** (original line 137): The critter followed someone ringing a hand-sized railway bell.
+- **D0846** (original line 138): THE FALSE SIGNAL
+- **D0847** (original line 138): An abandoned signal flashes at night though no power reaches the tower.
+- **D0848** (original line 139): CLIMB THE TOWER
+- **D0849** (original line 139): Lose health; find a map marked with an acorn.
+- **D0850** (original line 140): POWER THE SIGNAL
+- **D0851** (original line 140): Spend coal and reveal the marked destination.
+- **D0852** (original line 141): WAIT FOR DAWN
+- **D0853** (original line 141): Observe the signal safely until its route is clear.
+- **D0854** (original line 141): The marked route ends at a garden built inside a ruined depot.
+- **D0855** (original line 142): THE DEPOT GARDEN
+- **D0856** (original line 142): A hidden garden fills a ruined depot. The missing youngster is safe, sheltering with a lonely old signal keeper.
+- **D0857** (original line 143): REUNITE THEM
+- **D0858** (original line 143): Spend food for a celebration; receive a rare reward.
+- **D0859** (original line 144): INVITE THE KEEPER ALONG
+- **D0860** (original line 144): Share water and receive equipment.
+- **D0861** (original line 145): REST IN THE GARDEN
+- **D0862** (original line 145): Recover health, food, and water.
+- **D0863** (original line 145): The missing critter is found alive. The acorn trail is complete.
+- **D0864** (original line 148): A FAMILIAR RIBBON
+- **D0865** (original line 148): A faded ribbon tied to a milepost matches one your family carried when they fled west.
+- **D0866** (original line 149): SEARCH THE MILEPOST
+- **D0867** (original line 149): Spend water; find a written date.
+- **D0868** (original line 149): ASK THE SETTLERS
+- **D0869** (original line 149): Share food; learn they passed safely.
+- **D0870** (original line 149): COPY THE MARK
+- **D0871** (original line 149): Take the clue without cost.
+- **D0872** (original line 149): Your family passed here only weeks before you.
+- **D0873** (original line 150): THE SOUP POT
+- **D0874** (original line 150): A cook remembers serving your family from a dented communal pot.
+- **D0875** (original line 151): HELP WITH SUPPER
+- **D0876** (original line 151): Spend food; receive details and water.
+- **D0877** (original line 151): TRADE A STORY
+- **D0878** (original line 151): Lose time and water; gain scrap.
+- **D0879** (original line 151): ASK WHICH WAY WEST
+- **D0880** (original line 151): Receive the clue without a reward.
+- **D0881** (original line 151): They followed the northern rail to avoid a bandit camp.
+- **D0882** (original line 152): WRITING ON THE WALL
+- **D0883** (original line 152): Your family name is scratched into the wall of an abandoned station.
+- **D0884** (original line 153): SEARCH THE STATION
+- **D0885** (original line 153): Risk injury; find medicine.
+- **D0886** (original line 153): LIGHT THE SIGNAL ROOM
+- **D0887** (original line 153): Spend coal and uncover a message.
+- **D0888** (original line 153): READ AND MOVE ON
+- **D0889** (original line 153): Take the clue safely.
+- **D0890** (original line 153): The message says they were headed toward a water tower settlement.
+- **D0891** (original line 154): THE WATER TOWER
+- **D0892** (original line 154): A water keeper recognizes the description of your family and saved something they left behind.
+- **D0893** (original line 155): REPAIR THE PUMP
+- **D0894** (original line 155): Spend coal; receive their keepsake and water.
+- **D0895** (original line 155): BUY THE KEEPSAKE BACK
+- **D0896** (original line 155): Spend scrap, preserve supplies.
+- **D0897** (original line 155): JUST HEAR THE STORY
+- **D0898** (original line 155): Take the clue neutrally.
+- **D0899** (original line 155): They traded their keepsake to buy medicine for an injured traveler.
+- **D0900** (original line 156): THE HEALED TRAVELER
+- **D0901** (original line 156): The traveler your family helped now guards a tiny roadside shrine.
+- **D0902** (original line 157): HELP GUARD THE SHRINE
+- **D0903** (original line 157): Fight mobs; earn scaled loot and the clue.
+- **D0904** (original line 157): LEAVE AN OFFERING
+- **D0905** (original line 157): Spend food and gain health.
+- **D0906** (original line 157): ASK ABOUT YOUR FAMILY
+- **D0907** (original line 157): Receive the clue safely.
+- **D0908** (original line 157): They were healthy, but traveling with a child who needed rest.
+- **D0909** (original line 158): THE CHILD'S DRAWING
+- **D0910** (original line 158): A child at a forest camp shows you a drawing of your family beside your train's red engine.
+- **D0911** (original line 159): GIVE THEM ART SUPPLIES
+- **D0912** (original line 159): Lose one item; gain scrap and the clue.
+- **D0913** (original line 159): SHARE A SWEET
+- **D0914** (original line 159): Spend food; receive the drawing.
+- **D0915** (original line 159): MEMORIZE THE DRAWING
+- **D0916** (original line 159): Keep supplies and take the clue.
+- **D0917** (original line 159): Mountains and a broken viaduct appear behind your family in the drawing.
+- **D0918** (original line 160): THE BROKEN VIADUCT
+- **D0919** (original line 160): At the viaduct, fresh repair marks carry your family's familiar three-line symbol.
+- **D0920** (original line 161): CROSS THEIR REPAIR
+- **D0921** (original line 161): Risk health and gain scrap.
+- **D0922** (original line 161): REINFORCE IT
+- **D0923** (original line 161): Spend coal and travel safely.
+- **D0924** (original line 161): CAMP BELOW THE BRIDGE
+- **D0925** (original line 161): Wait and study their route without spending supplies.
+- **D0926** (original line 161): They repaired the viaduct, then turned south toward warmer country.
+- **D0927** (original line 162): LETTER IN A BOTTLE
+- **D0928** (original line 162): A sealed bottle caught in desert reeds contains a note addressed to you.
+- **D0929** (original line 163): WADE INTO THE MARSH
+- **D0930** (original line 163): Lose health; retrieve the letter and water.
+- **D0931** (original line 163): HOOK IT WITH WIRE
+- **D0932** (original line 163): Spend scrap and preserve health.
+- **D0933** (original line 163): TRACE THE RIVERBANK
+- **D0934** (original line 163): Follow the bottle until it reaches shore.
+- **D0935** (original line 163): The letter says: 'Keep coming west. We are leaving signs where we can.'
+- **D0936** (original line 164): THE LAST EASTBOUND TRAIN
+- **D0937** (original line 164): An old conductor arrives from California carrying news of a family matching yours.
+- **D0938** (original line 165): TRADE RAIL MAPS
+- **D0939** (original line 165): Spend scrap; receive ammo and precise directions.
+- **D0940** (original line 165): SHARE PROVISIONS
+- **D0941** (original line 165): Spend food and water; receive a rare item.
+- **D0942** (original line 165): LISTEN CLOSELY
+- **D0943** (original line 165): Take the clue without cost.
+- **D0944** (original line 165): Your family reached a safe settlement less than fifty miles ahead.
+- **D0945** (original line 166): THE CALIFORNIA SIGN
+- **D0946** (original line 166): A hand-painted sign bears your family symbol and an arrow toward the final valley.
+- **D0947** (original line 167): FOLLOW IT NOW
+- **D0948** (original line 167): Spend coal; receive a family cache of supplies.
+- **D0949** (original line 167): HELP REPAIR THE SIGN
+- **D0950** (original line 167): Spend scrap; receive a weapon and ammunition.
+- **D0951** (original line 167): REST BEFORE THE LAST LEG
+- **D0952** (original line 167): Recover health and provisions.
+- **D0953** (original line 167): The trail is complete. Your family is waiting in the California valley.
+- **D0954** (original line 318): The journey continues.
+- **D0955** (original line 332):  Event loot: 
+
+## game/finale_progression.lua
+
+- **D0956** (original line 4): BUILD A SAFE HAVEN
+- **D0957** (original line 4): Turn the valley depot into a home for travelers and separated families.
+- **D0958** (original line 5): REST WITH YOUR FAMILY
+- **D0959** (original line 5): Let the engine cool and give your reunited family the time they lost.
+- **D0960** (original line 6): KEEP THE TRAIN RUNNING
+- **D0961** (original line 6): Invite your family aboard and carry relief back along the rails.
+- **D0962** (original line 10): The depot becomes an open door: a safe bed, a shared meal, and a message board where scattered families find one another.
+- **D0963** (original line 11): The train finally rests beneath the valley trees while your family rebuilds a home around the engine that brought you back together.
+- **D0964** (original line 12): Your family climbs aboard. Together, you turn the old train east again, carrying medicine, letters, and hope to every stop behind you.
+- **D0965** (original line 16): FRONTIER BEACON
+- **D0966** (original line 16): Your arrival changes more than one valley. The network you built becomes a promise that no settlement has to stand alone.
+- **D0967** (original line 17): RAILWAY OF HOPE
+- **D0968** (original line 17): Friends already know your whistle. The railway becomes a trusted path between families, farms, and safe settlements.
+- **D0969** (original line 18): HOME AT LAST
+- **D0970** (original line 18): The journey ends in safety and reunion. The kindness you managed along the way gives the valley somewhere good to begin.
+- **D0971** (original line 45): The ten clues lead straight to the California valley. Your family is waiting beside the three-line mark from the trail.
+- **D0972** (original line 46): The clues run thin near the valley, but the settlers you helped carry your name ahead. At the depot, your family recognizes the old red engine.
+- **D0973** (original line 47): You reach the valley with only fragments of the trail. Word passed between travelers and settlements does what the missing clues could not: your family finds your train.
+- **D0974** (original line 72): HOME AT LAST
+- **D0975** (original line 72): RAILWAY OF HOPE
+- **D0976** (original line 72): FRONTIER BEACON
+
+## game/screen_ui.lua
+
+- **D0977** (original line 1): game.accessibility
+- **D0978** (original line 2): game.typography
+- **D0979** (original line 7): screen UI 
+- **D0980** (original line 101): MAX LEVEL
+- **D0981** (original line 109): No ranged weapon
+- **D0982** (original line 125): MAX LEVEL
+- **D0983** (original line 177): Quit Game?
+- **D0984** (original line 177): Return to Title Screen?
+- **D0985** (original line 193): MOUSE FRONTIER
+- **D0986** (original line 196): Choose a journey
+- **D0987** (original line 203): New journey
+- **D0988** (original line 212): NEW GAME
+- **D0989** (original line 219): CHOOSE YOUR TRAVELER
+- **D0990** (original line 220): Tap a traveler to read their profile.
+- **D0991** (original line 251): ABILITY  
+- **D0992** (original line 253): TRAIT  
+- **D0993** (original line 262): TRAVELER PROFILE
+- **D0994** (original line 271): Your chosen traveler becomes the player. The others can be met along the journey.
+- **D0995** (original line 272): CHOOSE THIS TRAVELER
+- **D0996** (original line 310): 'S TRADING POST
+- **D0997** (original line 311): YOUR SCRAP 
+- **D0998** (original line 311):  / MERCHANT BUDGET 
+- **D0999** (original line 312): % buying discount
+- **D1000** (original line 322): FOR SALE
+- **D1001** (original line 323): YOUR ITEMS
+- **D1002** (original line 354): DONE TRADING
+- **D1003** (original line 365): THE MOUSE FRONTIER TRAIL
+- **D1004** (original line 366): Old City
+- **D1005** (original line 366): Deep Woods
+- **D1006** (original line 366): Pale City
+- **D1007** (original line 366): Autumn Wood
+- **D1008** (original line 395): Unexplored stop
+- **D1009** (original line 395): Danger nearby
+- **D1010** (original line 395): Mob cleared
+- **D1011** (original line 395): Peaceful stop
+- **D1012** (original line 399): No active deliveries or passengers.
+- **D1013** (original line 413): HELP A CRITTER
+- **D1014** (original line 414): Listen and choose a thoughtful response.
+- **D1015** (original line 424): CONTINUE LATER
+- **D1016** (original line 425): Press 1, 2, or 3 to choose
+- **D1017** (original line 439): YES, AGREE TO TRADE
+- **D1018** (original line 439): YES, I'LL HELP
+- **D1019** (original line 440): NO, DECLINE TRADE
+- **D1020** (original line 440): SORRY, NO
+- **D1021** (original line 451): TRAVEL TO STOP 
+- **D1022** (original line 452): Distance, terrain, passengers and train condition shape the cost of this journey.
+- **D1023** (original line 454): UNCHARTED — NAVIGATOR REQUIRED
+- **D1024** (original line 457):  passengers add 
+- **D1025** (original line 457):  food and water.
+- **D1026** (original line 458): LOW MAINTENANCE ADDS +
+- **D1027** (original line 461): CONFIRM JOURNEY
+- **D1028** (original line 461): NOT ENOUGH SUPPLIES
+- **D1029** (original line 475): TRAIN WORKSHOP
+- **D1030** (original line 482): MAX LEVEL
+- **D1031** (original line 493): REPAIR EQUIPPED  
+- **D1032** (original line 493): EQUIPPED WEAPONS READY
+- **D1033** (original line 501): MOVE / SCALE SELECTED ITEM
+- **D1034** (original line 501): SELECT A YELLOW HANDLE
+- **D1035** (original line 508): PICK UP
+- **D1036** (original line 531): HUE  
+- **D1037** (original line 532): SATURATION  
+- **D1038** (original line 547): THE LAST SWITCH
+- **D1039** (original line 550):   •  FAMILY CLUES 
+- **D1040** (original line 550): /10  •  MYSTERY CLUES 
+- **D1041** (original line 553): Your family asks what comes next. Choose the legacy this journey leaves behind.
+- **D1042** (original line 561): All three paths are hopeful. Your choice changes the final legacy, never a good-or-evil alignment.
+- **D1043** (original line 569): CAMPAIGN COMPLETE  •  RETURN
+

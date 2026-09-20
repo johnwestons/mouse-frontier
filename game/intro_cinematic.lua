@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local IntroCinematic = {}
 
 -- Anchors are proportions of the authored images so the mobile optimizer can
@@ -40,6 +41,7 @@ end
 
 function IntroCinematic.draw(intro,scenery,colors,width,height)
     love.graphics.clear(0,0,0,1)
+    WorldView.begin({fullscreen={width,height}})
     local background=scenery.introBackground
     local sceneScale=height/720
     local railY=height*backgroundRailRatio
@@ -79,6 +81,7 @@ function IntroCinematic.draw(intro,scenery,colors,width,height)
         love.graphics.draw(locomotive,couplerX,railY,0,.15*sceneScale,.15*sceneScale,1741,782)
     end
 
+    WorldView.finish()
     local hintAlpha=math.min(1,math.max(0,(intro.timer-.8)/.8))*math.min(1,math.max(0,(intro.duration-1-intro.timer)/.8))
     love.graphics.setColor(colors.cream[1],colors.cream[2],colors.cream[3],hintAlpha*.8)
     love.graphics.printf("PRESS ANY KEY OR CLICK TO SKIP",0,height-46,width,"center",0,.68,.68)

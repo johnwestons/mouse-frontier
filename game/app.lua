@@ -17,6 +17,7 @@ function App.mousereleased(...) return application.mousereleased(...) end
 function App.wheelmoved(...) return application.wheelmoved(...) end
 function App.keypressed(...) return application.keypressed(...) end
 function App.keyreleased(...) return application.keyreleased(...) end
+function App.textinput(...) return application.textinput(...) end
 function App.touchpressed(...) return application.touchpressed(...) end
 function App.touchmoved(...) return application.touchmoved(...) end
 function App.touchreleased(...) return application.touchreleased(...) end

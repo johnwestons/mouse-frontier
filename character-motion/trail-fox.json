@@ -1,0 +1,496 @@
+{
+  "version": 1,
+  "character": "trail-fox",
+  "animations": {
+    "idle_east": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_east": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_east": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_northeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_northeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_northeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_northeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_northeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_northeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_north": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_north.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_north": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_north.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_north": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_north.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_northwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_northwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_northwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_northwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_northwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_northwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_west": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_west.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_west": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_west.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_west": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_west.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_southwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_southwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_southwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_southwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_southwest": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_southwest.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_south": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_south.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_south": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_south.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_south": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_south.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "idle_southeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/idle_southeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "directional_idle",
+      "fps": 0.65,
+      "loop": true
+    },
+    "walk_southeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/walk_southeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 12.487804878048781,
+      "loop": true
+    },
+    "run_southeast": {
+      "path": "output/character-motion/trail-fox/normalized-v2/run_southeast.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 8,
+      "role": "gait",
+      "fps": 30.803252032520327,
+      "loop": true,
+      "gait_kind": "run",
+      "pose_order": [
+        "left_contact",
+        "left_load",
+        "flight_right_swing",
+        "right_reach",
+        "right_contact",
+        "right_load",
+        "flight_left_swing",
+        "left_reach"
+      ],
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    }
+  },
+  "directions": {
+    "east": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "run_animation": "run_east",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "run_animation": "run_northeast",
+      "mirror_x": false
+    },
+    "north": {
+      "walk_animation": "walk_north",
+      "idle_animation": "idle_north",
+      "run_animation": "run_north",
+      "mirror_x": false
+    },
+    "northwest": {
+      "walk_animation": "walk_northwest",
+      "idle_animation": "idle_northwest",
+      "run_animation": "run_northwest",
+      "mirror_x": false
+    },
+    "west": {
+      "walk_animation": "walk_west",
+      "idle_animation": "idle_west",
+      "run_animation": "run_west",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southwest",
+      "idle_animation": "idle_southwest",
+      "run_animation": "run_southwest",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south",
+      "idle_animation": "idle_south",
+      "run_animation": "run_south",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "run_animation": "run_southeast",
+      "mirror_x": false
+    }
+  },
+  "gait": {
+    "pose_order": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "pixels_per_frame": 2.5625,
+    "base_speed": 32,
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
+  },
+  "run_gait": {
+    "pose_order": [
+      "left_contact",
+      "left_load",
+      "flight_right_swing",
+      "right_reach",
+      "right_contact",
+      "right_load",
+      "flight_left_swing",
+      "left_reach"
+    ],
+    "pixels_per_frame": 6.005859375,
+    "base_speed": 185
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 8,
+    "center_tolerance": 14,
+    "center_metric": "core"
+  }
+}

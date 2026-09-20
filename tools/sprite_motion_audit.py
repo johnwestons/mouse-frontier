@@ -21,6 +21,9 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Sequence
 
+if __package__ in {None, ''}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 try:
     import numpy as np
     from PIL import Image, ImageDraw
@@ -267,6 +270,22 @@ def audit_animation(
     make_gif: bool, gait_duration_ms: int | None, issues: list[dict[str, Any]],
 ) -> dict[str, Any]:
     center_metric = validate_center_metric(settings)
+    clearance = None
+    if definition.get('gait_kind') == 'run' or 'ground_clearance' in definition:
+        from tools.character_gait_contract import RUN_PHASES, run_ground_clearance
+        try:
+            if definition.get('gait_kind') != 'run' or definition.get('role') != 'gait' or definition.get('frame_count') != 8:
+                raise ValueError('Flight framing is only valid for an explicit eight-frame run gait')
+            if definition.get('pose_order') != RUN_PHASES:
+                raise ValueError('Run pose_order must use the canonical contact/load/flight/reach phases')
+            clearance = run_ground_clearance(definition.get('ground_clearance'), definition.get('frame_height', 512))
+            pose_labels = RUN_PHASES
+            fps = definition.get('fps')
+            if not finite_number(fps) or fps <= 0:
+                raise ValueError('Run fps must be positive and finite')
+            gait_duration_ms = round(1000 / fps)
+        except (TypeError, ValueError) as exc:
+            issue(issues, 'error', 'invalid_run_contract', str(exc), animation=name)
     path, frames = load_frames(name, definition, project_root, issues)
     if not frames:
         return {"name": name, "path": str(path), "frames": []}
@@ -335,12 +354,14 @@ def audit_animation(
     }
     if len(usable) > 1:
         bottoms = [metric["bbox"][3] for metric in usable]
+        ground_positions = [metric['bbox'][3] + (clearance[metric['frame'] - 1] if clearance else 0) for metric in usable]
         tops = [metric["bbox"][1] for metric in usable]
         baseline_tolerance = int(settings.get("baseline_tolerance", max(4, round(frames[0].height * 0.015))))
-        if max(bottoms) - min(bottoms) > baseline_tolerance:
+        if max(ground_positions) - min(ground_positions) > baseline_tolerance:
             issue(
                 issues, "warning", "baseline_jitter", "foot baseline varies across the strip",
-                animation=name, details={"bottoms": bottoms, "tolerance": baseline_tolerance},
+                animation=name, details={"bottoms": bottoms, "tolerance": baseline_tolerance,
+                                         **({'ground_positions': ground_positions, 'ground_clearance': clearance} if clearance else {})},
             )
         if max(centers) - min(centers) > center_tolerance:
             issue(
@@ -410,7 +431,8 @@ def audit_animation(
             fps = float(definition.get("fps", 6) or 6)
             duration = round(1000 / max(0.1, fps))
         render_gif(frames, output_root / "previews" / f"{name}.gif", duration)
-    return {"name": name, "path": str(path), "frames": metrics, "center_metrics": center_metrics}
+    return {"name": name, "path": str(path), "frames": metrics, "center_metrics": center_metrics,
+            **({'ground_metrics': {'ground_clearance': clearance, 'positions': ground_positions}} if clearance else {})}
 
 
 def validate_gait(
@@ -457,6 +479,26 @@ def validate_gait(
                 f"gait animation has {definition.get('frame_count')} frames but the profile has {len(poses)} poses",
                 animation=name,
             )
+    run_names = {name for name, definition in animations.items()
+                 if name == 'run' or name.startswith('run_') or definition.get('gait_kind') == 'run'}
+    if run_names or 'run_gait' in manifest:
+        from tools.character_gait_contract import RUN_PHASES
+        run = manifest.get('run_gait', {})
+        if (not isinstance(run, dict) or run.get('pose_order') != RUN_PHASES
+                or not finite_number(run.get('pixels_per_frame')) or run.get('pixels_per_frame', 0) <= 0
+                or not finite_number(run.get('base_speed')) or run.get('base_speed', 0) <= 0):
+            issue(issues, 'error', 'invalid_run_gait', 'run_gait requires canonical flight phases and positive finite timing')
+        mapped = set()
+        for direction in CANONICAL_DIRECTIONS:
+            mapping = manifest.get('directions', {}).get(direction, {})
+            name = mapping.get('run_animation') if isinstance(mapping, dict) else None
+            definition = animations.get(name, {})
+            if name not in run_names or definition.get('gait_kind') != 'run' or definition.get('role') != 'gait':
+                issue(issues, 'error', 'missing_run_direction', f'{direction} requires an explicit run gait')
+            else:
+                mapped.add(name)
+        if len(mapped) != 8 or mapped != run_names:
+            issue(issues, 'error', 'incomplete_run_set', 'Shared run runtime requires exactly eight authored and mapped run strips')
     return profile
 
 

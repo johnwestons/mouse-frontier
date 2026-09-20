@@ -57,7 +57,8 @@ class RetiredStopActivityBehaviorTests(unittest.TestCase):
             local migrated,info=Schema.migrate(data)
             assert(migrated,info)
             assert(info.fromVersion==33 and info.toVersion==Schema.CURRENT_VERSION)
-            assert(info.steps==1 and info.rewriteRequired,'old saves must be rewritten after cleanup')
+            assert(info.steps==Schema.CURRENT_VERSION-info.fromVersion and info.rewriteRequired,
+                'old saves must traverse every schema upgrade and be rewritten after cleanup')
             for _,layout in pairs(migrated.stopLayouts) do assert(layout.worldActivity==nil) end
             assert(migrated.helpQuestSessions['pump-active']==nil)
             assert(migrated.helpQuestSessions['pump-completed']==nil)

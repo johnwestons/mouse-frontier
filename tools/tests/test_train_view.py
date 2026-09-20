@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HARNESS = r'''
 View=require('game.train_view')
 Train=require('game.train')
+WorldView=require('game.world_view')
 car=require('game.config').trainCar
 sizes={{960,720},{1280,720},{1920,1080},{2340,1080},{2400,1080},
     {2560,1440},{3440,1440},{1024,768},{1281,721},{720,1280}}
@@ -64,6 +65,7 @@ function fixture(windowWidth,windowHeight,mobile,count)
     local screens={is=function(_,state) return runtime.state==state end}
     function screens:draw()
         f.uiMatrix=copy(matrix)
+        WorldView.begin()
         graphics.push()
         local layout=f.presentation.getTrainView()
         if layout then View.apply(layout) else graphics.translate(-offset.x,-offset.y) end
@@ -72,6 +74,7 @@ function fixture(windowWidth,windowHeight,mobile,count)
             f.rendered[i]={x=matrix.x+p.x*matrix.sx,y=matrix.y+p.y*matrix.sy}
         end
         graphics.pop()
+        WorldView.finish()
     end
     f.presentation=require('game.presentation_runtime').new({runtime=runtime,ui=ui,screens=screens,
         maintenanceSession={},viewport=viewport,camera=camera,engineUpgrades={},maintenance={},
@@ -196,6 +199,7 @@ class TrainViewTests(unittest.TestCase):
         self.lua.execute(r'''
             for _,size in ipairs(sizes) do
                 local f=fixture(size[1],size[2],true,1)
+                f.presentation.setZoom(2.25); f.presentation.panCamera(83,-54)
                 local ox,oy,sx,sy=f.viewport.transform(960,720)
                 for _,p in ipairs({{25,18},{600,150},{-120,34},{920,280}}) do
                     local x,y=f.presentation.screenToGame(ox+p[1]*sx,oy+p[2]*sy)
@@ -220,19 +224,19 @@ class TrainViewTests(unittest.TestCase):
             f.checkRoundtrip()
         ''')
 
-    def test_editor_scope_uses_train_inverse_and_preserves_its_camera_state(self) -> None:
+    def test_editor_shares_world_zoom_and_uses_train_inverse(self) -> None:
         self.lua.execute(r'''
             local f=fixture(2340,1080,true,2)
             f.presentation.setZoom(1.8); f.presentation.panCamera(37,-23)
             f.runtime.editMode=true
-            assert(f.presentation.getSurface()=='game:editor')
-            close(f.presentation.getZoom(),1)
+            assert(f.presentation.getSurface()=='world')
+            close(f.presentation.getZoom(),1.8)
             f.checkRoundtrip()
             f.presentation.setZoom(1.5); f.presentation.panCamera(-31,19)
             f.checkRoundtrip()
             f.runtime.editMode=false
-            assert(f.presentation.getSurface()=='game:train')
-            close(f.presentation.getZoom(),1.8)
+            assert(f.presentation.getSurface()=='world')
+            close(f.presentation.getZoom(),1.5)
             f.checkRoundtrip()
             f.runtime.editMode=true
             close(f.presentation.getZoom(),1.5)
@@ -268,6 +272,7 @@ class TrainViewTests(unittest.TestCase):
         self.lua.execute(r'''
             local f=fixture(1920,1080,false,3)
             for _,scene in ipairs({'stop','house','expedition','caravan'}) do
+                f.presentation.resetCamera(true)
                 f.runtime.scene=scene; f.offset.x=245; f.offset.y=78
                 assert(f.presentation.getTrainView()==nil)
                 local x,y=f.presentation.worldCoordinates(100,210)
@@ -293,6 +298,57 @@ class TrainViewTests(unittest.TestCase):
                 f.presentation.resetCamera(true)
             end
             same(f.before,f.runtime); same(f.carBefore,car)
+        ''')
+
+    def test_all_overlays_share_zoom_without_shifting_the_world_or_hud(self) -> None:
+        self.lua.execute(r'''
+            local f=fixture(2340,1080,true,3)
+            f.presentation.setZoom(2); f.presentation.panCamera(50,-20)
+            local wx,wy=f.presentation.screenToWorld(1200,650)
+            local ux,uy=f.presentation.screenToGame(1200,650)
+            for _,flag in ipairs({'exitPrompt','firstAid','travelConfirm','inventoryOpen','mapOpen',
+                'tradeOpen','trainUpgradeOpen','editMode','poseMenu','dialogue'}) do
+                f.runtime[flag]=true
+                local x,y=f.presentation.screenToWorld(1200,650)
+                close(x,wx); close(y,wy); close(f.presentation.getZoom(),2)
+                x,y=f.presentation.screenToGame(1200,650); close(x,ux); close(y,uy)
+                f.runtime[flag]=nil
+            end
+            for _,state in ipairs({'battle','event','ending','slots','characters','intro'}) do
+                f.runtime.state=state
+                close(f.presentation.getZoom(),2)
+                local x,y=f.presentation.screenToGame(1200,650); close(x,ux); close(y,uy)
+            end
+        ''')
+
+    def test_special_scene_pinch_tracks_midpoint_without_dispatching_a_second_tap(self) -> None:
+        self.lua.execute(r'''
+            local f=fixture(2340,1080,true,1)
+            f.runtime.shootingRange={}
+            f.presentation.setZoom(1.4)
+            local presses,releases,moves=0,0,0
+            local Gesture=require('game.world_gesture')
+            local gesture=Gesture.new({field=function() return f.runtime.shootingRange,true end,
+                getZoom=f.presentation.getZoom,setZoom=f.presentation.setZoom,
+                beginPan=f.presentation.beginPan,movePan=f.presentation.movePan,endPan=f.presentation.endPan,
+                press=function() presses=presses+1 end,release=function() releases=releases+1 end,
+                move=function() moves=moves+1 end})
+            local wx,wy=f.presentation.screenToWorld(1170,540)
+            gesture:pressed('a',1070,540); gesture:pressed('b',1270,540)
+            gesture:moved('b',1350,570,80,30)
+            local x,y=f.presentation.screenToWorld(1210,555)
+            close(x,wx); close(y,wy)
+            gesture:moved('a',1090,550,20,10)
+            x,y=f.presentation.screenToWorld(1220,560); close(x,wx); close(y,wy)
+            gesture:released('b',1350,570); gesture:released('a',1090,550)
+            assert(presses==1 and releases==1 and moves==0,'pinch dispatched a gameplay tap or aim')
+            assert(not f.presentation.isPanning() and next(gesture.touches)==nil)
+            gesture:pressed('a',1070,540); gesture:pressed('b',1270,540)
+            gesture:released('b',1270,540); gesture:released('a',1070,540)
+            assert(presses==3 and releases==3,'stationary second touch must still fire on release')
+            gesture:pressed('a',1070,540); gesture:pressed('b',1270,540)
+            gesture:cancel()
+            assert(presses==4 and releases==4 and next(gesture.touches)==nil)
         ''')
 
 

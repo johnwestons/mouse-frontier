@@ -3,19 +3,345 @@
   "character": "signal-hedgehog",
   "source_root": "output/character-motion/signal-hedgehog/source",
   "runtime_root": "output/character-motion/signal-hedgehog/runtime",
-  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458 },
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458,
+    "horizontal_anchor": "core",
+    "remove_edge_connected_magenta_fringe": true
+  },
   "idle_sets": [
-    { "source": "idle-direction-study-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "source_indices": [0, 1, 2, 3], "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png", "idle_northwest.png"], "fixed_grid": true },
-    { "source": "idle-direction-study-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "source_indices": [0, 1, 2, 3], "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"], "fixed_grid": true }
+    {
+      "source": "idle-enclosed-background-cleanup-v3.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0,
+        1
+      ],
+      "outputs": [
+        "idle_south.png",
+        "idle_southwest.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-enclosed-background-cleanup-v3.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        2,
+        3
+      ],
+      "source_indices": [
+        0,
+        1
+      ],
+      "outputs": [
+        "idle_north.png",
+        "idle_northeast.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-west-true-profile-v1.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_west.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "candidates/idle-northwest-right-lantern-v3-vertical.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_northwest.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-east-enclosed-loop-cleanup-v4.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-southeast-enclosed-loop-cleanup-v5.png",
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_southeast.png"
+      ],
+      "fixed_grid": true
+    }
   ],
   "walks": {
-    "walk.png": { "source": "walk-west-east-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_northeast.png": { "source": "walk-northwest-northeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_north.png": { "source": "walk-south-north-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_northwest.png": { "source": "walk-northwest-northeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_west.png": { "source": "walk-west-east-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_southwest.png": { "source": "walk-southwest-southeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_south.png": { "source": "walk-south-north-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_southeast.png": { "source": "walk-southwest-southeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true }
+    "walk_west.png": {
+      "source": "walk-west-right-load-rig-height-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true
+    },
+    "walk_southwest.png": {
+      "source": "walk-southwest-hip-chain-contact-load-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true
+    },
+    "walk_north.png": {
+      "source": "walk-north-grounded-forward-knees-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        {
+          "source": "walk-north-forward-knee-right-v5.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "walk-north-right-contact-v7.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        {
+          "source": "walk-north-forward-knee-left-v6.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk_south.png": {
+      "source": "walk-south-canonical-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        {
+          "source": "camera-references/south-left-contact-v4-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/south-left-load-v4-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "walk-south-right-passing-match-v7.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "walk-south-right-knee-up-v5.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/south-contact-v3-cell3.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/south-load-v3-cell4.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/south-left-passing-v6-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/south-left-up-v6-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk_northwest.png": {
+      "source": "candidates/walk-northwest-alternating-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true,
+      "frame_sources": [
+        null,
+        null,
+        {
+          "source": "candidates/walk-northwest-far-right-passing-v6.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-northwest-far-right-forward-knee-v4.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/northwest-far-right-contact-v5-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/northwest-far-right-load-v5-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null
+      ]
+    },
+    "walk_northeast.png": {
+      "source": "candidates/walk-northeast-alternating-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true,
+      "frame_sources": [
+        {
+          "source": "camera-references/northeast-far-left-contact-v6-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/northeast-far-left-load-v6-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-northeast-near-right-passing-v7.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        {
+          "source": "candidates/walk-northeast-far-left-knee-v3.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "candidates/walk-northeast-far-left-forward-knee-v4.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk.png": {
+      "source": "walk-east-near-hand-repair-v2.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        {
+          "source": "camera-references/east-far-left-contact-v4-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/east-far-left-load-v4-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "walk-east-near-right-passing-v5.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null,
+        null,
+        null,
+        {
+          "source": "camera-references/east-far-left-passing-v3-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/east-far-left-up-v3-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        }
+      ]
+    },
+    "walk_southeast.png": {
+      "source": "walk-southeast-near-right-gait-v1.png",
+      "source_columns": 4,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "fixed_grid": true,
+      "drop_boundary_spill": true,
+      "frame_sources": [
+        null,
+        null,
+        {
+          "source": "camera-references/southeast-right-passing-v2-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/southeast-right-up-v2-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/southeast-near-right-contact-v3-cell1.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "camera-references/southeast-near-right-load-v3-cell2.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        {
+          "source": "walk-southeast-far-left-passing-v3.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    }
   }
 }

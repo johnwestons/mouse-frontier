@@ -15,6 +15,26 @@ The [September 10 game/mobile audit](docs/audits/2026-09-10-game-and-mobile.md) 
 
 You can also drag the entire project folder onto `love.exe`. Do not open `main.lua` by itself because LÖVE needs the artwork and configuration files too.
 
+## Clone and start a development branch
+
+The current shared game is on `master` in [johnwestons/mouse-frontier](https://github.com/johnwestons/mouse-frontier). Install Git and [Git LFS](https://git-lfs.com/), then use your GitHub account with access to that repository:
+
+```sh
+git lfs install
+git clone https://github.com/johnwestons/mouse-frontier.git
+cd mouse-frontier
+git lfs pull
+git switch -c my-game-changes
+```
+
+Install LÖVE 11.5, then run `RUN_GAME.bat` on Windows or `love .` from the project folder. Source, sprites, fonts, dialogue, audio, mobile build tools, and tests are included. Local saves, generated build outputs, and working backups are excluded.
+
+The audio library is about 3.2 GB and is stored using Git LFS. Allow the audio download to finish before launching; see [audio setup](sounds/AUDIO_ASSETS.md). If a clone was made without Git LFS installed, install it and run `git lfs install` and `git lfs pull` inside the clone.
+
+After making changes, commit them on your branch and publish it with `git push -u origin my-game-changes`. Open a pull request into `master` to share the changes. Read [AGENTS.md](AGENTS.md) before editing; character dialogue must preserve the user's approved wording.
+
+The new [player options](docs/PLAYER_OPTIONS.md) are available with **F2** or **Settings → Cheats / Controls**: browse item sprites, search/filter inventory items, add resources, and reposition touch controls.
+
 ## Build for Android
 
 Run `BUILD_ANDROID.ps1` to derive the current shared game into a phone-sized package, execute the mobile smoke checks, and create a signed sideloadable APK. The first build downloads and verifies its Android build dependencies; later updates reuse the local cache.

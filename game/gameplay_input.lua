@@ -79,6 +79,7 @@ local function new(context)
   local setupNPC=required(context,"setupNPC","function")
   local giveWeaponToNearby=required(context,"giveWeaponToNearby","function")
   local pickUpNearby=required(context,"pickUpNearby","function")
+  local itemIsHere=required(context,"itemIsHere","function")
   local addCoalToFire=required(context,"addCoalToFire","function")
   local handleInventoryClick=required(context,"handleInventoryClick","function")
   local handleInventoryRelease=required(context,"handleInventoryRelease","function")
@@ -158,10 +159,10 @@ local function new(context)
               or ((name=="coal-chunk" or name=="coal-bucket") and "fuel"
               or (effect and effect.health and "medical" or (effect and effect.food and "food" or (effect and effect.water and "water" or "useful")))))
           local result=NpcRelationships.recordGift(runtime.saveData,runtime.giftNPC,name,category)
-          runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC).." • "..result.status.name,text=result.line,timer=5}
+          runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
       else
           local result=NpcRelationships.rejection(runtime.saveData,runtime.giftNPC)
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.giftNPC).." • "..result.status.name,text=result.line,timer=4}
+          runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=4}
       end
       runtime.giftOpen=false; runtime.inventoryOpen=false; runtime.giftSlot=nil; writeSave()
   end
@@ -364,7 +365,7 @@ local function new(context)
       end
       if runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then
           if Util.pointIn(x,y,ui.questAccept) then acceptQuest(runtime.questOffer.kind)
-          elseif Util.pointIn(x,y,ui.questDecline) then runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="I understand. Safe travels.",timer=5}; runtime.questOffer=nil end
+          elseif Util.pointIn(x,y,ui.questDecline) then runtime.dialogue={speaker="TASK",text="Task declined.",timer=5}; runtime.questOffer=nil end
           return true
       end
       for index,tab in ipairs(ui.trainCarTabs or {}) do
@@ -395,6 +396,7 @@ local function new(context)
   end
 
   local function mousepressed(x,y,button)
+      if button==3 then beginCameraPan(x,y); return end
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
       -- Check the persistent campsite exit before any modal input capture. This
       -- lets it dismiss inventory, trade, settings, dialogue, and even stale
@@ -410,7 +412,6 @@ local function new(context)
           end
           return
       end
-      if button==3 then beginCameraPan(x,y); return end
       if runtime.exitPrompt then
           if button==1 then
               x,y=screenToGame(x,y)
@@ -476,6 +477,7 @@ local function new(context)
   end
 
   local function mousemoved(x,y,dx,dy,touchAim)
+      if cameraPanning() then moveCameraPan(x,y); return end
       if runtime.shootingRange then
           x,y=screenToGame(x,y); ShootingRange.mousemoved(runtime.shootingRange,x,y,touchAim); return
       end
@@ -484,9 +486,6 @@ local function new(context)
           local outcome=FirstAid.mousemoved(runtime.firstAid,x,y)
           if outcome=="complete" then resolveFirstAid(outcome) end
           return
-      end
-      if cameraPanning() then
-          moveCameraPan(x,y); return
       end
       x,y=screenToGame(x,y)
       if runtime.state=="game" and maintenanceSession.open then maintenanceSession.mouseX,maintenanceSession.mouseY=x,y; return end
@@ -513,7 +512,6 @@ local function new(context)
   end
 
   local function wheelmoved(_,y)
-      if runtime.shootingRange then return end
       local mouseX,mouseY=pointerPosition()
       local shifted=love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lshift","rshift")
       if runtime.state=="battle" and runtime.battle then
@@ -528,7 +526,7 @@ local function new(context)
       elseif shifted and runtime.state=="characters" then
           runtime.characterScroll=math.max(0,runtime.characterScroll-(y>0 and 1 or -1)); return
       end
-      if runtime.state~="intro" then zoomCamera(y,mouseX,mouseY) end
+      zoomCamera(y,mouseX,mouseY)
   end
 
   local function keypressedGlobal(key)
@@ -604,7 +602,7 @@ local function new(context)
           return
       end
       if runtime.state=="game" and runtime.inventoryOpen and key=="e" then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; if runtime.giftOpen then runtime.giftOpen=false; runtime.giftSlot=nil end; writeSave(); return true end
-      if runtime.state=="game" and runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then if key=="y" or key=="return" or key=="e" then acceptQuest(runtime.questOffer.kind) elseif key=="n" or key=="escape" then runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC),text="I understand. Safe travels.",timer=5}; runtime.questOffer=nil end; return end
+      if runtime.state=="game" and runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then if key=="y" or key=="return" or key=="e" then acceptQuest(runtime.questOffer.kind) elseif key=="n" or key=="escape" then runtime.dialogue={speaker="TASK",text="Task declined.",timer=5}; runtime.questOffer=nil end; return end
       if runtime.state=="game" and runtime.carTransition then return true end
       return false
   end
@@ -616,8 +614,12 @@ local function new(context)
       if not action then return false end
       if action=="closeDialogue" then runtime.dialogue=nil
       elseif action=="talkPassenger" then
-          local p=runtime.saveData.passengers[arg]; local line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,Catalog.passengerLines)
-          runtime.dialogue={speaker=Util.titleFromFile(p.npc).." - "..Util.titleFromFile(p.job).." • "..status.name,text=line,timer=7}; writeSave()
+          local p=runtime.saveData.passengers[arg]
+          local lines=#(Catalog.passengerLines or {})>0 and Catalog.passengerLines or Catalog.dialogueLines
+          local line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,lines)
+          runtime.questOffer=nil
+          runtime.dialogue={speaker=line and (Util.titleFromFile(p.npc).." • "..status.name) or "PASSENGER",
+              text=line or ("Destination: stop "..tostring(p.destination or "—")..". No new conversation available."),timer=7}; writeSave()
       elseif action=="car" then beginCarTransition((runtime.saveData.activeCar or 1)+arg)
       elseif action=="talkNPC" then ui.playSfx("talking"); talkToNPC()
       elseif action=="enterHouse" then
@@ -638,14 +640,14 @@ local function new(context)
   end
 
   local function keypressed(key)
+      if key=="=" or key=="+" or key=="kp+" then zoomCamera(1); return end
+      if key=="-" or key=="kp-" then zoomCamera(-1); return end
+      if key=="0" or key=="kp0" then resetCamera(false); return end
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
       if runtime.shootingRange then
           processRangeOutcome(ShootingRange.keypressed(runtime.shootingRange,key,runtime.saveData,Catalog))
           return
       end
-      if key=="=" or key=="+" or key=="kp+" then zoomCamera(1); return end
-      if key=="-" or key=="kp-" then zoomCamera(-1); return end
-      if key=="0" or key=="kp0" then resetCamera(false); return end
       if love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lalt","ralt") then
           if key=="left" then panCamera(48,0); return elseif key=="right" then panCamera(-48,0); return
           elseif key=="up" then panCamera(0,48); return elseif key=="down" then panCamera(0,-48); return end
@@ -691,7 +693,32 @@ local function new(context)
       end
   end
 
+  local function beginTouchPickup(x,y)
+      if runtime.state~="game" or runtime.editMode or WorldPause.isPaused(runtime,ui,maintenanceSession) then return false end
+      x,y=screenToGame(x,y)
+      -- Keep fixed HUD buttons above the world, including while zoomed.
+      if y<214 or Util.pointIn(x,y,ui.exitHome) or Util.pointIn(x,y,ui.returnStop) then return false end
+      for _,tab in ipairs(ui.trainCarTabs or {}) do if Util.pointIn(x,y,tab) then return false end end
+      x,y=worldCoordinates(x,y)
+      local chosen,layer
+      for index,item in ipairs(runtime.saveData.droppedItems) do
+          if itemIsHere(item) and not item.permanent and (isFurnitureItem(item.name) or Catalog.storageCapacities[item.name]) then
+              local reach=math.max(32,29*(item.scale or 1)+12)
+              local player=runtime.player
+              if (player.x-item.x)^2+(player.y-item.y)^2<75^2
+                  and math.abs(x-item.x)<=reach and math.abs(y-item.y)<=reach
+                  and (not layer or (item.layer or index)>layer) then
+                  chosen,layer=index,item.layer or index
+              end
+          end
+      end
+      if not chosen then return false end
+      runtime.holdPickupIndex,runtime.holdPickupTime=chosen,0
+      return true
+  end
+
   return {
+    beginTouchPickup=beginTouchPickup,
     mousepressed=mousepressed,
     mousemoved=mousemoved,
     mousereleased=mousereleased,

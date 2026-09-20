@@ -333,8 +333,7 @@ local function install(context)
             end},
             {name="branching_help_dialogue_quests",action=helpBalanceAudit,check=function(_,_,_,result)
                 local dialogue=result.dialogue
-                return result.ready and dialogue.ready and dialogue.definitions==4 and dialogue.completed==4 and dialogue.branchChoices>=8
-                    and dialogue.totalGoodwill>=8 and dialogue.rewardOnce and dialogue.curve=="branching-dialogue-v1"
+                return result.ready and dialogue.ready and dialogue.definitions==13 and dialogue.completed==13 and dialogue.rewardOnce
             end},
             {name="shooting_range_audit",action=shootingRangeAudit,check=function(_,_,_,range)
                 return range.ready and range.hostCount==9 and range.ownedWeapons==3
@@ -431,7 +430,7 @@ local function install(context)
             {name="presentation_coordinate_modes",action=function()
                 presentationRuntime.setZoom(2)
                 local baseX,baseY=presentationRuntime.viewportToGame(100,100)
-                local worldX,worldY=presentationRuntime.screenToGame(100,100)
+                local worldX,worldY=presentationRuntime.screenToWorld(100,100)
                 local worldSurface=presentationRuntime.getSurface()
                 ui.radioOpen=true
                 presentationRuntime.setZoom(1.6)
@@ -442,17 +441,17 @@ local function install(context)
                 local maintenanceX,maintenanceY=presentationRuntime.screenToGame(100,100)
                 local maintenanceSurface=presentationRuntime.getSurface()
                 maintenanceSession.open=false
-                local restored=presentationRuntime.getZoom()==2
+                local restored=presentationRuntime.getZoom()==1.4
                 presentationRuntime.resetCamera(true)
                 return {
                     worldShifted=math.abs(worldX-baseX)>.01 or math.abs(worldY-baseY)>.01,
                     radioShifted=math.abs(radioX-baseX)>.01 or math.abs(radioY-baseY)>.01,
                     maintenanceShifted=math.abs(maintenanceX-baseX)>.01 or math.abs(maintenanceY-baseY)>.01,
-                    scoped=worldSurface~=radioSurface and radioSurface~=maintenanceSurface,
+                    scoped=worldSurface==radioSurface and radioSurface==maintenanceSurface,
                     restored=restored,
                 }
             end,check=function(_,_,_,result)
-                return result.worldShifted and result.radioShifted and result.maintenanceShifted and result.scoped and result.restored
+                return result.worldShifted and not result.radioShifted and not result.maintenanceShifted and result.scoped and result.restored
             end},
             {name="open_inventory_key",action=function() love.keypressed("i"); return game.inventoryOpen end,expect={inventoryOpen=true}},
             {name="close_inventory_key",action=function() love.keypressed("i"); return "closed" end,expect={inventoryOpen=false}},
@@ -881,10 +880,10 @@ local function install(context)
                     love.touchmoved("smoke-pinch-overlay-b",640,350,80,0)
                     local overlayZoom=presentationRuntime.getZoom()
                     love.touchreleased("smoke-pinch-overlay-b",640,350); love.touchreleased("smoke-pinch-overlay-a",400,350)
-                    local beforePanX,beforePanY=presentationRuntime.screenToGame(480,360)
+                    local beforePanX,beforePanY=presentationRuntime.screenToWorld(480,360)
                     love.touchpressed("smoke-pan-overlay-a",400,350); love.touchpressed("smoke-pan-overlay-b",560,350)
                     love.touchmoved("smoke-pan-overlay-a",440,350,40,0); love.touchmoved("smoke-pan-overlay-b",600,350,40,0)
-                    local afterPanX,afterPanY=presentationRuntime.screenToGame(480,360)
+                    local afterPanX,afterPanY=presentationRuntime.screenToWorld(480,360)
                     love.touchreleased("smoke-pan-overlay-b",600,350); love.touchreleased("smoke-pan-overlay-a",440,350)
                     local panned=math.abs(afterPanX-beforePanX)>.01 or math.abs(afterPanY-beforePanY)>.01
                     local finalClean=mobileControls.pinch==nil and next(mobileControls.touches)==nil

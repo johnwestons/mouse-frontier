@@ -291,6 +291,58 @@ class CharacterMotionAcceptanceGateTests(unittest.TestCase):
         codes = {issue.code for issue in validate_prompt_provenance(provenance, character=self.character, build_manifest=build, project_root=self.project_root, character_root=self.character_root)}
         self.assertIn("build_source_without_prompt_provenance", codes)
 
+    def test_mechanical_derivation_requires_hash_bound_ancestry(self) -> None:
+        _, build = self._fixture()
+        def ref(path):
+            return {'path': path.relative_to(self.project_root).as_posix(), 'sha256': sha256_file(path)}
+        source = self.source_root / 'walk-reviewed.png'
+        derived = self.source_root / 'layered-walk.png'
+        shutil.copyfile(source, derived)
+        tooling = self.source_root / 'rig.lua'
+        tooling.write_text('-- retained authoring fixture')
+        build['walks']['walk.png']['source'] = derived.name
+        provenance = {'version': 1, 'character': self.character, 'records': [{
+            'id': 'source', 'capture': 'exact', 'capture_source': 'test fixture',
+            'prompt_text': 'Original fixture prompt',
+            'artifacts': [ref(source), ref(self.source_root / 'idle-reviewed.png')]}],
+            'derivations': [{'id': 'layered', 'kind': 'layered_2d_authoring',
+                'method': 'Bake leg articulation while preserving source body pixels',
+                'inputs': [ref(source)], 'tooling': [ref(tooling)], 'outputs': [ref(derived)]}]}
+        def check():
+            return validate_prompt_provenance(provenance, character=self.character, build_manifest=build,
+                                             project_root=self.project_root, character_root=self.character_root)
+        self.assertEqual(check(), [])
+        provenance['derivations'][0]['inputs'] = [ref(derived)]
+        self.assertIn('unproven_derived_input', {i.code for i in check()})
+        provenance['derivations'][0]['inputs'] = [ref(source)]
+        tooling.write_text('-- changed after review')
+        self.assertIn('stale_evidence_hash', {i.code for i in check()})
+        self.assertIn('build_source_without_prompt_provenance', {i.code for i in check()})
+
+    def test_running_requires_its_own_review_flags_and_previews(self) -> None:
+        from tools.character_gait_contract import RUN_PHASES
+        from tools.character_motion_acceptance_gate import RUN_REVIEW_FLAGS
+        spec, _ = self._fixture()
+        run_path = self.runtime_root / 'run.png'
+        shutil.copyfile(self.runtime_root / 'walk.png', run_path)
+        spec['animations']['run_east'] = {**spec['animations']['walk_east'],
+            'path': run_path.relative_to(self.project_root).as_posix(), 'pose_order': RUN_PHASES,
+            'gait_kind': 'run', 'ground_clearance': [0, 0, 2, 1] * 2}
+        spec['directions']['east']['run_animation'] = 'run_east'
+        self._write_audit_evidence()
+        shutil.copyfile(self.character_root / 'audit/contact-sheets/walk_east.png',
+                        self.character_root / 'audit/contact-sheets/run_east.png')
+        path, errors = prepare_review_artifacts(spec, self.project_root, self.character_root)
+        self.assertEqual(errors, [])
+        review = json.loads(path.read_text())
+        entry = review['directions']['east']
+        self.assertTrue(all(entry[flag] is False for flag in RUN_REVIEW_FLAGS))
+        self.assertTrue((self.character_root / 'semantic-review/previews-half-speed/run_east.gif').is_file())
+        issues = validate_manual_review(review, motion_spec=spec, project_root=self.project_root,
+                                        character_root=self.character_root)
+        locations = {i.location for i in issues if i.code == 'semantic_review_flag_not_accepted'}
+        self.assertTrue(all('directions.east.' + flag in locations for flag in RUN_REVIEW_FLAGS))
+
     def test_prepare_review_creates_half_speed_gif_and_half_cycle_sheet(self) -> None:
         spec, _ = self._fixture()
         self._write_audit_evidence()

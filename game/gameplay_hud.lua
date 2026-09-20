@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
 local WorldPause = require("game.world_pause")
@@ -112,6 +113,7 @@ local function new(context)
   local function drawGame()
       local cloudLayer=getCloudLayer()
       ui.returnDoor,ui.returnTrain,ui.returnStop,ui.exitHome=nil,nil,nil,nil
+      WorldView.begin()
       if runtime.scene=="train" then
           drawLandscape()
           local trainView=getTrainView()
@@ -138,6 +140,7 @@ local function new(context)
       elseif runtime.scene=="caravan" then drawCaravan()
       else drawStop() end
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
+      WorldView.finish()
       if not mobileEnabled() then
           ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
           ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,Maintenance.oilCapacity(runtime.saveData))
@@ -212,7 +215,6 @@ local function new(context)
           textIn("MAIL "..pendingMail.." / RIDERS "..#(runtime.saveData.passengers or {}),745,153,180,33,.75,"center")
       end
       ui.exitTrain = nil
-      local tipColor={colors.panel[1],colors.panel[2],colors.panel[3],.50}
       local nearbyFurniture=runtime.nearbyItem and isFurnitureItem(runtime.saveData.droppedItems[runtime.nearbyItem] and runtime.saveData.droppedItems[runtime.nearbyItem].name)
       local contextText,contextScale
       if Accessibility.enabled(runtime.saveData,"controlHints") and not runtime.inventoryOpen and not runtime.editMode and not runtime.carTransition and not ui.mobileMenuOpen then
@@ -247,26 +249,31 @@ local function new(context)
           elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78
           elseif runtime.scene=="expedition" then contextText,contextScale="F  ATTACK  •  DODGE THE WIND-UP",.62 end
       end
+      if mobile and runtime.holdPickupIndex then contextText="HOLD TO PICK UP" end
+      ui.contextHint=nil
       if contextText then
           local highContrast=Accessibility.enabled(runtime.saveData,"highContrast")
           local hintX,hintY,hintW,hintH=325,300,310,40
           if mobile then
-              hintX,hintY,hintW,hintH=230,344,500,58
-              if runtime.scene=="expedition" then hintX,hintY,hintW,hintH=526,250,410,76 end
+              hintX,hintY,hintW,hintH=(W-440)/2,H-44,440,32
           end
-          if runtime.scene=="train" then
+          if runtime.scene=="train" and not mobile then
               local trainView=getTrainView()
               hintX,hintY=trainView.visibleLeft+20,214
-              if not mobile and #(runtime.saveData.trainCars or {})>1 then hintY=284 end
+              if #(runtime.saveData.trainCars or {})>1 then hintY=284 end
               local right=trainView.couplerX-24
-              if mobile and #(runtime.saveData.trainCars or {})>1 then right=math.min(right,230) end
-              hintW=math.min(mobile and 500 or 410,right-hintX)
-              hintH=mobile and 78 or 48
+              hintW=math.min(410,right-hintX)
+              hintH=48
           end
-          love.graphics.setColor(highContrast and {0,0,0,.96} or (mobile and {colors.panel[1],colors.panel[2],colors.panel[3],.92} or tipColor)); love.graphics.rectangle("fill",hintX,hintY,hintW,hintH,6,6)
+          local hintAlpha=highContrast and .96 or (mobile and .42 or .50)
+          ui.contextHint={x=hintX,y=hintY,w=hintW,h=hintH,alpha=hintAlpha,text=contextText}
+          love.graphics.setColor(highContrast and {0,0,0,hintAlpha} or {colors.panel[1],colors.panel[2],colors.panel[3],hintAlpha}); love.graphics.rectangle("fill",hintX,hintY,hintW,hintH,6,6)
           if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",hintX,hintY,hintW,hintH,6,6); love.graphics.setLineWidth(1) end
           love.graphics.setColor(colors.cream)
-          textIn(contextText,hintX+14,hintY+5,hintW-28,hintH-12,mobile and .95 or contextScale,"center")
+          if mobile then
+              Typography.drawText(love.graphics,contextText,hintX+12,hintY+3,hintW-24,hintH-8,
+                  {scale=.78*Accessibility.textScale(runtime.saveData),minScale=.65,singleLine=true,align="center",valign="center"})
+          else textIn(contextText,hintX+14,hintY+5,hintW-28,hintH-12,contextScale,"center") end
           if runtime.holdPickupIndex then love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",hintX+22,hintY+hintH-7,(hintW-44)*math.min(1,runtime.holdPickupTime/HOLD_PICKUP_SECONDS),5,2,2) end
       end
       if runtime.scene=="train" and #(runtime.saveData.trainCars or {})>1 and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.editMode and not ui.mobileMenuOpen then
@@ -315,7 +322,7 @@ local function new(context)
           runtime.optionsPage=runtime.optionsPage or "audio"
           local panelX,panelY,panelW,panelH=mobile and 90 or 485,mobile and 55 or 125,mobile and 780 or 460,mobile and 615 or 525
           drawMenuFrame(panelX,panelY,panelW,panelH,2,.99); love.graphics.setColor(colors.cream)
-          textIn("SETTINGS",panelX+20,panelY+18,panelW-40,38,mobile and 1.28 or 1.08,"center")
+          textIn("SETTINGS",panelX+20,panelY+18,panelW-290,38,mobile and 1.28 or .90,"left")
           ui.optionsAudioTab=button("AUDIO",panelX+35,panelY+68,(panelW-85)/2,mobile and 58 or 42,runtime.optionsPage=="audio",mobile and 1 or .78)
           ui.optionsAccessTab=button("ACCESSIBILITY",panelX+50+(panelW-85)/2,panelY+68,(panelW-85)/2,mobile and 58 or 42,runtime.optionsPage=="accessibility",mobile and 1 or .72)
           if runtime.optionsPage=="audio" then

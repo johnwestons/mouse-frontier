@@ -1,0 +1,117 @@
+i want you to find all of the dialog in the game that is ai written, i need to inspect and delete or replace them because they
+				all sound terrible. there will only be dialog in this game that is supplied by me, if you need to add dialog during a task that 
+				neccesary to proceed but hasnt been approved then just flag it in the report and request review for rewite by me , so pretty much 
+				let me know if there is some dialog that needs my attention so i can write it. 
+				also we need to add-on to when npcs ask you a question you can chose to resond with a dialog tree system
+				i will provide you with the dialogs below , in the format of Q= question A= answer R= response
+				these dialog options should be tracked so that they wont repeat during a playthrough but should be assigned to npcs at random in a way (spaced out)
+				certain dialogs will require the player to give the npc an item or even receive an item from the npc. every time a player discovers one of these dialogs
+				and completes it they should be awarded some experience points.
+				
+							Q: How long you been traveling?
+							A1: Im just getting started
+							A2: Many moons friend, we've came a long way
+							A3: Too long...
+							R1: Well good luck to ya then
+							R2: Well stay safe then, I'm sure you'll get there soon
+							R3: I know how you feel
+							
+							Q:What's it like out in the wastes?
+							A1: It's not as bad as they say
+							A2: Beautiful but I wouldn't go out there if I were you
+							A3: I've seen many a'good critter die out there
+							R1: Well they say it's extremly dangerous so...
+							R2: I believe that for sure 
+							R3: Geez but ok...
+							
+							
+							Q:Mind if i ask why you're going west?
+							A1: Looking for my family 
+							A2: Trying to make the wastes a better place
+							A3: I have my reasons 
+							R1: I hope you find them
+							R2: I believe we can one good deed at a time 
+							R3: Fine then keep your secrets
+							
+							Q:What's your biggest worry out there?
+							A1: The mean critters that try and get you
+							A2: Running out of reasources out there
+							A3: Giving up hope... 
+							R1: Oh gosh yes, my advice don't let them get you 
+							R2: Definently, gotta stock up  
+							R3: Well the world was supposed to end but we are still here...
+							
+							Q:What weapon do you like the most?
+							A1: Melee weapons are my thing 
+							A2: Bows and guns are my specialty 
+							A3: I keep a mixed bag of tricks
+							R1: Yeah i bet you mash em good 
+							R2: Out of reach of danger i hope  
+							R3: Ready for anything i like it 
+							
+							Q:Got any food i can get?
+							A1: Yeah here you go friend (gives 2 food from storage)
+							A2: Yea, you hungry? I can get you somethin to drink too (gives 2 food and 1 water from storage)
+							A3: I can't spare anything right now  
+							R1: Oh nice that looks yummy
+							R2: You bet I am, and yes please that would be delightful 
+							R3: I understand...I'm sorry 
+							
+							Q:How did the world get like this?
+							A1: Greed and war i'd guess...  
+							A2: Well the Great Flash was bombs real big ones
+							A3: There were many than didn't stand up to the few....
+							R1: Look how far that got them
+							R2: Oh my, that explains the mean critters 
+							R3: What's that even mean?
+							
+							Q:Hey i've got some spare ammo, what kind you using?
+							A1: I use alot of .22 long rifle  
+							A2: I need 9mm pretty badly
+							A3: I'll take whatever you get honestly  
+							R1: Yeah that's a popular cartridge round these parts (gives 20  .22lr ammo)
+							R2: Classic yea i think ive got some here (gives 10  .9mm ammo)
+							R3: Here take this bucket then, it's mixed but all still good (gives 15 cartridges of a random assortment of calibers)
+							
+							Q:Are you hurt?
+							A1: I'm fine actually thank you tho  
+							A2: Only small wounds I should be fine...
+							A3: I'm wounded pretty bad yeah...
+							R1: Good i hope you stay that way
+							R2: Here this should help (gives low level healing item)
+							R3: Oh my goodness, bless your heart  (gives high level healing item)
+							
+							Q:How come some critters don't talk and walk?
+							A1: The great flash left only critters, but not all of them changed.  
+							A2: Mutations from radiation varied by proximity to where the bombs hit
+							A3: That's how critters used to be, all of us...  
+							R1: I wonder why we made it....
+							R2: Im glad we're some of the nice ones 
+							R3: They seem to be more at peace than us...
+							
+							
+							Q:Do you think it's wrong to hurt those mean critters?
+							A1: Yes it's always wrong to hurt others...
+							A2: Although it's wrong, I'm not usually given a choice
+							A3: No....I've seen them do things you couldn't imagine  
+							R1: Yeah i guess you're right...
+							R2: That's a tough position to be in...
+							R3: I was afraid you'd say something like that...
+							
+							
+							Q:Where do you think those sludges came from?
+							A1: The great flash left the cities deep in sludge...
+							A2: Nuclear waste pretty much, severely mutated some critters 
+							A3: All that matters is that we end thier suffering   
+							R1: How long has it been since then...
+							R2: I feel so sorry for them...
+							R3: That's kinda dark but i understand...
+							
+							
+							Q:Why go west in the first place?
+							A1: All the critters are heading that way...
+							A2: Most of the fallout is in the east so critters have been moving west for ages now 
+							A3: I hear critters are rebuilding out there, making it safe 
+							R1: Yeah i know but that doesn't answer my question...
+							R2: Is that why they call it the sickness of the east...
+							R3: Wow really? that'd really be somethin wouldn't it...

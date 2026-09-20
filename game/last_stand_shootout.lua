@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local FirstPerson=require("game.first_person_shooting")
 local WindowScene=require("game.window_scene")
 local Tuning=require("game.last_stand_tuning")
@@ -258,7 +259,7 @@ function Shootout.update(state,dt,data,Catalog,width,height)
         state.result="withdrawing"
         state.withdrawTimer=Tuning.withdrawalSeconds
         state.flashes={}
-        state.notice={text="They are pulling back. Hold your fire and watch the doors.",timer=Tuning.withdrawalSeconds}
+        state.notice={text="Enemy withdrawal in progress.",timer=Tuning.withdrawalSeconds}
         return state.result
     end
     return nil
@@ -308,9 +309,9 @@ function Shootout.supply(state,data,Catalog)
     local resupplied=(tonumber(state.quest.loanAmmo) or 0)<=0
     state.gun=FirstPerson.useLoan(state.gun,data,Catalog,state.quest)
     state.notice={
-        text=firstLoan and "Guard Fox: Take my lever rifle. Forty-eight rounds."
-            or resupplied and "Guard Fox: Another pouch. Make every shot count."
-            or "Guard Fox: Your house rifle is ready with its remaining ammunition.",
+        text=firstLoan and "Loan rifle equipped. 48 rounds supplied."
+            or resupplied and "Loan ammunition replenished."
+            or "Loan rifle equipped with remaining ammunition.",
         timer=3.2,
     }
     return true
@@ -324,7 +325,7 @@ function Shootout.fire(state,data,width,height,Catalog)
         return false
     end
     local layout=WindowScene.layout(state.windowId,width,height)
-    local aimX,aimY=state.gun.aimX,state.gun.aimY
+    local aimX,aimY=WorldView.toWorld(state.gun.aimX,state.gun.aimY)
     FirstPerson.playReport(state.gun.weapon,Catalog,data,false)
     if not WindowScene.pointOpen(state.windowId,width,height,aimX,aimY) then return true end
     local best,bestDistance
@@ -472,6 +473,7 @@ function Shootout.draw(state,data,width,height)
     love.graphics.push("all")
     love.graphics.setColor(.045,.034,.025,1)
     love.graphics.rectangle("fill",0,0,width,height)
+    WorldView.begin()
     local cover=state.coverProgress or 0
     local easedCover=cover*cover*(3-2*cover)
     local _,openingY,_,openingHeight=WindowScene.opening(state.windowId,width,height)
@@ -490,6 +492,7 @@ function Shootout.draw(state,data,width,height)
     WindowScene.drawWindow(state.windowId,width,height)
     WindowScene.drawDamage(state.impacts,width,height,state.windowId)
     love.graphics.pop()
+    WorldView.finish()
     if cover<1 then
         love.graphics.push("all")
         love.graphics.translate(0,height*easedCover)
@@ -564,10 +567,10 @@ function Shootout.draw(state,data,width,height)
         love.graphics.rectangle("fill",0,0,width,height)
         panel(width/2-290,height/2-100,580,244)
         love.graphics.setColor(1,.84,.56,1)
-        textBox("GUARD FOX",width/2-270,height/2-80,540,38,1.15,"center")
+        textBox("LOAN SUPPLIES",width/2-270,height/2-80,540,38,1.15,"center")
         love.graphics.setColor(.92,.86,.74,1)
         textBox(
-            state.quest.loanActive and "You are dry again. I found another pouch of .22s." or "Use my lever rifle and ammunition. It comes back when this is over.",
+            state.quest.loanActive and "Loan ammunition is depleted. Replenishment available." or "Loan rifle and ammunition available for this defense.",
             width/2-260,height/2-30,520,86,1,"center"
         )
         local rx,ry,rw,rh=Shootout.supplyRect(width,height)

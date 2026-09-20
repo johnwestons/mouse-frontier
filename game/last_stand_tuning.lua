@@ -12,9 +12,9 @@ local Tuning={
     phases={
         {start=0,name="Finding the rhythm",active=2},
         {start=45,name="Crossfire",active=3,intermission=true,
-            line="Guard Fox: That bought us a breath. Check your ammunition and anyone in the yard."},
+            line="Intermission: check ammunition and wounded defenders in the yard."},
         {start=105,name="Holding under pressure",active=5,intermission=true,
-            line="Gecko Ranger: They are moving shooters through the loading bays. The upper floor is still their best angle."},
+            line="Intermission: additional shooters are moving to the upper floor."},
         {start=165,name="Breaking their nerve",active=4},
     },
 }

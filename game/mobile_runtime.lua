@@ -87,6 +87,7 @@ local function new(context)
           return contextualAction()
       end
       local kind=ui.interaction and ui.interaction.kind
+      if kind=="chest" then return "e","PICK UP" end
       if kind=="npc" or kind=="passenger" then return "g","GIVE" end
   end
 
@@ -102,19 +103,29 @@ local function new(context)
           beginCameraPan=beginCameraPan,
           moveCameraPan=moveCameraPan,
           endCameraPan=endCameraPan,
-          cameraGesturesActive=function() return runtime.state~="intro" end,
+          cameraGesturesActive=function() return true end,
           shootingRangeActive=shootingRangeActive,
           backVisible=backVisible,
           backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
           menuVisible=menuVisible,
           menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
           menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; endCameraPan() end,
+          backpackVisible=function() return not WorldPause.isPaused(runtime,ui,maintenanceSession) end,
+          backpackAction=function()
+              if WorldPause.isPaused(runtime,ui,maintenanceSession) then return end
+              runtime.inventoryOpen=true
+              runtime.chestOpen=false; runtime.activeChest=nil
+              runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+              runtime.holdPickupIndex=nil; runtime.holdPickupTime=0
+              ui.playSfx("menu")
+          end,
           accessibilityData=function() return runtime.saveData or {} end,
           primaryAction=primaryAction,
           secondaryAction=secondaryAction,
           pressKey=function(key) gameplayInput().keypressed(key) end,
           releaseKey=function(key) gameplayInput().keyreleased(key) end,
           pressPointer=function(x,y,button) return gameplayInput().mousepressed(x,y,button) end,
+          beginTouchPickup=function(x,y) return gameplayInput().beginTouchPickup(x,y) end,
           movePointer=function(x,y,dx,dy,touchAim) gameplayInput().mousemoved(x,y,dx,dy,touchAim) end,
           releasePointer=function(x,y,button) gameplayInput().mousereleased(x,y,button) end,
       })

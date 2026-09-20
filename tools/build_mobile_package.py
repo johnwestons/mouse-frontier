@@ -28,10 +28,10 @@ STAGE_ROOT = OUTPUT_ROOT / "stage"
 CACHE_ROOT = OUTPUT_ROOT / "cache"
 FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 FFMPEG_SHA_URL = FFMPEG_URL + ".sha256"
-ACTIONS = {"idle", "sit", "lay", "walk", "melee", "ranged", "use", "hit", "death", "unconscious"}
+ACTIONS = {"idle", "sit", "lay", "walk", "run", "melee", "ranged", "use", "hit", "death", "unconscious"}
 DIRECTIONAL_CHARACTER_ACTIONS = {
     f"{action}_{direction}"
-    for action in ("idle", "walk")
+    for action in ("idle", "walk", "run")
     for direction in ("north", "northeast", "northwest", "south", "southeast", "southwest", "west")
 }
 CHARACTER_ACTIONS = ACTIONS | DIRECTIONAL_CHARACTER_ACTIONS

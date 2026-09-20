@@ -6,6 +6,13 @@ local EPSILON = 0.0001
 -- activates automatically; characters not yet upgraded keep the existing
 -- instant-response, side-facing movement path.
 CharacterMotion.profiles = {
+    -- Complete authored walk/run/idle set; strides are in rendered world pixels.
+    ["botanist-frog.png"] = { pixelsPerFrame = 2.5296461875, runPixelsPerFrame = 5.990298193359375 },
+    ["conductor-cat.png"] = { pixelsPerFrame = 2.549257, runPixelsPerFrame = 5.974821093750001 },
+    ["cook-frog.png"] = { pixelsPerFrame = 2.5625, runPixelsPerFrame = 6.0214986328125 },
+    ["cook-mouse.png"] = { pixelsPerFrame = 2.596217375, runPixelsPerFrame = 6.1009381347656255 },
+    ["trail-fox.png"] = { pixelsPerFrame = 2.5625, runPixelsPerFrame = 6.005859375 },
+    ["watch-raccoon.png"] = { pixelsPerFrame = 2.5361498124999997, runPixelsPerFrame = 5.974821093750001 },
 }
 
 CharacterMotion.defaults = {
@@ -29,6 +36,24 @@ CharacterMotion.authoredWestActions = {
     "walk_west", "walk_northwest", "walk_southwest",
     "idle_west", "idle_northwest", "idle_southwest",
 }
+
+CharacterMotion.runActions = {
+    "run", "run_north", "run_northeast", "run_southeast", "run_south",
+    "run_west", "run_northwest", "run_southwest",
+}
+
+function CharacterMotion.hasRunSet(set)
+    if type(set) ~= "table" then return false end
+    for _, action in ipairs(CharacterMotion.runActions) do
+        if not set[action] then return false end
+    end
+    return true
+end
+
+local function hasRunProfile(profile)
+    local stride = profile and profile.runPixelsPerFrame
+    return type(stride) == "number" and stride >= 1 and stride < math.huge
+end
 
 local resolvedProfiles = {}
 local unavailableProfiles = {}
@@ -136,11 +161,22 @@ function CharacterMotion.directionalIdleAction(x, y, authoredWest)
     return directionalAction("idle", x, y, authoredWest)
 end
 
+function CharacterMotion.directionalRunAction(x, y)
+    return directionalAction("run", x, y, true)
+end
+
 function CharacterMotion.frameForDistance(frameCount, distance, pixelsPerFrame)
     frameCount = math.max(1, tonumber(frameCount) or 1)
     if frameCount <= 1 then return 1 end
     local stride = math.max(1, tonumber(pixelsPerFrame) or 20)
     return math.floor(math.max(0, tonumber(distance) or 0) / stride) % frameCount + 1
+end
+
+function CharacterMotion.frameForActor(frameCount, actor, profile)
+    if hasRunProfile(profile) and actor.posePhase ~= nil then
+        return CharacterMotion.frameForDistance(frameCount, actor.posePhase, 1)
+    end
+    return CharacterMotion.frameForDistance(frameCount, actor.animationDistance, profile.pixelsPerFrame)
 end
 
 function CharacterMotion.sample(animationDistance, profile)
@@ -155,6 +191,7 @@ function CharacterMotion.resetActor(actor)
     actor.animationDistance, actor.idleClock = 0, 0
     actor.gaitSpeedMultiplier, actor.gaitAccelerationMultiplier = 1, 1
     actor.blocked = false
+    actor.posePhase, actor.locomotionMode = nil, nil
 end
 
 function CharacterMotion.stopActor(actor)
@@ -184,7 +221,11 @@ function CharacterMotion.updateActor(actor, inputX, inputY, dt, options)
         if math.abs(directionX) > 0.08 then actor.facing = directionX < 0 and -1 or 1 end
     end
 
-    local gaitSpeed, gaitAcceleration = CharacterMotion.sample(actor.animationDistance, profile)
+    local phaseDistance = actor.animationDistance
+    if hasRunProfile(profile) and actor.posePhase ~= nil then
+        phaseDistance = actor.posePhase * profile.pixelsPerFrame
+    end
+    local gaitSpeed, gaitAcceleration = CharacterMotion.sample(phaseDistance, profile)
     if inputLength <= EPSILON then gaitSpeed, gaitAcceleration = 1, 1 end
     actor.gaitSpeedMultiplier = gaitSpeed
     actor.gaitAccelerationMultiplier = gaitAcceleration
@@ -225,6 +266,20 @@ function CharacterMotion.updateActor(actor, inputX, inputY, dt, options)
     actor.moving = distance > EPSILON
     actor.blocked = inputLength > EPSILON and distance + 0.05 < travelDistance
     if actor.moving then
+        if hasRunProfile(profile) then
+            -- Keep actual travel untouched. A separate phase integrates resolved
+            -- distance at the active stride and stays continuous across gait changes.
+            local phase = actor.posePhase or (actor.animationDistance or 0) / profile.pixelsPerFrame
+            local speedNow = distance / math.max(dt, EPSILON)
+            local threshold = profile.runSpeedThreshold or 60
+            local hysteresis = profile.runSpeedHysteresis or 10
+            local running = actor.locomotionMode == "run"
+            if running and speedNow < threshold - hysteresis then running = false
+            elseif not running and speedNow >= threshold then running = true end
+            actor.locomotionMode = running and "run" or "walk"
+            local stride = running and profile.runPixelsPerFrame or profile.pixelsPerFrame
+            actor.posePhase = phase + distance / stride
+        end
         actor.animationDistance = (actor.animationDistance or 0) + distance
         actor.idleClock = 0
     else

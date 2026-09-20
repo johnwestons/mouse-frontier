@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local Scene=require("game.last_stand_scene")
 local Shootout=require("game.last_stand_shootout")
 local FirstAid=require("game.first_aid")
@@ -9,11 +10,11 @@ local Quest={}
 local VERSION=1
 
 local OFFER_LINES={
-    "My friends are trapped at a farmhouse beyond the town. A railway gang has them pinned from an old relay depot.",
-    "The wounded are in the yard. The others are holding two front windows, but they cannot hold them forever.",
-    "Come with me. Help us keep those windows firing until the gang loses its nerve.",
-    "The relay is about three hundred meters across the fields. We need to hold for three minutes and break their will to fight.",
-    "Guard Fox has a spare lever rifle and ammunition. If your own gun runs dry, ask for it. Nobody will leave you without a way to help.",
+    "Objective: defend the farmhouse from the railway gang at the relay depot.",
+    "Wounded defenders: backyard. Firing positions: two front windows.",
+    "Accept to follow the scout to the farmhouse and begin the defense.",
+    "Relay distance: 300 meters. Defense target: three minutes and reduced enemy morale.",
+    "Loan weapon and ammunition available from Guard Fox. Press L to borrow during the shootout.",
 }
 
 local VALID_STATES={
@@ -187,7 +188,7 @@ function Quest.new(context)
         state.mode="approach"
         state.capture=false
         state.manualOffer=true
-        runtime.dialogue={speaker="Otter Scout",text="I understand. If you change your mind, I will keep looking for help.",timer=3}
+        runtime.dialogue={speaker="Otter Scout",text="Defense declined. The scout remains available.",timer=3}
         save()
     end
 
@@ -219,8 +220,8 @@ function Quest.new(context)
         if state.handoff or state.quest.victory then return end
         state.handoff={window=windowId,elapsed=0}
         state.scene.handoff=state.handoff
-        state.notice={text=windowId=="wide" and "Guard Fox: Your window. I will cover the other side."
-            or "Gecko Ranger: Taking a step back. You have the narrow angle.",timer=2.5}
+        state.notice={text=windowId=="wide" and "Wide firing position selected."
+            or "Narrow firing position selected.",timer=2.5}
     end
 
     local function finishTreatment(state,result)
@@ -248,18 +249,18 @@ function Quest.new(context)
                 awardVictory(state)
             else
                 state.notice={text=state.quest.victory and (state.quest.rewardClaimed
-                    and "Guard Fox: We will mend the house. Take your time, and find the scout when you are ready."
-                    or "Guard Fox: They have broken for the tracks. Check on the others, then come back to me.")
-                    or "Guard Fox: Use either window. Call for my spare rifle with L if yours runs dry.",timer=5}
+                    and "Defense complete. Return with the scout when ready."
+                    or "Enemies retreating. Check on a resident, then return to Guard Fox.")
+                    or "Both windows are available. Press L to borrow the spare rifle.",timer=5}
             end
         elseif action.id=="talk-gecko" then
             state.quest.residentChecked=state.quest.victory or state.quest.residentChecked
-            state.notice={text=state.quest.victory and "Gecko Ranger: Not another shot. You gave this family time to get through it."
-                or "Gecko Ranger: The narrow window gives better cover. Duck when they raise their rifles.",timer=5}
+            state.notice={text=state.quest.victory and "Resident checked. Defense complete."
+                or "The narrow window provides more cover. Duck to avoid incoming fire.",timer=5}
         elseif action.id=="talk-scout" then
             state.quest.residentChecked=state.quest.victory or state.quest.residentChecked
-            state.notice={text=state.quest.victory and "Otter Scout: We will bring the wounded into town when they can travel. I can lead you back through the gate."
-                or "Otter Scout: The wounded are behind the house. The gate leads safely back to the stop.",timer=5}
+            state.notice={text=state.quest.victory and "Resident checked. Return route: backyard gate."
+                or "Wounded defenders: backyard. Return route: backyard gate.",timer=5}
         elseif action.id=="help-wounded" then
             state.quest.residentChecked=state.quest.victory or state.quest.residentChecked
             if state.quest.woundedTreated then
@@ -282,7 +283,7 @@ function Quest.new(context)
             if state.quest.weaponSessions then state.quest.weaponSessions.loan=nil end
             runtime.lastStand=nil
             releaseResources()
-            runtime.dialogue={speaker="Otter Scout",text="I will wait by the trail. Your friends are keeping the position until you return.",timer=4}
+            runtime.dialogue={speaker="Otter Scout",text="Defense paused. Return to the scout to resume.",timer=4}
             save()
         end
         state.quest.conversations=state.quest.conversations or {}
@@ -336,7 +337,7 @@ function Quest.new(context)
         releaseResources()
         runtime.dialogue={
             speaker="Otter Scout",
-            text="They are safe. The relay gang will think twice before coming back.",
+            text="Defense complete.",
             timer=4,
         }
         save()
@@ -522,7 +523,7 @@ function Quest.new(context)
                 state.quest.weaponSession=nil
                 state.quest.weaponSessions=nil
                 enterScene(state,"interior")
-                state.notice={text="Gecko Ranger: They are leaving the windows. Check on the residents, then speak to Guard Fox.",timer=8}
+                state.notice={text="Enemies retreating. Check on a resident, then return to Guard Fox.",timer=8}
                 state.shootout=nil
                 save()
             end
@@ -610,6 +611,7 @@ function Quest.new(context)
         local state=runtime.lastStand
         if not state then return false end
         if state.mode=="approach" and button==1 and state.arrival and state.arrival>0 and not busy() then
+            x,y=WorldView.toWorld(x,y)
             if math.abs(x-state.scout.x)<95 and math.abs(y-state.scout.y+60)<100 then return self:keypressed("e") end
         end
         if not state.capture then return false end
@@ -628,7 +630,7 @@ function Quest.new(context)
         if (state.mode=="backyard" or state.mode=="interior") and button==1 then
             local rx,ry,rw,rh=Scene.actionRect(height)
             if pointIn(x,y,rx,ry,rw,rh) and handleSceneAction(state) then return true end
-            Scene.setDestination(state.scene,x,y)
+            Scene.setDestination(state.scene,WorldView.toWorld(x,y))
             return true
         end
         if state.mode=="shootout" then
@@ -682,6 +684,17 @@ function Quest.new(context)
 
     function service:isCapturing()
         return runtime.lastStand and runtime.lastStand.capture==true or false
+    end
+
+    function service:zoomField(x,y)
+        local state=runtime.lastStand
+        if not state or not state.capture then return nil end
+        if state.mode=="shootout" and not state.paused and not state.treatment and not state.handoff
+            and state.shootout.result~="retreat" and not Shootout.needsSupply(state.shootout,runtime.saveData) then
+            if Shootout.touchAction(x,y,width,height) then return nil end
+            return state.shootout,true
+        end
+        return state,false
     end
 
     function service:touchpressed(id,x,y)
@@ -754,14 +767,14 @@ function Quest.new(context)
             love.graphics.setColor(.27,.20,.16,1)
             love.graphics.rectangle("fill",dx,dy,dw,dh,8,8)
             love.graphics.setColor(1,.88,.64,1)
-            love.graphics.printf("I'LL HELP  [Y]",ax,ay+17,aw,"center")
+            love.graphics.printf("ACCEPT  [Y]",ax,ay+17,aw,"center")
             love.graphics.printf("NOT NOW  [N]",dx,dy+17,dw,"center")
             love.graphics.setColor(.18,.12,.075,1)
             love.graphics.rectangle("fill",ax,ay-58,aw,44,8,8)
             love.graphics.rectangle("fill",dx,dy-58,dw,44,8,8)
             love.graphics.setColor(1,.88,.64,1)
-            love.graphics.printf("HOW BAD IS IT?  [Q]",ax,ay-43,aw,"center")
-            love.graphics.printf("WHAT ABOUT AMMO?  [F]",dx,dy-43,dw,"center")
+            love.graphics.printf("DEFENSE OBJECTIVE  [Q]",ax,ay-43,aw,"center")
+            love.graphics.printf("WEAPON SUPPLIES  [F]",dx,dy-43,dw,"center")
             love.graphics.setColor(.82,.70,.52,1)
             love.graphics.printf("Page "..state.offerPage.." / "..#OFFER_LINES,width/2-80,height/2+116,160,"center")
             return

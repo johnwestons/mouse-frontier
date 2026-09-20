@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local BattleRules = require("game.battle_rules")
 local Catalog = require("game.catalog")
 local Util = require("game.util")
@@ -21,6 +22,7 @@ local function boardToScreen(ctx,q,r)
 end
 
 function BattleUI.screenToBoardSpace(ctx,x,y)
+    x,y=WorldView.toWorld(x,y)
     return Grid.screenToBoardSpace(ctx.battle,1,x,y)
 end
 
@@ -38,16 +40,15 @@ function BattleUI.draw(ctx)
     local textScale=Accessibility.textScale(saveData)
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
-    drawLandscape(); drawGround()
+    WorldView.begin(); drawLandscape(); drawGround(); WorldView.finish()
     love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,12,910,668,12,12)
     if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,12,910,668,12,12); love.graphics.setLineWidth(1) end
     -- The northern scenery reaches above its board tile. Keep the heading in
     -- the free top band and put touch hints on the feed, clear of that artwork.
-    love.graphics.setColor(colors.cream); text("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,18,910,30,1.25,1,"center")
-    love.graphics.setColor(colors.brass); text("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),190,51,580,24,mobile and .80 or .72,.68,"center")
     -- Inspecting a unit changes its information card, never who owns the turn.
     local active=BattleRules.activeUnit(battle)
     local inspected=BattleRules.selectedUnit(battle)
+    WorldView.begin({clip={25,80,910,(mobile and 414 or 476)-80}})
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
     if terrainAtlas then
         local reachableSpaces=active and active.team=="ally" and BattleRules.reachable(battle,active,active.move) or {}
@@ -161,6 +162,9 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
+    WorldView.finish()
+    love.graphics.setColor(colors.cream); text("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,18,910,30,1.25,1,"center")
+    love.graphics.setColor(colors.brass); text("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),190,51,580,24,mobile and .80 or .72,.68,"center")
     -- Paint the controls backing before the card/feed so mobile actions never
     -- cover the current unit's health or the most recent combat result.
     if not battle.finished and active and active.team=="ally" then
@@ -285,6 +289,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     end
     if battle.finished then return "handled" end
     if rightClick then
+        if x<25 or x>935 or y<80 or y>=(ctx.mobileEnabled and 414 or 476) then return "handled" end
         local q,r=BattleUI.screenToBoardSpace(ctx,x,y); local clicked=q and BattleRules.unitAt(battle,q,r)
         if clicked then battle.selected=clicked.id; ui.playSfx("menu") end
         return "handled"
@@ -308,6 +313,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     end
     if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); ctx.advanceBattleTurn(); return "handled" end
     if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); ctx.saveData.battlePotionLootChance=nil; return "retreat" end
+    if x<25 or x>935 or y<80 or y>=(ctx.mobileEnabled and 414 or 476) then return "handled" end
     local q,r=BattleUI.screenToBoardSpace(ctx,x,y)
     if q then
         local clicked=BattleRules.unitAt(battle,q,r)

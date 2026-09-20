@@ -50,6 +50,9 @@ REVIEW_FLAGS = (
     "reviewed_at_1x",
     "reviewed_at_half_speed",
 )
+RUN_REVIEW_FLAGS = ('run_phase_order_valid', 'run_alternating_contacts_valid',
+                    'run_flight_and_ground_anchor_valid', 'run_matches_walk_and_idle',
+                    'run_reviewed_at_1x', 'run_reviewed_at_half_speed')
 UNIFORM_SCALE_LIMIT = 0.05
 ANISOTROPY_TOLERANCE = 0.005
 OPAQUE_ALPHA = 240
@@ -303,7 +306,8 @@ def audit_source_resolution_normalization(
     issues: list[GateIssue] = []
     source_root = project_path(project_root, str(build_manifest.get("source_root", "")))
     default_checker = build_manifest.get("framing", {}).get("remove_edge_connected_checker", False)
-    for output, walk in build_manifest.get("walks", {}).items():
+    from tools.character_gait_contract import locomotion_sources
+    for output, walk in locomotion_sources(build_manifest).items():
         if not isinstance(walk, dict) or not walk.get("frame_sources"):
             continue
         location = f"walks.{output}.frame_sources"
@@ -358,7 +362,8 @@ def _build_source_paths(build_manifest: dict[str, Any], project_root: Path) -> t
         for item in idle_sets:
             if isinstance(item, dict) and isinstance(item.get("source"), str):
                 sources.add((source_root / item["source"]).resolve())
-    walks = build_manifest.get("walks", {})
+    from tools.character_gait_contract import locomotion_sources
+    walks = locomotion_sources(build_manifest)
     if isinstance(walks, dict):
         for item in walks.values():
             if isinstance(item, str):
@@ -524,6 +529,49 @@ def validate_prompt_provenance(
             if path is not None:
                 covered.add(path.resolve())
 
+    # Mechanical authoring is not another image-generation prompt. Require a
+    # topologically ordered, hash-bound chain back to recorded generated art.
+    derivations = provenance.get('derivations', [])
+    if not isinstance(derivations, list):
+        issues.append(GateIssue('invalid_derivations', 'derivations must be a list', 'derivations'))
+        derivations = []
+    for index, record in enumerate(derivations):
+        location = f'derivations[{index}]'
+        before = len(issues)
+        if not isinstance(record, dict):
+            issues.append(GateIssue('invalid_derivation', 'derivation must be an object', location))
+            continue
+        record_id = record.get('id')
+        if not isinstance(record_id, str) or not record_id.strip() or record_id in seen_ids:
+            issues.append(GateIssue('invalid_derivation_id', 'derivation id must be unique and nonempty', location))
+        else:
+            seen_ids.add(record_id)
+        if record.get('kind') not in {'mechanical_normalization', 'layered_2d_authoring'} or not str(record.get('method', '')).strip():
+            issues.append(GateIssue('invalid_derivation_method', 'declare the mechanical method without claiming a generation prompt', location))
+        outputs = []
+        for group in ('inputs', 'tooling', 'outputs'):
+            references = record.get(group)
+            if not isinstance(references, list) or not references:
+                issues.append(GateIssue('missing_derivation_references', f'{group} must be nonempty', location))
+                continue
+            for j, reference in enumerate(references):
+                path, errors = _validate_hash_bound_path(reference, project_root=project_root,
+                    character_root=expected_source_root, location=f'{location}.{group}[{j}]',
+                    require_character_local=group != 'tooling')
+                issues.extend(errors)
+                if path is None:
+                    continue
+                if group == 'inputs' and path.resolve() not in covered:
+                    issues.append(GateIssue('unproven_derived_input', 'input must trace to an earlier hash-bound prompt artifact or derivation', location))
+                if group == 'tooling' and not is_within(path, project_root):
+                    issues.append(GateIssue('external_derivation_tool', 'retain authoring tooling inside the project', location))
+                if group == 'outputs':
+                    if path.resolve() in covered:
+                        issues.append(GateIssue('derivation_overwrites_source', 'derived output must not overwrite an earlier source', location))
+                    outputs.append(path.resolve())
+        if len(issues) == before:
+            covered.update(outputs)
+
     for required in sorted(required_sources):
         if required.resolve() not in covered:
             try:
@@ -634,7 +682,8 @@ def validate_motion_center_contract(
         if build_manifest.get("framing", {}).get("horizontal_anchor", "bbox") != "core":
             return [GateIssue("motion_center_contract_mismatch", "core motion audit requires a core-anchored build manifest", "audit.center_metric")]
         idle_definitions = build_manifest.get("idle_sets") or ([build_manifest["idle"]] if "idle" in build_manifest else [])
-        definitions = list(build_manifest.get("walks", {}).values()) + list(idle_definitions)
+        from tools.character_gait_contract import locomotion_sources
+        definitions = list(locomotion_sources(build_manifest).values()) + list(idle_definitions)
         if any(isinstance(item, dict) and item.get("horizontal_anchor", "core") != "core" for item in definitions):
             return [GateIssue("motion_center_contract_mismatch", "all walk and idle overrides must retain the declared core anchor", "audit.center_metric")]
     return []
@@ -699,6 +748,14 @@ def audit_current_motion_evidence(
             if record.get("frames") != metrics or project_path(project_root, str(record.get("path", ""))) != project_path(project_root, definition["path"]):
                 issues.append(GateIssue("stale_motion_audit_inputs", f"motion audit metrics or input path differ from current {name}; rerun the strict audit", location))
             issues.extend(validate_motion_center_metrics(record, frames, motion_spec.get("audit", {}), location))
+            if definition.get('gait_kind') == 'run':
+                from tools.character_gait_contract import run_ground_clearance
+                clearance = run_ground_clearance(definition.get('ground_clearance'), definition['frame_height'])
+                expected_ground = {'ground_clearance': clearance,
+                                   'positions': [metric['bbox'][3] + clearance[metric['frame'] - 1]
+                                                 for metric in metrics if metric['bbox']]}
+                if record.get('ground_metrics') != expected_ground:
+                    issues.append(GateIssue('stale_run_ground_metrics', 'Run flight/ground measurements must match the current contract and pixels', location))
             sheet_path = character_root / "audit" / "contact-sheets" / f"{name}.png"
             with Image.open(sheet_path) as opened:
                 sheet = opened.convert("RGBA")
@@ -749,6 +806,14 @@ def expected_review_artifacts(
             "preview_half_speed": character_root / "semantic-review" / "previews-half-speed" / f"{walk}.gif",
             "half_cycle_sheet": character_root / "semantic-review" / "half-cycle-sheets" / f"{walk}.png",
         }
+        if mapping.get('run_animation'):
+            run = mapping['run_animation']
+            artifacts[direction].update({
+                'run_contact_sheet': character_root / 'audit' / 'contact-sheets' / f'{run}.png',
+                'run_preview_1x': character_root / 'semantic-review' / 'previews-1x' / f'{run}.gif',
+                'run_preview_half_speed': character_root / 'semantic-review' / 'previews-half-speed' / f'{run}.gif',
+                'run_half_cycle_sheet': character_root / 'semantic-review' / 'half-cycle-sheets' / f'{run}.png',
+            })
     return artifacts
 
 
@@ -799,11 +864,27 @@ def prepare_review_artifacts(
             "sprite_doctor": evidence_reference(project_root, character_root / "sprite-doctor" / "report.json"),
         },
     }
+    rendered_runs = set()
+    for direction in CANONICAL_DIRECTIONS:
+        name = motion_spec.get('directions', {}).get(direction, {}).get('run_animation')
+        if not name or name in rendered_runs:
+            continue
+        try:
+            animation = animations[name]
+            frames = split_animation_frames(animation, project_root)
+            paths = expected[direction]
+            render_walk_previews(frames, float(animation['fps']), paths['run_preview_1x'], paths['run_preview_half_speed'])
+            render_half_cycle_sheet(frames, animation['pose_order'], paths['run_half_cycle_sheet'])
+            rendered_runs.add(name)
+        except (KeyError, OSError, TypeError, ValueError) as exc:
+            issues.append(GateIssue('run_review_artifact_generation_failed', str(exc), f'animations.{name}'))
     for direction in CANONICAL_DIRECTIONS:
         mapping = motion_spec.get("directions", {}).get(direction, {})
         entry: dict[str, Any] = {
             "walk_animation": mapping.get("walk_animation"),
             "idle_animation": mapping.get("idle_animation"),
+            **({'run_animation': mapping['run_animation'], **{flag: False for flag in RUN_REVIEW_FLAGS}}
+               if mapping.get('run_animation') else {}),
             **{flag: False for flag in REVIEW_FLAGS},
             "notes": "",
             "evidence": {
@@ -846,7 +927,7 @@ def _validate_clean_reports(report_paths: dict[str, Path]) -> list[GateIssue]:
                 if not isinstance(item, dict) or item.get("severity") not in {"error", "warning"}:
                     continue
                 action = str(item.get("action", ""))
-                if action == "idle" or action == "walk" or action.startswith("idle_") or action.startswith("walk_"):
+                if action in {'idle', 'walk', 'run'} or action.startswith(('idle_', 'walk_', 'run_')):
                     issues.append(
                         GateIssue(
                             "sprite_doctor_locomotion_issue",
@@ -958,7 +1039,7 @@ def validate_manual_review(
             issues.append(GateIssue("missing_direction_review", f"missing review for {direction}", location))
             continue
         mapping = spec_directions.get(direction, {}) if isinstance(spec_directions, dict) else {}
-        for animation_key in ("walk_animation", "idle_animation"):
+        for animation_key in ('walk_animation', 'idle_animation', *(['run_animation'] if mapping.get('run_animation') else [])):
             if entry.get(animation_key) != mapping.get(animation_key):
                 issues.append(
                     GateIssue(
@@ -967,7 +1048,7 @@ def validate_manual_review(
                         f"{location}.{animation_key}",
                     )
                 )
-        for flag in REVIEW_FLAGS:
+        for flag in (*REVIEW_FLAGS, *(RUN_REVIEW_FLAGS if mapping.get('run_animation') else ())):
             if entry.get(flag) is not True:
                 issues.append(GateIssue("semantic_review_flag_not_accepted", f"{flag} must be true", f"{location}.{flag}"))
         if not str(entry.get("notes", "")).strip():
@@ -1068,6 +1149,26 @@ def run_gate(
         )
 
     issues.extend(audit_locomotion_mattes(motion_spec, project_root))
+    from tools.sprite_motion_audit import validate_gait
+    contract_issues = []
+    validate_gait(motion_spec, motion_spec.get('animations', {}), contract_issues)
+    issues.extend(GateIssue(item['code'], item['message'], item.get('animation')) for item in contract_issues)
+    for name, definition in motion_spec.get('animations', {}).items():
+        if definition.get('gait_kind') != 'run':
+            continue
+        from tools.character_gait_contract import RUN_PHASES, run_ground_clearance
+        try:
+            clearance = run_ground_clearance(definition.get('ground_clearance'), definition['frame_height'])
+            source = build_manifest.get('runs', {}).get(Path(definition['path']).name, {})
+            if source.get('ground_clearance') != clearance:
+                raise ValueError('Run build and audit ground clearance must match')
+            if definition.get('pose_order') != RUN_PHASES:
+                raise ValueError('Run phases must be contact/load/flight/reach')
+            timing = motion_spec['run_gait']
+            if not math.isclose(definition.get('fps', 0), timing['base_speed'] / timing['pixels_per_frame'], rel_tol=1e-6):
+                raise ValueError('Run review cadence must match the distance-driven profile')
+        except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+            issues.append(GateIssue('invalid_run_acceptance_contract', str(exc), name))
     issues.extend(audit_per_frame_geometry(build_manifest))
     issues.extend(audit_source_resolution_normalization(build_manifest, project_root))
     issues.extend(validate_motion_center_contract(motion_spec, build_manifest))

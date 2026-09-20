@@ -1,3 +1,4 @@
+local WorldGesture=require("game.world_gesture")
 local Config = require("game.config")
 local SaveSchema = require("game.save_schema")
 local Audio = require("game.audio")
@@ -210,28 +211,33 @@ local function new(context)
   end
   function application.draw() return services.presentationRuntime.draw() end
   function application.mousepressed(x,y,button,istouch,presses)
+    if button==3 then return services.gameplayInput.mousepressed(x,y,button,istouch,presses) end
     if istouch and lastStand:isCapturing() then return true end
     local gx,gy=lastStandPoint(x,y)
     if lastStand:mousepressed(gx,gy,button,istouch,presses) then return true end
     return services.mobileRuntime.mousepressed(x,y,button,istouch,presses)
   end
   function application.mousemoved(x,y,dx,dy,istouch)
+    if platform.presentationRuntime.isPanning() then return services.gameplayInput.mousemoved(x,y,dx,dy,istouch) end
     if istouch and lastStand:isCapturing() then return true end
     local gx,gy=lastStandPoint(x,y)
     if lastStand:mousemoved(gx,gy,dx,dy,istouch) then return true end
     return services.mobileRuntime.mousemoved(x,y,dx,dy,istouch)
   end
   function application.mousereleased(x,y,button,istouch,presses)
+    if button==3 then return services.gameplayInput.mousereleased(x,y,button,istouch,presses) end
     if istouch and lastStand:isCapturing() then return true end
     local gx,gy=lastStandPoint(x,y)
     if lastStand:mousereleased(gx,gy,button,istouch,presses) then return true end
     return services.mobileRuntime.mousereleased(x,y,button,istouch,presses)
   end
   function application.wheelmoved(x,y)
-    if lastStand:wheelmoved(x,y) then return true end
     return services.gameplayInput.wheelmoved(x,y)
   end
   function application.keypressed(key,scancode,isrepeat)
+    if key=="=" or key=="+" or key=="kp+" or key=="-" or key=="kp-" or key=="0" or key=="kp0" then
+      return services.gameplayInput.keypressed(key)
+    end
     if lastStand:keypressed(key,scancode,isrepeat) then return true end
     return services.mobileRuntime.keypressed(key,scancode,isrepeat)
   end
@@ -239,28 +245,56 @@ local function new(context)
     if lastStand:keyreleased(key,scancode) then return true end
     return services.mobileRuntime.keyreleased(key,scancode)
   end
-  function application.touchpressed(id,x,y,dx,dy,pressure)
+  local function sceneTouchpressed(id,x,y,dx,dy,pressure)
     local gx,gy=lastStandPoint(x,y)
     if lastStand:touchpressed(id,gx,gy) then return true end
     return services.mobileRuntime.touchpressed(id,x,y,dx,dy,pressure)
   end
-  function application.touchmoved(id,x,y,dx,dy,pressure)
+  local function sceneTouchmoved(id,x,y,dx,dy,pressure)
     local gx,gy=lastStandPoint(x,y)
     if lastStand:touchmoved(id,gx,gy) then return true end
     return services.mobileRuntime.touchmoved(id,x,y,dx,dy,pressure)
   end
-  function application.touchreleased(id,x,y,dx,dy,pressure)
+  local function sceneTouchreleased(id,x,y,dx,dy,pressure)
     local gx,gy=lastStandPoint(x,y)
     if lastStand:touchreleased(id,gx,gy) then return true end
     return services.mobileRuntime.touchreleased(id,x,y,dx,dy,pressure)
   end
+  local sceneGesture=WorldGesture.new({
+    field=function(x,y)
+      local gx,gy=lastStandPoint(x,y)
+      if lastStand:isCapturing() then return lastStand:zoomField(gx,gy) end
+      local range=runtime.shootingRange
+      if range and range.phase=="play" and gy>=96 and gy<592 then return range,true end
+    end,
+    getZoom=platform.presentationRuntime.getZoom,setZoom=platform.presentationRuntime.setZoom,
+    beginPan=platform.presentationRuntime.beginPan,movePan=platform.presentationRuntime.movePan,
+    endPan=platform.presentationRuntime.endPan,
+    press=sceneTouchpressed,move=sceneTouchmoved,release=sceneTouchreleased,
+  })
+  function application.touchpressed(id,x,y,dx,dy,pressure)
+    if sceneGesture:pressed(id,x,y) then return true end
+    return sceneTouchpressed(id,x,y,dx,dy,pressure)
+  end
+  function application.touchmoved(id,x,y,dx,dy,pressure)
+    if sceneGesture:moved(id,x,y,dx,dy) then return true end
+    return sceneTouchmoved(id,x,y,dx,dy,pressure)
+  end
+  function application.touchreleased(id,x,y,dx,dy,pressure)
+    if sceneGesture:released(id,x,y) then return true end
+    return sceneTouchreleased(id,x,y,dx,dy,pressure)
+  end
   function application.focus(focused)
+    if not focused then sceneGesture:cancel() end
     lastStand:focus(focused)
     return services.persistenceRuntime.focus(focused)
   end
   function application.installSmoke() return smoke.install() end
   function application.quit() services.persistenceRuntime.shutdown() end
-  return application
+  return require("game.player_tools_host").wrap(application,{
+    runtime=runtime,ui=ui,filesystem=Filesystem,mobile=platform.mobileRuntime,
+    presentation=platform.presentationRuntime,persistence=platform.persistenceRuntime,
+  })
 end
 
 return {new=new}

@@ -12,6 +12,18 @@ CaravanArea.WIDTH = 960
 CaravanArea.HEIGHT = 720
 CaravanArea.SAFE = true
 CaravanArea.VARIANT_ID = "rookery-v1"
+CaravanArea.WALK_MASK = "assets/backgrounds/walkmask-crow-caravan-campsite-v1.png"
+
+local walkMaskImage
+
+local function walkMask()
+    if not (love and love.image and love.image.newImageData) then return nil end
+    if walkMaskImage==nil then
+        local ok,image=pcall(love.image.newImageData,CaravanArea.WALK_MASK)
+        walkMaskImage=ok and image or false
+    end
+    return walkMaskImage or nil
+end
 
 local arrivalSpawn = {x=480,y=626}
 local returnGate = {
@@ -152,6 +164,7 @@ function CaravanArea.definition(stop)
         kind="safeVendorCamp", scene=CaravanArea.SCENE, name="The Rookery Caravan",
         width=CaravanArea.WIDTH, height=CaravanArea.HEIGHT, safe=true, scrolling=false,
         variantId=CaravanArea.VARIANT_ID, backgroundKey="crowCaravanCampsite",
+        walkMask=CaravanArea.WALK_MASK,
         spawns={arrival=shallowCopy(arrivalSpawn)}, returnGate=shallowCopy(returnGate),
         merchants=merchantDefinitions, stalls=stalls, props=props, obstacles=obstacles,
     }
@@ -308,12 +321,28 @@ function CaravanArea.spawn(session,spawnId)
 end
 
 function CaravanArea.isWalkable(x,y,footRadius)
+    if not finite(x) or not finite(y) then return false end
+    local mask=walkMask()
+    if mask then
+        local radius=math.max(0,tonumber(footRadius) or 6)
+        if x<radius or y<radius or x>CaravanArea.WIDTH-radius or y>CaravanArea.HEIGHT-radius then return false end
+        local mw,mh=mask:getDimensions()
+        local function sample(px,py)
+            local ix=math.max(0,math.min(mw-1,math.floor(px*mw/CaravanArea.WIDTH)))
+            local iy=math.max(0,math.min(mh-1,math.floor(py*mh/CaravanArea.HEIGHT)))
+            return select(1,mask:getPixel(ix,iy))>.5
+        end
+        -- Match stop masks. Painted pixels replace the old floor and prop shapes.
+        return sample(x,y) and sample(x-radius,y) and sample(x+radius,y)
+            and sample(x,y-radius) and sample(x,y+radius)
+    end
     return rawWalkable(x,y,math.max(0,tonumber(footRadius) or 7))
 end
 
 function CaravanArea.clamp(x,y)
-    x=clampNumber(tonumber(x) or arrivalSpawn.x,42,918)
-    y=clampNumber(tonumber(y) or arrivalSpawn.y,88,690)
+    local mask=walkMask()
+    x=clampNumber(tonumber(x) or arrivalSpawn.x,mask and 6 or 42,mask and CaravanArea.WIDTH-6 or 918)
+    y=clampNumber(tonumber(y) or arrivalSpawn.y,mask and 6 or 88,mask and CaravanArea.HEIGHT-6 or 690)
     if CaravanArea.isWalkable(x,y) then return x,y end
     for radius=6,520,6 do
         for step=0,47 do
@@ -326,6 +355,18 @@ function CaravanArea.clamp(x,y)
 end
 
 function CaravanArea.move(oldX,oldY,newX,newY)
+    if walkMask() then
+        -- Substeps keep long frames from skipping narrow painted barriers.
+        local steps=math.max(1,math.ceil(distance(oldX,oldY,newX,newY)/6))
+        local dx,dy=(newX-oldX)/steps,(newY-oldY)/steps
+        local x,y=oldX,oldY
+        for _=1,steps do
+            if CaravanArea.isWalkable(x+dx,y+dy) then x,y=x+dx,y+dy
+            elseif CaravanArea.isWalkable(x+dx,y) then x=x+dx
+            elseif CaravanArea.isWalkable(x,y+dy) then y=y+dy end
+        end
+        return x,y
+    end
     if CaravanArea.isWalkable(newX,newY) then return newX,newY end
     if CaravanArea.isWalkable(newX,oldY) then return newX,oldY end
     if CaravanArea.isWalkable(oldX,newY) then return oldX,newY end

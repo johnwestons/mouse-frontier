@@ -3,19 +3,207 @@
   "character": "tinker-fox",
   "source_root": "output/character-motion/tinker-fox/source",
   "runtime_root": "output/character-motion/tinker-fox/runtime",
-  "framing": { "frame_size": 512, "target_height": 385, "max_width": 460, "center_x": 256, "baseline": 458 },
+  "framing": {
+    "frame_size": 512,
+    "target_height": 385,
+    "max_width": 460,
+    "center_x": 256,
+    "baseline": 458,
+    "horizontal_anchor": "core",
+    "remove_edge_connected_magenta_fringe": true
+  },
   "idle_sets": [
-    { "source": "idle-direction-study-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "source_indices": [0, 1, 2, 3], "outputs": ["idle_south.png", "idle_southwest.png", "idle_west.png", "idle_northwest.png"], "fixed_grid": true },
-    { "source": "idle-direction-study-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "source_indices": [0, 1, 2, 3], "outputs": ["idle_north.png", "idle_northeast.png", "idle.png", "idle_southeast.png"], "fixed_grid": true }
+    {
+      "source": "idle-background-equipment-cleanup-v4.png",
+      "source_columns": 4,
+      "rows": 4,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0,
+        1,
+        2
+      ],
+      "outputs": [
+        "idle_south.png",
+        "idle_southwest.png",
+        "idle_west.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-north-isolated-repair-v5.png",
+      "row_boundaries": [
+        0,
+        777,
+        1774
+      ],
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_north.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-northwest-isolated-repair-v5.png",
+      "row_boundaries": [
+        0,
+        908,
+        1774
+      ],
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_northwest.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-northeast-isolated-repair-v5.png",
+      "row_boundaries": [
+        0,
+        776,
+        1775
+      ],
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_northeast.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-east-isolated-repair-v5.png",
+      "row_boundaries": [
+        0,
+        774,
+        1775
+      ],
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle.png"
+      ],
+      "fixed_grid": true
+    },
+    {
+      "source": "idle-southeast-plain-right-sleeve-v6.png",
+      "row_boundaries": [
+        0,
+        784,
+        1774
+      ],
+      "source_columns": 1,
+      "rows": 2,
+      "row_indices": [
+        0,
+        1
+      ],
+      "source_indices": [
+        0
+      ],
+      "outputs": [
+        "idle_southeast.png"
+      ],
+      "fixed_grid": true
+    }
   ],
   "walks": {
-    "walk.png": { "source": "walk-west-east-v3-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_northeast.png": { "source": "walk-northwest-northeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_north.png": { "source": "walk-south-north-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_northwest.png": { "source": "walk-northwest-northeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_west.png": { "source": "walk-west-east-v3-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_southwest.png": { "source": "walk-southwest-southeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_south.png": { "source": "walk-south-north-v2-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [0, 1], "drop_boundary_spill": true, "fixed_grid": true },
-    "walk_southeast.png": { "source": "walk-southwest-southeast-v1-reviewed.png", "source_columns": 4, "rows": 4, "row_indices": [2, 3], "drop_boundary_spill": true, "fixed_grid": true }
+    "walk.png": {
+      "source": "walk-east-passing-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true,
+      "frame_sources": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        {
+          "source": "walk-east-phase7-close-pass-v5.png",
+          "resolution_normalization": "match_base_visible_height"
+        },
+        null
+      ]
+    },
+    "walk_west.png": {
+      "source": "walk-west-low-pass-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_south.png": {
+      "source": "walk-south-single-patch-v12.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_north.png": {
+      "source": "walk-north-single-patch-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_northeast.png": {
+      "source": "walk-northeast-opposite-knee-depth-v6.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_southeast.png": {
+      "source": "walk-southeast-depth-consistency-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    },
+    "walk_northwest.png": {
+      "source": "walk-northwest-depth-arm-v3.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true,
+      "frame_sources": [null, null, null, null, null, null, null, {
+        "source": "walk-northwest-isolated-phase8-v5.png",
+        "resolution_normalization": "match_base_visible_height"
+      }]
+    },
+    "walk_southwest.png": {
+      "source": "walk-southwest-depth-consistency-v4.png",
+      "source_columns": 4,
+      "rows": 2,
+      "fixed_grid": true
+    }
   }
 }

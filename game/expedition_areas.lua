@@ -15,6 +15,7 @@ local definitions = {
         width=1672,
         height=941,
         background="assets/sprites/expeditions/stop06/outskirts-background.png",
+        walkMask="assets/sprites/expeditions/stop06/walkmask-outskirts.png",
         version=2,
         spawns={town={x=836,y=842},dungeonReturn={x=1452,y=250}},
         clearings={
@@ -74,6 +75,7 @@ local definitions = {
         width=1672,
         height=941,
         background="assets/sprites/expeditions/stop06/buried-waystation-background.png",
+        walkMask="assets/sprites/expeditions/stop06/walkmask-buried-waystation.png",
         version=2,
         spawns={surface={x=135,y=405}},
         clearings={
@@ -131,6 +133,7 @@ local definitions = {
 local stopEntrance={id="explore-outskirts",kind="enterArea",target=Areas.SURFACE_ID,spawn="town",x=875,y=367,radius=86,label="EXPLORE OUTSKIRTS"}
 local initialized=setmetatable({},{__mode="k"})
 local navigation={}
+local walkMasks={}
 
 local function finite(value,fallback)
     value=tonumber(value)
@@ -267,19 +270,70 @@ local function gateOpen(state,gate)
     return state and state.gates and state.gates[gate]==true
 end
 
+local function walkMask(area)
+    if not area.walkMask or not (love and love.image and love.image.newImageData) then return nil end
+    if walkMasks[area.walkMask]==nil then
+        local ok,mask=pcall(love.image.newImageData,area.walkMask)
+        walkMasks[area.walkMask]=ok and mask or false
+    end
+    return walkMasks[area.walkMask] or nil
+end
+
+local function insideClearing(clearing,x,y)
+    local rx,ry=clearing.rx or clearing.r,clearing.ry or clearing.r
+    return ((x-clearing.x)/rx)^2+((y-clearing.y)/ry)^2<=1
+end
+
+local function insideCorridor(corridor,x,y)
+    return pointSegmentDistance(x,y,corridor.x1,corridor.y1,corridor.x2,corridor.y2)<=corridor.r
+end
+
+local function authoredWalkable(area,state,x,y)
+    for _,clearing in ipairs(area.clearings or {}) do
+        if gateOpen(state,clearing.gate) and insideClearing(clearing,x,y) then return true end
+    end
+    for _,corridor in ipairs(area.corridors or {}) do
+        if gateOpen(state,corridor.gate) and insideCorridor(corridor,x,y) then return true end
+    end
+    return false
+end
+
+local function gateBlocked(area,state,x,y)
+    -- Masks own the ground; only progression locks still use authored regions.
+    -- Shared endpoints must remain accessible from the open side of a gate.
+    for _,clearing in ipairs(area.clearings or {}) do
+        if clearing.gate and not gateOpen(state,clearing.gate) and insideClearing(clearing,x,y) then
+            return not authoredWalkable(area,state,x,y)
+        end
+    end
+    for _,corridor in ipairs(area.corridors or {}) do
+        if corridor.gate and not gateOpen(state,corridor.gate) and insideCorridor(corridor,x,y) then
+            return not authoredWalkable(area,state,x,y)
+        end
+    end
+    return false
+end
+
 function Areas.isWalkable(data,areaId,x,y)
     local area=definitions[areaId]
     if not area or x<24 or y<24 or x>area.width-24 or y>area.height-24 then return false end
     local state=Areas.state(data,areaId)
     Areas.updateGates(data,areaId)
-    for _,clearing in ipairs(area.clearings or {}) do
-        local rx,ry=clearing.rx or clearing.r,clearing.ry or clearing.r
-        if gateOpen(state,clearing.gate) and ((x-clearing.x)/rx)^2+((y-clearing.y)/ry)^2<=1 then return true end
+    local mask=walkMask(area)
+    if mask then
+        local mw,mh=mask:getDimensions()
+        local function sample(px,py)
+            local ix=math.max(0,math.min(mw-1,math.floor(px/area.width*mw)))
+            local iy=math.max(0,math.min(mh-1,math.floor(py/area.height*mh)))
+            -- Match stop masks: white/red > .5 permits the player's feet.
+            return select(1,mask:getPixel(ix,iy))>.5 and not gateBlocked(area,state,px,py)
+        end
+        local radius=6
+        return sample(x,y) and sample(x-radius,y) and sample(x+radius,y)
+            and sample(x,y-radius) and sample(x,y+radius)
     end
-    for _,corridor in ipairs(area.corridors or {}) do
-        if gateOpen(state,corridor.gate) and pointSegmentDistance(x,y,corridor.x1,corridor.y1,corridor.x2,corridor.y2)<=corridor.r then return true end
-    end
-    return false
+    -- Keep the authored geometry available to headless tools and missing assets.
+    return authoredWalkable(area,state,x,y)
 end
 
 function Areas.clamp(data,areaId,x,y)

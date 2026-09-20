@@ -3,7 +3,7 @@ local Accessibility = require("game.accessibility")
 local HelpQuestSession = require("game.help_quest_session")
 
 local SaveSchema = {
-    CURRENT_VERSION = 34,
+    CURRENT_VERSION = 35,
     LEGACY_VERSION = 1,
 }
 
@@ -15,7 +15,7 @@ local STRUCTURAL_TABLES = {
     "weaponProficiency", "supplyQuests", "mailQuests", "passengers", "questAsked",
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
-    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions", "expeditions", "crowCaravans", "lastStand",
+    "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions", "expeditions", "crowCaravans", "lastStand", "conversations",
 }
 
 local function finiteNumber(value)
@@ -46,6 +46,17 @@ local function validateShape(data)
     if data.scene~=nil and type(data.scene)~="string" then return false,"scene must be text" end
     if data.activeHelpQuestId~=nil and type(data.activeHelpQuestId)~="string" then return false,"activeHelpQuestId must be text" end
     if data.activeExpeditionArea~=nil and type(data.activeExpeditionArea)~="string" then return false,"activeExpeditionArea must be text" end
+    if data.conversations then
+        local state=data.conversations
+        for _,field in ipairs({"assignments","completed","seen"}) do
+            if state[field]~=nil and type(state[field])~="table" then return false,"conversations."..field.." must be a table" end
+        end
+        if state.nextStop~=nil and (not finiteNumber(state.nextStop) or state.nextStop<1) then return false,"invalid conversation spacing" end
+        for key,entry in pairs(state.assignments or {}) do
+            if type(key)~="string" or type(entry)~="table" or type(entry.id)~="string" or type(entry.npc)~="string"
+                or not finiteNumber(entry.location) or tostring(entry.location)~=key then return false,"invalid conversation assignment" end
+        end
+    end
     local caravans=data.crowCaravans
     if caravans then
         if caravans.version~=nil then
@@ -179,6 +190,10 @@ local function removeRetiredStopActivities(data)
     -- quest session while preserving rewards already earned and other quests.
     for _,layout in pairs(data.stopLayouts) do
         if type(layout)=="table" then
+            layout.dialogueHelpRequests=nil
+            for npc,kind in pairs(layout.npcOffers or {}) do
+                if kind=="dialogue" then layout.npcOffers[npc]="none" end
+            end
             local activity=layout.worldActivity
             if type(activity)=="table" and activity.sessionId then
                 data.helpQuestSessions[activity.sessionId]=nil
@@ -187,8 +202,9 @@ local function removeRetiredStopActivities(data)
         end
     end
     for id,session in pairs(data.helpQuestSessions) do
-        if type(session)=="table" and (session.kind=="settlement-activity" or session.source=="community-water-pump") then
+        if type(session)=="table" and (session.kind=="settlement-activity" or session.source=="community-water-pump" or session.kind=="dialogue-help") then
             data.helpQuestSessions[id]=nil
+            if data.activeHelpQuestId==id then data.activeHelpQuestId=nil end
         end
     end
 end
@@ -224,6 +240,7 @@ local function ensureRootTables(data)
     data.audio.musicPaused=data.audio.musicPaused==true
     data.audio.musicMuted=data.audio.musicMuted==true
     Accessibility.ensure(data)
+    require("game.npc_conversations").ensure(data)
     removeRetiredStopActivities(data)
     HelpQuestSession.ensureData(data)
     for _,item in pairs(data.droppedItems) do

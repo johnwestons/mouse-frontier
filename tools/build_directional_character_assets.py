@@ -13,6 +13,7 @@ from collections import deque
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +21,8 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 ALPHA_THRESHOLD = 16
 HORIZONTAL_ANCHORS = frozenset({"bbox", "core"})
 CHECKER_MIN_CHANNEL = 180
@@ -438,7 +441,13 @@ def normalize_strip(
     remove_edge_connected_checker: bool = False,
     source_resolution_scales: list[float] | None = None,
     remove_edge_connected_magenta_fringe: bool = False,
+    ground_clearance: list[int] | None = None,
 ) -> tuple[Image.Image, dict[str, object]]:
+    if ground_clearance is not None:
+        from tools.character_gait_contract import run_ground_clearance
+        ground_clearance = run_ground_clearance(ground_clearance, frame_size)
+        if len(cells) != 8:
+            raise ValueError('Run framing requires eight frames')
     if not isinstance(horizontal_anchor, str) or horizontal_anchor not in HORIZONTAL_ANCHORS:
         raise ValueError(
             f"Unknown horizontal_anchor {horizontal_anchor!r}; "
@@ -542,7 +551,8 @@ def normalize_strip(
         else:
             left = round(center_x - width / 2)
             output_anchor = left + width / 2
-        top = baseline - height
+        clearance = ground_clearance[index - 1] if ground_clearance else 0
+        top = baseline - clearance - height
         if horizontal_anchor == "core" and (left < 0 or left + width > frame_size):
             raise ValueError(
                 f"Frame {index} would clip after core anchoring "
@@ -556,6 +566,7 @@ def normalize_strip(
             "height": height,
             "left": left,
             "top": top,
+            "ground_clearance": clearance,
             "scale_x": scale_x,
             "scale_y": scale_y,
             "source_resolution_scale": round(resolution_scale, 9),
@@ -584,13 +595,32 @@ def normalize_strip(
     return strip, details
 
 
-def split_idle_atlas(path: Path, columns: int, rows: int, fixed_grid: bool = False) -> list[Image.Image]:
+def split_idle_atlas(
+    path: Path, columns: int, rows: int, fixed_grid: bool = False,
+    row_boundaries: list[int] | None = None,
+) -> list[Image.Image]:
     with Image.open(path) as image:
         rgba = image.convert("RGBA")
+        if row_boundaries is not None:
+            if (
+                not isinstance(row_boundaries, list)
+                or len(row_boundaries) != rows + 1
+                or any(type(value) is not int for value in row_boundaries)
+                or row_boundaries[0] != 0
+                or row_boundaries[-1] != rgba.height
+                or any(a >= b for a, b in zip(row_boundaries, row_boundaries[1:]))
+            ):
+                raise ValueError("Idle row_boundaries must be increasing integer pixel boundaries from 0 to image height, with rows + 1 entries")
+            # Explicit cuts may only use real empty gutters. Inspect the approved
+            # matte-cleaned alpha, but return unmodified source crops for cleanup.
+            alpha = np.asarray(remove_magenta_matte(rgba).getchannel("A"))
+            for cut in row_boundaries[1:-1]:
+                if np.any(alpha[cut - 1:cut + 1] >= 16):
+                    raise ValueError(f"Idle row_boundaries cut {cut} crosses visible source art; choose an empty gutter")
         cells: list[Image.Image] = []
         for row in range(rows):
-            top = round(row * rgba.height / rows)
-            bottom = round((row + 1) * rgba.height / rows)
+            top = row_boundaries[row] if row_boundaries is not None else round(row * rgba.height / rows)
+            bottom = row_boundaries[row + 1] if row_boundaries is not None else round((row + 1) * rgba.height / rows)
             row_image = rgba.crop((0, top, rgba.width, bottom))
             if fixed_grid:
                 cells.extend([
@@ -884,7 +914,10 @@ def build(manifest_path: Path) -> dict[str, object]:
             or row_indices[0] == row_indices[1]
         ):
             raise ValueError("Idle row_indices must name two distinct in-range source rows")
-        idle_cells = split_idle_atlas(idle_path, columns, rows, bool(idle.get("fixed_grid", False)))
+        idle_cells = split_idle_atlas(
+            idle_path, columns, rows, bool(idle.get("fixed_grid", False)),
+            row_boundaries=idle.get("row_boundaries"),
+        )
         output_adjustments = idle.get("output_adjustments", {})
         if not isinstance(output_adjustments, dict):
             raise ValueError("Idle output_adjustments must be an object")
@@ -916,11 +949,20 @@ def build(manifest_path: Path) -> dict[str, object]:
                 ),
                 remove_edge_connected_magenta_fringe=idle.get("remove_edge_connected_magenta_fringe", default_remove_edge_connected_magenta_fringe),
             )
+            if idle.get("row_boundaries") is not None:
+                details["source_row_boundaries"] = idle["row_boundaries"]
+                details["source_row_indices"] = row_indices
+                details["source_column_index"] = column
             strip.save(runtime_root / output_name)
             report["outputs"][output_name] = details
         report["sources"][idle_path.name] = sha256(idle_path)
 
-    for output_name, source_spec in manifest["walks"].items():
+    from tools.character_gait_contract import locomotion_sources, run_ground_clearance
+    for output_name, source_spec in locomotion_sources(manifest).items():
+        if output_name in manifest.get('runs', {}):
+            if not isinstance(source_spec, dict):
+                raise ValueError('Run sources require an explicit ground_clearance contract')
+            run_ground_clearance(source_spec.get('ground_clearance'), frame_size)
         if isinstance(source_spec, str):
             source_name = source_spec
             frame_adjustments = None
@@ -993,6 +1035,8 @@ def build(manifest_path: Path) -> dict[str, object]:
             remove_checker,
             source_resolution_scales=resolution_scales if override_records else None,
             remove_edge_connected_magenta_fringe=remove_magenta_fringe,
+            ground_clearance=(source_spec.get("ground_clearance")
+                              if output_name in manifest.get("runs", {}) else None),
         )
         details["source_frame_indices"] = source_frame_indices
         if override_records:

@@ -1,3 +1,4 @@
+local WorldView=require("game.world_view")
 local SoundProfiles=require("game.weapon_sound_profiles")
 local FirstPersonWeaponManifest=require("game.first_person_weapon_manifest")
 local MobileAim=require("game.mobile_weapon_aim")
@@ -303,6 +304,7 @@ local function shoot(session,data,catalog,x,y)
     startWeaponViewSequence(session)
     local swayX,swayY=Range.sway(session,catalog)
     local shotX,shotY=(x or session.aimX)+swayX,(y or session.aimY)+swayY
+    shotX,shotY=WorldView.toWorld(shotX,shotY)
     session.recoil=catalog.weaponFamily(session.weapon)=="firearms" and 12 or 7
     local best,bestDistance
     for _,target in ipairs(session.targets) do
@@ -610,6 +612,7 @@ function Range.releaseWeaponViews(assets)
 end
 
 function Range.draw(session,data,assets,ui,catalog,mobile)
+    WorldView.begin()
     local background=assets and assets.background
     if background then
         love.graphics.setColor(1,1,1); love.graphics.draw(background,0,0,0,960/background:getWidth(),720/background:getHeight())
@@ -637,6 +640,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
                 end
             end
         end
+        WorldView.finish()
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); love.graphics.print(string.format("TIME  %02d",math.ceil(session.time)),28,24,0,1.15,1.15)
         love.graphics.print("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,58)
@@ -678,6 +682,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         return
     end
 
+    WorldView.finish()
     love.graphics.setColor(.055,.04,.03,.91); love.graphics.rectangle("fill",154,92,652,544,12,12)
     love.graphics.setColor(.87,.65,.25); love.graphics.rectangle("line",154,92,652,544,12,12)
     if session.phase=="lobby" then

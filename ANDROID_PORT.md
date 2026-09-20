@@ -4,6 +4,55 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
+Build `0.7.0-mobile.15` (`versionCode` 15), built September 19, 2026, adds a direct BACKPACK button below the mobile action controls. It opens personal inventory even beside a container, cancels held movement/pickup, stays fixed during zoom, and supports repositioning in Player Options > Controls. It hides during menus, dialogue and other activities.
+
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.15-debug.apk`
+- Source and staged interaction checks: 43 each. Packaged mobile smoke: 95 checkpoints; staged Last Stand: 158 checks. Button placement visually checked in a rendered home scene.
+- Installed and cold-launched on the Galaxy S25 Ultra. The user chose to wipe this game's test saves; all three slots and their recovery copies were removed, and no new backup was made.
+
+## Build 14 furniture pickup
+
+Build `0.7.0-mobile.14` (`versionCode` 14), built September 19, 2026, makes mobile interaction hints a compact translucent strip at the bottom of the screen. Furniture can be collected by holding the furniture itself or the Pick Up control for 0.85 seconds. Containers retain Open and gain a separate Pick Up control; contents must still be removed first.
+
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.14-debug.apk`
+- Direct furniture holds use the zoomed world coordinates. Early release, finger movement, pinch zoom, focus loss and opening inventory cancel pickup.
+- Source and staged mobile pickup checks: 28 each, including completion, cancellation, container actions, full-container protection, and hint placement at normal/double zoom.
+- 56 focused tests passed. Zoom regression: 68 checks. Desktop smoke: 88 checkpoints; packaged mobile smoke: 95 checkpoints; staged Last Stand: 158 checks.
+- Rendered home prompts were visually checked. APK identity and signature verified.
+- Installed in place on the Galaxy S25 Ultra (`SM-S938U`) on September 19, 2026. Installed version, cold startup logs and the save-selection screen were verified. All three saves and their three backups remained byte-for-byte unchanged after installation and launch.
+
+## Build 13 world zoom
+
+Build `0.7.0-mobile.13` (`versionCode` 13), built September 19, 2026, applies one shared zoom setting to world artwork across gameplay, tactical battles, the intro, event/ending backgrounds, the shooting range and Last Stand. HUD, menus, dialogue choices, touch controls, weapons and reticles retain their normal size. World picking, editing and shooting use the matching inverse transform. Opening an overlay preserves the world view.
+
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.13-debug.apk`
+- Pinch and two-finger panning work in the shooting range and Last Stand. A stationary second field tap fires on release; a pinch does not fire. The FIRE button remains immediate.
+- 51 focused camera, train view, battle, weapon and architecture tests passed.
+- Source and staged mobile zoom rendering/interaction checks: 68 each, with screenshots inspected for fixed HUD and correct world scaling.
+- Desktop smoke: 88 checkpoints; packaged mobile smoke: 95 checkpoints; staged Last Stand: 158 checks.
+- APK identity, embedded package and signature verified. Installation is pending: no Android device was connected when this build completed.
+- Regular Talk and the dialogue-choice behavior from build 12 are included.
+
+## Build 12 dialogue fixes
+
+Build `0.7.0-mobile.12` (`versionCode` 12), built September 19, 2026, removes advance cost, reward and XP hints from player reply choices. Choices display only the supplied dialogue, with actual gains/losses reported after selection. It also includes build 11's regular Talk fix: all 33 approved original regular lines are restored, NPC/passenger Talk displays its result, and one-time conversation tracking and rewards are preserved.
+
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.12-debug.apk`
+- 17 focused dialogue/architecture tests passed, including mobile touch-to-Talk routing and exact restored text.
+- All 78 dialogue layouts passed desktop/mobile text-fit checks at three text sizes; the mobile panel was visually checked without outcome hints.
+- Desktop smoke: 88 checkpoints; packaged mobile smoke: 95 checkpoints; staged Last Stand: 158 checks.
+- APK identity, embedded package and signature verified. Installation is pending: no phone was connected when this build completed.
+
+## Last installed build
+
+Build `0.7.0-mobile.15` (`versionCode` 15) was installed over build 14 on the connected Galaxy S25 Ultra (`SM-S938U`) on September 19, 2026.
+
+- Installed version and cold startup verified; no startup errors were found. Gameplay behavior was exercised in the packaged mobile tests.
+- Test saves were wiped at the user's request and verified absent after launch. Previous external backups were left untouched.
+- Device evidence: `output/mobile/device-build-15-20260919-115329/verification.json`.
+
+## Previous builds
+
 Build `0.7.0-mobile.9` (`versionCode` 9) adds the September 12, 2026 train fit update. The locomotive, active car, characters, furniture and running gear share one uniform transform that fills the available screen without cropping. Saved positions stay unchanged; world picking and editor dragging use the matching inverse transform. Resized mobile bogie textures retain their original wheel-contact anchors.
 
 It also includes the September 11,
@@ -20,7 +69,7 @@ and applies enemy hits to persistent player health while exposed.
 Build 9 artifact:
 `output/mobile/MouseFrontier-0.7.0-mobile.9-debug.apk`.
 
-Last installed build:
+Previously installed build:
 
 - Application ID: `com.mousefrontier.game`
 - Version: `0.7.0-mobile.8` (`versionCode` 8)
@@ -29,7 +78,7 @@ Last installed build:
 - Architectures: ARM64 and ARMv7; debug builds also contain x86-64 for emulator testing
 - Saves: private Android application storage under the shared `mouse-frontier` LÖVE identity
 
-The last installed file was:
+The previously installed file was:
 
 `output/mobile/MouseFrontier-0.7.0-mobile.8-debug.apk`
 
@@ -45,6 +94,7 @@ omits its unused concept and candidate artwork.
 - Drag the lower-left thumb control to walk. It is inset from the phone corner for a comfortable natural thumb reach.
 - Push it to the outer edge to run.
 - The large lower-right button changes with context: Use, Pick Up, Talk, Enter, Exit, Board, Door, Coal, or Radio.
+- BACKPACK below the action controls opens personal inventory directly. Its position can be changed in Player Options > Controls.
 - A Give button appears beside NPCs and passengers.
 - Menus, inventory, the map, travel prompts, events, and battles use direct touch.
 - Settings provide shared text sizing, high contrast, reduced motion, optional guidance, tap confirmation, and large thumb controls. Battle ability explanations never require hover.

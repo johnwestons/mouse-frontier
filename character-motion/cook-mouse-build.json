@@ -2,41 +2,206 @@
   "version": 1,
   "character": "cook-mouse",
   "source_root": "output/character-motion/cook-mouse/source",
-  "runtime_root": "output/character-motion/cook-mouse/runtime",
+  "runtime_root": "output/character-motion/cook-mouse/normalized-v1",
   "framing": {
     "frame_size": 512,
     "target_height": 385,
     "max_width": 460,
     "center_x": 256,
-    "baseline": 458
+    "baseline": 458,
+    "horizontal_anchor": "core",
+    "remove_edge_connected_magenta_fringe": true
   },
   "idle_sets": [
+    {
+      "source": "idle-east-equipment-v2.png",
+      "rows": 2,
+      "source_columns": 1,
+      "fixed_grid": true,
+      "outputs": [
+        "idle.png"
+      ]
+    },
     {
       "source": "directional-idle-core-set-v1-magenta.png",
       "rows": 2,
       "source_columns": 5,
-      "source_indices": [0, 1, 2, 4],
-      "outputs": ["idle.png", "idle_northeast.png", "idle_north.png", "idle_south.png"]
+      "source_indices": [
+        1,
+        2,
+        4
+      ],
+      "outputs": [
+        "idle_northeast.png",
+        "idle_north.png",
+        "idle_south.png"
+      ]
     },
     {
-      "source": "directional-idle-southeast-v1-magenta.png",
+      "source": "idle-southeast-equipment-v3.png",
       "rows": 2,
-      "outputs": ["idle_southeast.png"]
+      "source_columns": 1,
+      "fixed_grid": true,
+      "outputs": [
+        "idle_southeast.png"
+      ]
     },
     {
       "source": "directional-idle-west-set-v1-magenta.png",
       "rows": 2,
-      "outputs": ["idle_west.png", "idle_northwest.png", "idle_southwest.png"]
+      "outputs": [
+        "idle_west.png",
+        "idle_northwest.png",
+        "idle_southwest.png"
+      ]
     }
   ],
   "walks": {
-    "walk.png": "walk-east-v1-magenta.png",
-    "walk_northeast.png": "walk-northeast-v1-magenta.png",
-    "walk_north.png": "walk-north-v1-magenta.png",
-    "walk_southeast.png": "walk-southeast-v1-magenta.png",
-    "walk_south.png": "walk-south-v1-magenta.png",
-    "walk_west.png": "walk-west-v1-magenta.png",
-    "walk_northwest.png": "walk-northwest-v1-magenta.png",
-    "walk_southwest.png": "walk-southwest-v1-magenta.png"
+    "walk.png": {
+      "source": "layered-east-ne-n-v1/walk.png",
+      "fixed_grid": true
+    },
+    "walk_northeast.png": {
+      "source": "layered-east-ne-n-v1/walk_northeast.png",
+      "fixed_grid": true
+    },
+    "walk_north.png": {
+      "source": "layered-east-ne-n-v1/walk_north.png",
+      "fixed_grid": true
+    },
+    "walk_northwest.png": {
+      "source": "layered-remaining-v1/walk_northwest.png",
+      "fixed_grid": true
+    },
+    "walk_west.png": {
+      "source": "layered-remaining-v1/walk_west.png",
+      "fixed_grid": true
+    },
+    "walk_southwest.png": {
+      "source": "layered-remaining-v1/walk_southwest.png",
+      "fixed_grid": true
+    },
+    "walk_south.png": {
+      "source": "layered-remaining-v1/walk_south.png",
+      "fixed_grid": true
+    },
+    "walk_southeast.png": {
+      "source": "layered-remaining-v1/walk_southeast.png",
+      "fixed_grid": true
+    }
+  },
+  "runs": {
+    "run.png": {
+      "source": "layered-east-ne-n-v1/run.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_northeast.png": {
+      "source": "layered-east-ne-n-v1/run_northeast.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_north.png": {
+      "source": "layered-east-ne-n-v1/run_north.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_northwest.png": {
+      "source": "layered-remaining-v1/run_northwest.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_west.png": {
+      "source": "layered-remaining-v1/run_west.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_southwest.png": {
+      "source": "layered-remaining-v1/run_southwest.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_south.png": {
+      "source": "layered-remaining-v1/run_south.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    },
+    "run_southeast.png": {
+      "source": "layered-remaining-v1/run_southeast.png",
+      "fixed_grid": true,
+      "ground_clearance": [
+        0,
+        0,
+        8,
+        6,
+        0,
+        0,
+        8,
+        6
+      ]
+    }
   }
 }

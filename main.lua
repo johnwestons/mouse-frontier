@@ -9,6 +9,7 @@ function love.mousereleased(x,y,button,istouch,presses) return app.mousereleased
 function love.wheelmoved(x,y) return app.wheelmoved(x,y) end
 function love.keypressed(key,scancode,isrepeat) return app.keypressed(key,scancode,isrepeat) end
 function love.keyreleased(key,scancode) return app.keyreleased(key,scancode) end
+function love.textinput(text) return app.textinput(text) end
 function love.touchpressed(id,x,y,dx,dy,pressure) return app.touchpressed(id,x,y,dx,dy,pressure) end
 function love.touchmoved(id,x,y,dx,dy,pressure) return app.touchmoved(id,x,y,dx,dy,pressure) end
 function love.touchreleased(id,x,y,dx,dy,pressure) return app.touchreleased(id,x,y,dx,dy,pressure) end

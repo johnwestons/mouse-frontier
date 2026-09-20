@@ -4,33 +4,55 @@
   "total_characters": 47,
   "completion_note": "The completed list is the legacy overhaul ledger, not proof of current strict acceptance. Use verification below and per-character semantic-review.json for current acceptance. Reopened and evidence-gap characters remain eligible.",
   "verification": {
-    "audited_on": "2026-09-11",
-    "roster_report": "output/character-motion/roster-audit-2026-09-10.md",
+    "audited_on": "2026-09-14",
+    "roster_report": "output/character-motion/roster-checkpoint-2026-09-14.md",
     "strictly_accepted_current": [
       "scholar-mouse",
       "scout-frog",
-      "scout-lizard"
+      "scout-lizard",
+      "signal-hedgehog",
+      "tinker-fox",
+      "tortoise-conductor",
+      "trail-fox",
+      "watch-raccoon",
+      "botanist-frog",
+      "conductor-cat",
+      "cook-frog",
+      "cook-mouse"
     ],
     "legacy_acceptance_count": 16,
-    "legacy_completed_evidence_gap_count": 23,
-    "reopened": [
-      "signal-hedgehog"
-    ],
+    "legacy_completed_evidence_gap_count": 19,
+    "reopened": [],
     "mirrored_asymmetric_review_required": [
       "ferret-engineer",
       "ferret-medic",
       "ferret-scout",
       "ferret-trapper"
     ],
-    "installed_without_acceptance": [
-      "tinker-fox"
-    ],
-    "unstarted": [
+    "installed_without_acceptance": [],
+    "unstarted": [],
+    "next_action": "Resolve process review with user. Before further production, align early draft validation with final Doctor framing checks; correct Courier west framing and two southeast pose extents through source/rig changes, not relaxed thresholds. Reuse unchanged evidence. Full native/semantic acceptance, verified backups, install and final regressions/smokes/package remain pending.",
+    "in_review": [],
+    "runtime_evidence_refresh_pending": [
+      "scholar-mouse",
+      "scout-frog",
+      "scout-lizard",
+      "signal-hedgehog",
+      "tinker-fox",
       "tortoise-conductor",
       "trail-fox",
-      "watch-raccoon"
+      "watch-raccoon",
+      "botanist-frog",
+      "conductor-cat",
+      "cook-frog"
     ],
-    "next_action": "Scholar Mouse, Scout Frog and Scout Lizard now have current strict acceptance and installed reviewed assets with verified preinstall backups. Lizard passed78 postinstall regressions, desktop88/mobile96 smoke, desktop/mobile-logical native previews and16 mobile source-pixel equivalence checks. Finish signal-hedgehog next, then tinker-fox, tortoise-conductor, trail-fox, watch-raccoon; then resolve mirrored ferret asymmetry and older evidence gaps one character at a time. Legacy completion counts are not current strict approval."
+    "acceptance_note": "Twelve repaired sets have strict art acceptance. Cook Mouse has fresh installed/runtime/package evidence with263 passing regressions. Prior eleven sets retain art acceptance; their hash-bound shared-runtime evidence requires refresh after Cook Mouse's optional profile addition. Coverage alone is not full-roster acceptance.",
+    "directional_coverage": {
+      "checked_on": "2026-09-14",
+      "eight_authored": 43,
+      "five_authored_mirrored_west": 4,
+      "incomplete": []
+    }
   },
   "completed": [
     "botanist-frog",
@@ -74,13 +96,59 @@
     "scavenger-mouse",
     "scholar-mouse",
     "scout-frog",
-    "scout-lizard"
-  ],
-  "in_progress": "signal-hedgehog",
-  "remaining": [
+    "scout-lizard",
+    "signal-hedgehog",
     "tinker-fox",
     "tortoise-conductor",
     "trail-fox",
     "watch-raccoon"
+  ],
+  "in_progress": "courier-lizard",
+  "in_progress_checkpoint": {
+    "date": "2026-09-14",
+    "stage": "courier_lizard_drafts_complete_process_review_requested",
+    "report": "output/character-motion/courier-lizard/process-checkpoint.json",
+    "note": "User asked why4hours elapsed; production stopped for process review.24staged strips,8reviewed direction drafts,5imagecalls169s. Full motion0issues but Doctor16height warnings(west/southeast):notaccepted,notinstalled. Early draft gate missed final3percent height contract. Do not restart old drafts or regenerate art indiscriminately; preserve all sources and evidence."
+  },
+  "remaining": [],
+  "next_character": "courier-lizard",
+  "reconciliation_queue": [
+    "courier-lizard",
+    "crow-merchant",
+    "engineer-frog",
+    "ferret-engineer",
+    "ferret-medic",
+    "ferret-scout",
+    "ferret-trapper",
+    "gardener-lizard",
+    "gecko-courier",
+    "gecko-herbalist",
+    "gecko-mechanic",
+    "gecko-ranger",
+    "guard-fox",
+    "hedgehog-botanist",
+    "herbalist-hedgehog",
+    "homesteader-cat",
+    "jackrabbit-courier",
+    "lizard-cook",
+    "mail-mouse"
+  ],
+  "legacy_acceptance_revalidation_queue": [
+    "mechanic-hedgehog",
+    "mechanic-raccoon",
+    "medic-cat",
+    "medic-fox",
+    "merchant-raccoon",
+    "mole-prospector",
+    "mouse-engineer",
+    "musician-hedgehog",
+    "opossum-medic",
+    "otter-scout",
+    "prairie-dog-mechanic",
+    "prospector-lizard",
+    "raccoon-witch",
+    "radio-cat",
+    "river-raccoon",
+    "scavenger-mouse"
   ]
 }

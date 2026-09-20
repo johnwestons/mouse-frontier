@@ -4,11 +4,11 @@ local StopHelp={}
 
 StopHelp.policyVersion=4
 StopHelp.itemRequests={
-    {item="water-bottle",label="a bottle of clean water",text="Our well tastes like rust. Could you spare a bottle of clean water?"},
-    {item="food-ration",label="a food ration",text="We have a hungry youngster here. Could you spare a food ration?"},
-    {item="field-bandage-roll",label="a bandage roll",text="We used our last clean bandage. Could you bring us a bandage roll?"},
-    {item="coal-chunk",label="a chunk of coal",text="The night will be cold. Could you spare a chunk of coal for our stove?"},
-    {item="small-oil-canister",label="a small oil canister",text="Our water pump is seizing up. Could you spare a small oil canister?"},
+    {item="water-bottle",label="a bottle of clean water",text="Required item: a bottle of clean water."},
+    {item="food-ration",label="a food ration",text="Required item: a food ration."},
+    {item="field-bandage-roll",label="a bandage roll",text="Required item: a bandage roll."},
+    {item="coal-chunk",label="a chunk of coal",text="Required item: a chunk of coal."},
+    {item="small-oil-canister",label="a small oil canister",text="Required item: a small oil canister."},
 }
 
 local function hash(text)
@@ -62,8 +62,9 @@ function StopHelp.ensureRequest(layout,npc,kind,location,data)
         end
         layout.helpRequests[npc]=request
     end
+    if kind=="item" then request.text="Required item: "..(request.label or request.item or "item").."." end
     if kind=="aid" then
-        request.text="I've been hurt. This small cut needs medical help - could you treat it?"
+        request.text="First aid: treat a small cut."
         request.goodwill=request.goodwill or 3
     end
     if data then
