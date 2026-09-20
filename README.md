@@ -21,8 +21,9 @@ The current shared game is on `master` in [johnwestons/mouse-frontier](https://g
 
 ```sh
 git lfs install
-git clone https://github.com/johnwestons/mouse-frontier.git
+git -c core.longpaths=true clone https://github.com/johnwestons/mouse-frontier.git
 cd mouse-frontier
+git config core.longpaths true
 git lfs pull
 git switch -c my-game-changes
 ```
@@ -30,6 +31,8 @@ git switch -c my-game-changes
 Install LÖVE 11.5, then run `RUN_GAME.bat` on Windows or `love .` from the project folder. Source, sprites, fonts, dialogue, audio, mobile build tools, and tests are included. Local saves, generated build outputs, and working backups are excluded.
 
 The audio library is about 3.2 GB and is stored using Git LFS. Allow the audio download to finish before launching; see [audio setup](sounds/AUDIO_ASSETS.md). If a clone was made without Git LFS installed, install it and run `git lfs install` and `git lfs pull` inside the clone.
+
+The long-path option allows Git for Windows to check out the original reference-image filenames even inside a deeply nested folder.
 
 After making changes, commit them on your branch and publish it with `git push -u origin my-game-changes`. Open a pull request into `master` to share the changes. Read [AGENTS.md](AGENTS.md) before editing; character dialogue must preserve the user's approved wording.
 
