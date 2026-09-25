@@ -5,11 +5,12 @@ controls enabled. It captures menus, the HUD, sixteen-slot inventory, normal and
 extra-large text settings, trade, dialogue, travel, battle, and activity screens.
 It also verifies that the mobile HUD spans the physical screen without touching
 the menu control at phone, 16:9, and 4:3 sizes, and remains fixed during world zoom.
-Text boxes that cannot fit at their readable minimum are listed in `report.txt`.
-Before screenshots, the audit measures every authored event choice using the
-real event renderer, every help-quest map summary at normal and extra-large text,
-and every three-choice help dialogue. It fails on overflow or intersecting
-dialogue controls, so longer branches remain covered between visual reviews.
+Text boxes that cannot fit at their readable minimum fail the audit and are
+listed in `report.txt`. Before screenshots, the audit measures every authored
+event choice and all approved conversation questions, answer choices, and
+responses at normal and extra-large text. It also checks that conversation
+controls do not overlap. A separate stop capture checks the side HUD with
+extra-large text.
 
 On Windows, run `tools/mobile-ui-audit/run.ps1`. It creates ignored asset
 junctions as needed, launches the audit hidden, and prints its capture report.
@@ -25,8 +26,8 @@ one- and seven-car headers, four screen shapes, selected furniture, car switchin
 departure and arrival. It checks the real graphics transform for the engine,
 running gear, tracks, ballast, car, player, passengers and contents, and checks
 that the resting consist fits below the header and within the screen margins.
-It creates no synthetic save slots; the journey remains unslotted. The original
-32-screen UI audit is unchanged when `-Train` is omitted.
+It creates no synthetic save slots; the journey remains unslotted. The
+33-screen UI audit runs when `-Train` is omitted.
 
 Set `MOUSE_FRONTIER_MOBILE=1`, `MOBILE_UI_AUDIT_ROOT` to the repository's absolute
 path, and `MOBILE_UI_AUDIT_OUTPUT` to an existing output directory. Launch LÖVE

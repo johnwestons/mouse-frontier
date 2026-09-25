@@ -96,16 +96,17 @@ local function new(context)
           love.graphics.setColor(.28,.08,.06,1); love.graphics.rectangle("fill",x+10,cardY+83,width-20,6,2,2)
           love.graphics.setColor(.95,.26,.20,1); love.graphics.rectangle("fill",x+10,cardY+83,(width-20)*math.max(0,math.min(1,data.health/math.max(1,data.maxHealth))),6,2,2)
           love.graphics.setColor(colors.cream)
-          textBox("LEVEL "..progression.level.." / ABILITY "..progression.abilityRank,x+10,cardY+96,width-20,21,.74)
+          textBox("LV "..progression.level.." / AB "..progression.abilityRank,x+10,cardY+96,width-20,21,.74)
           textBox(progression.maximum and "MAX LEVEL" or ("XP "..progression.xp.." / "..progression.nextXP),x+10,cardY+119,width-20,19,.72)
           textBox("GOODWILL "..goodwill.points,x+10,cardY+141,width-20,20,.76)
-          textBox("TRAIN "..math.floor(condition.condition).."%  /  "..#(data.trainCars or {}).." CARS",x+10,cardY+162,width-20,20,.72)
+          textBox("TRAIN "..math.floor(condition.condition).."%",x+10,cardY+162,width-20,20,.72)
+          textBox("CARS "..#(data.trainCars or {}),x+10,cardY+184,width-20,20,.72)
           local ammo={}
           for i=1,2 do
               local weapon=data.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
               if combat and combat.ammo then ammo[#ammo+1]=Util.titleFromFile(combat.ammo)..": "..(data.ammo[combat.ammo] or 0) end
           end
-          if #ammo>0 then textBox(table.concat(ammo,"  "),x+10,cardY+188,width-20,20,.68) end
+          if #ammo>0 then textBox(table.concat(ammo,"  "),x+10,cardY+207,width-20,20,.68) end
           ui.mobileHeaderBounds={x=x,y=18,w=width,h=462,resourceRight=x+width}
           love.graphics.pop()
           return

@@ -32,4 +32,18 @@ try {
     $env:MOUSE_FRONTIER_MOBILE=$oldMobile
     $env:EXPEDITION_PREVIEW_ROOT=$oldRoot
     $env:EXPEDITION_PREVIEW_OUTPUT=$oldOutput
+    $tempRoot=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\'
+    $resolvedStage=[IO.Path]::GetFullPath($previewStage)
+    if ($resolvedStage.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase) -and
+        (Split-Path -Leaf $resolvedStage).StartsWith('mouse-frontier-expedition-preview-')) {
+        foreach ($directory in @('assets','sounds')) {
+            $link=Join-Path $resolvedStage $directory
+            if (Test-Path -LiteralPath $link) { [IO.Directory]::Delete($link) }
+        }
+        foreach ($file in @('main.lua','conf.lua')) {
+            $path=Join-Path $resolvedStage $file
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+        }
+        if (Test-Path -LiteralPath $resolvedStage) { [IO.Directory]::Delete($resolvedStage) }
+    }
 }

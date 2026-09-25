@@ -87,15 +87,18 @@ local function setupStages()
         layout.tradeBudget=999
     end)
     add("13-dialogue",function()
-        stop(6); game.dialogue={speaker="Ferret Medic • Trusted Friend",timer=120,
-            text="The next settlement is beyond the old switch house. Bring enough water and coal for the journey, and check the engine before you leave. Everyone here is counting on you to find the missing travelers."}
+        stop(6); game.dialogue={speaker="Ferret Medic",timer=120,text=catalog.dialogueLines[25]}
     end)
     add("14-dialogue-quest",function()
         stop(6)
-        local quests=require("game.help_dialogue_quests")
-        local request=quests.ensure(game.saveData,services.worldScene.ensureStopLayout(),"ferret-medic.png",6)
-        game.helpDialogue=quests.begin(game.saveData,request)
+        local conversations=require("game.npc_conversations")
+        local request={id=conversations.content[1].id,npc="ferret-medic.png",location=6}
+        conversations.ensure(game.saveData).assignments["6"]=request
+        game.helpDialogue=assert(conversations.begin(game.saveData,request.npc))
         game.dialogue={speaker="Ferret Medic",text=game.helpDialogue.text,timer=120}
+    end)
+    add("14a-stop-extra-large",function()
+        stop(6); game.saveData.accessibility.textSize=3
     end)
     add("15-travel-confirm",function() game.saveData.location=6; game.travelConfirm=true end)
     add("16-train-upgrades",function() game.trainUpgradeOpen=true end)
@@ -188,6 +191,7 @@ function love.update()
     local ok,message=xpcall(function()
         if captured then index=index+1; prepared=false; queued=false; captured=false end
         if index>#stages then
+            if next(overflow) then fail("rendered text exceeds its available boxes") return end
             record("COMPLETE "..#stages.." captures; isolated audit saves only")
             writeReport(); app.quit(); love.event.quit(0); return
         end

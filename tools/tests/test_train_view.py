@@ -19,6 +19,7 @@ HARNESS = r'''
 View=require('game.train_view')
 Train=require('game.train')
 WorldView=require('game.world_view')
+SceneFit=require('game.scene_fit')
 car=require('game.config').trainCar
 sizes={{960,720},{1280,720},{1920,1080},{2340,1080},{2400,1080},
     {2560,1440},{3440,1440},{1024,768},{1281,721},{720,1280}}
@@ -276,15 +277,23 @@ class TrainViewTests(unittest.TestCase):
                 f.runtime.scene=scene; f.offset.x=245; f.offset.y=78
                 assert(f.presentation.getTrainView()==nil)
                 local x,y=f.presentation.worldCoordinates(100,210)
-                close(x,345); close(y,288)
+                if scene=='house' then
+                    local fit=SceneFit.house(960,720,1920,1080)
+                    local worldX,worldY=SceneFit.toWorld(fit,100,210)
+                    close(x,worldX+245); close(y,worldY+78)
+                else
+                    close(x,345); close(y,288)
+                end
                 f.presentation.setZoom(1.6); f.presentation.panCamera(32,-18)
-                f.checkRoundtrip()
+                local ok,err=pcall(f.checkRoundtrip)
+                assert(ok,scene..': '..tostring(err))
             end
             f.runtime.scene='train'; f.offset.x=0; f.offset.y=0
             for _,state in ipairs({'slots','characters','battle','event','ending'}) do
                 f.runtime.state=state
                 assert(f.presentation.getTrainView()==nil)
-                f.checkRoundtrip()
+                local ok,err=pcall(f.checkRoundtrip)
+                assert(ok,state..': '..tostring(err))
             end
         ''')
 

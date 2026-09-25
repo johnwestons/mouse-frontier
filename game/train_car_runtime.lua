@@ -98,9 +98,9 @@ local function new(context)
       local left,right,top,bottom=floorBounds()
       runtime.scene="train"
       runtime.npcActor=nil
-      -- Return to the usable floor's center, clear of the right-hand touch
-      -- action button, with the perspective floor still enforcing safe footing.
-      runtime.player.x,runtime.player.y=clampToFloor(math.min((left+right)/2,W-56),(top+bottom)/2)
+      -- Leave space between the returning player and the fixed mobile USE
+      -- control while the perspective floor still enforces safe footing.
+      runtime.player.x,runtime.player.y=clampToFloor(math.min((left+right)/2-48,W-56),(top+bottom)/2)
       runtime.player.velocityX,runtime.player.velocityY=0,0
       runtime.player.moving=false
       ui.interaction=nil; runtime.nearExpedition=false
