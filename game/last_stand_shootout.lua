@@ -6,6 +6,10 @@ local Typography=require("game.typography")
 local Accessibility=require("game.accessibility")
 
 local Shootout={}
+local SHOT_TRAVEL=.26
+local SHOT_DELAY=.045
+local IMPACT_DURATION=.36
+local HIT_FLASH_DURATION=.45
 
 local function randomRange(low,high)
     local value=love.math and love.math.random and love.math.random() or math.random()
@@ -52,6 +56,8 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
         targets={},
         effects={},
         flashes={},
+        incomingShots={},
+        impactBursts={},
         impacts={},
         enemyShots=0,
         ducking=false,
@@ -97,7 +103,13 @@ end
 local function enemyShot(state,target,data)
     state.enemyShots=state.enemyShots+1
     local stage=select(1,stageFor(state.elapsed))
-    state.flashes[#state.flashes+1]={slot=target.slot,ttl=.13,maxTtl=.13}
+    local points=WindowScene.data.damagePoints[state.windowId] or WindowScene.data.damagePoints.wide
+    local pointOrder=state.windowId=="tall" and {1,2,3,4} or {2,5,1,3,4}
+    local shot={slot=target.slot,point=pointOrder[(state.enemyShots-1)%#points+1],elapsed=0,
+        impactFrame=state.enemyShots%2==0 and 5 or 4,
+        decalFrame=state.enemyShots%2==0 and 0 or 2}
+    state.incomingShots[#state.incomingShots+1]=shot
+    state.flashes[#state.flashes+1]={slot=target.slot,ttl=.16,maxTtl=.16}
     if state.ducking or state.coverProgress>0 then return end
     local cover=WindowScene.data.frames[state.windowId].cover
     state.quest.positionIntegrity=clamp(state.quest.positionIntegrity-(.34+stage*.12)*cover,0,100)
@@ -107,21 +119,14 @@ local function enemyShot(state,target,data)
         local health=tonumber(data.health) or tonumber(data.maxHealth) or 20
         data.health=math.max(1,health-damage)
         state.hitRecovery=Tuning.hitRecoverySeconds
-        state.hitFeedback=.45
-        state.notice={text="You were hit! Take cover below the window.",timer=1.7}
+        shot.hit=true
         if data.health<=1 then
             state.retreatReason="wounded"
             state.result="retreat"
         end
     end
     if state.enemyShots%3==0 then
-        state.impacts[#state.impacts+1]={
-            point=((math.floor(state.enemyShots/3)-1)%6)+1,
-            frame=(state.enemyShots%2==0) and 0 or 2,
-            age=0,
-            rotation=randomRange(-.4,.4),
-        }
-        if #state.impacts>8 then table.remove(state.impacts,1) end
+        shot.decal=true
     end
 end
 
@@ -186,6 +191,30 @@ local function updateEffects(state,dt)
         local flash=state.flashes[index]
         flash.ttl=flash.ttl-dt
         if flash.ttl<=0 then table.remove(state.flashes,index) end
+    end
+    for index=#state.impactBursts,1,-1 do
+        local burst=state.impactBursts[index]
+        burst.ttl=burst.ttl-dt
+        if burst.ttl<=0 then table.remove(state.impactBursts,index) end
+    end
+    for index=#state.incomingShots,1,-1 do
+        local shot=state.incomingShots[index]
+        shot.elapsed=shot.elapsed+dt
+        if shot.elapsed>=SHOT_DELAY+SHOT_TRAVEL then
+            state.impactBursts[#state.impactBursts+1]={point=shot.point,frame=shot.impactFrame,
+                ttl=IMPACT_DURATION,maxTtl=IMPACT_DURATION}
+            if shot.hit then
+                state.hitFeedback=HIT_FLASH_DURATION
+                state.notice={text="You were hit! Take cover below the window.",timer=1.7}
+            end
+            if shot.decal then
+                state.impacts[#state.impacts+1]={point=shot.point,
+                    frame=shot.decalFrame,
+                    age=0,rotation=randomRange(-.4,.4)}
+                if #state.impacts>8 then table.remove(state.impacts,1) end
+            end
+            table.remove(state.incomingShots,index)
+        end
     end
     for _,impact in ipairs(state.impacts) do impact.age=(impact.age or 0)+dt end
 end
@@ -363,6 +392,10 @@ function Shootout.retry(state)
     state.coverProgress=0
     state.hitRecovery=0
     state.enemyShots=0
+    state.flashes={}
+    state.incomingShots={}
+    state.impactBursts={}
+    state.hitFeedback=0
     state.impacts={}
     state.quest.impacts=state.impacts
     for index,target in ipairs(state.targets) do
@@ -393,12 +426,47 @@ local function drawEffects(state,layout)
         local x,y=WindowScene.slotPosition(layout,flash.slot)
         if not state.reducedFlashes then
             WindowScene.clipSlot(layout,flash.slot,function()
-                WindowScene.drawEffect(0,x,y,.055,flash.ttl/flash.maxTtl)
+                WindowScene.drawEffect(1,x,y,.105,flash.ttl/flash.maxTtl)
             end)
         end
     end
     for _,effect in ipairs(state.effects) do
         WindowScene.drawEffect(effect.frame,effect.x,effect.y,effect.scale,effect.ttl/effect.maxTtl,effect.rotation)
+    end
+end
+
+local function drawIncomingFire(state,layout,width,height)
+    for _,shot in ipairs(state.incomingShots) do
+        local progress=clamp((shot.elapsed-SHOT_DELAY)/SHOT_TRAVEL,0,1)
+        if progress>0 then
+            local startX,startY=WindowScene.slotPosition(layout,shot.slot)
+            local endX,endY=WindowScene.impactPosition(state.windowId,width,height,shot.point)
+            local headX=startX+(endX-startX)*progress
+            local headY=startY+(endY-startY)*progress
+            local tailProgress=math.max(0,progress-.24)
+            local tailX=startX+(endX-startX)*tailProgress
+            local tailY=startY+(endY-startY)*tailProgress
+            love.graphics.setColor(1,.24,.04,.42)
+            love.graphics.setLineWidth(11)
+            love.graphics.line(tailX,tailY,headX,headY)
+            love.graphics.setColor(1,.75,.20,1)
+            love.graphics.setLineWidth(4)
+            love.graphics.line(tailX,tailY,headX,headY)
+            if not state.reducedFlashes then
+                love.graphics.setColor(1,.96,.72,1)
+                love.graphics.circle("fill",headX,headY,5)
+            end
+        end
+    end
+    for _,burst in ipairs(state.impactBursts) do
+        local x,y=WindowScene.impactPosition(state.windowId,width,height,burst.point)
+        local alpha=burst.ttl/burst.maxTtl
+        WindowScene.drawEffect(burst.frame,x,y,.16,alpha)
+        if not state.reducedFlashes then
+            love.graphics.setColor(1,.79,.38,alpha*.8)
+            love.graphics.setLineWidth(2)
+            love.graphics.circle("line",x,y,10+(1-alpha)*17)
+        end
     end
 end
 
@@ -491,6 +559,7 @@ function Shootout.draw(state,data,width,height)
     love.graphics.pop()
     WindowScene.drawWindow(state.windowId,width,height)
     WindowScene.drawDamage(state.impacts,width,height,state.windowId)
+    drawIncomingFire(state,layout,width,height)
     love.graphics.pop()
     WorldView.finish()
     if cover<1 then
@@ -513,9 +582,12 @@ function Shootout.draw(state,data,width,height)
     end
 
     if state.hitFeedback>0 and not state.reducedFlashes then
-        love.graphics.setColor(.75,.13,.07,state.hitFeedback*.65)
-        love.graphics.setLineWidth(14)
-        love.graphics.rectangle("line",7,7,width-14,height-14)
+        local strength=state.hitFeedback/HIT_FLASH_DURATION
+        love.graphics.setColor(.76,.045,.025,.27*strength)
+        love.graphics.rectangle("fill",0,0,width,height)
+        love.graphics.setColor(.95,.13,.055,.65*strength)
+        love.graphics.setLineWidth(22)
+        love.graphics.rectangle("line",11,11,width-22,height-22)
     end
 
     panel(18,16,250,108)

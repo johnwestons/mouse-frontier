@@ -35,7 +35,7 @@ Scout approaches → Offer → Escort → Backyard → Interior → Choose windo
 
 ![Current escort transition](shootout-review/00-escort.png)
 
-**Current experience.** An approximately eight-second travel transition shows the scout and player crossing in front of the distant relay view; the backyard appears toward the end. It can be skipped. Reduced-motion mode holds the movement still.
+**Current experience.** An approximately eight-second travel transition shows the scout and player crossing in front of the distant relay view; the backyard appears toward the end. Both now use their directional walk and idle animation sets at a matching scale. The walking frames advance with the distance they travel, and both face the direction of the journey. It can be skipped. Reduced-motion mode holds them together in their directional idle poses.
 
 **Review focus.** Journey length, clarity, and visual tone.
 
@@ -43,7 +43,7 @@ Scout approaches → Offer → Escort → Backyard → Interior → Choose windo
 
 ![Current backyard scene](shootout-review/01-backyard.png)
 
-**Current experience.** The player can walk around the fenced yard. The back door enters the house. The scout is on the left; the wounded interaction is on the right. The gate at the bottom returns the player to the original stop and **pauses** an unfinished defense. The offer can be resumed through the scout at that stop.
+**Current experience.** The fenced yard now sits over the location's distant landscape, filling the space beyond the house and fence. The player is drawn at a scale comparable to the defenders. The back door enters the house. The scout is on the left; the wounded interaction is on the right. The gate at the bottom returns the player to the original stop and **pauses** an unfinished defense. The offer can be resumed through the scout at that stop.
 
 **Optional branch.** Helping the wounded opens the existing first-aid activity. Completing it permanently marks the treatment done and restores 12 points of position integrity, up to 100. It also makes an extra reward possible at the end.
 
@@ -53,7 +53,7 @@ Scout approaches → Offer → Escort → Backyard → Interior → Choose windo
 
 ![Current interior with two front windows](shootout-review/02-interior.png)
 
-**Current experience.** The room is walkable. The left window belongs to Guard Fox, the right to Gecko Ranger. The player can also talk to them and use the back door. Interacting near a window starts a roughly 0.75-second defender handoff, then opens the shooting view. Pressing Escape during the handoff cancels it.
+**Current experience.** The room is walkable, and the player keeps the same character scale after entering. The left window belongs to Guard Fox, the right to Gecko Ranger. The player can also talk to them and use the back door. Interacting near a window starts a roughly 0.75-second defender handoff, then opens the shooting view. Pressing Escape during the handoff cancels it.
 
 **Review focus.** Furniture and damage; whether each window reads as usable; defender placement; the handoff animation.
 
@@ -137,6 +137,8 @@ Each phase completion lowers enemy morale by 6. Staying actively exposed reduces
 **Review focus.** Whether the resident check feels necessary; reward amount and presentation; what the optional treatment should change.
 
 ## S15 — Stay or return
+
+![Current return transition with both travelers facing left](shootout-review/09-return.png)
 
 **Current experience.** The reward screen offers a chance to remain in the house or start the return trip. The player can also leave through the backyard gate after claiming the reward. The return transition lasts about five seconds and can be skipped. It restores the original stop and approximate player position. The quest then stays complete and does not repeat in that playthrough.
 

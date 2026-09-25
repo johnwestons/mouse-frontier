@@ -201,6 +201,10 @@ local function drawBackground(scene,width,height)
     local source=image(path)
     love.graphics.setColor(.055,.043,.032,1)
     love.graphics.rectangle("fill",0,0,width,height)
+    if mode=="backyard" then
+        WindowScene.drawBackground({quest=scene.quest,clock=scene.clock,
+            reducedMotion=scene.reducedMotion},width,height)
+    end
     if not source then return end
     local scale=width/source:getWidth()
     local drawHeight=source:getHeight()*scale
@@ -217,19 +221,19 @@ local function drawPlayer(player,visual)
     local playerImage=visual and visual.image or visual
     if visual and visual.animations and visual.character then
         local action=player.moving and "walk" or "idle"
-        if CharacterAnimation.draw(visual.animations,visual.character,action,player.x,player.y+34,82,104,
+        if CharacterAnimation.draw(visual.animations,visual.character,action,player.x,player.y+34,120,150,
             player.facing,visual.clock or 0,visual.clock or 0,player) then return end
     end
     if player.moving and visual and visual.walkImage then
         local image=visual.walkImage
-        local scale=math.min(.075,90/image:getHeight())
+        local scale=math.min(.11,135/image:getHeight())
         love.graphics.setColor(1,1,1,1)
         love.graphics.draw(image,player.x,player.y,0,-(player.facing or 1)*scale,scale,image:getWidth()/2,image:getHeight()/2)
         return
     end
     if playerImage and playerImage.getDimensions then
         local iw,ih=playerImage:getDimensions()
-        local scale=78/math.max(iw,ih)
+        local scale=112/math.max(iw,ih)
         love.graphics.setColor(1,1,1,1)
         love.graphics.draw(playerImage,player.x,player.y,0,scale,scale,iw/2,ih)
         return
@@ -362,7 +366,7 @@ function Scene.drawTransition(state,width,height,returning,playerVisual)
     end
     local direction=returning and -1 or 1
     local distance=state.reducedMotion and 0 or (returning and travel*.45 or math.min(width*.58,travel*.45))
-    local scoutX=returning and width-distance or 120+distance
+    local scoutX=state.reducedMotion and width*.58 or (returning and width-distance or 120+distance)
     local groundY=height*.70
     local moving=not state.reducedMotion
     drawTraveler(playerVisual,"otter-scout.png",scoutX,groundY,direction,distance,moving,state.clock)

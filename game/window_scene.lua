@@ -62,6 +62,13 @@ function WindowScene.frameLayout(windowId,width,height)
         scale=scale,frame=frame}
 end
 
+function WindowScene.impactPosition(windowId,width,height,pointIndex)
+    local layout=WindowScene.frameLayout(windowId,width,height)
+    local points=SceneData.damagePoints[windowId] or SceneData.damagePoints.wide
+    local point=points[((pointIndex or 1)-1)%#points+1]
+    return layout.x+point[1]*layout.scale,layout.y+point[2]*layout.scale
+end
+
 function WindowScene.opening(windowId,width,height)
     local layout=WindowScene.frameLayout(windowId,width,height)
     local frame=layout.frame

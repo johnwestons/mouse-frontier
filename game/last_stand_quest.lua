@@ -122,11 +122,6 @@ function Quest.new(context)
         }
     end
 
-    local function playerImage()
-        local visual=playerVisual()
-        return visual and visual.image or nil
-    end
-
     local function needsLoan(quest)
         if quest.loanActive and quest.loanAmmo>0 then return false end
         return not Shootout.hasUsableFirearm(runtime.saveData,Catalog)
