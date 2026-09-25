@@ -18,7 +18,9 @@ local function run()
     local runtime={state="game",scene="stop",saveData=data,player={x=480,y=500,facing=1}}
     data.character="botanist-frog.png"
     local animations=require("game.character_animation").load("assets/sprites/character-animations",
-        function(path) return love.graphics.newImage(path) end)
+        function(path)
+            if love.filesystem.getInfo(path) then return love.graphics.newImage(path) end
+        end)
     local context={runtime=runtime,catalog=Catalog,width=960,height=720,
         characterImages={[data.character]=love.graphics.newImage("assets/sprites/MainCharacters/"..data.character)},
         getCharacterAnimations=function() return animations end,
@@ -264,7 +266,10 @@ local function run()
     expect(battle.gun.weaponX>battle.gun.aimX and battle.gun.weaponY>battle.gun.aimY,"hip-fire offset is not below-right")
     draw("05-wide-hipfire")
     local magazine=battle.gun.magazine
+    local texturesAtWindow=love.graphics.getStats().texturememory
     quest:keypressed("escape")
+    expect(love.graphics.getStats().texturememory<texturesAtWindow,
+        "leaving the window retained the active shootout textures")
     takeWindow(660,285)
     battle=runtime.lastStand.shootout
     expect(battle.windowId=="tall" and battle.gun.magazine==magazine,"switching windows lost magazine state")
@@ -457,6 +462,7 @@ local function run()
     expect(data.scrap==5+data.lastStand.rewardScrap,"repeat conversation duplicated the reward")
     place(480,620); quest:keypressed("e")
     place(480,605); quest:keypressed("e")
+    draw("08-returning")
     local texturesBeforeReturn=love.graphics.getStats().texturememory
     quest:keypressed("space")
     expect(not runtime.lastStand and data.lastStand.completed,"return did not complete the quest")

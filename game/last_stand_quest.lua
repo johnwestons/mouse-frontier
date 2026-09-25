@@ -154,6 +154,10 @@ function Quest.new(context)
 
     local function enterScene(state,mode)
         state.aimTouch=nil; state.aimTouchSession=nil
+        if state.mode~=mode then
+            if state.mode=="shootout" then FirstPerson.release() end
+            Scene.release()
+        end
         state.mode=mode
         state.capture=true
         state.scene=state.scene or Scene.new(mode,state.quest)
@@ -219,6 +223,7 @@ function Quest.new(context)
     local function beginShootout(state,windowId)
         state.handoff=nil
         state.scene.handoff=nil
+        Scene.release()
         state.quest.intermission=nil
         state.quest.lastWindow=windowId
         state.quest.state="shootout"
