@@ -20,7 +20,7 @@ This is a working audit of the shared Windows and Android game. It tracks verifi
 
 | Check | Result |
 | --- | --- |
-| Full Python regression suite | 277 passed on version 20, no skips, including retired-offer behavior, save migration, and scene-art streaming. The new version 21 stop-edge test passes in its focused run. |
+| Full Python regression suite | 278 passed on version 21, no skips, including retired-offer behavior, save migration, scene-art streaming, and the stop-edge boundary. |
 | Desktop gameplay smoke | 88 checkpoints passed |
 | Mobile source gameplay smoke | 95 checkpoints passed |
 | Full route | Reached stop 50 ending |
@@ -30,7 +30,7 @@ This is a working audit of the shared Windows and Android game. It tracks verifi
 | Desktop and mobile train presentation | 16 captures each passed |
 | Mobile pickup and character-motion runtime | 48 pickup checks and runtime motion test passed |
 | Shootout review steps S03, S04 and S08 | Captures and behavior remain documented in `docs/SHOOTOUT_REVIEW.md`; the Last Stand smoke covers their directional character animation, backyard presentation, and incoming-fire effects |
-| Android package and device | Version 20 passed desktop/mobile/device parity and the first-frame launch gate on the Galaxy J4 Core. Save 1 resumed Last Stand, entered and left the wide-window battle without closing, then completed treatment of the wounded defender; the save records `woundedTreated=true`. The phone previously completed the Stop 2 shooting range and forest battle. Version 21's stop-edge and interaction fixes are undergoing device verification. Screenshots are under `.stabilization/`. |
+| Android package and device | Version 21 passed desktop/mobile/device parity and the first-frame launch gate on the Galaxy J4 Core. Save 1 resumed Last Stand, entered and left the wide-window battle without closing, then completed treatment of the wounded defender; the save recorded `woundedTreated=true`. After the edge and interaction fixes, the phone entered the scheduled Stop 10 caravan with the scout nearby, opened Packmaster trading, and returned to the stop. The phone previously completed the Stop 2 shooting range and forest battle. Screenshots are under `.stabilization/`. The disposable Save 1 and its backup were removed after testing. |
 | Conversation text fit | All 13 approved questions and 39 responses fit at normal, large, and extra-large text on desktop and mobile; 39 question and 117 response layouts per platform |
 | Installed character sprites | 54-directory scan found no structural errors. All 12 strictly accepted roster characters had zero warnings when checked against their own build manifests |
 
@@ -38,7 +38,7 @@ Reports and temporary captures are under `.stabilization/`, including `device-st
 
 ## Work still open
 
-- Continue physical-device checks for entering and leaving the caravan and the full Last Stand conclusion. The shooting range, first aid, and Last Stand through a window battle now work on the connected phone; the remaining transitions still have scripted coverage only.
+- Continue physical-device checks for the full Last Stand conclusion. The shooting range, first aid, caravan, and Last Stand through a window battle now work on the connected phone; the complete defense and return have scripted coverage only.
 - The character-motion ledger records 12 currently strict accepted characters out of 47. The broad scan's 1,343 warnings mostly came from applying a generic frame rule to those accepted characters; all twelve passed their individual contracts without warnings. Nine older sets still show 42 warnings under their own contracts. Courier Lizard's staged set has zero motion-audit issues but 16 Sprite Doctor height warnings and was never installed. Earlier draft validation now invokes Sprite Doctor, but the staged art and semantic acceptance still need review. Other legacy-complete characters remain in a reconciliation queue.
 - The expanded spoken dialogue pool and the retired conversation quests require author-supplied or explicitly approved character speech. The game retains neutral task interfaces until that writing is supplied; the missing contexts are listed in `docs/DIALOGUE_REVIEW.md`.
 
