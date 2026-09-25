@@ -465,6 +465,7 @@ function Quest.new(context)
         resourcesActive=true
         if state.paused then return true end
         state.clock=(state.clock or 0)+dt
+        state.woundFlash=math.max(0,(state.woundFlash or 0)-dt)
         if state.treatment then
             finishTreatment(state,FirstAid.update(state.treatment,dt))
             return true
@@ -526,6 +527,7 @@ function Quest.new(context)
                 state.shootout=nil
             elseif result=="retreat" then
                 local wounded=state.shootout.retreatReason=="wounded"
+                if wounded then state.woundFlash=.45 end
                 Shootout.retry(state.shootout)
                 enterScene(state,"interior")
                 state.quest.intermission=Tuning.phase(state.quest.holdElapsed)
@@ -836,6 +838,15 @@ function Quest.new(context)
 
     function service:draw()
         drawState()
+        local state=runtime.lastStand
+        local accessibility=runtime.saveData and runtime.saveData.accessibility
+        if state and (state.woundFlash or 0)>0
+            and not (accessibility and (accessibility.reducedFlashes or accessibility.reducedMotion)) then
+            love.graphics.push("all")
+            love.graphics.setColor(.76,.045,.025,.27*state.woundFlash/.45)
+            love.graphics.rectangle("fill",0,0,width,height)
+            love.graphics.pop()
+        end
         if runtime.lastStand and runtime.lastStand.paused then
             modalPanel("PAUSED","Press P, Enter, or tap to return to the defense.",width,height)
         end
