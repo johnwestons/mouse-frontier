@@ -9,12 +9,13 @@ This is a working audit of the shared Windows and Android game. It tracks verifi
 - **Conversation visual audit:** the harness called retired generated dialogue and stopped partway through. It now uses the approved conversation content and checks all 13 questions, 39 responses, and three choices per question at normal and extra-large text. Rendered text overflow now fails the audit.
 - **Outdated layout tests:** the train-view and architecture tests still expected the old house coordinates and button positions. They now verify the current fitted house and side-panel controls.
 - **Expedition preview cleanup:** the runner now removes its temporary stage and asset junctions after success or failure.
+- **Retired quest offer rolls:** new stops still allocated an 8% roll to the retired dialogue-quest kind, which the talk screen silently treated as no offer. The roll now records `none` directly, preserving the effective request rate and keeping old save migration intact.
 
 ## Verification completed
 
 | Check | Result |
 | --- | --- |
-| Full Python regression suite | 274 passed, no skips, after all current code and audit changes |
+| Full Python regression suite | 275 passed, no skips, including the retired-offer behavior and save-migration check |
 | Desktop gameplay smoke | 88 checkpoints passed |
 | Mobile source gameplay smoke | 95 checkpoints passed |
 | Full route | Reached stop 50 ending |

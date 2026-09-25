@@ -179,7 +179,21 @@ class ConversationTests(unittest.TestCase):
             data=assert(Schema.migrate(data))
             assert(data.version==35 and data.goodwill==12 and data.stats.xp==9)
             assert(not data.stopLayouts['1'].dialogueHelpRequests and not data.helpQuestSessions.old)
+            assert(data.stopLayouts['1'].npcOffers.resident=='none')
             assert(not data.activeHelpQuestId)
+        ''')
+
+    def test_retired_dialogue_offer_rolls_are_plain_no_offer(self):
+        self.lua.execute('''
+            local Q=require('game.quest_progression')
+            for _,stop in ipairs({1,25,50}) do
+                local weights=Q.offerWeights(stop)
+                assert(weights.dialogue==nil)
+                local total=0
+                for _,kind in ipairs(Q.offerOrder) do total=total+weights[kind] end
+                assert(math.abs(total-1)<.0001)
+                assert(Q.rollOffer(stop,function() return .35 end)=='none')
+            end
         ''')
 
     def test_corrupt_state_rejected(self):

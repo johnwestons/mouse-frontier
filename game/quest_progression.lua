@@ -1,6 +1,6 @@
 local QuestProgression={}
 
-QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","dialogue","none"}
+QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
 
 local deliveryProfiles={
@@ -29,9 +29,8 @@ function QuestProgression.offerWeights(location)
         trade=.04+.03*progress,
         item=.03+.01*progress,
         aid=.04,
-        dialogue=.08,
     }
-    result.none=1-result.mail-result.ride-result.supplies-result.trade-result.item-result.aid-result.dialogue
+    result.none=1-result.mail-result.ride-result.supplies-result.trade-result.item-result.aid
     return result
 end
 
@@ -245,7 +244,8 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
     for _,kind in ipairs(QuestProgression.offerOrder) do totalEarly=totalEarly+early[kind]; totalLate=totalLate+late[kind] end
     local ready=math.abs(totalEarly-1)<.0001 and math.abs(totalLate-1)<.0001
         and early.mail>late.mail and early.ride>late.ride and late.trade>early.trade
-        and early.none>=.5999 and late.none>=.6399 and early.item>0 and late.aid>0 and early.dialogue==.08 and late.dialogue==.08
+        and early.none>=.6899 and late.none>=.7299 and early.item>0 and late.aid>0
+        and early.dialogue==nil and late.dialogue==nil
         and far.scrap>near.scrap and far.xp>near.xp and diplomat.scrap>far.scrap
         and far.minimumRarity=="rare" and reward.item~=nil
         and greenhousePreferred.amount>greenhouseBase.amount and scavenger.kind=="scrap"
