@@ -21,7 +21,8 @@ local function run()
         function(path)
             if love.filesystem.getInfo(path) then return love.graphics.newImage(path) end
         end)
-    local context={runtime=runtime,catalog=Catalog,width=960,height=720,
+    local ui={interaction=nil}
+    local context={runtime=runtime,catalog=Catalog,width=960,height=720,ui=ui,
         characterImages={[data.character]=love.graphics.newImage("assets/sprites/MainCharacters/"..data.character)},
         getCharacterAnimations=function() return animations end,
         writeSave=function() saves=saves+1; return true end}
@@ -395,7 +396,12 @@ local function run()
     runtime.dialogue=nil
     quest:update(.01)
     runtime.lastStand.scout.x=480; runtime.lastStand.scout.y=500
-    quest:update(.6); quest:keypressed("e")
+    quest:update(.6)
+    ui.interaction={kind="crowCaravan"}
+    expect(not quest:keypressed("e") and runtime.lastStand.mode=="approach",
+        "scout intercepted the selected caravan entrance")
+    ui.interaction=nil
+    quest:keypressed("e")
     expect(runtime.lastStand.mode=="backyard","paused quest could not resume")
     place(480,360); quest:keypressed("e")
     takeWindow(350,285)

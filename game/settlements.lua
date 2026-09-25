@@ -82,13 +82,14 @@ end
 function Settlements.isWalkable(index,x,y)
     local mask=Settlements.walkMasks and Settlements.walkMasks[settlementNumber(index)]
     if mask then
+        local radius=6
+        if x-radius<0 or x+radius>=960 or y-radius<0 or y+radius>=720 then return false end
         local mw,mh=mask:getDimensions()
         local function sample(px,py)
             local ix=math.max(0,math.min(mw-1,math.floor(px/960*mw)))
             local iy=math.max(0,math.min(mh-1,math.floor(py/720*mh)))
             return select(1,mask:getPixel(ix,iy))>.5
         end
-        local radius=6
         return sample(x,y) and sample(x-radius,y) and sample(x+radius,y)
             and sample(x,y-radius) and sample(x,y+radius)
     end

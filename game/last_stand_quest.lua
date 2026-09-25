@@ -579,6 +579,7 @@ function Quest.new(context)
         end
         if state.mode=="approach" then
             if key=="e" and state.arrival and state.arrival>0 and not busy() then
+                if context.ui and context.ui.interaction then return false end
                 if state.quest.state=="paused" then enterScene(state,"backyard") else showOffer(state) end
                 return true
             end
