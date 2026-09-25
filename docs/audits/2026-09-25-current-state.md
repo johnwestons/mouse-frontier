@@ -1,6 +1,6 @@
 # Current-state game audit — September 25, 2026
 
-This is a working audit of the shared Windows and Android game. It tracks verified fixes separately from unfinished content so the playable build and the remaining work can be reviewed independently. The relevant test saves may be wiped if needed; this audit has used isolated identities and the existing smoke slot 99, without resetting normal player slots.
+This is a working audit of the shared Windows and Android game. It tracks verified fixes separately from unfinished content so the playable build and the remaining work can be reviewed independently. The user authorized wiping relevant test saves if needed. The automated checks used isolated identities and smoke slot 99; the connected phone's Save 1 was used to verify that a new game persists across an app restart.
 
 ## Problems found and fixed
 
@@ -10,12 +10,14 @@ This is a working audit of the shared Windows and Android game. It tracks verifi
 - **Outdated layout tests:** the train-view and architecture tests still expected the old house coordinates and button positions. They now verify the current fitted house and side-panel controls.
 - **Expedition preview cleanup:** the runner now removes its temporary stage and asset junctions after success or failure.
 - **Retired quest offer rolls:** new stops still allocated an 8% roll to the retired dialogue-quest kind, which the talk screen silently treated as no offer. The roll now records `none` directly, preserving the effective request rate and keeping old save migration intact.
+- **Android startup and scene memory:** the connected Samsung Galaxy J4 Core (Android 8.1, 858 MB RAM) showed a black screen and exited while eagerly loading art, even though the old APK check had reported a launch success from an early audio log. Stop backgrounds, battle biome atlases, event art, first-aid art, shooting-range art, and caravan art now load when needed; the first three collections release the previous image or atlas when switching. Intro art is released when play begins. The APK check now requires a rendered frame and 20 further seconds alive. The game reaches the train, backpack, random event, and stop on this phone.
+- **Android save-folder setup:** LÖVE's default external identity attempted to create a nested directory before its parent existed, generating a startup error. The Android wrapper now prepares that parent before LÖVE starts. The game uses its configured internal save directory; Save 1 was present after restarting the app.
 
 ## Verification completed
 
 | Check | Result |
 | --- | --- |
-| Full Python regression suite | 275 passed, no skips, including the retired-offer behavior and save-migration check |
+| Full Python regression suite | 276 passed, no skips, including retired-offer behavior, save migration, and scene-art streaming. |
 | Desktop gameplay smoke | 88 checkpoints passed |
 | Mobile source gameplay smoke | 95 checkpoints passed |
 | Full route | Reached stop 50 ending |
@@ -25,15 +27,15 @@ This is a working audit of the shared Windows and Android game. It tracks verifi
 | Desktop and mobile train presentation | 16 captures each passed |
 | Mobile pickup and character-motion runtime | 48 pickup checks and runtime motion test passed |
 | Shootout review steps S03, S04 and S08 | Captures and behavior remain documented in `docs/SHOOTOUT_REVIEW.md`; the Last Stand smoke covers their directional character animation, backyard presentation, and incoming-fire effects |
-| Android clean-commit build and device startup | Signed APK and embedded game checksum verified; 88 desktop checkpoints are present in the 95-check packaged mobile run; installed APK reached the game startup marker on one connected device |
+| Android package and device | Signed diagnostic APK installed; packaged mobile smoke passed; a rendered first frame survived the strengthened launch gate. Save 1 continued into the train, the backpack and travel chest opened, a random event resolved, and Stop 1 rendered with touch movement on the Galaxy J4 Core. A clean-commit rebuild and parity check remain. |
 | Conversation text fit | All 13 approved questions and 39 responses fit at normal, large, and extra-large text on desktop and mobile; 39 question and 117 response layouts per platform |
 | Installed character sprites | 54-directory scan found no structural errors. All 12 strictly accepted roster characters had zero warnings when checked against their own build manifests |
 
-Reports and temporary captures are under `.stabilization/`. The expedition runner's normal output in `docs/concepts/expedition-validation/` was restored after inspection; the updated mobile defeat image is retained in `.stabilization/goal-audit-mobile-return.png`.
+Reports and temporary captures are under `.stabilization/`, including `device-streamed-backpack.png`. The expedition runner's normal output in `docs/concepts/expedition-validation/` was restored after inspection; the updated mobile defeat image is retained in `.stabilization/goal-audit-mobile-return.png`.
 
 ## Work still open
 
-- Complete the physical-device touch, save, and visual checklist. The installed APK passed startup and package parity, but another app took the foreground before a game-screen capture could be reviewed.
+- Continue physical-device scene and combat checks beyond the train/backpack, especially transitions into the stop and heavier art scenes. The current APK was built from uncommitted diagnostic source; rebuild and verify package parity after committing the fix.
 - The character-motion ledger records 12 currently strict accepted characters out of 47. The broad scan's 1,343 warnings mostly came from applying a generic frame rule to those accepted characters; all twelve passed their individual contracts without warnings. Nine older sets still show 42 warnings under their own contracts. Courier Lizard's staged set has zero motion-audit issues but 16 Sprite Doctor height warnings and was never installed. Earlier draft validation now invokes Sprite Doctor, but the staged art and semantic acceptance still need review. Other legacy-complete characters remain in a reconciliation queue.
 - The expanded spoken dialogue pool and the retired conversation quests require author-supplied or explicitly approved character speech. The game retains neutral task interfaces until that writing is supplied; the missing contexts are listed in `docs/DIALOGUE_REVIEW.md`.
 

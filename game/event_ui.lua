@@ -4,10 +4,20 @@ local quadCache=setmetatable({},{__mode="k"})
 
 function EventUI.load(loadImage)
     local result={}
-    for _,name in ipairs({"battle-a","help-a","fortune-a","mishap-a","defense-a","mystery-a","story-a","story-b"}) do
-        result[name]=loadImage("assets/sprites/events/"..name..".png")
-    end
-    return result
+    local available={}
+    for _,name in ipairs({"battle-a","help-a","fortune-a","mishap-a","defense-a","mystery-a","story-a","story-b"}) do available[name]=true end
+    local active
+    return setmetatable(result,{__index=function(images,name)
+        if not available[name] then return nil end
+        if active and active~=name then
+            local previous=rawget(images,active)
+            if previous and previous.release then pcall(previous.release,previous) end
+            rawset(images,active,nil)
+        end
+        local image=loadImage("assets/sprites/events/"..name..".png")
+        if image then rawset(images,name,image); active=name end
+        return image
+    end})
 end
 
 function EventUI.choiceRects()

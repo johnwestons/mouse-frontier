@@ -131,10 +131,18 @@ local function new(context)
       love.graphics.rectangle("fill",0,0,windowWidth,windowHeight)
   end
 
+  local firstFrameDrawn=false
+  local function markFirstFrame()
+      if firstFrameDrawn then return end
+      firstFrameDrawn=true
+      print("[APP] First frame rendered")
+  end
+
   local function draw()
       love.graphics.clear(0.025,0.02,0.025,1)
       if screens:is("intro") then
           screens:draw(love.graphics.getDimensions())
+          markFirstFrame()
           return
       end
       local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
@@ -150,6 +158,7 @@ local function new(context)
           drawMobileControls(offsetX,offsetY,scaleX,scaleY)
       end
       drawTravelFade()
+      markFirstFrame()
   end
 
   local function isPanning() return Camera.panning end

@@ -42,9 +42,18 @@ local function registerLazyImage(destination,key,path,category)
     if paths then paths[key]=path; lazyCategories[destination][key]=category else destination[key]=loadImage(path,category) end
 end
 
+local function registerRequiredLazyImage(destination,key,path)
+    if not love.filesystem.getInfo(path) and missingRequired then
+        missingRequired[#missingRequired+1]=path
+    end
+    registerLazyImage(destination,key,path,"required")
+end
+
 local function releaseLazyImages(destination,keep)
-    if not lazyPaths[destination] then return end
-    for key,image in pairs(destination) do
+    local paths=lazyPaths[destination]
+    if not paths then return end
+    for key in pairs(paths) do
+        local image=rawget(destination,key)
         if not (keep and keep[key]) and not externallyOwnedImages[image] then
             if image and image.release then pcall(image.release,image) end
             rawset(destination,key,nil)
@@ -251,6 +260,26 @@ local function loadGeneratedBattleAtlas(file)
     return atlas
 end
 
+-- Keep only the active biome's atlases on the GPU. Loading every biome at
+-- startup can exhaust memory before the title screen appears on small phones.
+local function streamBattleAtlases(entries, loader)
+    local activeIndex
+    return setmetatable({}, {__index=function(images,index)
+        local entry=type(index)=="number" and entries[index] or nil
+        if not entry then return nil end
+        if activeIndex and activeIndex~=index then
+            local previous=rawget(images,activeIndex)
+            if previous and previous.image and previous.image.release then
+                pcall(previous.image.release,previous.image)
+            end
+            rawset(images,activeIndex,nil)
+        end
+        local atlas=loader(entry)
+        if atlas then rawset(images,index,atlas); activeIndex=index end
+        return atlas
+    end})
+end
+
 local function loadMenuFrames(ui)
     ui.menuFrames = {}
     for index, file in ipairs({"train-dialog-frame-v1.png", "train-panel-frame-v1.png", "train-tooltip-frame-v1.png", "train-button-frame-v1.png"}) do
@@ -329,10 +358,13 @@ function Assets.load(targets)
     end
     ui.objectTintShader = loadShader()
     scenery.titleImage = loadImage("assets/sprites/ui/title/title-option-3.png", "UI")
-    scenery.introBackground = loadImage("assets/backgrounds/intro/train-journey-sunrise.png", "UI")
-    scenery.introLocomotive = loadImage("assets/sprites/train/cinematic-locomotive.png", "UI")
-    scenery.introLocomotiveSheet = loadImage("assets/sprites/train/cinematic-locomotive-run-10-v2.png", "UI")
-    scenery.introCars = loadImage("assets/sprites/train/cinematic-five-car-consist.png", "UI")
+    prepareLazyImages(scenery)
+    for name,path in pairs({introBackground="assets/backgrounds/intro/train-journey-sunrise.png",
+        introLocomotive="assets/sprites/train/cinematic-locomotive.png",
+        introLocomotiveSheet="assets/sprites/train/cinematic-locomotive-run-10-v2.png",
+        introCars="assets/sprites/train/cinematic-five-car-consist.png"}) do
+        registerLazyImage(scenery,name,path,"UI")
+    end
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/MainCharacters")) do
         if Roster.isPlayable(file) then
@@ -343,11 +375,26 @@ function Assets.load(targets)
     table.sort(characters)
 
     local backgroundFiles = love.filesystem.getDirectoryItems("assets/backgrounds")
+    local backgroundPaths={}
+    local activeBackground
+    setmetatable(targets.backgroundImages,{__index=function(images,index)
+        local path=type(index)=="number" and backgroundPaths[index] or nil
+        if not path then return nil end
+        if activeBackground and activeBackground~=index then
+            local previous=rawget(images,activeBackground)
+            if previous and previous.release then pcall(previous.release,previous) end
+            rawset(images,activeBackground,nil)
+        end
+        local image=loadImage(path,"scenery")
+        if image then rawset(images,index,image); activeBackground=index end
+        return image
+    end})
     for _, file in ipairs(backgroundFiles) do
         local index=file:match("^stop%-(%d%d)")
         if index then
             index=tonumber(index)
-            targets.backgroundImages[index]=loadImage("assets/backgrounds/" .. file,"scenery")
+            backgroundPaths[index]="assets/backgrounds/" .. file
+            targets.backgroundImages.count=math.max(targets.backgroundImages.count or 0,index)
         end
     end
 
@@ -431,52 +478,52 @@ function Assets.load(targets)
         hit=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-hit.png",2,2,4),
         death=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-death.png",2,2,4),
     }
-    scenery.firstAidAssets={
-        wound=requireImage("assets/sprites/props/first-aid/small-cut.png"),
-        disinfectant=requireImage("assets/sprites/props/first-aid/disinfectant-bottle.png"),
-        rag=requireImage("assets/sprites/props/first-aid/clean-rag.png"),
-        swab=requireImage("assets/sprites/props/first-aid/ointment-swab.png"),
-        gauze=requireImage("assets/sprites/props/first-aid/gauze-pad.png"),
-        bandage=requireImage("assets/sprites/props/first-aid/bandage-roll.png"),
-        bandageStrips={
-            requireImage("assets/sprites/props/first-aid/bandage-strip.png"),
-            requireImage("assets/sprites/props/first-aid/bandage-strip-2.png"),
-            requireImage("assets/sprites/props/first-aid/bandage-strip-3.png"),
-        },
-    }
+    scenery.firstAidAssets={bandageStrips={}}
+    prepareLazyImages(scenery.firstAidAssets)
+    prepareLazyImages(scenery.firstAidAssets.bandageStrips)
+    for name,file in pairs({wound="small-cut.png",disinfectant="disinfectant-bottle.png",
+        rag="clean-rag.png",swab="ointment-swab.png",gauze="gauze-pad.png",
+        bandage="bandage-roll.png"}) do
+        registerRequiredLazyImage(scenery.firstAidAssets,name,"assets/sprites/props/first-aid/"..file)
+    end
+    for index,file in ipairs({"bandage-strip.png","bandage-strip-2.png","bandage-strip-3.png"}) do
+        registerRequiredLazyImage(scenery.firstAidAssets.bandageStrips,index,"assets/sprites/props/first-aid/"..file)
+    end
     local shootingRangeWeaponViews=FirstPersonWeaponViews.new(
         function(path) return loadImage(path,"shooting range weapon") end,
         function(path) return love.filesystem.getInfo(path)~=nil end)
-    scenery.shootingRangeAssets={
-        background=requireImage("assets/sprites/props/shooting-range/range-background.png"),
-        targets=requireImage("assets/sprites/props/shooting-range/target-atlas.png"),
-        impacts=requireImage("assets/sprites/props/shooting-range/impact-atlas.png"),
-        entrance=requireImage("assets/sprites/props/shooting-range/range-trail-flag-atlas.png"),
-        weaponViews=shootingRangeWeaponViews,
-    }
+    scenery.shootingRangeAssets={weaponViews=shootingRangeWeaponViews}
+    prepareLazyImages(scenery.shootingRangeAssets)
+    for name,file in pairs({background="range-background.png",targets="target-atlas.png",
+        impacts="impact-atlas.png",entrance="range-trail-flag-atlas.png"}) do
+        registerRequiredLazyImage(scenery.shootingRangeAssets,name,"assets/sprites/props/shooting-range/"..file)
+    end
     local caravanRoot="assets/sprites/caravans/rookery/"
     local caravanCampfirePath=caravanRoot.."animations/campfire-idle-4-v1.png"
-    local caravanCampfire=loadHorizontalAtlas(caravanCampfirePath,4,"required")
-    if not caravanCampfire then missingRequired[#missingRequired+1]=caravanCampfirePath end
     local caravanStallPath=caravanRoot.."animations/merchant-stall-breeze-4-v1.png"
-    local caravanStallImage=requireImage(caravanStallPath)
-    local caravanStall=caravanStallImage and CrowCaravanArt.stallAtlas(caravanStallImage,love.graphics.newQuad)
-    scenery.crowCaravanAssets={
-        background=requireImage("assets/backgrounds/crow-caravan-campsite-v1.png"),
-        wagonBody=requireImage(caravanRoot.."wagon-body-v1.png"),
-        wagonWheel=requireImage(caravanRoot.."wagon-wheel-v1.png"),
-        stallBody=requireImage(caravanRoot.."merchant-stall-body-v2.png"),
-        stallBreeze=caravanStall,
-        patchedTent=requireImage(caravanRoot.."patched-tent-v1.png"),
-        cargoCluster=requireImage(caravanRoot.."cargo-cluster-v1.png"),
-        crowBanner=requireImage(caravanRoot.."crow-banner-v1.png"),
-        campfire=caravanCampfire,
-    }
-    -- Short semantic names are the area renderer's public bundle contract;
-    -- keep the descriptive aliases above useful to diagnostics and tools.
-    scenery.crowCaravanAssets.wheel=scenery.crowCaravanAssets.wagonWheel
-    scenery.crowCaravanAssets.tent=scenery.crowCaravanAssets.patchedTent
-    scenery.crowCaravanAssets.cargo=scenery.crowCaravanAssets.cargoCluster
+    local caravanPaths={background="assets/backgrounds/crow-caravan-campsite-v1.png",
+        wagonBody=caravanRoot.."wagon-body-v1.png",wagonWheel=caravanRoot.."wagon-wheel-v1.png",
+        stallBody=caravanRoot.."merchant-stall-body-v2.png",patchedTent=caravanRoot.."patched-tent-v1.png",
+        cargoCluster=caravanRoot.."cargo-cluster-v1.png",crowBanner=caravanRoot.."crow-banner-v1.png"}
+    for _,path in pairs(caravanPaths) do
+        if not love.filesystem.getInfo(path) then missingRequired[#missingRequired+1]=path end
+    end
+    for _,path in ipairs({caravanCampfirePath,caravanStallPath}) do
+        if not love.filesystem.getInfo(path) then missingRequired[#missingRequired+1]=path end
+    end
+    local caravanAliases={wheel="wagonWheel",tent="patchedTent",cargo="cargoCluster"}
+    scenery.crowCaravanAssets=setmetatable({}, {__index=function(assets,name)
+        local alias=caravanAliases[name]
+        if alias then return assets[alias] end
+        local value
+        if name=="campfire" then value=loadHorizontalAtlas(caravanCampfirePath,4,"required")
+        elseif name=="stallBreeze" then
+            local image=requireImage(caravanStallPath)
+            value=image and CrowCaravanArt.stallAtlas(image,love.graphics.newQuad)
+        elseif caravanPaths[name] then value=requireImage(caravanPaths[name]) end
+        if value then rawset(assets,name,value) end
+        return value
+    end})
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
         loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
     end
@@ -559,17 +606,16 @@ function Assets.load(targets)
         end
     end
 
-    scenery.battleAtlases, scenery.battleVariations = {}, {}
-    for _, entry in ipairs({{"WASTELAND", "wasteland-tiles-v2.png", "wasteland-tiles-v3.png"}, {"FOREST", "forest-tiles-v1.png", "forest-tiles-v2.png"}, {"TOWN RUINS", "town-ruins-tiles-v1.png", "town-ruins-tiles-v2.png"}, {"MOUNTAINS", "mountain-tiles-v1.png", "mountain-tiles-v2.png"}}) do
-        scenery.battleAtlases[#scenery.battleAtlases + 1] = loadBattleAtlas(entry[2], entry[1])
-        scenery.battleVariations[#scenery.battleVariations + 1] = loadBattleAtlas(entry[3], entry[1])
-    end
-    scenery.battleAccents={}
-    for index,entry in ipairs({{"WASTELAND","wasteland-tiles-v4.png"},{"FOREST","forest-tiles-v3.png"},{"TOWN RUINS","town-ruins-tiles-v3.png"},{"MOUNTAINS","mountain-tiles-v3.png"}}) do
-        local atlas=loadGeneratedBattleAtlas(entry[2])
-        if atlas then atlas.name=entry[1] end
-        scenery.battleAccents[index]=atlas
-    end
+    local battleFiles={{"WASTELAND", "wasteland-tiles-v2.png", "wasteland-tiles-v3.png", "wasteland-tiles-v4.png"},
+        {"FOREST", "forest-tiles-v1.png", "forest-tiles-v2.png", "forest-tiles-v3.png"},
+        {"TOWN RUINS", "town-ruins-tiles-v1.png", "town-ruins-tiles-v2.png", "town-ruins-tiles-v3.png"},
+        {"MOUNTAINS", "mountain-tiles-v1.png", "mountain-tiles-v2.png", "mountain-tiles-v3.png"}}
+    scenery.battleAtlases=streamBattleAtlases(battleFiles,function(entry) return loadBattleAtlas(entry[2],entry[1]) end)
+    scenery.battleVariations=streamBattleAtlases(battleFiles,function(entry) return loadBattleAtlas(entry[3],entry[1]) end)
+    scenery.battleAccents=streamBattleAtlases(battleFiles,function(entry)
+        local atlas=loadGeneratedBattleAtlas(entry[4]); if atlas then atlas.name=entry[1] end
+        return atlas
+    end)
     scenery.battleObstacles=loadGeneratedBattleAtlas("battle-obstacles-v1.png")
 
     -- Settlement sprites now provide the complete stop surface and buildings.
@@ -599,6 +645,7 @@ end
 function Assets.assertHealthy() return AssetDiagnostics.assertHealthy() end
 function Assets.assetFailureSummary() return AssetDiagnostics.summary() end
 function Assets.assetFailureCount() return AssetDiagnostics.count() end
+function Assets.releaseIntroImages(scenery) releaseLazyImages(scenery) end
 
 -- Runtime-generated sprite frames can be shared with the legacy animation
 -- tables without transferring their lifetime to the generic lazy streamer.

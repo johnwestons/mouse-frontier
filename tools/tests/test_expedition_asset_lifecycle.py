@@ -25,15 +25,20 @@ class ExpeditionAssetLifecycleTests(unittest.TestCase):
             local Assets=require('game.assets')
             -- Initialize exactly the normal lazy table registry without loading
             -- the unrelated game's full image collection into this fixture.
-            local prepare
+            local prepare,register
             for index=1,100 do
                 local name,value=debug.getupvalue(Assets.load,index)
                 if not name then break end
-                if name=='prepareLazyImages' then prepare=value; break end
+                if name=='prepareLazyImages' then prepare=value end
+                if name=='registerLazyImage' then register=value end
             end
-            assert(prepare,'asset loader did not expose its lazy-table initializer')
+            assert(prepare and register,'asset loader did not expose its lazy-table registry')
             local idle,attack={},{}
             prepare(idle); prepare(attack)
+            for _,name in ipairs({'sludge-bandit.png','sludge-badger-boss.png','ordinary-enemy.png'}) do
+                register(idle,name,name)
+                register(attack,name,name)
+            end
             local bandit={released=0,release=function(self) self.released=self.released+1 end}
             local boss={released=0,release=function(self) self.released=self.released+1 end}
             local ordinary={released=0,release=function(self) self.released=self.released+1 end}

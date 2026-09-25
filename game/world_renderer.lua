@@ -72,7 +72,7 @@ local function new(context)
   end
 
   local function drawLandscape()
-      local backgroundCount=#backgroundImages
+      local backgroundCount=backgroundImages.count or #backgroundImages
       local image = backgroundCount>0 and backgroundImages[((runtime.saveData.location-1)%backgroundCount)+1] or nil
       if image then
           local s=math.max(W/image:getWidth(), H/image:getHeight())

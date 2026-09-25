@@ -187,7 +187,21 @@ public class GameActivity extends SDLActivity {
 '@
         $gameActivity = $gameActivity.Replace('    private void copyGameInsideArchive() {',$cacheGuard.TrimEnd())
     }
-    foreach ($requiredMarker in @('MOUSE_FRONTIER_LANDSCAPE_LOCK','MOUSE_FRONTIER_EMBEDDED_GAME','MOUSE_FRONTIER_GAME_CACHE')) {
+    if ($gameActivity -notmatch 'MOUSE_FRONTIER_SAVE_PARENT') {
+        $saveParent = @'
+        // MOUSE_FRONTIER_SAVE_PARENT
+        // LÖVE initializes its default external identity before conf.lua selects
+        // the game's internal save directory. Its native mkdir is not recursive.
+        File externalFiles = getExternalFilesDir(null);
+        if (externalFiles != null) {
+            new File(externalFiles, "save").mkdirs();
+        }
+
+        super.onCreate(savedInstanceState);
+'@
+        $gameActivity = $gameActivity.Replace('        super.onCreate(savedInstanceState);',$saveParent.TrimEnd())
+    }
+    foreach ($requiredMarker in @('MOUSE_FRONTIER_LANDSCAPE_LOCK','MOUSE_FRONTIER_EMBEDDED_GAME','MOUSE_FRONTIER_GAME_CACHE','MOUSE_FRONTIER_SAVE_PARENT')) {
         if ($gameActivity -notmatch $requiredMarker) { throw "Unable to apply Android wrapper patch: $requiredMarker" }
     }
     [System.IO.File]::WriteAllText($gameActivityPath,$gameActivity,[System.Text.UTF8Encoding]::new($false))
@@ -297,16 +311,17 @@ public class GameActivity extends SDLActivity {
         # device-wide logs belonging to other applications.
         & $adb -s $deviceSerial shell am start -W -n "$($config.applicationId)/org.love2d.android.GameActivity"
         if ($LASTEXITCODE -ne 0) { throw 'Installed APK did not launch' }
-        for ($attempt=1; $attempt -le 30; $attempt++) {
+        $firstFrameAttempt = 0
+        for ($attempt=1; $attempt -le 60; $attempt++) {
             $devicePid = (& $adb -s $deviceSerial shell pidof $config.applicationId | Out-String).Trim()
-            if ($devicePid) {
-                $deviceLog = (& $adb -s $deviceSerial logcat -d --pid=$devicePid -v brief | Out-String)
-                if ($deviceLog -match '\[LOVE\].*\[AUDIO\] Registered') { $deviceLaunchVerified = $true; break }
-                if ($deviceLog -match 'FATAL EXCEPTION|stack traceback|Lua error') { throw 'Installed APK reported a startup error' }
-            }
+            if (-not $devicePid) { throw 'Installed APK exited during startup' }
+            $deviceLog = (& $adb -s $deviceSerial logcat -d --pid=$devicePid -v brief | Out-String)
+            if ($deviceLog -match 'FATAL EXCEPTION|stack traceback|Lua error') { throw 'Installed APK reported a startup error' }
+            if (-not $firstFrameAttempt -and $deviceLog -match '\[APP\] First frame rendered') { $firstFrameAttempt = $attempt }
+            if ($firstFrameAttempt -and $attempt -ge ($firstFrameAttempt + 20)) { $deviceLaunchVerified = $true; break }
             Start-Sleep -Seconds 1
         }
-        if (-not $deviceLaunchVerified) { throw 'Installed APK did not reach the Mouse Frontier startup marker within 30 seconds' }
+        if (-not $deviceLaunchVerified) { throw 'Installed APK did not render a frame and remain open for 20 seconds within the 60-second startup check' }
     }
     $apkReport = [ordered]@{
         applicationId = $config.applicationId

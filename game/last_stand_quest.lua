@@ -805,7 +805,10 @@ function Quest.new(context)
             drawNotice(state)
             if state.treatment then
                 local assets={}
-                for name,value in pairs(context.scenery and context.scenery.firstAidAssets or {}) do assets[name]=value end
+                local firstAid=context.scenery and context.scenery.firstAidAssets or {}
+                for _,name in ipairs({"wound","disinfectant","rag","swab","gauze","bandage","bandageStrips"}) do
+                    assets[name]=firstAid[name]
+                end
                 assets.npc=context.npcImages and context.npcImages["guard-fox.png"]
                 FirstAid.draw(state.treatment,{},assets)
             end
