@@ -81,7 +81,13 @@ Scout approaches → Offer → Escort → Backyard → Interior → Choose windo
 
 **Current target sequence.** Hidden → appearing (~0.24s) → exposed (~0.85–1.65s, longer when the hold target is met but eliminations are short) → firing (~0.16s) → hiding (~0.22s) → hidden. A defeated target uses a ~0.72-second dying state before the aperture clears.
 
-**Review focus.** Whether each aperture is easy to read; whether the warning before a shot is fair; enemy size, pose, timing, and hit feedback.
+**Incoming shot sequence.** The enemy aperture lights up, a bright tracer travels toward the player's window, then a brief burst strikes the side frame or sill. These are three frames from one shot:
+
+1. **Muzzle flash:** ![Enemy muzzle flash in an upper station window](shootout-review/14-enemy-flash.png)
+2. **Tracer:** ![Bright tracer traveling from the station toward the player's window](shootout-review/15-enemy-tracer.png)
+3. **Window strike and player hit:** ![Impact on the left window frame with a red screen flash](shootout-review/16-impact-hit.png)
+
+**Review focus.** Whether each aperture is easy to read; whether the warning before a shot is fair; enemy size and pose; the flash, tracer speed, impact placement, and hit feedback.
 
 ## S09 — Switch to the tall window
 
@@ -116,7 +122,7 @@ Each phase completion lowers enemy morale by 6. Staying actively exposed reduces
 
 ## S12 — Take incoming fire and recover
 
-**Current experience.** An enemy's firing state produces a muzzle flash. An exposed player loses a small amount of position integrity on every enemy shot. Some shots also remove 1 health, or 2 from a heavy shooter, with a short hit-recovery interval preventing immediate repeated health hits. Every third enemy shot adds a damage decal to a valid window surface. Health can fall to 1 but not below it here.
+**Current experience.** Every enemy shot produces a muzzle flash, an approaching tracer, and a brief frame or sill impact, even while the player is behind cover. An exposed player loses a small amount of position integrity on every enemy shot. Some shots also remove 1 health, or 2 from a heavy shooter, with a short hit-recovery interval preventing immediate repeated health hits. When a shot hits the player, the screen flashes red as the tracer reaches the window; a critical hit also flashes during the retreat into the room. Every third exposed enemy shot adds a lasting damage decal to a valid window surface. Health can fall to 1 but not below it here. The reduced flashes setting removes the bright muzzle and full-screen red flash while retaining the tracer and impact shapes.
 
 **Failure branch.** If position integrity reaches zero or health reaches 1, the player is pulled back into the room. The current phase restarts from its checkpoint with 65% position integrity; earlier time and confirmed eliminations remain. Health is not silently restored. The player may return to the original stop to heal, then resume.
 
