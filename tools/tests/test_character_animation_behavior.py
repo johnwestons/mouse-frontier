@@ -63,6 +63,81 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
                         installed = ROOT / 'assets/sprites/character-animations' / character / staged.name
                         self.assertEqual(installed.read_bytes(), staged.read_bytes())
 
+    def test_every_installed_directional_walk_suite_is_loaded_and_used(self):
+        root = ROOT / 'assets' / 'sprites' / 'character-animations'
+        required = {
+            'walk.png', 'walk_north.png', 'walk_northeast.png', 'walk_southeast.png', 'walk_south.png',
+            'idle.png', 'idle_north.png', 'idle_northeast.png', 'idle_southeast.png', 'idle_south.png',
+        }
+        asset_dirs = {
+            directory.name: {path.name for path in directory.iterdir() if path.is_file()}
+            for directory in root.iterdir() if directory.is_dir()
+        }
+        suites = {name: files for name, files in asset_dirs.items() if required <= files}
+        self.assertGreaterEqual(len(suites), 40, 'the audit should cover the installed directional character roster')
+
+        lua_dirs = self.lua.table()
+        for name, files in asset_dirs.items():
+            lua_files = self.lua.table()
+            for filename in files:
+                lua_files[filename] = True
+            lua_dirs[name] = lua_files
+        self.lua.globals().assetDirs = lua_dirs
+        self.lua.globals().directionalSuites = self.lua.table_from(sorted(suites))
+        self.lua.execute(r'''
+            local noop=function() end
+            love.filesystem={
+                getDirectoryItems=function(path)
+                    if path~='assets/sprites/character-animations' then return {} end
+                    local names={}; for name in pairs(assetDirs) do names[#names+1]=name end; table.sort(names); return names
+                end,
+                getInfo=function(path)
+                    if path=='assets/sprites/character-animations' then return {type='directory'} end
+                    local directory=path:match('^assets/sprites/character%-animations/([^/]+)$')
+                    if directory and assetDirs[directory] then return {type='directory'} end
+                    local name,filename=path:match('^assets/sprites/character%-animations/([^/]+)/(.+)$')
+                    if name and assetDirs[name] and assetDirs[name][filename] then return {type='file'} end
+                    return nil
+                end,
+            }
+            love.graphics.newQuad=function(x,y,w,h)
+                return {frame=math.floor(x/w)+1}
+            end
+            love.graphics.draw=function(image,quad)
+                drawn={image=image.path,frame=quad.frame}
+            end
+            local function imageLoader(path)
+                local name,filename=path:match('^assets/sprites/character%-animations/([^/]+)/(.+)$')
+                if not (name and assetDirs[name] and assetDirs[name][filename]) then return nil end
+                local action=filename:gsub('%.png$','')
+                local count=(action:match('^walk') or action:match('^run')) and 8
+                    or (action:match('^idle') or action=='sit' or action=='lay' or action=='unconscious') and 2 or 3
+                return {path=path,getDimensions=function() return count*64,64 end}
+            end
+            local manager=Animation.load('assets/sprites/character-animations',imageLoader)
+            local directions={{0,-1},{1,-1},{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1}}
+            local checked=0
+            for _,name in ipairs(directionalSuites) do
+                local file=name..'.png'
+                local set=manager[file]
+                assert(set and set.directional, file..' has a suite but was not registered for directional movement')
+                for _,direction in ipairs(directions) do
+                    local action=Motion.directionalWalkAction(direction[1],direction[2],set.authoredWest)
+                    local animation=set[action]
+                    assert(animation, file..' is missing selected view '..action)
+                    drawn=nil
+                    local stride=set.motionProfile.pixelsPerFrame
+                    assert(Animation.draw(manager,file,'walk',100,100,82,104,1,0,0,{
+                        intentX=direction[1],intentY=direction[2],animationDistance=stride*2,
+                    }))
+                    assert(drawn.image==animation.image.path, file..' did not draw '..action)
+                    assert(drawn.frame==3, file..' did not advance from its traveled distance')
+                end
+                checked=checked+1
+            end
+            assert(checked==#directionalSuites)
+        ''')
+
     def test_all_authored_directional_idles_use_the_spec_cadence(self):
         self.lua.execute(r'''
             local sets=makeSet(true,true)

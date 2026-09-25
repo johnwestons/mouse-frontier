@@ -4,6 +4,7 @@ local Accessibility = require("game.accessibility")
 local WorldPause = require("game.world_pause")
 local Typography = require("game.typography")
 local TrainView = require("game.train_view")
+local WideLayout = require("game.wide_layout")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -67,7 +68,8 @@ local function new(context)
       local objective=expeditionObjective()
       if not objective then return end
       local mobile=mobileEnabled()
-      local x,y,width=18,mobile and 222 or 200,mobile and 490 or 402
+      local layout=ui.sideHudLayout
+      local x,y,width=layout and layout.leftX or 18,layout and 492 or (mobile and 222 or 200),layout and layout.panelWidth or (mobile and 490 or 402)
       drawMenuFrame(x,y,width,mobile and 112 or 86,4,.98)
       love.graphics.setColor(colors.brass)
       textIn(objective.title or "EXPEDITION",x+12,y+7,width-24,24,mobile and 1 or .88)
@@ -112,6 +114,9 @@ local function new(context)
 
   local function drawGame()
       local cloudLayer=getCloudLayer()
+      local windowWidth,windowHeight=love.graphics.getDimensions()
+      local layout=WideLayout.measure(W,H,windowWidth,windowHeight)
+      ui.sideHudLayout=layout.sidePanels and runtime.scene~="train" and layout or nil
       ui.returnDoor,ui.returnTrain,ui.returnStop,ui.exitHome=nil,nil,nil,nil
       WorldView.begin()
       if runtime.scene=="train" then
@@ -142,8 +147,10 @@ local function new(context)
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
       WorldView.finish()
       if not mobileEnabled() then
-          ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
-          ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,Maintenance.oilCapacity(runtime.saveData))
+          if not ui.sideHudLayout then
+              ui.drawResource("FOOD",runtime.saveData.resources.food,20,colors.green,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"food")); ui.drawResource("WATER",runtime.saveData.resources.water,140,colors.blue,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"water"))
+              ui.drawResource("COAL",runtime.saveData.resources.coal,260,colors.red,110,TrainUpgradeBalance.resourceCapacity(runtime.saveData,"coal")); ui.drawResource("OIL",runtime.saveData.resources.oil,380,colors.brass,110,Maintenance.oilCapacity(runtime.saveData))
+          end
           ui.drawJourneyHUD()
       elseif not WorldPause.isPaused(runtime,ui,maintenanceSession) then ui.drawJourneyHUD() end
       drawExpeditionProgress()
@@ -177,6 +184,19 @@ local function new(context)
               love.graphics.setColor(colors.cream); textIn(summary,118,584,724,32,.95,"center")
               textIn("Tap BACK or CLOSE to return",118,624,724,26,.90,"center")
           end
+      elseif ui.sideHudLayout then
+          local x,w=ui.sideHudLayout.rightX,ui.sideHudLayout.panelWidth
+          local y,gap=18,42
+          ui.map=button(runtime.mapOpen and "CLOSE MAP" or (runtime.scene=="expedition" and "AREA MAP" or "MAP"),x,y,w,36,true,.80); y=y+gap
+          ui.backpack=button(runtime.inventoryOpen and "CLOSE PACK" or "BACKPACK",x,y,w,36,true,.80); y=y+gap
+          ui.options=button(ui.optionsOpen and "CLOSE SETTINGS" or "OPTIONS",x,y,w,36,true,.80); y=y+gap
+          ui.pose=button(runtime.poseMenu and "CLOSE POSES" or "POSES",x,y,w,36,true,.80); y=y+gap
+          ui.travel=runtime.scene=="train" and button(travelLabel,x,y,w,38,runtime.saveData.location<50 and travel.affordable,.76) or nil; y=y+gap
+          ui.trainUpgrade=runtime.scene=="train" and button("UPGRADE",x,y,w,36,true,.80) or nil; y=y+gap
+          ui.editMode=runtime.scene=="train" and button(runtime.editMode and "EDITING" or "MOVE / SCALE",x,y,w,36,true,.72) or nil; y=y+gap
+          ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE",x,y,w,36,true,.72) or nil; y=y+gap
+          ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",x,y,w,36,true,.76) or nil
+          ui.stopAttack=(runtime.scene=="stop" or runtime.scene=="expedition") and button("ATTACK",W-152,H-124,136,42,true,.85,.52) or nil
       else
           ui.travel=runtime.scene=="train" and button(travelLabel,510,20,220,36,runtime.saveData.location<50 and travel.affordable) or nil
           -- Keep the departure control with the other scene controls, directly
@@ -197,7 +217,9 @@ local function new(context)
           and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not runtime.shootingRange
           and not runtime.exitPrompt and not maintenanceSession.open
       if returnTrainVisible then
-          ui.returnTrain=mobile and button("RETURN TO TRAIN",650,214,288,66,true) or button("RETURN TO TRAIN",790,194,135,38,true,.68)
+          local layout=ui.sideHudLayout
+          ui.returnTrain=layout and button("RETURN TO TRAIN",layout.rightX,190,layout.panelWidth,50,true,.76)
+              or (mobile and button("RETURN TO TRAIN",650,214,288,66,true) or button("RETURN TO TRAIN",790,194,135,38,true,.68))
       end
       -- The campsite exit is a safety control, not ordinary world chrome. Keep
       -- it above every modal panel; the mobile journey menu supplies its own
@@ -207,10 +229,15 @@ local function new(context)
           and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
           and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not maintenanceSession.open
       if exitHomeVisible then
-          ui.exitHome=mobile and button("EXIT HOME",650,214,288,66,true) or button("EXIT HOME",790,194,135,38,true,.78)
+          local layout=ui.sideHudLayout
+          ui.exitHome=layout and button("EXIT HOME",layout.rightX,190,layout.panelWidth,50,true,.78)
+              or (mobile and button("EXIT HOME",650,214,288,66,true) or button("EXIT HOME",790,194,135,38,true,.78))
       end
       local pendingMail=0; for _,mail in ipairs(runtime.saveData.mailQuests or {}) do if not mail.complete then pendingMail=pendingMail+1 end end
-      if not mobile and (pendingMail>0 or #(runtime.saveData.passengers or {})>0) then
+      if ui.sideHudLayout and (pendingMail>0 or #(runtime.saveData.passengers or {})>0) then
+          love.graphics.setColor(colors.cream)
+          textIn("MAIL "..pendingMail.." / RIDERS "..#(runtime.saveData.passengers or {}),ui.sideHudLayout.leftX,616,ui.sideHudLayout.panelWidth,28,.68,"center")
+      elseif not mobile and (pendingMail>0 or #(runtime.saveData.passengers or {})>0) then
           love.graphics.setColor(colors.cream)
           textIn("MAIL "..pendingMail.." / RIDERS "..#(runtime.saveData.passengers or {}),745,153,180,33,.75,"center")
       end
@@ -254,10 +281,17 @@ local function new(context)
       if contextText then
           local highContrast=Accessibility.enabled(runtime.saveData,"highContrast")
           local hintX,hintY,hintW,hintH=325,300,310,40
-          if mobile then
-              hintX,hintY,hintW,hintH=(W-440)/2,H-44,440,32
+          if ui.sideHudLayout then
+              if runtime.scene=="expedition" then
+                  hintX,hintY,hintW,hintH=ui.sideHudLayout.rightX,190,ui.sideHudLayout.panelWidth,48
+              else
+                  hintX,hintY,hintW,hintH=ui.sideHudLayout.leftX,492,ui.sideHudLayout.panelWidth,48
+              end
           end
-          if runtime.scene=="train" and not mobile then
+          if mobile then
+              if not ui.sideHudLayout then hintX,hintY,hintW,hintH=(W-440)/2,H-44,440,32 end
+          end
+          if runtime.scene=="train" and not mobile and not ui.sideHudLayout then
               local trainView=getTrainView()
               hintX,hintY=trainView.visibleLeft+20,214
               if #(runtime.saveData.trainCars or {})>1 then hintY=284 end
@@ -280,15 +314,19 @@ local function new(context)
           local active=runtime.saveData.activeCar or 1
           ui.trainCarTabs=Train.consistLayout(W,#runtime.saveData.trainCars,{mobile=mobile})
           for index,tab in ipairs(ui.trainCarTabs) do
-              if mobile then tab.y=214 end
+              if ui.sideHudLayout then
+                  tab.x,tab.y,tab.w,tab.h=ui.sideHudLayout.rightX,414+(index-1)*38,ui.sideHudLayout.panelWidth,32
+              elseif mobile then tab.y=214 end
               local selected=index==active
               love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",tab.x,tab.y,tab.w,tab.h,7,7)
               love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 3 or 1)
               love.graphics.rectangle("line",tab.x,tab.y,tab.w,tab.h,7,7)
-              textIn(tostring(index),tab.x,tab.y,tab.w,tab.h,mobile and 1.10 or .55,"center")
+              textIn(ui.sideHudLayout and ("CAR "..index) or tostring(index),tab.x,tab.y,tab.w,tab.h,mobile and 1.10 or .55,"center")
           end
           love.graphics.setLineWidth(1); love.graphics.setColor(colors.cream)
-          if mobile then
+          if ui.sideHudLayout then
+              textIn("CAR "..active.." / "..#runtime.saveData.trainCars,ui.sideHudLayout.rightX,385,ui.sideHudLayout.panelWidth,24,.70,"center")
+          elseif mobile then
               drawMenuFrame(350,280,585,32,4,.94)
               textIn("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),360,282,565,28,.9,"center")
           else textIn("CAR "..active.." / "..#runtime.saveData.trainCars.."  •  "..Util.titleFromFile(runtime.saveData.trainCars[active]),10,246,400,26,.72,"center") end

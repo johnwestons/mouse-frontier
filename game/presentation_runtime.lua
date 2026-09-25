@@ -1,5 +1,6 @@
 local WorldView=require("game.world_view")
 local TrainView=require("game.train_view")
+local SceneFit=require("game.scene_fit")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -27,6 +28,14 @@ local function new(context)
   local mobileEnabled=required(context,"mobileEnabled","function")
 
   Camera:configure(W,H)
+  local function houseFit()
+      local windowWidth,windowHeight=love.graphics.getDimensions()
+      return SceneFit.house(W,H,windowWidth,windowHeight)
+  end
+
+  local function currentFit()
+      return runtime.state=="game" and runtime.scene=="house" and houseFit() or nil
+  end
 
   local function getTrainView()
       if runtime.state~="game" or runtime.scene~="train" then return nil end
@@ -47,7 +56,10 @@ local function new(context)
           local offsetX,offsetY=getWorldOffset()
           local trainView=getTrainView()
           if trainView then return TrainView.toView(trainView,runtime.player.x,runtime.player.y) end
-          return runtime.player.x-(offsetX or 0),runtime.player.y-(offsetY or 0)
+          local x,y=runtime.player.x-(offsetX or 0),runtime.player.y-(offsetY or 0)
+          local fit=currentFit()
+          if fit then return SceneFit.toView(fit,x,y) end
+          return x,y
       end
       return W/2,H/2
   end
@@ -59,7 +71,10 @@ local function new(context)
   local function sceneCoordinates(x,y)
       activateSurface()
       local focusX,focusY=focus()
-      return Camera:toWorld(x,y,focusX,focusY)
+      x,y=Camera:toWorld(x,y,focusX,focusY)
+      local fit=currentFit()
+      if fit then return SceneFit.toWorld(fit,x,y) end
+      return x,y
   end
 
   WorldView.configure({
@@ -75,11 +90,15 @@ local function new(context)
           end
           local focusX,focusY=focus()
           Camera:apply(focusX,focusY)
+          local fit=currentFit()
+              if fit then SceneFit.apply(fit) end
       end,
       toWorld=sceneCoordinates,
       toScreen=function(x,y)
           activateSurface()
           local focusX,focusY=focus()
+          local fit=currentFit()
+          if fit then x,y=SceneFit.toView(fit,x,y) end
           return (x-focusX)*Camera.zoom+focusX+Camera.panX,
               (y-focusY)*Camera.zoom+focusY+Camera.panY
       end,

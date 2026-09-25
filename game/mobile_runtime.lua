@@ -34,6 +34,16 @@ local function new(context)
       return not WorldPause.isPaused(runtime,ui,maintenanceSession,{allowDialogue=true})
   end
 
+  local function movementActive()
+      local state=runtime.lastStand
+      if state and state.capture then
+          return runtime.state=="game" and not state.paused and not state.treatment and not state.handoff
+              and (state.mode=="backyard" or state.mode=="interior")
+              and not ui.mobileMenuOpen and not ui.optionsOpen
+      end
+      return gameplayActive()
+  end
+
   local function shootingRangeActive()
       return runtime.state=="game" and runtime.shootingRange and runtime.shootingRange.phase=="play" and runtime.shootingRange
   end
@@ -98,6 +108,7 @@ local function new(context)
           height=H,
           toGame=viewportToGame,
           gameplayActive=gameplayActive,
+          movementActive=movementActive,
           getZoom=getCameraZoom,
           setZoom=setCameraZoom,
           beginCameraPan=beginCameraPan,

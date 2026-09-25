@@ -91,7 +91,17 @@ function BattleUI.draw(ctx)
     for _,entry in ipairs(drawUnits) do
         local i,u=entry.index,entry.unit
         local x,y=boardToScreen(ctx,u.q,u.r); local moving=u.moveAnim~=nil
-        if moving then local m=u.moveAnim; local p=math.min(1,m.t/m.duration); p=p*p*(3-2*p); local sx,sy=boardToScreen(ctx,m.fromQ,m.fromR); local tx,ty=boardToScreen(ctx,m.toQ,m.toR); x,y=sx+(tx-sx)*p,sy+(ty-sy)*p end
+        local motion
+        if moving then
+            local m=u.moveAnim
+            local progress=math.min(1,m.t/m.duration)
+            progress=progress*progress*(3-2*progress)
+            local sx,sy=boardToScreen(ctx,m.fromQ,m.fromR)
+            local tx,ty=boardToScreen(ctx,m.toQ,m.toR)
+            local dx,dy=tx-sx,ty-sy
+            x,y=sx+dx*progress,sy+dy*progress
+            motion={intentX=dx,intentY=dy,animationDistance=math.sqrt(dx*dx+dy*dy)*progress}
+        end
         if (u.hitTimer or 0)>0 and u.hitFromQ then
             local fromX,fromY=boardToScreen(ctx,u.hitFromQ,u.hitFromR); local dx,dy=x-fromX,y-fromY; local length=math.max(1,math.sqrt(dx*dx+dy*dy)); local recoil=math.sin(math.min(1,(.58-u.hitTimer)/.58)*math.pi)*14
             x=x+(dx/length)*recoil; y=y+(dy/length)*recoil-recoil*.22
@@ -113,7 +123,7 @@ function BattleUI.draw(ctx)
         local facing=BattleRules.facing(battle,u)
         local actionPhase=(u.actionTimer or 0)>0 and math.max(0,.45-u.actionTimer) or animationClock+i*.13
         local attachedWeapon=false
-        local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase)
+        local animated=u.team=="ally" and drawAnimatedCharacter(u.file,u.hp<=0 and "unconscious" or (moving and "walk" or action),x,y+20,76,96,facing,moving and animationClock or actionPhase,motion)
         if not animated and img then
             local spriteW,spriteH=u.boss and 108 or 76,u.boss and 132 or 96
             local s=math.min(spriteW/img:getWidth(),spriteH/img:getHeight())

@@ -5,6 +5,7 @@ local FirstAid=require("game.first_aid")
 local WorldPause=require("game.world_pause")
 local FirstPerson=require("game.first_person_shooting")
 local Tuning=require("game.last_stand_tuning")
+local CharacterMotion=require("game.character_motion")
 
 local Quest={}
 local VERSION=1
@@ -85,6 +86,10 @@ function Quest.new(context)
     local Catalog=required(context,"catalog","table")
     local writeSave=required(context,"writeSave","function")
     local characterImages=required(context,"characterImages","table")
+    local characterWalkImages=context.characterWalkImages or {}
+    local getCharacterAnimations=context.getCharacterAnimations or function() return {} end
+    local mobileMovement=context.mobileMovement or function() return 0,0 end
+    local mobileSprinting=context.mobileSprinting or function() return false end
     local width=required(context,"width","number")
     local height=required(context,"height","number")
 
@@ -105,9 +110,21 @@ function Quest.new(context)
             or runtime.battle or runtime.encounter or runtime.sleeping
     end
 
-    local function playerImage()
+    local function playerVisual()
         local data=runtime.saveData
-        return data and characterImages[data.character] or nil
+        if not data then return nil end
+        return {
+            image=characterImages[data.character],
+            character=data.character,
+            animations=getCharacterAnimations(),
+            walkImage=characterWalkImages[data.character],
+            clock=runtime.animationClock or 0,
+        }
+    end
+
+    local function playerImage()
+        local visual=playerVisual()
+        return visual and visual.image or nil
     end
 
     local function needsLoan(quest)
@@ -488,7 +505,13 @@ function Quest.new(context)
         if state.mode=="backyard" or state.mode=="interior" then
             state.scene.reducedMotion=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedMotion==true
             state.scene.reducedFlashes=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedFlashes==true
-            local reports=Scene.update(state.scene,dt)
+            local mobileX,mobileY=mobileMovement()
+            local sprinting=love.keyboard.isDown("lshift","rshift") or mobileSprinting()
+            local reports=Scene.update(state.scene,dt,{
+                mobileX=mobileX,mobileY=mobileY,sprinting=sprinting,
+                speed=runtime.player and runtime.player.speed or 185,
+                profile=CharacterMotion.profileFor(runtime.saveData.character),
+            })
             if reports>0 and not state.quest.victory then FirstPerson.playReport("frontier-22-lever-rifle",Catalog,runtime.saveData,true) end
             if state.handoff then
                 state.handoff.elapsed=state.handoff.elapsed+dt
@@ -779,9 +802,9 @@ function Quest.new(context)
             love.graphics.printf("Page "..state.offerPage.." / "..#OFFER_LINES,width/2-80,height/2+116,160,"center")
             return
         end
-        if state.mode=="escort" then Scene.drawTransition(state,width,height,false,playerImage()); return end
+        if state.mode=="escort" then Scene.drawTransition(state,width,height,false,playerVisual()); return end
         if state.mode=="backyard" or state.mode=="interior" then
-            Scene.draw(state.scene,width,height,playerImage(),needsLoan(state.quest))
+            Scene.draw(state.scene,width,height,playerVisual(),needsLoan(state.quest))
             drawNotice(state)
             if state.treatment then
                 local assets={}
@@ -796,7 +819,7 @@ function Quest.new(context)
             return
         end
         if state.mode=="aftermath" then
-            Scene.draw(state.scene,width,height,playerImage(),false)
+            Scene.draw(state.scene,width,height,playerVisual(),false)
             modalPanel(
                 "THE RELAY GOES QUIET",
                 "The gang has withdrawn. The defenders lower their weapons one by one. Reward: "..(state.quest.rewardScrap or 28).." scrap, 3 goodwill, and 2 food.",
@@ -813,7 +836,7 @@ function Quest.new(context)
             love.graphics.printf("STAY A LITTLE LONGER  [T]",rx,ry-43,rw,"center")
             return
         end
-        if state.mode=="returning" then Scene.drawTransition(state,width,height,true,playerImage()) end
+        if state.mode=="returning" then Scene.drawTransition(state,width,height,true,playerVisual()) end
     end
 
     function service:draw()

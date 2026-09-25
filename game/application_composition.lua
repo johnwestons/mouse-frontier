@@ -141,7 +141,10 @@ local function new(context)
 
   local lastStand=Modules.lastStandQuest.new({
     runtime=runtime,catalog=Catalog,writeSave=platform.persistenceRuntime.schedule,
-    characterImages=content.characterImages,scenery=content.scenery,npcImages=content.npcImages,
+    characterImages=content.characterImages,characterWalkImages=content.characterWalkImages,
+    getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
+    mobileMovement=platform.mobileRuntime.movement,mobileSprinting=platform.mobileRuntime.isSprinting,
+    scenery=content.scenery,npcImages=content.npcImages,
     ui=ui,maintenanceSession=maintenanceSession,width=W,height=H,
   })
 

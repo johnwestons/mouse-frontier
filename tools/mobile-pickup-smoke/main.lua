@@ -47,7 +47,10 @@ local function run()
         expect(g.holdPickupTime>.2,"direct furniture touch did not advance hold")
         love.graphics.setCanvas(canvas); love.graphics.origin(); app.draw(); love.graphics.setCanvas()
         local hint=ui.contextHint
-        expect(hint and hint.y>=670 and hint.h<=36 and hint.w<=440 and hint.alpha<=.5,"pickup hint blocks the play area")
+        local bottomHint=hint and hint.y>=670 and hint.h<=36 and hint.w<=440 and hint.alpha<=.5
+        local sideHint=hint and ui.sideHudLayout and hint.x==ui.sideHudLayout.leftX
+            and hint.w<=ui.sideHudLayout.panelWidth and hint.h<=48 and hint.alpha<=.5
+        expect(bottomHint or sideHint,"pickup hint overlaps gameplay or is too opaque")
         local image=canvas:newImageData(); image:encode("png","home-hold-zoom-"..zoom..".png"); image:release()
         step(.65); picked(); app.touchreleased("furniture",x,y)
         expect(not controls:isHeld("e"),"world hold stayed held")
@@ -105,6 +108,22 @@ local function run()
     ui.mobileMenuOpen=false; g.dialogue={}
     expect(not controls.backpackVisible(),"backpack shortcut overlaps dialogue")
     g.dialogue=nil
+    g.lastStand={capture=true,mode="interior",paused=false}
+    controls:cancelAll(); controls:_updateCornerLayout()
+    expect(controls:isMovementActive() and not controls:isGameplayActive(),"Last Stand house did not enable its movement control")
+    local stickX,stickY=controls.joystick.x+300+controls.joystick.radius*.5,controls.joystick.y
+    controls:touchpressed("last-stand-joystick",stickX,stickY)
+    local moveX=select(1,controls:movement())
+    expect(moveX>0,string.format("Last Stand joystick did not produce movement input: active=%s x=%.1f y=%.1f radius=%.1f touch=%s axis=%.2f",
+        tostring(controls:isMovementActive()),controls.joystick.x,controls.joystick.y,controls.joystick.radius,
+        tostring(controls.touches["last-stand-joystick"] and controls.touches["last-stand-joystick"].kind),moveX))
+    controls:touchreleased("last-stand-joystick",stickX,stickY)
+    expect(select(1,controls:movement())==0,"Last Stand joystick stayed active after release")
+    g.lastStand.mode="shootout"
+    expect(not controls:isMovementActive(),"Last Stand movement control appeared during first-person shooting")
+    g.lastStand.mode="interior"; g.lastStand.paused=true
+    expect(not controls:isMovementActive(),"Last Stand movement control remained active while paused")
+    g.lastStand=nil; controls:cancelAll()
     local layout=require("game.control_layout").normalize({menu={x=.8,y=.1}})
     expect(layout.backpack and layout.menu.x==.8,"old control positions lost on upgrade")
     local bagX,bagY=bag.x,bag.y

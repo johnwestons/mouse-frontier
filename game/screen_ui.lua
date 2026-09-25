@@ -1,6 +1,7 @@
 local WorldView=require("game.world_view")
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
+local WideLayout=require("game.wide_layout")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -68,6 +69,47 @@ local function new(context)
   end
 
   function ui.drawJourneyHUD()
+      local windowWidth,windowHeight=love.graphics.getDimensions()
+      local layout=WideLayout.measure(W,H,windowWidth,windowHeight)
+      ui.sideHudLayout=layout.sidePanels and runtime.scene~="train" and layout or nil
+      if ui.sideHudLayout then
+          local data=runtime.saveData
+          local progression=PlayerProgression.status(data)
+          local condition=Maintenance.status(data)
+          local goodwill=StopHelpProgression.status(data)
+          local x,width=layout.leftX,layout.panelWidth
+          love.graphics.push("all"); love.graphics.origin()
+          love.graphics.translate((windowWidth-W*math.min(windowWidth/W,windowHeight/H))/2,
+              (windowHeight-H*math.min(windowWidth/W,windowHeight/H))/2)
+          local viewportScale=math.min(windowWidth/W,windowHeight/H)
+          love.graphics.scale(viewportScale,viewportScale)
+          for index,spec in ipairs({{"FOOD","food",colors.green},{"WATER","water",colors.blue},{"COAL","coal",colors.red},{"OIL","oil",colors.brass}}) do
+              local capacity=spec[2]=="oil" and Maintenance.oilCapacity(data) or TrainUpgradeBalance.resourceCapacity(data,spec[2])
+              ui.drawResource(spec[1],data.resources[spec[2]],x,spec[3],width,capacity,18+(index-1)*57)
+          end
+          local cardY=250
+          drawMenuFrame(x,cardY,width,230,4,.96)
+          love.graphics.setColor(colors.cream)
+          textBox("STOP "..data.location,x+10,cardY+7,width-20,24,.98)
+          textBox(data.trait and data.trait.name or "Survivor",x+10,cardY+31,width-20,21,.76)
+          textBox("HEALTH  "..data.health.." / "..data.maxHealth,x+10,cardY+57,width-20,23,.80)
+          love.graphics.setColor(.28,.08,.06,1); love.graphics.rectangle("fill",x+10,cardY+83,width-20,6,2,2)
+          love.graphics.setColor(.95,.26,.20,1); love.graphics.rectangle("fill",x+10,cardY+83,(width-20)*math.max(0,math.min(1,data.health/math.max(1,data.maxHealth))),6,2,2)
+          love.graphics.setColor(colors.cream)
+          textBox("LEVEL "..progression.level.." / ABILITY "..progression.abilityRank,x+10,cardY+96,width-20,21,.74)
+          textBox(progression.maximum and "MAX LEVEL" or ("XP "..progression.xp.." / "..progression.nextXP),x+10,cardY+119,width-20,19,.72)
+          textBox("GOODWILL "..goodwill.points,x+10,cardY+141,width-20,20,.76)
+          textBox("TRAIN "..math.floor(condition.condition).."%  /  "..#(data.trainCars or {}).." CARS",x+10,cardY+162,width-20,20,.72)
+          local ammo={}
+          for i=1,2 do
+              local weapon=data.equipment[i]; local combat=weapon and Catalog.weaponCombat[weapon]
+              if combat and combat.ammo then ammo[#ammo+1]=Util.titleFromFile(combat.ammo)..": "..(data.ammo[combat.ammo] or 0) end
+          end
+          if #ammo>0 then textBox(table.concat(ammo,"  "),x+10,cardY+188,width-20,20,.68) end
+          ui.mobileHeaderBounds={x=x,y=18,w=width,h=462,resourceRight=x+width}
+          love.graphics.pop()
+          return
+      end
       if mobileEnabled() then
           local data=runtime.saveData
           local progression=PlayerProgression.status(data)
@@ -137,16 +179,17 @@ local function new(context)
       end
   end
 
-  local function button(text, x, y, w, h, active, textScale)
+  local function button(text, x, y, w, h, active, textScale, opacity)
+      opacity=runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast") and 1 or (opacity or 1)
       local highContrast=runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast")
       if highContrast then
           love.graphics.setColor(0,0,0,active and .98 or .82); love.graphics.rectangle("fill",x,y,w,h,8,8)
           love.graphics.setColor(active and 1 or .62,active and .84 or .62,active and .28 or .62,1); love.graphics.setLineWidth(active and 4 or 2); love.graphics.rectangle("line",x,y,w,h,8,8); love.graphics.setLineWidth(1)
-      elseif ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,active and 1 or .55) else love.graphics.setColor(active and colors.brass or colors.panel); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
+      elseif ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,(active and 1 or .55)*opacity) else love.graphics.setColor(active and colors.brass[1] or colors.panel[1],active and colors.brass[2] or colors.panel[2],active and colors.brass[3] or colors.panel[3],opacity); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
       local scale=(textScale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1)
       if mobileEnabled() then scale=math.max(scale,.78) end
       scale=math.min(scale,mobileEnabled() and 1.18 or 1.22)
-      love.graphics.setColor(colors.cream)
+      love.graphics.setColor(colors.cream[1],colors.cream[2],colors.cream[3],opacity)
       local fitted,height,lines,fits=Typography.drawText(love.graphics,text,x+10,y+6,w-20,h-12,
           {scale=scale,minScale=mobileEnabled() and .75 or .60,align="center",valign="center"})
       return {x=x,y=y,w=w,h=h,textScale=fitted,textHeight=height,textLines=lines,textFits=fits}
@@ -276,9 +319,17 @@ local function new(context)
   end
 
 
-  function ui.drawResource(name, value, x, color, width, capacity)
+  function ui.drawResource(name, value, x, color, width, capacity, y)
       width=width or 150
       capacity=capacity or 20
+      if ui.sideHudLayout then
+          y=y or 18
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,width,51,7,7)
+          love.graphics.setColor(colors.cream); textBox(name,x+9,y+3,width*.47-10,26,.84)
+          textBox(value.." / "..capacity,x+width*.48,y+3,width*.52-10,26,.84,"right")
+          love.graphics.setColor(color); love.graphics.rectangle("fill",x+9,y+39,(width-18)*math.max(0,math.min(1,value/capacity)),5,2,2)
+          return
+      end
       if mobileEnabled() then
           love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,18,width,61,7,7)
           love.graphics.setColor(colors.cream); textBox(name,x+12,25,width*.45-12,35,1.04)

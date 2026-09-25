@@ -85,6 +85,21 @@ class BattleUIBehaviorTests(unittest.TestCase):
             assert(ctx.ui.battleEnd and #ctx.ui.battleWeapons==2)
         ''')
 
+    def test_ally_walk_animation_receives_direction_and_traveled_distance(self) -> None:
+        self.lua.execute(r'''
+            local received
+            ctx.drawAnimatedCharacter=function(file,action,x,y,w,h,facing,phase,motion)
+                if file=='mouse-engineer.png' and action=='walk' then received=motion end
+                return true
+            end
+            ctx.battle.units[1].moveAnim={fromQ=0,fromR=3,toQ=1,toR=3,t=.24,duration=.48}
+            UI.draw(ctx)
+            assert(received and received.intentX==48 and received.intentY==25,
+                'tactical walks must select the sheet for their actual board direction')
+            assert(received.animationDistance>27 and received.animationDistance<28,
+                'tactical walk phase must follow the eased distance already traveled')
+        ''')
+
     def test_inspecting_enemy_does_not_hide_player_actions(self) -> None:
         self.lua.execute(r'''
             ctx.battle.selected='enemy1'

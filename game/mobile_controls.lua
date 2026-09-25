@@ -3,6 +3,7 @@ MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
 local ControlLayout=require("game.control_layout")
+local WideLayout=require("game.wide_layout")
 
 local function distance(x1,y1,x2,y2)
     local dx,dy=x1-x2,y1-y2
@@ -29,6 +30,7 @@ function MobileControls.new(options)
     self.releasePointer=assert(options.releasePointer,"mobile controls require releasePointer")
     self.beginTouchPickup=options.beginTouchPickup or function() return false end
     self.gameplayActive=options.gameplayActive or function() return false end
+    self.movementActive=options.movementActive or self.gameplayActive
     self.primaryAction=options.primaryAction or function() return "e","USE" end
     self.secondaryAction=options.secondaryAction or function() return nil end
     self.getZoom=options.getZoom or function() return 1 end
@@ -57,13 +59,34 @@ function MobileControls.new(options)
     self.backpack={x=self.width-282,y=self.height-110,w=180,h=62}
     self.feedback=nil
     self.controlLayout=love and love.filesystem and ControlLayout.load(love.filesystem) or nil
+    self.controlOpacity=ControlLayout.normalizeOpacity(self.controlLayout and self.controlLayout.opacity)
     return self
 end
 
 function MobileControls:setLayout(layout)
     self:cancelAll()
     self.controlLayout=layout and ControlLayout.normalize(layout) or nil
+    local savedOpacity=ControlLayout.normalizeOpacity(self.controlLayout and self.controlLayout.opacity)
+    if savedOpacity then self.controlOpacity=savedOpacity end
+    if self.controlLayout and self.controlOpacity then self.controlLayout.opacity=self.controlOpacity end
     self:_updateCornerLayout()
+end
+
+function MobileControls:hasCustomOpacity()
+    return self.controlOpacity~=nil
+end
+
+function MobileControls:getOpacity()
+    if self.controlOpacity then return self.controlOpacity end
+    return .80
+end
+
+function MobileControls:setOpacity(value)
+    local opacity=ControlLayout.normalizeOpacity(value)
+    if not opacity then return false end
+    self.controlOpacity=opacity
+    if self.controlLayout then self.controlLayout.opacity=opacity end
+    return opacity
 end
 
 function MobileControls:layout()
@@ -77,6 +100,7 @@ function MobileControls:layout()
         local control=self[key]
         result[key]={x=(control.x+(control.w or 0)/2-left)/(right-left),y=(control.y+(control.h or 0)/2-top)/(bottom-top)}
     end
+    result.opacity=self:getOpacity()
     return ControlLayout.normalize(result)
 end
 
@@ -84,6 +108,10 @@ function MobileControls:isEnabled() return self.enabled end
 
 function MobileControls:isGameplayActive()
     return self.enabled and self.gameplayActive()
+end
+
+function MobileControls:isMovementActive()
+    return self.enabled and self.movementActive()
 end
 
 function MobileControls:ignoreSyntheticMouse(isTouch)
@@ -100,19 +128,31 @@ function MobileControls:_updateCornerLayout()
     local windowWidth,windowHeight=love.graphics.getDimensions()
     local left,top=self.toGame(0,0)
     local right,bottom=self.toGame(windowWidth,windowHeight)
-    -- Anchor thumb controls to the actual phone edges rather than the centered
-    -- 960-wide game canvas. Wide phones otherwise pull both controls inward.
-    self.joystick.x=left+self.joystick.radius+self.joystick.edgeInsetX
-    self.joystick.y=bottom-self.joystick.radius-self.joystick.edgeInsetY
-    self.primary.x=right-self.primary.radius-self.primary.edgeInsetX
-    self.primary.y=bottom-self.primary.radius-self.primary.edgeInsetY
-    self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-28
-    self.secondary.y=self.primary.y
-    -- Keep menu navigation in the same safe outer gutters as the thumb
-    -- controls so it cannot sit on the journey statistics or modal headings.
-    self.back.x,self.back.y=left+48,top+20
-    self.menu.x,self.menu.y=right-self.menu.w-48,top+20
-    self.backpack.x,self.backpack.y=self.primary.x-self.backpack.w/2,bottom-self.backpack.h-48
+    self.sidePanels=WideLayout.measure(self.width,self.height,windowWidth,windowHeight).sidePanels
+    if self.sidePanels then
+        -- Put movement and contextual actions over the enlarged scene. Menu
+        -- navigation and the backpack stay in the clear side gutters.
+        self.joystick.x=self.width*.12
+        self.joystick.y=bottom-self.joystick.radius-self.joystick.edgeInsetY
+        self.primary.x=self.width*.88
+        self.primary.y=bottom-self.primary.radius-self.primary.edgeInsetY
+        self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-22
+        self.secondary.y=self.primary.y
+        self.back.x,self.back.y=left+10,top+20
+        self.menu.x,self.menu.y=right-self.menu.w-10,top+20
+        self.backpack.x,self.backpack.y=right-self.backpack.w-10,bottom-self.backpack.h-22
+    else
+        -- On narrow displays keep the original controls at the screen edges.
+        self.joystick.x=left+self.joystick.radius+self.joystick.edgeInsetX
+        self.joystick.y=bottom-self.joystick.radius-self.joystick.edgeInsetY
+        self.primary.x=right-self.primary.radius-self.primary.edgeInsetX
+        self.primary.y=bottom-self.primary.radius-self.primary.edgeInsetY
+        self.secondary.x=self.primary.x-self.primary.radius-self.secondary.radius-28
+        self.secondary.y=self.primary.y
+        self.back.x,self.back.y=left+48,top+20
+        self.menu.x,self.menu.y=right-self.menu.w-48,top+20
+        self.backpack.x,self.backpack.y=self.primary.x-self.backpack.w/2,bottom-self.backpack.h-48
+    end
     if self.controlLayout then
         for _,key in ipairs(ControlLayout.order) do
             local control,point=self[key],self.controlLayout[key]
@@ -208,7 +248,7 @@ function MobileControls:touchpressed(id,x,y)
         end
         return true
     end
-    if self:isGameplayActive() then
+    if self:isGameplayActive() or self:isMovementActive() then
         local stick=self.joystick
         if not self.joystickTouch and ((self.controlLayout and distance(gx,gy,stick.x,stick.y)<=stick.radius*1.2)
             or (not self.controlLayout and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7)) then
@@ -217,12 +257,12 @@ function MobileControls:touchpressed(id,x,y)
             self:_updateJoystick(gx,gy)
             return true
         end
-        if distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
+        if self:isGameplayActive() and distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
             local key=self.primaryAction()
             if key then self:_feedback(gx,gy); self.touches[id]={kind="key",key=key}; self.pressKey(key); return true end
         end
         local secondaryKey=self.secondaryAction()
-        if secondaryKey and distance(gx,gy,self.secondary.x,self.secondary.y)<=self.secondary.radius*1.2 then
+        if self:isGameplayActive() and secondaryKey and distance(gx,gy,self.secondary.x,self.secondary.y)<=self.secondary.radius*1.2 then
             self:_feedback(gx,gy); self.touches[id]={kind="key",key=secondaryKey}; self.pressKey(secondaryKey); return true
         end
         -- Canvas taps are deferred until release. This leaves the first touch
@@ -311,13 +351,14 @@ function MobileControls:cancelAll()
     self.axisX,self.axisY=0,0
 end
 
-local function drawButton(button,label,active,textScale)
-    love.graphics.setColor(.055,.038,.028,.92)
+local function drawButton(button,label,active,textScale,opacity)
+    opacity=opacity or 1
+    love.graphics.setColor(.055,.038,.028,.92*opacity)
     love.graphics.circle("fill",button.x,button.y,button.radius)
-    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.92)
+    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.72*opacity)
     love.graphics.setLineWidth(4)
     love.graphics.circle("line",button.x,button.y,button.radius)
-    love.graphics.setColor(1,.93,.75,.96)
+    love.graphics.setColor(1,.93,.75,.86*opacity)
     local width=button.radius*2-14
     local height=button.radius*1.4
     Typography.drawText(love.graphics,label,button.x-width/2,button.y-height/2,width,height,{
@@ -344,23 +385,28 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     love.graphics.translate(offsetX,offsetY)
     love.graphics.scale(scaleX,scaleY)
     local textScale=Accessibility.textScale(self.accessibilityData())
-    if self:isGameplayActive() then
+    local gameplayActive=self:isGameplayActive()
+    if self:isMovementActive() then
         local stick=self.joystick
-        love.graphics.setColor(.055,.038,.028,.60)
+        local opacity=self:getOpacity()
+        love.graphics.setColor(.055,.038,.028,.60*opacity)
         love.graphics.circle("fill",stick.x,stick.y,stick.radius)
-        love.graphics.setColor(.86,.49,.16,.78)
+        love.graphics.setColor(.86,.49,.16,.78*opacity)
         love.graphics.setLineWidth(4)
         love.graphics.circle("line",stick.x,stick.y,stick.radius)
         love.graphics.line(stick.x-stick.radius*.65,stick.y,stick.x+stick.radius*.65,stick.y)
         love.graphics.line(stick.x,stick.y-stick.radius*.65,stick.x,stick.y+stick.radius*.65)
         local knobX=stick.x+self.axisX*stick.radius*.72
         local knobY=stick.y+self.axisY*stick.radius*.72
-        love.graphics.setColor(.96,.66,.22,.92)
+        love.graphics.setColor(.96,.66,.22,.92*opacity)
         love.graphics.circle("fill",knobX,knobY,stick.knob)
+    end
+    if gameplayActive then
         local primaryKey,primaryLabel=self.primaryAction()
-        drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey),textScale)
+        local opacity=self:getOpacity()
+        drawButton(self.primary,primaryLabel or "USE",self:isHeld(primaryKey),textScale,opacity)
         local secondaryKey,secondaryLabel=self.secondaryAction()
-        if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey),textScale) end
+        if secondaryKey then drawButton(self.secondary,secondaryLabel or "GIVE",self:isHeld(secondaryKey),textScale,opacity) end
     end
     if self.backVisible() then drawRectButton(self.back,self.backLabel(),false,textScale) end
     if self.menuVisible() then drawRectButton(self.menu,self.menuLabel(),false,textScale) end

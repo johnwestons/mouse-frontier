@@ -3,18 +3,19 @@ local Layout=require("game.control_layout")
 local Typography=require("game.typography")
 local UI={}
 local function hit(r,x,y) return r and x>=r.x and x<=r.x+r.w and y>=r.y and y<=r.y+r.h end
-local function text(value,x,y,w,h,scale)
-    love.graphics.setColor(1,.93,.78,1)
+local function text(value,x,y,w,h,scale,opacity)
+    love.graphics.setColor(1,.93,.78,opacity or 1)
     Typography.drawText(love.graphics,tostring(value),x,y,w,h,{scale=scale or .8,minScale=.58,valign="center"})
 end
-local function panel(x,y,w,h,selected)
-    love.graphics.setColor(selected and .28 or .10,selected and .23 or .085,selected and .14 or .065,1)
+local function panel(x,y,w,h,selected,opacity)
+    opacity=opacity or 1
+    love.graphics.setColor(selected and .28 or .10,selected and .23 or .085,selected and .14 or .065,opacity)
     love.graphics.rectangle("fill",x,y,w,h,7,7)
-    love.graphics.setColor(.64,.46,.24,1)
+    love.graphics.setColor(.64,.46,.24,opacity)
     love.graphics.rectangle("line",x,y,w,h,7,7)
 end
 function UI.new(context)
-    local self={open=false,tab="Items",query="",category="All",rarity="All",page=1,quantity="1",resourcePage=1,buttons={},message="",context=context}
+    local self={open=false,tab="Items",query="",category="All",rarity="All",page=1,quantity="1",resourcePage=1,buttons={},message="",context=context,opacity=1,opacityExplicit=false}
     function self:focus(field)
         self.field=field
         if love.keyboard and love.keyboard.setTextInput then love.keyboard.setTextInput(field~=nil) end
@@ -24,7 +25,12 @@ function UI.new(context)
         self.entries=Model.build(context.filesystem,context.ui.atlasItems)
         self:refresh()
         local controls=context.controls()
-        if controls then controls:cancelAll(); self.layout=controls:layout() else self.layout=Layout.normalize() end
+        if controls then
+            controls:cancelAll(); self.layout=controls:layout()
+            self.opacityExplicit=controls.hasCustomOpacity and controls:hasCustomOpacity() or false
+            self.opacity=Layout.normalizeOpacity(self.layout.opacity) or (controls.getOpacity and controls:getOpacity()) or 1
+        else self.layout=Layout.normalize(); self.opacity=1; self.opacityExplicit=false end
+        self.layout.opacity=self.opacityExplicit and self.opacity or nil
     end
     function self:close()
         self:finishDrag(); self.open=false; self:focus(nil); self.buttons={}; self.hover=nil
@@ -66,6 +72,17 @@ function UI.new(context)
         self:button("-",x,y,46,44,function() self.quantity=tostring(math.max(1,(tonumber(self.quantity) or 1)-1)) end)
         self:button(self.quantity=="" and "Quantity" or self.quantity,x+54,y,120,44,function() self.quantity=""; self:focus("quantity") end,self.field=="quantity")
         self:button("+",x+182,y,46,44,function() self.quantity=tostring(math.min(999999,(tonumber(self.quantity) or 0)+1)) end)
+    end
+    function self:setOpacityAt(x)
+        local track=self.opacityTrack or {x=620,w=292}
+        local progress=math.max(0,math.min(1,(x-track.x)/track.w))
+        local value=Layout.MIN_OPACITY+progress*(Layout.MAX_OPACITY-Layout.MIN_OPACITY)
+        self.opacity=math.floor(value*100+.5)/100
+        self.opacity=Layout.normalizeOpacity(self.opacity) or 1
+        self.opacityExplicit=true
+        self.layout.opacity=self.opacity
+        local controls=context.controls()
+        if controls and controls.setOpacity then controls:setOpacity(self.opacity) end
     end
     function self:drawItems()
         self:button(self.query=="" and "Search items..." or self.query,32,132,400,44,function() self:focus("query") end,self.field=="query")
@@ -129,21 +146,29 @@ function UI.new(context)
         return {x=480-w*scale/2,y=192+(412-h*scale)/2,w=w*scale,h=h*scale}
     end
     function self:drawControls()
-        text("Drag a control to move it. Positions save for all journeys on this device.",34,132,890,42)
+        text("Drag controls to move them. Positions and opacity save on this device.",34,132,890,42)
         local p=self:controlPreview(); panel(p.x,p.y,p.w,p.h)
         self.controlRects={}
         for _,key in ipairs(Layout.order) do
             local point=self.layout[key]
             local r={x=p.x+point.x*p.w-37,y=p.y+point.y*p.h-23,w=74,h=46,key=key}
             self.controlRects[#self.controlRects+1]=r
-            panel(r.x,r.y,r.w,r.h,self.drag==key); text(Layout.labels[key],r.x+5,r.y+5,r.w-10,r.h-10,.65)
+            local opacity=(key=="joystick" or key=="primary" or key=="secondary") and self.opacity or 1
+            panel(r.x,r.y,r.w,r.h,self.drag==key,opacity); text(Layout.labels[key],r.x+5,r.y+5,r.w-10,r.h-10,.65,opacity)
         end
         self:button("RESET POSITIONS",36,616,240,46,function()
             local controls=context.controls()
             if controls then controls:setLayout(nil); self.layout=controls:layout() else self.layout=Layout.normalize() end
-            self.message=Layout.reset(context.filesystem) and "Default control positions restored." or "Reset for this session; settings file could not be removed."
+            self.layout.opacity=self.opacityExplicit and self.opacity or nil
+            self.message=Layout.save(context.filesystem,self.layout) and "Default control positions restored." or "Reset for this session; settings could not be saved."
         end)
-        text("MOVE / USE / ACTION / BACK / MENU / PACK",304,616,612,46,.78)
+        text("SCENE CONTROL OPACITY  "..math.floor(self.opacity*100+0.5).."%",304,616,300,46,.72)
+        self.opacityTrack={x=620,y=639,w=292}
+        self.opacityRect={x=608,y=616,w=320,h=46}
+        love.graphics.setColor(.17,.13,.09,1); love.graphics.rectangle("fill",self.opacityTrack.x,self.opacityTrack.y-5,self.opacityTrack.w,10,5,5)
+        local progress=(self.opacity-Layout.MIN_OPACITY)/(Layout.MAX_OPACITY-Layout.MIN_OPACITY)
+        love.graphics.setColor(.86,.58,.22,1); love.graphics.rectangle("fill",self.opacityTrack.x,self.opacityTrack.y-5,self.opacityTrack.w*progress,10,5,5)
+        love.graphics.setColor(.98,.79,.42,1); love.graphics.circle("fill",self.opacityTrack.x+self.opacityTrack.w*progress,self.opacityTrack.y,11)
     end
     function self:draw()
         self.buttons={}
@@ -170,13 +195,15 @@ function UI.new(context)
         if button~=1 then return true end
         for i=#self.buttons,1,-1 do if hit(self.buttons[i],x,y) then self.buttons[i].action(); return true end end
         if self.tab=="Controls" then
+            if hit(self.opacityRect,x,y) then self.opacityDragging=true; self:setOpacityAt(x); return true end
             for _,r in ipairs(self.controlRects or {}) do if hit(r,x,y) then self.drag=r.key; self.dragOffsetX=x-(r.x+r.w/2); self.dragOffsetY=y-(r.y+r.h/2); return true end end
         end
         self:focus(nil); return true
     end
     function self:move(x,y)
         self.hover=nil
-        if self.drag then
+        if self.opacityDragging then self:setOpacityAt(x)
+        elseif self.drag then
             local p=self:controlPreview()
             self.layout[self.drag]={x=(x-self.dragOffsetX-p.x)/p.w,y=(y-self.dragOffsetY-p.y)/p.h}
             self.layout=Layout.normalize(self.layout)
@@ -184,9 +211,12 @@ function UI.new(context)
         else for _,r in ipairs(self.buttons) do if r.entry and hit(r,x,y) then self.hover=r.entry end end end
     end
     function self:finishDrag()
-        if self.drag then
-            self.drag=nil
-            self.message=Layout.save(context.filesystem,self.layout) and "Control positions saved." or "Positions changed for this session; could not save settings."
+        local moved=self.drag~=nil
+        local changedOpacity=self.opacityDragging==true
+        if moved or changedOpacity then
+            self.drag=nil; self.opacityDragging=false
+            self.layout.opacity=self.opacityExplicit and self.opacity or nil
+            self.message=Layout.save(context.filesystem,self.layout) and (changedOpacity and "Control opacity saved." or "Control positions saved.") or "Control settings changed for this session; could not save them."
         end
     end
     function self:key(key)

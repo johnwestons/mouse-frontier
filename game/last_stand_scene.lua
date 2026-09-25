@@ -1,4 +1,6 @@
 local WorldView=require("game.world_view")
+local CharacterMotion=require("game.character_motion")
+local CharacterAnimation=require("game.character_animation")
 local Scene={}
 local WindowScene=require("game.window_scene")
 
@@ -52,7 +54,7 @@ local function drawAtlas(path,frame,x,y,scale,cellWidth,cellHeight,columns,flip)
 end
 
 function Scene.new(mode,quest)
-    return {
+    local scene={
         mode=mode,
         quest=quest or {},
         clock=0,
@@ -63,8 +65,11 @@ function Scene.new(mode,quest)
         player={
             x=480,
             y=mode=="interior" and 590 or 610,
+            facing=1,
         },
     }
+    CharacterMotion.resetActor(scene.player)
+    return scene
 end
 
 function Scene.change(scene,mode)
@@ -72,6 +77,7 @@ function Scene.change(scene,mode)
     scene.moveTarget=nil
     scene.player.x=480
     scene.player.y=mode=="interior" and 590 or 610
+    CharacterMotion.resetActor(scene.player)
 end
 
 local function movementAxis(negative,positive)
@@ -96,7 +102,8 @@ function Scene.isWalkable(scene,x,y)
     return true
 end
 
-function Scene.update(scene,dt)
+function Scene.update(scene,dt,options)
+    options=options or {}
     scene.clock=scene.clock+dt
     local reports=0
     for _,defender in pairs(scene.defenders) do
@@ -120,8 +127,9 @@ function Scene.update(scene,dt)
         end
     end
     if scene.handoff then return reports end
-    local dx=movementAxis("a","d")+movementAxis("left","right")+(scene.axisX or 0)
-    local dy=movementAxis("w","s")+movementAxis("up","down")+(scene.axisY or 0)
+    local mobileX,mobileY=options.mobileX or 0,options.mobileY or 0
+    local dx=movementAxis("a","d")+movementAxis("left","right")+(scene.axisX or 0)+mobileX
+    local dy=movementAxis("w","s")+movementAxis("up","down")+(scene.axisY or 0)+mobileY
     local destination=false
     if dx==0 and dy==0 and scene.moveTarget then
         dx=scene.moveTarget.x-scene.player.x
@@ -131,17 +139,30 @@ function Scene.update(scene,dt)
     elseif dx~=0 or dy~=0 then
         scene.moveTarget=nil
     end
-    if dx~=0 or dy~=0 then
-        local length=math.sqrt(dx*dx+dy*dy)
-        local step=destination and math.min(length,175*dt) or 175*dt
-        local nextX=scene.player.x+dx/length*step
-        local nextY=scene.player.y+dy/length*step
-        if Scene.isWalkable(scene,nextX,scene.player.y) then scene.player.x=nextX end
-        if Scene.isWalkable(scene,scene.player.x,nextY) then scene.player.y=nextY end
+    local distanceToTarget
+    if destination then
+        distanceToTarget=math.sqrt(dx*dx+dy*dy)
+        dx,dy=dx/math.max(distanceToTarget,0.0001),dy/math.max(distanceToTarget,0.0001)
     end
-    local minY=scene.mode=="interior" and 285 or 360
-    scene.player.x=math.max(70,math.min(890,scene.player.x))
-    scene.player.y=math.max(minY,math.min(620,scene.player.y))
+    local motionOptions={
+        profile=options.profile or CharacterMotion.defaults,
+        speed=options.speed or 185,
+        speedScale=options.sprinting and 1.7 or 1,
+        maxDistance=destination and math.max(0,distanceToTarget-2) or nil,
+        move=function(_,_,x,y)
+            local player=scene.player
+            local nextX,nextY=player.x,player.y
+            if Scene.isWalkable(scene,x,player.y) then nextX=x end
+            if Scene.isWalkable(scene,nextX,y) then nextY=y end
+            local minY=scene.mode=="interior" and 285 or 360
+            return math.max(70,math.min(890,nextX)),math.max(minY,math.min(620,nextY))
+        end,
+    }
+    CharacterMotion.updateActor(scene.player,dx,dy,dt,motionOptions)
+    if destination then
+        local dxTarget,dyTarget=scene.moveTarget.x-scene.player.x,scene.moveTarget.y-scene.player.y
+        if dxTarget*dxTarget+dyTarget*dyTarget<12*12 then scene.moveTarget=nil end
+    end
     return reports
 end
 
@@ -190,9 +211,22 @@ local function drawBackground(scene,width,height)
     love.graphics.draw(source,0,(height-drawHeight)/2,0,scale,scale)
 end
 
-local function drawPlayer(player,playerImage)
+local function drawPlayer(player,visual)
     love.graphics.setColor(0,0,0,.30)
     love.graphics.ellipse("fill",player.x,player.y+2,27,9)
+    local playerImage=visual and visual.image or visual
+    if visual and visual.animations and visual.character then
+        local action=player.moving and "walk" or "idle"
+        if CharacterAnimation.draw(visual.animations,visual.character,action,player.x,player.y+34,82,104,
+            player.facing,visual.clock or 0,visual.clock or 0,player) then return end
+    end
+    if player.moving and visual and visual.walkImage then
+        local image=visual.walkImage
+        local scale=math.min(.075,90/image:getHeight())
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(image,player.x,player.y,0,-(player.facing or 1)*scale,scale,image:getWidth()/2,image:getHeight()/2)
+        return
+    end
     if playerImage and playerImage.getDimensions then
         local iw,ih=playerImage:getDimensions()
         local scale=78/math.max(iw,ih)
@@ -292,7 +326,29 @@ function Scene.drawApproach(state)
     love.graphics.pop()
 end
 
-function Scene.drawTransition(state,width,height,returning,playerImage)
+local function drawTraveler(visual,file,x,groundY,direction,distance,moving,clock)
+    love.graphics.setColor(0,0,0,.28)
+    love.graphics.ellipse("fill",x,groundY-6,20,7)
+    local animations=visual and visual.animations
+    local motion={intentX=direction,intentY=0,facing=direction,
+        animationDistance=distance,moving=moving}
+    if animations and CharacterAnimation.draw(animations,file,moving and "walk" or "idle",
+        x,groundY,120,150,direction,clock,clock,motion) then return end
+    if file=="otter-scout.png" then
+        local frame=moving and CharacterMotion.frameForDistance(8,distance,20)-1 or 0
+        drawAtlas(PATHS.otterWalk,frame,x,groundY,.34,320,512,8,direction<0)
+        return
+    end
+    local fallback=visual and visual.image
+    if fallback then
+        local iw,ih=fallback:getDimensions()
+        local scale=150/math.max(iw,ih)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(fallback,x,groundY,0,-direction*scale,scale,iw/2,ih)
+    end
+end
+
+function Scene.drawTransition(state,width,height,returning,playerVisual)
     love.graphics.push("all")
     WorldView.begin()
     WindowScene.drawBackground({quest=state.quest,clock=state.clock,reducedMotion=state.reducedMotion},width,height)
@@ -304,9 +360,14 @@ function Scene.drawTransition(state,width,height,returning,playerImage)
             love.graphics.draw(house,width*.44,height*.30,0,width*.5/house:getWidth(),width*.5/house:getWidth())
         end
     end
-    local scoutX=returning and width-travel*.45 or 120+math.min(width*.58,travel*.45)
-    drawAtlas(PATHS.otterWalk,state.reducedMotion and 0 or math.floor(state.clock*10)%8,scoutX,height*.69,.34,320,512,8)
-    drawPlayer({x=scoutX+(returning and 95 or -95),y=height*.71},playerImage)
+    local direction=returning and -1 or 1
+    local distance=state.reducedMotion and 0 or (returning and travel*.45 or math.min(width*.58,travel*.45))
+    local scoutX=returning and width-distance or 120+distance
+    local groundY=height*.70
+    local moving=not state.reducedMotion
+    drawTraveler(playerVisual,"otter-scout.png",scoutX,groundY,direction,distance,moving,state.clock)
+    drawTraveler(playerVisual,playerVisual and playerVisual.character,
+        scoutX-direction*95,groundY,direction,distance,moving,state.clock)
     WorldView.finish()
     love.graphics.setColor(.04,.025,.016,.82)
     love.graphics.rectangle("fill",110,height*.14,width-220,118,12,12)

@@ -331,6 +331,7 @@ local function new(context)
   end
 
   local function drawStop()
+      if scenery.settlements then drawLandscape() end
       if scenery.settlements and Settlements.draw(scenery.settlements,runtime.saveData.location,W,H) then
           local trainX,trainY=Settlements.trainPoint(runtime.saveData.location)
           if scenery.redTrain then
@@ -403,10 +404,12 @@ local function new(context)
   end
 
   local function drawExpedition()
+      drawLandscape()
       drawExpeditionRuntime({drawDroppedItems=drawDroppedItems,drawPlayer=drawPlayer})
   end
 
   local function drawCaravan()
+      drawLandscape()
       drawCaravanRuntime({
           drawDroppedItems=drawDroppedItems,
           drawPlayer=function() drawPlayer(false) end,

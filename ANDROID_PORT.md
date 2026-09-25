@@ -4,6 +4,14 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
+Build `0.7.0-mobile.16` (`versionCode` 16), built September 24, 2026, makes Last Stand's backyard and house use the regular character movement controller and the selected character's directional walking animations. Keyboard, controller and mobile joystick movement share collision handling and actual-distance animation timing; sprinting also works. The mobile joystick appears during these walkaround sections and stays hidden during the first-person shooting phase.
+
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.16-debug.apk`
+- Last Stand movement and animation checks: 163. Mobile pickup and movement-control checks: 48. Packaged mobile smoke: 95 checkpoints. The moving selected character was visually checked in the rendered minigame.
+- Build and APK signature verification passed. Phone installation is pending reconnection; ADB currently reports no connected device.
+
+## Build 15 backpack button
+
 Build `0.7.0-mobile.15` (`versionCode` 15), built September 19, 2026, adds a direct BACKPACK button below the mobile action controls. It opens personal inventory even beside a container, cancels held movement/pickup, stays fixed during zoom, and supports repositioning in Player Options > Controls. It hides during menus, dialogue and other activities.
 
 - APK: `output/mobile/MouseFrontier-0.7.0-mobile.15-debug.apk`

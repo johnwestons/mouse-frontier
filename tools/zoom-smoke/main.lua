@@ -66,6 +66,20 @@ local function run()
     g.travelConfirm=true; draw("travel",2); g.travelConfirm=false
     g.scene="stop"; data.scene="stop"; c.ensureStopLayout(); c.setupNPC(); g.dialogue=nil
     pair("stop")
+    g.scene="house"; data.scene="house"; c.ensureStopLayout(); c.setupNPC(); g.dialogue=nil
+    local fit=require("game.scene_fit").house(960,720)
+    local left,top=require("game.scene_fit").toView(fit,105,205)
+    local right,bottom=require("game.scene_fit").toView(fit,855,650)
+    expect(left>=10 and right<=950 and top>=150 and bottom<=720,"house exceeds visible play area")
+    pair("house")
+    for _,point in ipairs({{105,205},{480,440},{855,650}}) do
+        local sx,sy=world.toScreen(point[1],point[2])
+        local wx,wy=world.toWorld(sx,sy)
+        close(wx,point[1]); close(wy,point[2])
+        wx,wy=p.screenToWorld(sx+300,sy)
+        close(wx,point[1]); close(wy,point[2])
+    end
+    g.scene="stop"; data.scene="stop"; c.setupNPC()
     c.beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={c.catalog.mobTiers.easy[1]}})
     g.battle.intro=nil; pair("battle")
     local unit=g.battle.units[1]

@@ -17,8 +17,11 @@ local function run()
         scrap=5,goodwill=2,resources={food=3},character="missing-player.png",lastStand={},audio={sfxVolume=0}}
     local runtime={state="game",scene="stop",saveData=data,player={x=480,y=500,facing=1}}
     data.character="botanist-frog.png"
+    local animations=require("game.character_animation").load("assets/sprites/character-animations",
+        function(path) return love.graphics.newImage(path) end)
     local context={runtime=runtime,catalog=Catalog,width=960,height=720,
         characterImages={[data.character]=love.graphics.newImage("assets/sprites/MainCharacters/"..data.character)},
+        getCharacterAnimations=function() return animations end,
         writeSave=function() saves=saves+1; return true end}
     context.npcImages={["guard-fox.png"]=love.graphics.newImage("assets/sprites/NPCS/guard-fox.png")}
     local aidRoot="assets/sprites/props/first-aid/"
@@ -42,18 +45,37 @@ local function run()
         if os.getenv("LAST_STAND_CAPTURE")=="1" then canvas:newImageData():encode("png",name..".png") end
     end
 
-    -- Real keyboard movement must cover the same distance at 30 and 120 fps.
+    -- Shared accelerated movement and its actual-distance animation phase must
+    -- stay consistent across frame rates and respect scene collision.
     local isDown=love.keyboard.isDown
     love.keyboard.isDown=function(key) return key=="d" end
     local positions={}
     for _,fps in ipairs({30,120}) do
         local scene=Scene.new("interior")
         scene.player.x=400; scene.player.y=350
-        for _=1,fps do Scene.update(scene,1/fps) end
+        for _=1,fps do Scene.update(scene,1/fps,{speed=185,profile=require("game.character_motion").profileFor(data.character)}) end
         positions[#positions+1]=scene.player.x
     end
     love.keyboard.isDown=isDown
-    expect(math.abs(positions[1]-575)<.01 and math.abs(positions[2]-575)<.01,"keyboard movement depends on frame rate")
+    expect(positions[1]>550 and positions[2]>550 and math.abs(positions[1]-positions[2])<6,"shared keyboard movement depends on frame rate")
+    local walking=Scene.new("interior")
+    walking.player.x,walking.player.y=400,350
+    love.keyboard.isDown=function(key) return key=="d" end
+    for _=1,12 do Scene.update(walking,.05,{speed=185,profile=require("game.character_motion").profileFor(data.character)}) end
+    love.keyboard.isDown=isDown
+    expect(walking.player.moving and walking.player.animationDistance>0 and walking.player.intentX>.99,
+        "movement did not drive the selected character's directional walk animation")
+    local joystick=Scene.new("interior")
+    joystick.player.x,joystick.player.y=400,350
+    Scene.update(joystick,.1,{mobileX=1,speed=185})
+    expect(joystick.player.x>400 and joystick.player.animationDistance>0,"mobile joystick movement did not enter the shared movement path")
+    local blocked=Scene.new("interior")
+    blocked.player.x,blocked.player.y=890,450
+    love.keyboard.isDown=function(key) return key=="d" end
+    for _=1,10 do Scene.update(blocked,.05,{speed=185}) end
+    love.keyboard.isDown=isDown
+    expect(blocked.player.x==890 and not blocked.player.moving and blocked.player.animationDistance==0,
+        "blocked movement advanced the walking animation")
     expect(not Scene.isWalkable(Scene.new("interior"),220,430),"dining table has no collision")
     expect(not Scene.isWalkable(Scene.new("interior"),220,590),"player can walk through the front wall")
     expect(Scene.isWalkable(Scene.new("interior"),480,590),"back door route is blocked")
@@ -139,6 +161,14 @@ local function run()
     expect(runtime.lastStand.mode=="escort","acceptance did not start escort")
     quest:keypressed("space")
     expect(runtime.lastStand.mode=="backyard","escort could not be skipped")
+    love.keyboard.isDown=function(key) return key=="d" end
+    for _=1,10 do quest:update(.05) end
+    love.keyboard.isDown=isDown
+    expect(runtime.lastStand.scene.player.moving and runtime.lastStand.scene.player.animationDistance>0,
+        "shootout quest did not animate its moving player")
+    draw("02-backyard-walking")
+    expect(animations.sets[data.character] and animations.sets[data.character].directional,
+        "shootout quest did not render the selected character's directional animation set")
     draw("02-backyard")
 
     local function place(x,y)
