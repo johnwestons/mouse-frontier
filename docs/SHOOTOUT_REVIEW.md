@@ -124,6 +124,10 @@ Each phase completion lowers enemy morale by 6. Staying actively exposed reduces
 
 **Current experience.** Every enemy shot produces a muzzle flash, an approaching tracer, and a brief frame or sill impact, even while the player is behind cover. An exposed player loses a small amount of position integrity on every enemy shot. Some shots also remove 1 health, or 2 from a heavy shooter, with a short hit-recovery interval preventing immediate repeated health hits. When a shot hits the player, the screen flashes red as the tracer reaches the window; a critical hit also flashes during the retreat into the room. Every third exposed enemy shot adds a lasting damage decal to a valid window surface. Health can fall to 1 but not below it here. The reduced flashes setting removes the bright muzzle and full-screen red flash while retaining the tracer and impact shapes.
 
+**Timing note.** Health and position damage still resolve when the enemy fires; the tracer reaches the window about 0.3 seconds later. The health number can therefore change before the red flash.
+
+![Red hit flash continuing as the player retreats into the room](shootout-review/17-critical-hit-retreat.png)
+
 **Failure branch.** If position integrity reaches zero or health reaches 1, the player is pulled back into the room. The current phase restarts from its checkpoint with 65% position integrity; earlier time and confirmed eliminations remain. Health is not silently restored. The player may return to the original stop to heal, then resume.
 
 **Review focus.** Fairness of incoming fire; warning and damage feedback; clarity of the recovery state.
