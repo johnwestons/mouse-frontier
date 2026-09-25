@@ -4,11 +4,11 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.16` (`versionCode` 16), built September 24, 2026, makes Last Stand's backyard and house use the regular character movement controller and the selected character's directional walking animations. Keyboard, controller and mobile joystick movement share collision handling and actual-distance animation timing; sprinting also works. The mobile joystick appears during these walkaround sections and stays hidden during the first-person shooting phase.
+Build `0.7.0-mobile.16` (`versionCode` 16), rebuilt September 25, 2026, includes the current gameplay fixes. Last Stand's backyard and house use the regular character movement controller and the selected character's directional walking animations. Keyboard, controller and mobile joystick movement share collision handling and actual-distance animation timing; sprinting also works. The mobile joystick appears during these walkaround sections and stays hidden during the first-person shooting phase.
 
 - APK: `output/mobile/MouseFrontier-0.7.0-mobile.16-debug.apk`
 - Last Stand movement and animation checks: 163. Mobile pickup and movement-control checks: 48. Packaged mobile smoke: 95 checkpoints. The moving selected character was visually checked in the rendered minigame.
-- Build and APK signature verification passed. Phone installation is pending reconnection; ADB currently reports no connected device.
+- Build, APK signature, clean-commit parity, installation, and game startup marker verification passed on a connected phone. Hands-on touch, save, and visual acceptance of this exact build remains open.
 
 ## Build 15 backpack button
 
@@ -53,11 +53,11 @@ Build `0.7.0-mobile.12` (`versionCode` 12), built September 19, 2026, removes ad
 
 ## Last installed build
 
-Build `0.7.0-mobile.15` (`versionCode` 15) was installed over build 14 on the connected Galaxy S25 Ultra (`SM-S938U`) on September 19, 2026.
+Build `0.7.0-mobile.16` (`versionCode` 16) was installed on the connected phone on September 25, 2026.
 
-- Installed version and cold startup verified; no startup errors were found. Gameplay behavior was exercised in the packaged mobile tests.
-- Test saves were wiped at the user's request and verified absent after launch. Previous external backups were left untouched.
-- Device evidence: `output/mobile/device-build-15-20260919-115329/verification.json`.
+- The exact signed APK, embedded game checksum, installed application and game-specific startup marker were verified. Gameplay behavior was exercised in the packaged mobile tests; the hands-on touch and save checklist remains open.
+- This audit used isolated test saves and did not reset the phone's normal save slots. Previous external backups were left untouched.
+- Device evidence: `output/mobile/apk-report.json` and `.stabilization/goal-audit-platform-parity.json`.
 
 ## Previous builds
 

@@ -36,7 +36,7 @@ local function run(context)
         for _,entry in ipairs(Conversations.content) do
             local request={id=entry.id,npc=data.currentNPC,location=data.location}
             data.conversations={assignments={[tostring(data.location)]=request},completed={},seen={}}
-            for _,textSize in ipairs({1,3}) do
+            for _,textSize in ipairs({1,2,3}) do
                 data.accessibility.textSize=textSize
                 fixture="authored question "..entry.id.." text="..textSize
                 game.helpDialogue=assert(Conversations.begin(data,data.currentNPC))

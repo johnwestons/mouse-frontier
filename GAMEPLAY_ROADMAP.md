@@ -83,12 +83,13 @@ Latest visual polish: every help-minigame stage now presents its authored full-c
 
 ## 12. Deeper help quests and authored minigames — In progress
 
-- **Complete:** Build the shared, persistent help-quest session framework. Item requests, first aid, and dialogue quests share lifecycle states, resumable progress, graded results, active objectives, and exactly-once goodwill rewards on desktop and Android.
+- **Complete:** Build the shared, persistent help-quest session framework for item requests and first aid, with resumable progress, active objectives, and exactly-once goodwill rewards on desktop and Android. The old dialogue-quest interface remains only for save compatibility.
 - **Complete:** Replace placeholder first aid with cut inspection, tool selection, five treatment steps, mouse/touch dragging, keyboard treatment, and saved pause/resume progress.
 - **Retired:** Sludge containment, track-debris clearing, garden rescue, and wildlife-trough care were removed with their world spots and assets so they can be redesigned individually.
 - **Retired:** Water-pump repair was removed with its world spot, runoff hazard, and quest objective. Existing saves clear the retired activity and its help-quest session.
-- **Complete:** Add the first four branching investigation and conversation quests: Missing Family Trail, Crop Dispute, Bandit Warning, and Broken Promise. Choices and evidence persist, every conclusion remains constructive, stronger investigation can earn exceptional goodwill, and NPC follow-ups reflect the saved relationship.
-- **Planned:** Expand the authored dialogue pool beyond the first four quests and connect later-stop variants to regional characters and world-state consequences.
+- **Retired:** The four earlier branching dialogue quests were removed pending author-supplied speech. Old sessions are cleared by save migration without removing earned rewards.
+- **Complete:** Implement the thirteen author-supplied one-time conversations with saved assignments, choices, costs, responses, and exactly-once XP. Approved regular Talk remains available between them.
+- **Planned:** Add further author-supplied later-stop conversations and connect regional variants to world-state consequences.
 
 ## Mobile parity contract
 

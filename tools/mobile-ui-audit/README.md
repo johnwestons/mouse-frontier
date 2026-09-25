@@ -8,7 +8,7 @@ the menu control at phone, 16:9, and 4:3 sizes, and remains fixed during world z
 Text boxes that cannot fit at their readable minimum fail the audit and are
 listed in `report.txt`. Before screenshots, the audit measures every authored
 event choice and all approved conversation questions, answer choices, and
-responses at normal and extra-large text. It also checks that conversation
+responses at normal, large, and extra-large text. It also checks that conversation
 controls do not overlap. A separate stop capture checks the side HUD with
 extra-large text.
 
