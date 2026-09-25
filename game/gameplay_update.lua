@@ -95,6 +95,7 @@ local function new(context)
       Clouds.update(cloudLayer,dt)
       if screens:is("intro") then screens:update(dt); return end
       Assets.releaseIntroImages(scenery)
+      Assets.releaseDormantSceneArt(scenery,runtime)
       if ui.assetStreamer then ui.assetStreamer:update(runtime.state,runtime.scene,runtime.saveData,runtime.battle,runtime.npcActor) end
       -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
       -- the retired random decoration wildlife remains disconnected.

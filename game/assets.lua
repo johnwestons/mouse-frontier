@@ -264,16 +264,20 @@ end
 -- startup can exhaust memory before the title screen appears on small phones.
 local function streamBattleAtlases(entries, loader)
     local activeIndex
-    return setmetatable({}, {__index=function(images,index)
+    local images={}
+    function images:release()
+        if not activeIndex then return end
+        local previous=rawget(self,activeIndex)
+        if previous and previous.image and previous.image.release then
+            pcall(previous.image.release,previous.image)
+        end
+        rawset(self,activeIndex,nil)
+        activeIndex=nil
+    end
+    return setmetatable(images, {__index=function(images,index)
         local entry=type(index)=="number" and entries[index] or nil
         if not entry then return nil end
-        if activeIndex and activeIndex~=index then
-            local previous=rawget(images,activeIndex)
-            if previous and previous.image and previous.image.release then
-                pcall(previous.image.release,previous.image)
-            end
-            rawset(images,activeIndex,nil)
-        end
+        if activeIndex and activeIndex~=index then images:release() end
         local atlas=loader(entry)
         if atlas then rawset(images,index,atlas); activeIndex=index end
         return atlas
@@ -512,7 +516,20 @@ function Assets.load(targets)
         if not love.filesystem.getInfo(path) then missingRequired[#missingRequired+1]=path end
     end
     local caravanAliases={wheel="wagonWheel",tent="patchedTent",cargo="cargoCluster"}
-    scenery.crowCaravanAssets=setmetatable({}, {__index=function(assets,name)
+    local caravanAssets={}
+    function caravanAssets:release()
+        for name in pairs(caravanPaths) do
+            local image=rawget(self,name)
+            if image and image.release then pcall(image.release,image) end
+            rawset(self,name,nil)
+        end
+        for _,name in ipairs({"campfire","stallBreeze"}) do
+            local atlas=rawget(self,name)
+            if atlas and atlas.image and atlas.image.release then pcall(atlas.image.release,atlas.image) end
+            rawset(self,name,nil)
+        end
+    end
+    scenery.crowCaravanAssets=setmetatable(caravanAssets, {__index=function(assets,name)
         local alias=caravanAliases[name]
         if alias then return assets[alias] end
         local value
@@ -646,6 +663,31 @@ function Assets.assertHealthy() return AssetDiagnostics.assertHealthy() end
 function Assets.assetFailureSummary() return AssetDiagnostics.summary() end
 function Assets.assetFailureCount() return AssetDiagnostics.count() end
 function Assets.releaseIntroImages(scenery) releaseLazyImages(scenery) end
+
+function Assets.releaseDormantSceneArt(scenery,runtime)
+    if not scenery or not runtime then return end
+    if runtime.state~="battle" then
+        if scenery.battleAtlases then scenery.battleAtlases:release() end
+        if scenery.battleVariations then scenery.battleVariations:release() end
+        if scenery.battleAccents then scenery.battleAccents:release() end
+    end
+    if runtime.state~="event" and scenery.eventArt and scenery.eventArt.release then
+        scenery.eventArt:release()
+    end
+    if not runtime.firstAid and scenery.firstAidAssets then
+        releaseLazyImages(scenery.firstAidAssets)
+        releaseLazyImages(scenery.firstAidAssets.bandageStrips)
+    end
+    if not runtime.shootingRange and scenery.shootingRangeAssets then
+        local keepEntrance=runtime.state=="game" and runtime.scene=="stop"
+        releaseLazyImages(scenery.shootingRangeAssets,keepEntrance and {entrance=true} or nil)
+        if scenery.shootingRangeAssets.weaponViews then scenery.shootingRangeAssets.weaponViews:release() end
+    end
+    if (runtime.state~="game" or runtime.scene~="caravan") and scenery.crowCaravanAssets
+        and scenery.crowCaravanAssets.release then
+        scenery.crowCaravanAssets:release()
+    end
+end
 
 -- Runtime-generated sprite frames can be shared with the legacy animation
 -- tables without transferring their lifetime to the generic lazy streamer.

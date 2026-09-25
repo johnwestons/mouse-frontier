@@ -72,6 +72,35 @@ class SceneAssetStreamingTests(unittest.TestCase):
             Assets.releaseIntroImages(scenery)
             assert(intro.released==1 and rawget(scenery,'introBackground')==nil)
             assert(activeTrain.released==0 and scenery.worldTrain==activeTrain)
+
+            local function image()
+                return {released=0,release=function(self) self.released=self.released+1 end}
+            end
+            local aid={bandageStrips={}}
+            prepare(aid); prepare(aid.bandageStrips)
+            register(aid,'wound','wound.png'); register(aid.bandageStrips,1,'strip.png')
+            local wound,strip=image(),image()
+            rawset(aid,'wound',wound); rawset(aid.bandageStrips,1,strip)
+            local weaponViews={released=0,release=function(self) self.released=self.released+1 end}
+            local range={weaponViews=weaponViews}; prepare(range)
+            register(range,'background','range.png'); register(range,'entrance','flag.png')
+            local rangeBackground,flag=image(),image()
+            rawset(range,'background',rangeBackground); rawset(range,'entrance',flag)
+            local caravan={released=0,release=function(self) self.released=self.released+1 end}
+            scenery.battleAtlases=atlases; scenery.eventArt=art
+            scenery.firstAidAssets=aid; scenery.shootingRangeAssets=range
+            scenery.crowCaravanAssets=caravan
+            local activeAtlas=atlases[1]
+            local activeArt=art['story-a']
+            Assets.releaseDormantSceneArt(scenery,{state='battle',scene='caravan',firstAid=true,shootingRange=true})
+            assert(rawget(atlases,1)==activeAtlas and wound.released==0 and flag.released==0)
+            assert(activeArt.released==1 and caravan.released==1)
+            Assets.releaseDormantSceneArt(scenery,{state='game',scene='stop'})
+            assert(activeAtlas.image.released==1 and rawget(atlases,1)==nil)
+            assert(wound.released==1 and strip.released==1)
+            assert(rangeBackground.released==1 and flag.released==0 and weaponViews.released==1)
+            Assets.releaseDormantSceneArt(scenery,{state='game',scene='train'})
+            assert(flag.released==1 and rawget(range,'entrance')==nil)
         ''')
 
 

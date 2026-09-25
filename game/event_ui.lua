@@ -7,13 +7,16 @@ function EventUI.load(loadImage)
     local available={}
     for _,name in ipairs({"battle-a","help-a","fortune-a","mishap-a","defense-a","mystery-a","story-a","story-b"}) do available[name]=true end
     local active
+    function result:release()
+        if not active then return end
+        local image=rawget(self,active)
+        if image and image.release then pcall(image.release,image) end
+        rawset(self,active,nil)
+        active=nil
+    end
     return setmetatable(result,{__index=function(images,name)
         if not available[name] then return nil end
-        if active and active~=name then
-            local previous=rawget(images,active)
-            if previous and previous.release then pcall(previous.release,previous) end
-            rawset(images,active,nil)
-        end
+        if active and active~=name then images:release() end
         local image=loadImage("assets/sprites/events/"..name..".png")
         if image then rawset(images,name,image); active=name end
         return image
