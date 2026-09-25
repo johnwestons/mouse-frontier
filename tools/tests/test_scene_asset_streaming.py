@@ -24,13 +24,25 @@ class SceneAssetStreamingTests(unittest.TestCase):
         lua.execute(r'''
             local Assets=require('game.assets')
             local EventUI=require('game.event_ui')
-            local stream
+            local stream,backgroundStream
             for index=1,100 do
                 local name,value=debug.getupvalue(Assets.load,index)
                 if not name then break end
-                if name=='streamBattleAtlases' then stream=value; break end
+                if name=='streamBattleAtlases' then stream=value end
+                if name=='streamWorldBackgrounds' then backgroundStream=value end
             end
-            assert(stream,'battle atlas streamer unavailable')
+            assert(stream and backgroundStream,'scene art streamers unavailable')
+            local backgroundCreated={}
+            local backgrounds=backgroundStream({count=2},{'stop1.png','stop2.png'},function(path)
+                local image={path=path,released=0,release=function(self) self.released=self.released+1 end}
+                backgroundCreated[#backgroundCreated+1]=image
+                return image
+            end)
+            assert(backgrounds[1]==backgrounds[1] and #backgroundCreated==1)
+            backgrounds:release()
+            assert(backgroundCreated[1].released==1 and rawget(backgrounds,1)==nil)
+            assert(backgrounds[1].path=='stop1.png' and #backgroundCreated==2)
+            assert(backgrounds[2].path=='stop2.png' and backgroundCreated[2].released==1)
             local created={}
             local atlases=stream({{'WASTELAND'},{'FOREST'}},function(entry)
                 local image={released=0,release=function(self) self.released=self.released+1 end}
@@ -101,6 +113,33 @@ class SceneAssetStreamingTests(unittest.TestCase):
             assert(rangeBackground.released==1 and flag.released==0 and weaponViews.released==1)
             Assets.releaseDormantSceneArt(scenery,{state='game',scene='train'})
             assert(flag.released==1 and rawget(range,'entrance')==nil)
+        ''')
+
+    def test_full_screen_quest_releases_hidden_settlement_and_keeps_escort_motion(self) -> None:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.globals().package.path = ROOT.as_posix() + "/?.lua;" + lua.globals().package.path
+        lua.execute(r'''
+            local Assets=require('game.assets')
+            local Settlements=require('game.settlements')
+            local CharacterAnimation=require('game.character_animation')
+            local AssetStreamer=require('game.asset_streamer')
+            local settlement={released=0,release=function(self) self.released=self.released+1 end}
+            local resident={wide={[10]=settlement},active=10}
+            local streamer=AssetStreamer.new({settlements=resident,characterAnimations={},
+                legacyAnimationTables={},interiorFiles={}})
+            streamer.lastSettlement=10
+            local originalRetain=CharacterAnimation.retain
+            local originalLegacyRetain=Assets.retainAnimationImages
+            local retained,legacy
+            CharacterAnimation.retain=function(_,keep) retained=keep end
+            Assets.retainAnimationImages=function(_,keep) legacy=keep end
+            streamer:update('game','lastStand',{location=10,character='conductor-cat.png',
+                stopLayouts={}},nil,nil)
+            CharacterAnimation.retain=originalRetain
+            Assets.retainAnimationImages=originalLegacyRetain
+            assert(settlement.released==1 and resident.wide[10]==nil and resident.active==nil)
+            assert(retained['conductor-cat.png'] and retained['otter-scout.png'])
+            assert(legacy['conductor-cat.png'] and legacy['otter-scout.png'])
         ''')
 
 

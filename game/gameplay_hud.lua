@@ -113,6 +113,11 @@ local function new(context)
   end
 
   local function drawGame()
+      local quest=runtime.lastStand
+      if quest and quest.capture and quest.mode~="offer" then
+          LastStand:draw()
+          return
+      end
       local cloudLayer=getCloudLayer()
       local windowWidth,windowHeight=love.graphics.getDimensions()
       local layout=WideLayout.measure(W,H,windowWidth,windowHeight)

@@ -207,6 +207,12 @@ local function new(context)
 
   function application.update(dt)
     if lastStand:update(dt) then
+      local quest=runtime.lastStand
+      if quest and quest.capture and quest.mode~="offer" then
+        if ui.assetStreamer then ui.assetStreamer:update(runtime.state,"lastStand",runtime.saveData,nil,nil) end
+        if content.backgroundImages.release then content.backgroundImages:release() end
+        Assets.releaseDormantSceneArt(scenery,runtime)
+      end
       platform.persistenceRuntime.update(dt)
       return true
     end

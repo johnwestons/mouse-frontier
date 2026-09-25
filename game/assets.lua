@@ -284,6 +284,25 @@ local function streamBattleAtlases(entries, loader)
     end})
 end
 
+local function streamWorldBackgrounds(images,paths,loader)
+    local activeIndex
+    function images:release()
+        if not activeIndex then return end
+        local previous=rawget(self,activeIndex)
+        if previous and previous.release then pcall(previous.release,previous) end
+        rawset(self,activeIndex,nil)
+        activeIndex=nil
+    end
+    return setmetatable(images,{__index=function(cache,index)
+        local path=type(index)=="number" and paths[index] or nil
+        if not path then return nil end
+        if activeIndex and activeIndex~=index then cache:release() end
+        local image=loader(path)
+        if image then rawset(cache,index,image); activeIndex=index end
+        return image
+    end})
+end
+
 local function loadMenuFrames(ui)
     ui.menuFrames = {}
     for index, file in ipairs({"train-dialog-frame-v1.png", "train-panel-frame-v1.png", "train-tooltip-frame-v1.png", "train-button-frame-v1.png"}) do
@@ -380,19 +399,7 @@ function Assets.load(targets)
 
     local backgroundFiles = love.filesystem.getDirectoryItems("assets/backgrounds")
     local backgroundPaths={}
-    local activeBackground
-    setmetatable(targets.backgroundImages,{__index=function(images,index)
-        local path=type(index)=="number" and backgroundPaths[index] or nil
-        if not path then return nil end
-        if activeBackground and activeBackground~=index then
-            local previous=rawget(images,activeBackground)
-            if previous and previous.release then pcall(previous.release,previous) end
-            rawset(images,activeBackground,nil)
-        end
-        local image=loadImage(path,"scenery")
-        if image then rawset(images,index,image); activeBackground=index end
-        return image
-    end})
+    streamWorldBackgrounds(targets.backgroundImages,backgroundPaths,function(path) return loadImage(path,"scenery") end)
     for _, file in ipairs(backgroundFiles) do
         local index=file:match("^stop%-(%d%d)")
         if index then
