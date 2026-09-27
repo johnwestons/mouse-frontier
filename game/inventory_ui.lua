@@ -190,6 +190,15 @@ function InventoryUI.handleClick(ctx,x,y)
         if effect and (effect.food or effect.water) and last and last.kind==clicked.kind and last.index==clicked.index and now-ctx.lastClickTime<=.38 then
             ctx.set("draggedSlot",clicked); ctx.set("inventoryDragActive",false); ctx.set("lastClick",nil); ctx.set("lastClickTime",0); ctx.consume(); return true
         end
+        local doubleClick=last and last.kind==clicked.kind and last.index==clicked.index and now-ctx.lastClickTime<=.38
+        local special=name=="rose-heart-arrow" or name=="blade-hearts"
+        local pack=name and ctx.Catalog.backpackUpgrades[name]
+        local nonConsumable=name and (ctx.isWeapon(name) or (not effect and not special and not pack))
+        if nonConsumable and doubleClick and ctx.quickTransfer(clicked) then
+            ctx.set("draggedSlot",nil); ctx.set("inventoryDragActive",false)
+            ctx.set("lastClick",nil); ctx.set("lastClickTime",0)
+            return true
+        end
         ctx.set("lastClick",{kind=clicked.kind,index=clicked.index}); ctx.set("lastClickTime",now)
         if love.keyboard.isDown("lshift","rshift") and ctx.value(clicked) and ctx.quickTransfer(clicked) then ctx.set("draggedSlot",nil); ctx.set("inventoryDragActive",false); return true end
         if ctx.value(clicked) then ctx.set("draggedSlot",clicked); ctx.set("inventoryDragActive",true) end

@@ -183,7 +183,13 @@ local function new(context)
   end
 
   local function keyreleased(...) return gameplayInput().keyreleased(...) end
-  local function touchpressed(...) return controls and controls:touchpressed(...) end
+  local function touchpressed(...)
+      if runtime.inventoryOpen and runtime.dialogue and runtime.dialogue.inventoryResult then
+          runtime.dialogue=nil
+          return true
+      end
+      return controls and controls:touchpressed(...)
+  end
   local function touchmoved(...) return controls and controls:touchmoved(...) end
   local function touchreleased(...) return controls and controls:touchreleased(...) end
 

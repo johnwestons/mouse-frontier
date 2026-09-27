@@ -22,6 +22,90 @@ local function globalStep(goodwill)
     return 0
 end
 
+local function poolFingerprint(lines)
+    local hash=7
+    for index,line in ipairs(lines) do
+        hash=(hash*31+index)%2147483647
+        line=tostring(line)
+        hash=(hash*31+#line)%2147483647
+        for byte=1,#line do hash=(hash*31+line:byte(byte))%2147483647 end
+        hash=(hash*31+1)%2147483647
+    end
+    return tostring(#lines)..":"..tostring(hash)
+end
+
+local function validOrder(order,count)
+    if type(order)~="table" or #order~=count then return false end
+    local seen={}
+    for position=1,count do
+        local value=order[position]
+        if type(value)~="number" or value~=value or value<=-math.huge or value>=math.huge
+            or value~=math.floor(value) or value<1 or value>count or seen[value] then return false end
+        seen[value]=true
+    end
+    return true
+end
+
+local function validIndex(value,count)
+    return type(value)=="number" and value==value and value>-math.huge and value<math.huge
+        and value==math.floor(value) and value>=1 and value<=count
+end
+
+local function randomInteger(rng,low,high)
+    if low>=high then return low end
+    local value=rng and rng(high-low+1) or love.math.random(high-low+1)
+    return low+math.max(0,math.min(high-low,math.floor(value)-1))
+end
+
+local function shuffledOrder(count,rng)
+    local order={}
+    for index=1,count do order[index]=index end
+    for index=count,2,-1 do
+        local other=randomInteger(rng,1,index)
+        order[index],order[other]=order[other],order[index]
+    end
+    return order
+end
+
+local function dialogueLine(record,lines,rng)
+    local count=#lines
+    if count==0 then return nil end
+    local fingerprint=poolFingerprint(lines)
+    local cursor=tonumber(record.dialogueCursor)
+    local validCursor=cursor and cursor==cursor and cursor>-math.huge and cursor<math.huge
+        and cursor==math.floor(cursor) and cursor>=1 and cursor<=count+1
+    local samePool=record.dialoguePool==fingerprint
+    local order=record.dialogueOrder
+    if not samePool or not validOrder(order,count) or not validCursor then
+        local previous=samePool and tonumber(record.dialogueLast) or nil
+        order=shuffledOrder(count,rng)
+        if count>1 and validIndex(previous,count)
+            and order[1]==previous then
+            local other=randomInteger(rng,2,count)
+            order[1],order[other]=order[other],order[1]
+        end
+        record.dialoguePool=fingerprint
+        record.dialogueOrder=order
+        record.dialogueCursor=1
+        cursor=1
+    elseif cursor>count then
+        order=shuffledOrder(count,rng)
+        local previous=tonumber(record.dialogueLast)
+        if count>1 and validIndex(previous,count)
+            and order[1]==previous then
+            local other=randomInteger(rng,2,count)
+            order[1],order[other]=order[other],order[1]
+        end
+        record.dialogueOrder=order
+        record.dialogueCursor=1
+        cursor=1
+    end
+    local selected=order[cursor]
+    record.dialogueCursor=cursor+1
+    record.dialogueLast=selected
+    return lines[selected]
+end
+
 function Relationships.ensureData(data)
     data.relationships=type(data.relationships)=="table" and data.relationships or {}
     return data.relationships
@@ -116,18 +200,18 @@ function Relationships.recordTrade(data,npc)
     return Relationships.status(data,npc)
 end
 
-function Relationships.npcDialogue(data,npc,fallbackLines)
+function Relationships.npcDialogue(data,npc,fallbackLines,rng)
     local record=Relationships.ensure(data,npc); record.talks=record.talks+1
     local lines=type(fallbackLines)=="table" and fallbackLines or {}
-    local line=#lines>0 and lines[((record.talks-1)%#lines)+1] or nil
+    local line=dialogueLine(record,lines,rng)
     return line,Relationships.status(data,npc)
 end
 
-function Relationships.passengerDialogue(data,passenger,fallbackLines)
+function Relationships.passengerDialogue(data,passenger,fallbackLines,rng)
     local record=Relationships.ensure(data,passenger.npc); record.talks=record.talks+1
     passenger.relationshipTalks=math.max(0,math.floor(tonumber(passenger.relationshipTalks) or 0))+1
     local lines=type(fallbackLines)=="table" and fallbackLines or {}
-    local line=#lines>0 and lines[((passenger.relationshipTalks-1)%#lines)+1] or nil
+    local line=dialogueLine(record,lines,rng)
     return line,Relationships.status(data,passenger.npc)
 end
 

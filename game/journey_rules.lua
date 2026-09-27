@@ -194,6 +194,8 @@ local function new(context)
   end
 
   local function acceptQuest(kind)
+      runtime.saveData.questAsked=runtime.saveData.questAsked or {}
+      runtime.saveData.questAsked[tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC)]=true
       if kind=="mail" then
           local distance=QuestProgression.questDistance("mail",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local layout=runtime.saveData.stopLayouts[tostring(destination)] or {houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7)}
@@ -295,13 +297,19 @@ local function new(context)
       local kind=(layout.npcOffers and layout.npcOffers[runtime.saveData.currentNPC]) or "none"
       if kind=="dialogue" then kind="none" end
       if not runtime.saveData.questAsked[key] and kind~="none" and runtime.saveData.location<50 then
-          runtime.saveData.questAsked[key]=true; runtime.questOffer={kind=kind}
+          runtime.questOffer={kind=kind}
           local request=StopHelpProgression.request(layout,runtime.saveData.currentNPC)
           local text
           if kind=="mail" then text=Catalog.mailRequestLines[love.math.random(#Catalog.mailRequestLines)]
           elseif kind=="ride" then text=Catalog.rideRequestLines[love.math.random(#Catalog.rideRequestLines)]
           elseif kind=="supplies" then
-              runtime.questOffer.deliveryKind=QuestProgression.rollDelivery(runtime.saveData.location)
+              layout.deliveryOffers=layout.deliveryOffers or {}
+              local deliveryKind=layout.deliveryOffers[runtime.saveData.currentNPC]
+              if not deliveryKind then
+                  deliveryKind=QuestProgression.rollDelivery(runtime.saveData.location)
+                  layout.deliveryOffers[runtime.saveData.currentNPC]=deliveryKind
+              end
+              runtime.questOffer.deliveryKind=deliveryKind
               text=QuestProgression.deliveryProfile(runtime.questOffer.deliveryKind).request
           elseif (kind=="item" or kind=="aid") and request then text=request.text
           elseif kind=="dialogue" and dialogueRequest then text=HelpDialogueQuests.offer(dialogueRequest)

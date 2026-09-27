@@ -220,7 +220,8 @@ class ConversationTests(unittest.TestCase):
             context.npcRelationships=require('game.npc_relationships')
             context.helpDialogueQuests=require('game.help_dialogue_quests')
             context.battleRules={gainExperience=function(_,amount) xp=xp+amount end}
-            context.ensureStopLayout=function() return {npcOutside='resident',npcOffers={}} end
+            local stopLayout={npcOutside='resident',npcOffers={}}
+            context.ensureStopLayout=function() return stopLayout end
             writes=0; context.writeSave=function() writes=writes+1 end
             local journey=require('game.journey_rules').new(context)
             force('food'); data.resources={food=2,water=1}
@@ -235,7 +236,10 @@ class ConversationTests(unittest.TestCase):
             assert(data.resources.food==0 and data.resources.water==0 and xp==5)
             assert(not journey.chooseHelpDialogue(2))
             runtime.dialogue=nil; journey.talkToNPC()
-            assert(runtime.dialogue and runtime.dialogue.text==context.catalog.dialogueLines[1] and xp==5 and writes>=4)
+            assert(runtime.dialogue and xp==5 and writes>=4)
+            local regular=false
+            for _,line in ipairs(context.catalog.dialogueLines) do if line==runtime.dialogue.text then regular=true end end
+            assert(regular)
             assert(not runtime.helpDialogue)
             -- Regular speech stays available between the one-time trees.
             context.catalog.dialogueLines={C.content[1].choices[1].response}
@@ -244,21 +248,66 @@ class ConversationTests(unittest.TestCase):
             assert(xp==5)
             context.catalog.dialogueLines={}; runtime.dialogue=nil; journey.talkToNPC()
             assert(runtime.dialogue.text=='No new conversation available.' and xp==5)
+
+            -- Closing or reloading an unanswered task must not consume its one offer.
+            data.questAsked={}; stopLayout.npcOffers.resident='supplies'
+            runtime.dialogue=nil; journey.talkToNPC()
+            local offerKey='1:resident'; local cargo=runtime.questOffer.deliveryKind
+            assert(cargo and not data.questAsked[offerKey])
+            runtime.dialogue=nil; runtime.questOffer=nil
+            journey.talkToNPC()
+            assert(runtime.questOffer.kind=='supplies' and runtime.questOffer.deliveryKind==cargo)
+            local saved=assert(Schema.migrate(data)); data=saved; runtime.saveData=data
+            runtime.dialogue=nil; runtime.questOffer=nil
+            journey.talkToNPC()
+            assert(runtime.questOffer.kind=='supplies' and runtime.questOffer.deliveryKind==cargo)
+            assert(not data.questAsked[offerKey])
+            journey.acceptQuest('supplies')
+            assert(data.questAsked[offerKey] and #data.supplyQuests==1 and data.supplyQuests[1].cargoKind==cargo)
+            runtime.dialogue=nil; journey.talkToNPC()
+            assert(not runtime.questOffer and not runtime.dialogue.choice)
         ''')
 
     def test_regular_npc_and_passenger_only_use_supplied_chatter(self):
         self.lua.execute('''
             local R=require('game.npc_relationships')
             local lines={C.content[1].choices[1].response,C.content[1].choices[2].response}
-            assert(R.npcDialogue(data,'resident',lines)==lines[1])
-            assert(R.npcDialogue(data,'resident',lines)==lines[2])
-            assert(R.npcDialogue(data,'resident',lines)==lines[1])
+            local function firstIndex() return 1 end
+            assert(R.npcDialogue(data,'resident',lines,firstIndex)==lines[2])
+            assert(R.npcDialogue(data,'resident',lines,firstIndex)==lines[1])
+            assert(R.npcDialogue(data,'resident',lines,firstIndex)==lines[2])
             local passenger={npc='resident',destination=7}
-            assert(R.passengerDialogue(data,passenger,lines)==lines[1])
-            assert(R.passengerDialogue(data,passenger,lines)==lines[2])
+            assert(R.passengerDialogue(data,passenger,lines,firstIndex)==lines[1])
+            assert(R.passengerDialogue(data,passenger,lines,firstIndex)==lines[2])
             assert(not R.passengerDialogue(data,passenger,{}))
             assert(not R.npcDialogue(data,'resident',{}))
             assert(xp==0)
+        ''')
+
+    def test_regular_chatter_is_shuffled_without_repeats_and_survives_save(self):
+        self.lua.execute('''
+            local R=require('game.npc_relationships')
+            data=assert(Schema.migrate({character='frog',location=1,relationships={}}))
+            local lines={}; for i=1,33 do lines[i]='line-'..i end
+            local function firstIndex() return 1 end
+            local seen={}; local last
+            for i=1,33 do
+                local line=R.npcDialogue(data,'resident',lines,firstIndex)
+                assert(not seen[line], 'line repeated before the 33-line shuffle completed')
+                seen[line]=true; last=line
+                if i==15 then data=assert(Schema.migrate(data)) end
+            end
+            local count=0; for _ in pairs(seen) do count=count+1 end
+            assert(count==33)
+            local nextLine=R.npcDialogue(data,'resident',lines,firstIndex)
+            assert(nextLine~=last, 'new shuffle repeated the previous cycle ending')
+            seen={}; seen[nextLine]=true
+            for i=2,33 do
+                local line=R.npcDialogue(data,'resident',lines,firstIndex)
+                assert(not seen[line], 'second shuffle repeated a line')
+                seen[line]=true
+            end
+            assert(R.ensure(data,'resident').talks==66)
         ''')
 
     def test_mobile_talk_button_opens_closes_and_resumes_regular_chatter(self):
@@ -283,7 +332,8 @@ class ConversationTests(unittest.TestCase):
             journey_context.questProgression=require('game.quest_progression')
             journey_context.stopHelpProgression=require('game.stop_help_progression')
             journey_context.helpDialogueQuests=require('game.help_dialogue_quests')
-            journey_context.ensureStopLayout=function() return {npcOutside='resident',npcOffers={}} end
+            local stopLayout={npcOutside='resident',npcOffers={}}
+            journey_context.ensureStopLayout=function() return stopLayout end
             journey_context.battleRules={gainExperience=function(_,amount) xp=xp+amount end}
             local journey=require('game.journey_rules').new(journey_context)
             input_context.talkToNPC=journey.talkToNPC
@@ -303,18 +353,38 @@ class ConversationTests(unittest.TestCase):
             end
             ui.interaction={kind='npc'}
             assert(select(2,controls.primaryAction())=='TALK')
-            tap(); assert(runtime.dialogue.text==Catalog.dialogueLines[1])
+            tap(); local first=runtime.dialogue.text
+            local firstIsRegular=false
+            for _,line in ipairs(Catalog.dialogueLines) do if line==first then firstIsRegular=true end end
+            assert(firstIsRegular)
             assert(select(2,controls.primaryAction())=='CLOSE')
             tap(); assert(not runtime.dialogue)
-            tap(); assert(runtime.dialogue.text==Catalog.dialogueLines[2]); tap()
+            tap(); local second=runtime.dialogue.text
+            local secondIsRegular=false
+            for _,line in ipairs(Catalog.dialogueLines) do if line==second then secondIsRegular=true end end
+            assert(secondIsRegular and second~=first); tap()
             force('travel-time'); tap(); assert(runtime.helpDialogue.authored)
             input.keypressed('1'); assert(xp==5 and not runtime.helpDialogue)
             input.keypressed('q'); tap()
-            assert(runtime.dialogue.text==Catalog.dialogueLines[3] and xp==5); tap()
+            local third=runtime.dialogue.text
+            local thirdIsRegular=false
+            for _,line in ipairs(Catalog.dialogueLines) do if line==third then thirdIsRegular=true end end
+            assert(thirdIsRegular and third~=first and third~=second and xp==5); tap()
             runtime.scene='train'; data.passengers={{npc='rider',destination=8}}
             ui.interaction={kind='passenger',index=1}
-            tap(); assert(runtime.dialogue.text==Catalog.dialogueLines[1]); tap()
-            tap(); assert(runtime.dialogue.text==Catalog.dialogueLines[2] and xp==5)
+            tap(); local passengerFirst=runtime.dialogue.text; tap()
+            tap(); assert(runtime.dialogue.text~=passengerFirst and xp==5)
+
+            runtime.scene='stop'; data.currentNPC='resident'; data.questAsked={}
+            stopLayout.npcOffers.resident='mail'; ui.interaction={kind='npc'}
+            runtime.dialogue=nil; runtime.questOffer=nil; tap()
+            assert(runtime.dialogue.choice and runtime.questOffer.kind=='mail')
+            assert(not data.questAsked['1:resident'])
+            input.keypressed('escape')
+            assert(data.questAsked['1:resident'] and runtime.dialogue.text=='Task declined.')
+            runtime.dialogue=nil
+            journey.talkToNPC()
+            assert(not runtime.questOffer and runtime.dialogue and not runtime.dialogue.choice)
         ''')
 
 

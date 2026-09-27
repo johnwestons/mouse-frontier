@@ -116,6 +116,16 @@ local function new(context)
       return player.x+dx/length*100,player.y+dy/length*100
   end
 
+  local function declineQuestOffer()
+      if not runtime.questOffer then return false end
+      runtime.saveData.questAsked=runtime.saveData.questAsked or {}
+      runtime.saveData.questAsked[tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC)]=true
+      runtime.dialogue={speaker="TASK",text="Task declined.",timer=5}
+      runtime.questOffer=nil
+      writeSave()
+      return true
+  end
+
   local function chooseCharacter(file)
       if not file then return false end
       runtime.characterPreviewFile=nil
@@ -321,6 +331,10 @@ local function new(context)
   end
 
   function ui.handleGameMousePressed(x,y)
+      if runtime.inventoryOpen and runtime.dialogue and runtime.dialogue.inventoryResult then
+          runtime.dialogue=nil
+          return true
+      end
       if runtime.scene=="caravan" and ui.returnStop and Util.pointIn(x,y,ui.returnStop) then
           return activateCaravanReturnControl()
       end
@@ -365,7 +379,7 @@ local function new(context)
       end
       if runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then
           if Util.pointIn(x,y,ui.questAccept) then acceptQuest(runtime.questOffer.kind)
-          elseif Util.pointIn(x,y,ui.questDecline) then runtime.dialogue={speaker="TASK",text="Task declined.",timer=5}; runtime.questOffer=nil end
+          elseif Util.pointIn(x,y,ui.questDecline) then declineQuestOffer() end
           return true
       end
       for index,tab in ipairs(ui.trainCarTabs or {}) do
@@ -396,8 +410,12 @@ local function new(context)
   end
 
   local function mousepressed(x,y,button)
-      if button==3 then beginCameraPan(x,y); return end
       if runtime.state=="intro" then skipIntro(ui.introCinematic); return end
+      if runtime.inventoryOpen and runtime.dialogue and runtime.dialogue.inventoryResult then
+          runtime.dialogue=nil
+          return
+      end
+      if button==3 then beginCameraPan(x,y); return end
       -- Check the persistent campsite exit before any modal input capture. This
       -- lets it dismiss inventory, trade, settings, dialogue, and even stale
       -- overlay state in one tap/click.
@@ -602,7 +620,7 @@ local function new(context)
           return
       end
       if runtime.state=="game" and runtime.inventoryOpen and key=="e" then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; if runtime.giftOpen then runtime.giftOpen=false; runtime.giftSlot=nil end; writeSave(); return true end
-      if runtime.state=="game" and runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then if key=="y" or key=="return" or key=="e" then acceptQuest(runtime.questOffer.kind) elseif key=="n" or key=="escape" then runtime.dialogue={speaker="TASK",text="Task declined.",timer=5}; runtime.questOffer=nil end; return end
+      if runtime.state=="game" and runtime.dialogue and runtime.dialogue.choice and runtime.questOffer then if key=="y" or key=="return" or key=="e" then acceptQuest(runtime.questOffer.kind) elseif key=="n" or key=="escape" then declineQuestOffer() end; return true end
       if runtime.state=="game" and runtime.carTransition then return true end
       return false
   end

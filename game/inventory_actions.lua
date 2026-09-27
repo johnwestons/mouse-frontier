@@ -27,6 +27,10 @@ local function new(context)
       Inventory.setValue(runtime.saveData,runtime.activeChest,ref,value)
   end
 
+  local function inventoryResult(speaker,text,timer)
+      runtime.dialogue={speaker=speaker,text=text,timer=timer,inventoryResult=true}
+  end
+
   local function moveBetweenSlots(source,target)
       local moved=Inventory.move(runtime.saveData,runtime.activeChest,source,target,Catalog.weaponStats,Catalog.ammoPickupAmounts)
       if moved then writeSave() end
@@ -46,7 +50,7 @@ local function new(context)
       if not amount then return false end
       runtime.saveData.ammo[name]=(runtime.saveData.ammo[name] or 0)+amount
       setContainerValue(ref,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave()
-      runtime.dialogue={speaker="Ammo",text="Collected "..amount.." "..Util.titleFromFile(name).." ammunition.",timer=1.6}
+      inventoryResult("Ammo","Collected "..amount.." "..Util.titleFromFile(name).." ammunition.",1.6)
       return true
   end
 
@@ -74,24 +78,24 @@ local function new(context)
               if layout then layout.npcWeapon=name end
               if runtime.npcActor then runtime.npcActor.weapon=name end
           end
-          runtime.dialogue={speaker="Weapon Given",text=Util.titleFromFile(name).." is now equipped by your ally.",timer=2}
+          inventoryResult("Weapon Given",Util.titleFromFile(name).." is now equipped by your ally.",2)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
       local pack=Catalog.backpackUpgrades[name]
       if pack then
-          if pack.capacity<=(runtime.saveData.inventoryCapacity or 6) then runtime.dialogue={speaker=pack.label,text="Your current backpack already carries at least that much.",timer=2}; return false end
+          if pack.capacity<=(runtime.saveData.inventoryCapacity or 6) then inventoryResult(pack.label,"Your current backpack already carries at least that much.",2); return false end
           runtime.saveData.inventoryCapacity=pack.capacity; runtime.saveData.backpack=name
-          runtime.dialogue={speaker=pack.label,text="Equipped! Carry capacity increased to "..pack.capacity.." slots.",timer=2.5}
+          inventoryResult(pack.label,"Equipped! Carry capacity increased to "..pack.capacity.." slots.",2.5)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
       if name=="rose-heart-arrow" or name=="blade-hearts" then
           runtime.saveData.maxHealth=runtime.saveData.maxHealth+5; runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+5)
-          runtime.dialogue={speaker="Special Heart",text="Your maximum health increased by 5!",timer=2.5}
+          inventoryResult("Special Heart","Your maximum health increased by 5!",2.5)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
       if effect and effect.potion then
           runtime.saveData.nextBattlePotions[name]=true
-          runtime.dialogue={speaker=Util.titleFromFile(name),text=effect.description.." It will activate at the next battle.",timer=2.5}
+          inventoryResult(Util.titleFromFile(name),effect.description.." It will activate at the next battle.",2.5)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
       if not effect then return false end
@@ -103,14 +107,14 @@ local function new(context)
       local oilFull=effect.oil and runtime.saveData.resources.oil>=oilCapacity
       if (effect.food or effect.water or effect.oil) and (not effect.food or foodFull) and (not effect.water or waterFull) and (not effect.oil or oilFull) then
           local fullName=oilFull and "Oil storage is full." or (foodFull and waterFull and "Food and water storage are full." or (foodFull and "Food storage is full." or "Water storage is full."))
-          runtime.dialogue={speaker="Storage Full",text=fullName,timer=2.2}
+          inventoryResult("Storage Full",fullName,2.2)
           return false
       end
       if effect.food then TrainUpgradeBalance.addResource(runtime.saveData,"food",effect.food) end
       if effect.water then TrainUpgradeBalance.addResource(runtime.saveData,"water",effect.water) end
       if effect.oil then TrainUpgradeBalance.addResource(runtime.saveData,"oil",effect.oil) end
       if effect.health then runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+effect.health) end
-      runtime.dialogue={speaker=Util.titleFromFile(name),text=effect.oil and ("Stored +"..effect.oil.." train oil.") or ("That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored.")),timer=1.4}
+      inventoryResult(Util.titleFromFile(name),effect.oil and ("Stored +"..effect.oil.." train oil.") or ("That helped. "..(effect.health and ("+"..effect.health.." health") or "Supplies restored.")),1.4)
       setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
   end
 
