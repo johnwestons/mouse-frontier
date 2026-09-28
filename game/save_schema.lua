@@ -16,7 +16,10 @@ local STRUCTURAL_TABLES = {
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
     "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions", "expeditions", "crowCaravans", "lastStand", "conversations",
+    "supplyDeliveryCycle",
 }
+
+local SUPPLY_DELIVERY_KINDS={food=true,water=true,medicine=true,repair=true,ammunition=true,recovery=true}
 
 local function finiteNumber(value)
     return type(value)=="number" and value==value and value>-math.huge and value<math.huge
@@ -209,8 +212,35 @@ local function removeRetiredStopActivities(data)
     end
 end
 
+local function latestAssignedDelivery(data)
+    local latestStop,latestNpc,latestKind
+    for key,layout in pairs(data.stopLayouts or {}) do
+        local stop=tonumber(key) or (type(layout)=="table" and tonumber(layout.location))
+        if stop and type(layout)=="table" then
+            local npcs={}
+            for npc,kind in pairs(layout.deliveryOffers or {}) do
+                if SUPPLY_DELIVERY_KINDS[kind] then npcs[#npcs+1]=npc end
+            end
+            table.sort(npcs)
+            for _,npc in ipairs(npcs) do
+                if not latestStop or stop>latestStop or (stop==latestStop and npc>latestNpc) then
+                    latestStop,latestNpc,latestKind=stop,npc,layout.deliveryOffers[npc]
+                end
+            end
+        end
+    end
+    return latestKind
+end
+
 local function ensureRootTables(data)
+    local hadDeliveryCycle=type(data.supplyDeliveryCycle)=="table"
     for _,field in ipairs(STRUCTURAL_TABLES) do data[field]=data[field] or {} end
+    if not hadDeliveryCycle then
+        data.supplyDeliveryCycle={seen={}}
+        data.supplyDeliveryCycle.last=latestAssignedDelivery(data)
+    elseif type(data.supplyDeliveryCycle.seen)~="table" then
+        data.supplyDeliveryCycle.seen={}
+    end
     ensureCrowCaravans(data)
     data.location=math.max(1,math.min(50,math.floor(tonumber(data.location) or 1)))
     if data.scene~="train" and data.scene~="stop" and data.scene~="house" and data.scene~="expedition" and data.scene~="caravan" then data.scene="train" end

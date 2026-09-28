@@ -45,6 +45,12 @@ local function new(context)
       return ProgressionBalance.travelStatus(runtime.saveData,travelCost())
   end
 
+  local function rollSupplyDelivery()
+      local data=runtime.saveData
+      data.supplyDeliveryCycle=data.supplyDeliveryCycle or {seen={}}
+      return QuestProgression.rollDelivery(data.location,nil,data.supplyDeliveryCycle)
+  end
+
   local function storeRewardItem(name)
       return QuestProgression.storeRewardItem(runtime.saveData,Catalog,Inventory,name,function(fallbackName)
           House.storeLoot(runtime.saveData,Catalog,fallbackName,runtime.saveData.location)
@@ -226,7 +232,7 @@ local function new(context)
           if request then beginDialogueQuest(request) end
       elseif kind=="supplies" then
           local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
-          local cargoKind=(runtime.questOffer and runtime.questOffer.deliveryKind) or QuestProgression.rollDelivery(runtime.saveData.location)
+          local cargoKind=(runtime.questOffer and runtime.questOffer.deliveryKind) or rollSupplyDelivery()
           local profile=QuestProgression.deliveryProfile(cargoKind)
           runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=profile.amount,cargoKind=cargoKind,complete=false}
           local reward=QuestProgression.rewardProfile(cargoKind,distance,runtime.saveData.trait,destination)
@@ -306,7 +312,7 @@ local function new(context)
               layout.deliveryOffers=layout.deliveryOffers or {}
               local deliveryKind=layout.deliveryOffers[runtime.saveData.currentNPC]
               if not deliveryKind then
-                  deliveryKind=QuestProgression.rollDelivery(runtime.saveData.location)
+                  deliveryKind=rollSupplyDelivery()
                   layout.deliveryOffers[runtime.saveData.currentNPC]=deliveryKind
               end
               runtime.questOffer.deliveryKind=deliveryKind

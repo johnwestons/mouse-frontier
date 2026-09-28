@@ -253,11 +253,12 @@ class ConversationTests(unittest.TestCase):
             data.questAsked={}; stopLayout.npcOffers.resident='supplies'
             runtime.dialogue=nil; journey.talkToNPC()
             local offerKey='1:resident'; local cargo=runtime.questOffer.deliveryKind
-            assert(cargo and not data.questAsked[offerKey])
+            assert(cargo and data.supplyDeliveryCycle.last==cargo and not data.questAsked[offerKey])
             runtime.dialogue=nil; runtime.questOffer=nil
             journey.talkToNPC()
             assert(runtime.questOffer.kind=='supplies' and runtime.questOffer.deliveryKind==cargo)
             local saved=assert(Schema.migrate(data)); data=saved; runtime.saveData=data
+            assert(data.supplyDeliveryCycle.last==cargo)
             runtime.dialogue=nil; runtime.questOffer=nil
             journey.talkToNPC()
             assert(runtime.questOffer.kind=='supplies' and runtime.questOffer.deliveryKind==cargo)

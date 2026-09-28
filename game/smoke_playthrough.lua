@@ -297,7 +297,7 @@ local function install(context)
                 check=function(_,_,_,result)
                     return result.ready and result.earlyWeights.mail>result.lateWeights.mail
                         and result.lateWeights.trade>result.earlyWeights.trade
-                        and result.curve=="quest-v5" and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
+                        and result.curve=="quest-v6" and result.cycleVariety and result.earlyRequestRate<=.401 and result.lateRequestRate<=.361
                         and result.farReward.scrap>result.nearReward.scrap
                         and result.farReward.xp>result.nearReward.xp
                         and result.diplomatReward.scrap>result.farReward.scrap

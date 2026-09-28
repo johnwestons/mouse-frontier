@@ -2,6 +2,8 @@ local QuestProgression={}
 
 QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
+QuestProgression.deliveryIndex={}
+for index,kind in ipairs(QuestProgression.deliveryKinds) do QuestProgression.deliveryIndex[kind]=index end
 
 local deliveryProfiles={
     food={amount=3,label="3 food portions",objective="FOOD SUPPLIES",request="Delivery: 3 food portions.",accepted="Deliver 3 food portions to stop %d. Backpack food is used before train storage.",thanks="Delivery completed."},
@@ -43,16 +45,53 @@ function QuestProgression.rollOffer(location,rng)
     return "none"
 end
 
-function QuestProgression.rollDelivery(location,rng)
+local deliveryWeights={early={.30,.22,.20,.12,.08,.08},late={.18,.15,.16,.18,.18,.15}}
+
+function QuestProgression.rollDelivery(location,rng,rotation)
     local progress=(math.max(1,math.min(50,location or 1))-1)/49
-    local early={.30,.22,.20,.12,.08,.08}
-    local late={.18,.15,.16,.18,.18,.15}
-    local roll=randomFloat(rng); local total=0
-    for index,kind in ipairs(QuestProgression.deliveryKinds) do
-        total=total+early[index]+(late[index]-early[index])*progress
-        if roll<=total then return kind end
+    local weights={}
+    for index=1,#QuestProgression.deliveryKinds do
+        weights[index]=deliveryWeights.early[index]+(deliveryWeights.late[index]-deliveryWeights.early[index])*progress
     end
-    return "recovery"
+    if type(rotation)~="table" then
+        local roll=randomFloat(rng); local total=0
+        for index,kind in ipairs(QuestProgression.deliveryKinds) do
+            total=total+weights[index]
+            if roll<=total then return kind end
+        end
+        return "recovery"
+    end
+
+    rotation.seen=type(rotation.seen)=="table" and rotation.seen or {}
+    local seen,count={},0
+    for _,kind in ipairs(rotation.seen) do
+        if QuestProgression.deliveryIndex[kind] and not seen[kind] then seen[kind]=true; count=count+1 end
+    end
+    if count>=#QuestProgression.deliveryKinds then seen,count={},0 end
+
+    local eligible,total={},0
+    for index,kind in ipairs(QuestProgression.deliveryKinds) do
+        if not seen[kind] and not (count==0 and rotation.last==kind) then
+            eligible[#eligible+1]=index; total=total+weights[index]
+        end
+    end
+    if #eligible==0 then
+        seen,count={},0
+        for index,kind in ipairs(QuestProgression.deliveryKinds) do eligible[index]=index; total=total+weights[index] end
+    end
+    local target=randomFloat(rng)*total; local selected=eligible[#eligible]
+    for _,index in ipairs(eligible) do
+        target=target-weights[index]
+        if target<0 then selected=index; break end
+    end
+    local kind=QuestProgression.deliveryKinds[selected]
+    rotation.seen={}
+    for _,previous in ipairs(QuestProgression.deliveryKinds) do
+        if seen[previous] then rotation.seen[#rotation.seen+1]=previous end
+    end
+    rotation.seen[#rotation.seen+1]=kind
+    rotation.last=kind
+    return kind
 end
 
 local function matchingSlots(data,catalog,predicate,limit)
@@ -240,6 +279,15 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
     local rolls={}
     for _,roll in ipairs({.05,.33,.52,.68,.82,.95}) do rolls[QuestProgression.rollDelivery(25,function() return roll end)]=true end
     local rollCount=0; for _ in pairs(rolls) do rollCount=rollCount+1 end
+    local rotation={seen={}}; local cycleSeen={}; local cycleBoundaryReady=true; local previousDelivery
+    for index=1,7 do
+        local kind=QuestProgression.rollDelivery(25,function() return .5 end,rotation)
+        if index<=6 then cycleSeen[kind]=true end
+        if index==7 then cycleBoundaryReady=kind~=previousDelivery and #rotation.seen==1 end
+        previousDelivery=kind
+    end
+    local cycleCount=0; for _ in pairs(cycleSeen) do cycleCount=cycleCount+1 end
+    local cycleVariety=cycleCount==6 and cycleBoundaryReady
     local totalEarly,totalLate=0,0
     for _,kind in ipairs(QuestProgression.offerOrder) do totalEarly=totalEarly+early[kind]; totalLate=totalLate+late[kind] end
     local ready=math.abs(totalEarly-1)<.0001 and math.abs(totalLate-1)<.0001
@@ -252,7 +300,7 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
         and #QuestProgression.activeObjectives(sample)==8 and stockedRide>lowSupplyRide
         and delivery=="mailbox" and deliveryData.droppedItems[1].mailUnread and deliveryData.droppedItems[1].storage[1]=="food-ration"
         and ammoDelivery=="ammunition" and ammoData.ammo.rocks==2+(catalog.ammoPickupAmounts.rocks or 0)
-        and #QuestProgression.deliveryKinds==6 and rollCount==6
+        and #QuestProgression.deliveryKinds==6 and rollCount==6 and cycleVariety
         and cargoResult.completed and cargoResult.inventoryUsed==2 and cargoResult.resourceUsed==1 and cargo.resources.food==0
         and not shortageResult.completed and shortage.inventory[1]=="food-ration" and shortage.resources.food==1
         and legacyResult.completed and legacy.resources.food==0
@@ -268,7 +316,7 @@ function QuestProgression.audit(catalog,LootProgression,Passengers,Inventory)
         foodInventoryUsed=cargoResult.inventoryUsed,foodStorageUsed=cargoResult.resourceUsed,atomicShortage=not shortageResult.completed,
         legacyStorageUsed=legacyResult.resourceUsed,waterMixed=waterResult.completed,medicineReady=medicineResult.completed,
         repairMixed=repairResult.completed,ammunitionReady=ammoResult.completed,recoveryGated=not recoveryBlocked.completed and recoveryResult.completed,
-        curve="quest-v5"}
+        cycleVariety=cycleVariety,curve="quest-v6"}
 end
 
 return QuestProgression
