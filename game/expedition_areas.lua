@@ -1,15 +1,169 @@
 local Areas = {}
 
 Areas.SCENE = "expedition"
-Areas.FIRST_STOP = 6
+Areas.FIRST_STOP = 5
 Areas.SURFACE_ID = "stop06-outskirts"
 Areas.DUNGEON_ID = "stop06-buried-waystation"
-Areas.CONTENT_VERSION = 2
+Areas.BADLANDS_SURFACE_ID = "stop05-badlands-approach"
+Areas.BADLANDS_BASIN_ID = "stop05-redwash-basin"
+Areas.CONTENT_VERSION = 3
 
 local definitions = {
+    [Areas.BADLANDS_SURFACE_ID] = {
+        id=Areas.BADLANDS_SURFACE_ID,
+        stop=5,
+        kind="surface",
+        name="Red Mesa Approach",
+        width=1672,
+        height=941,
+        background="assets/sprites/expeditions/stop05/badlands-approach-background.png",
+        walkMask="assets/sprites/expeditions/stop05/walkmask-badlands-approach.png",
+        version=2,
+        objectives={
+            surface="Follow the dry wash into Redwash Basin.",
+            complete="Survey the basin cairns, then return to Stop 5.",
+        },
+        spawns={town={x=836,y=700},basinReturn={x=1418,y=188}},
+        clearings={
+            {x=836,y=700,rx=56,ry=54},
+            {x=920,y=565,rx=58,ry=50},
+            {x=1160,y=390,rx=55,ry=48},
+            {x=1264,y=397,rx=58,ry=55},
+            {x=1302,y=361,rx=48,ry=46},
+            {x=1460,y=150,rx=58,ry=62},
+        },
+        corridors={
+            {x1=836,y1=748,x2=836,y2=700,r=44},
+            {x1=836,y1=700,x2=849,y2=663,r=44},
+            {x1=849,y1=663,x2=876,y2=614,r=44},
+            {x1=876,y1=614,x2=914,y2=565,r=44},
+            {x1=914,y1=565,x2=953,y2=518,r=44},
+            {x1=953,y1=518,x2=1014,y2=476,r=44},
+            {x1=1014,y1=476,x2=1074,y2=436,r=44},
+            {x1=1074,y1=436,x2=1137,y2=399,r=44},
+            {x1=1137,y1=399,x2=1200,y2=362,r=44},
+            {x1=1200,y1=362,x2=1262,y2=322,r=44},
+            {x1=1262,y1=322,x2=1325,y2=274,r=52},
+            {x1=1325,y1=274,x2=1387,y2=220,r=44},
+            {x1=1387,y1=220,x2=1450,y2=168,r=44},
+            {x1=1450,y1=168,x2=1492,y2=118,r=44},
+            {x1=1200,y1=362,x2=1264,y2=397,r=48},
+            {x1=1264,y1=397,x2=1302,y2=361,r=52},
+            {x1=1302,y1=361,x2=1325,y2=274,r=52},
+            {x1=1020,y1=474,x2=1115,y2=478,r=44},
+            {x1=1115,y1=478,x2=1208,y2=446,r=44},
+            {x1=1208,y1=446,x2=1265,y2=397,r=44},
+        },
+        interactions={
+            {id="return-stop-5",kind="returnStop",x=836,y=700,radius=72,label="RETURN TO STOP 5"},
+            {id="surface-cache",kind="chest",chestId="surface-cache",x=1264,y=397,radius=62,label="SEARCH SUPPLY CACHE",
+                contents={"food-ration","water-bottle","field-bandage-roll"}},
+            {id="basin-entrance",kind="enterArea",target=Areas.BADLANDS_BASIN_ID,spawn="surface",x=1460,y=150,radius=66,
+                label="ENTER REDWASH BASIN",mapLabel="BASIN"},
+        },
+        mobs={
+            {id="surface-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=920,y=565,maxHp=13,tier="easy",packId="badlands-roamers",
+                patrol={{x=876,y=614},{x=914,y=565},{x=953,y=518}}},
+            {id="surface-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=1160,y=390,maxHp=14,tier="easy",
+                patrol={{x=1137,y=399},{x=1200,y=362},{x=1264,y=397}}},
+        },
+    },
+    [Areas.BADLANDS_BASIN_ID] = {
+        id=Areas.BADLANDS_BASIN_ID,
+        stop=5,
+        kind="wilderness",
+        progressType="survey",
+        name="Redwash Basin",
+        width=1672,
+        height=941,
+        background="assets/sprites/expeditions/stop05/redwash-basin-background.png",
+        walkMask="assets/sprites/expeditions/stop05/walkmask-redwash-basin.png",
+        version=1,
+        objectives={
+            explore="Mark the three cairns. Take the high ridge when the wash floods.",
+            complete="The basin route is surveyed. Return to Stop 5 when ready.",
+        },
+        completionRequiredMarkers={"north-cairn","wash-cairn","arch-cairn"},
+        completionMessage="All three cairns are marked. The basin route is mapped.",
+        environment={
+            kind="flashFlood",cycle=34,warningAt=10,floodAt=14,floodEnds=22,recedesAt=25,
+            floodZone={radius=72,safeBanks={{x=690,y=515},{x=1015,y=510}},
+                points={{x=770,y=500},{x=850,y=500},{x=935,y=506}}},
+        },
+        spawns={surface={x=60,y=600}},
+        clearings={
+            {x=60,y=600,rx=64,ry=58},
+            {x=360,y=180,rx=54,ry=46},
+            {x=450,y=720,rx=58,ry=50},
+            {x=750,y=110,rx=62,ry=48},
+            {x=900,y=500,rx=68,ry=58},
+            {x=1120,y=300,rx=56,ry=48},
+            {x=1580,y=320,rx=58,ry=48},
+            {x=1610,y=410,rx=64,ry=56},
+            {x=530,y=180,rx=55,ry=48},
+            {x=620,y=515,rx=58,ry=50},
+            {x=1170,y=515,rx=58,ry=50},
+            {x=450,y=340,rx=52,ry=46},
+        },
+        corridors={
+            {x1=60,y1=600,x2=170,y2=650,r=54},
+            {x1=170,y1=650,x2=300,y2=630,r=54},
+            {x1=300,y1=630,x2=410,y2=555,r=54},
+            {x1=410,y1=555,x2=570,y2=515,r=58},
+            {x1=570,y1=515,x2=770,y2=500,r=58},
+            {x1=770,y1=500,x2=850,y2=500,r=58},
+            {x1=850,y1=500,x2=935,y2=506,r=58},
+            {x1=935,y1=506,x2=1080,y2=515,r=58},
+            {x1=1080,y1=515,x2=1270,y2=470,r=58},
+            {x1=1270,y1=470,x2=1450,y2=430,r=58},
+            {x1=1450,y1=430,x2=1610,y2=410,r=58},
+            {x1=300,y1=630,x2=280,y2=500,r=52},
+            {x1=280,y1=500,x2=270,y2=370,r=52},
+            {x1=270,y1=370,x2=220,y2=250,r=52},
+            {x1=220,y1=250,x2=220,y2=180,r=52},
+            {x1=220,y1=180,x2=380,y2=180,r=52},
+            {x1=380,y1=180,x2=530,y2=180,r=52},
+            {x1=530,y1=180,x2=650,y2=140,r=52},
+            {x1=650,y1=140,x2=750,y2=110,r=52},
+            {x1=750,y1=110,x2=900,y2=145,r=52},
+            {x1=900,y1=145,x2=1030,y2=205,r=52},
+            {x1=1030,y1=205,x2=1120,y2=300,r=52},
+            {x1=1120,y1=300,x2=1270,y2=315,r=52},
+            {x1=1270,y1=315,x2=1430,y2=345,r=52},
+            {x1=1430,y1=345,x2=1580,y2=320,r=52},
+            {x1=1580,y1=320,x2=1610,y2=410,r=52},
+            {x1=300,y1=630,x2=345,y2=720,r=48},
+            {x1=345,y1=720,x2=450,y2=720,r=48},
+            {x1=280,y1=500,x2=380,y2=440,r=45},
+            {x1=380,y1=440,x2=450,y2=340,r=45},
+            {x1=450,y1=340,x2=500,y2=250,r=45},
+            {x1=500,y1=250,x2=530,y2=180,r=45},
+        },
+        interactions={
+            {id="return-approach",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=60,y=600,radius=72,
+                label="RETURN TO RED MESA",mapLabel="APPROACH"},
+            {id="western-stash",kind="chest",chestId="western-stash",x=360,y=180,radius=58,label="SEARCH RIDGE STASH",mapLabel="STASH",
+                contents={"water-bottle","field-bandage-roll"}},
+            {id="fossil-cache",kind="chest",chestId="fossil-cache",x=450,y=720,radius=58,label="SEARCH FOSSIL CACHE",mapLabel="CACHE",
+                contents={"food-ration","small-oil-canister"}},
+            {id="north-cairn",kind="survey",markerId="north-cairn",x=750,y=110,radius=54,label="MARK NORTH CAIRN",mapLabel="CAIRN"},
+            {id="wash-cairn",kind="survey",markerId="wash-cairn",x=900,y=500,radius=58,label="MARK WASH CAIRN",mapLabel="CAIRN"},
+            {id="arch-cairn",kind="survey",markerId="arch-cairn",x=1580,y=320,radius=56,label="MARK ARCH CAIRN",mapLabel="CAIRN"},
+            {id="basin-exit",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=1610,y=410,radius=68,
+                label="RETURN TO RED MESA",mapLabel="EXIT"},
+        },
+        mobs={
+            {id="basin-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=530,y=180,maxHp=15,tier="easy",packId="redwash-scavengers",
+                patrol={{x=380,y=180},{x=530,y=180},{x=650,y=140}}},
+            {id="basin-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=620,y=515,maxHp=16,tier="easy",
+                patrol={{x=410,y=555},{x=620,y=515},{x=770,y=500}}},
+            {id="basin-scorpion",file="wasteland-scorpion.png",name="Wasteland Scorpion",x=1170,y=515,maxHp=19,tier="easy",
+                patrol={{x=1080,y=515},{x=1170,y=515},{x=1270,y=470}}},
+        },
+    },
     [Areas.SURFACE_ID] = {
         id=Areas.SURFACE_ID,
-        stop=Areas.FIRST_STOP,
+        stop=6,
         kind="surface",
         name="Riverwood Outskirts",
         width=1672,
@@ -17,6 +171,14 @@ local definitions = {
         background="assets/sprites/expeditions/stop06/outskirts-background.png",
         walkMask="assets/sprites/expeditions/stop06/walkmask-outskirts.png",
         version=2,
+        objectives={
+            surface="Search the cache, then enter the waystation.",
+            gateClosed="Defeat both wardens to open the gate.",
+            bossReady="Weaken or challenge the Buried Host.",
+            complete="Search the vault and return to the surface.",
+        },
+        tutorialText="Strike, then move out of the red attack ring. Enemy hits begin turn-based combat with all damage carried over. Clean field victories earn the same rewards. Open AREA MAP to find the waystation.",
+        completionMessage="The Buried Host is defeated. The corruption vault is open!",
         spawns={town={x=836,y=842},dungeonReturn={x=1452,y=250}},
         clearings={
             {x=720,y=140,rx=115,ry=55},
@@ -56,9 +218,9 @@ local definitions = {
         },
         interactions={
             {id="return-town",kind="returnStop",x=836,y=856,radius=82,label="RETURN TO STOP"},
-            {id="surface-cache",kind="chest",chestId="surface-cache",x=1520,y=467,radius=64,label="SEARCH RUIN CHEST",
+            {id="surface-cache",kind="chest",chestId="surface-cache",x=1520,y=467,radius=64,label="SEARCH RUIN CHEST",mapLabel="CACHE",
                 contents={"food-ration","water-bottle","field-bandage-roll"}},
-            {id="dungeon-entrance",kind="enterArea",target=Areas.DUNGEON_ID,spawn="surface",x=1457,y=218,radius=68,label="ENTER BURIED WAYSTATION"},
+            {id="dungeon-entrance",kind="enterArea",target=Areas.DUNGEON_ID,spawn="surface",x=1457,y=218,radius=68,label="ENTER BURIED WAYSTATION",mapLabel="WAYSTATION"},
         },
         mobs={
             {id="surface-bandit-a",file="sludge-bandit.png",name="Sludge-Taken Bandit",x=694,y=529,maxHp=18,tier="easy",packId="surface-bandits",
@@ -69,7 +231,7 @@ local definitions = {
     },
     [Areas.DUNGEON_ID] = {
         id=Areas.DUNGEON_ID,
-        stop=Areas.FIRST_STOP,
+        stop=6,
         kind="dungeon",
         name="Buried Waystation",
         width=1672,
@@ -77,6 +239,15 @@ local definitions = {
         background="assets/sprites/expeditions/stop06/buried-waystation-background.png",
         walkMask="assets/sprites/expeditions/stop06/walkmask-buried-waystation.png",
         version=2,
+        objectives={
+            surface="Find the waystation cache and return to the outskirts.",
+            gateClosed="Defeat both wardens to open the gate.",
+            bossReady="Weaken or challenge the Buried Host.",
+            complete="Search the vault and return to the surface.",
+        },
+        completionMessage="The Buried Host is defeated. The corruption vault is open!",
+        sealedCacheMessage="The corruption vault is sealed. Defeat the guardian to open it.",
+        bossInteractionLabel="CHALLENGE THE BURIED HOST",
         spawns={surface={x=135,y=405}},
         clearings={
             {x=390,y=424,rx=97,ry=38},
@@ -112,10 +283,11 @@ local definitions = {
             {x1=1460,y1=185,x2=1480,y2=150,r=24,gate="bossDefeated"},
         },
         interactions={
-            {id="return-surface",kind="enterArea",target=Areas.SURFACE_ID,spawn="dungeonReturn",x=110,y=405,radius=86,label="RETURN TO OUTSKIRTS"},
-            {id="dungeon-cache",kind="chest",chestId="dungeon-cache",x=460,y=160,radius=64,label="SEARCH WAYSTATION CACHE",
+            {id="return-surface",kind="enterArea",target=Areas.SURFACE_ID,spawn="dungeonReturn",x=110,y=405,radius=86,label="RETURN TO OUTSKIRTS",mapLabel="SURFACE"},
+            {id="dungeon-cache",kind="chest",chestId="dungeon-cache",x=460,y=160,radius=64,label="SEARCH WAYSTATION CACHE",mapLabel="CACHE",
                 contents={"healing-salve","medium-oil-canister","9mm"}},
-            {id="boss-vault",kind="chest",chestId="boss-vault",x=1480,y=150,radius=64,label="OPEN CORRUPTION VAULT",requires="bossDefeated",
+            {id="boss-vault",kind="chest",chestId="boss-vault",x=1480,y=150,radius=64,label="OPEN CORRUPTION VAULT",mapLabel="VAULT",requires="bossDefeated",
+                lockedMessage="The corruption vault is sealed. Defeat the guardian to open it.",
                 contents={"frontier-curved-saber","red-potion-vial","large-oil-canister"}},
         },
         gateRequired={"dungeon-bandit-a","dungeon-bandit-b"},
@@ -130,7 +302,12 @@ local definitions = {
     },
 }
 
-local stopEntrance={id="explore-outskirts",kind="enterArea",target=Areas.SURFACE_ID,spawn="town",x=875,y=367,radius=86,label="EXPLORE OUTSKIRTS"}
+local stopEntrances={
+    [5]={id="explore-badlands",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="town",x=875,y=367,radius=86,
+        label="EXPLORE BADLANDS",signLabel="BADLANDS"},
+    [6]={id="explore-outskirts",kind="enterArea",target=Areas.SURFACE_ID,spawn="town",x=875,y=367,radius=86,
+        label="EXPLORE OUTSKIRTS",signLabel="OUTSKIRTS"},
+}
 local initialized=setmetatable({},{__mode="k"})
 local navigation={}
 local walkMasks={}
@@ -165,7 +342,7 @@ function Areas.definition(areaId)
 end
 
 function Areas.availableAtStop(stop)
-    return tonumber(stop)==Areas.FIRST_STOP
+    return stopEntrances[tonumber(stop)]~=nil
 end
 
 function Areas.isArea(areaId)
@@ -188,6 +365,7 @@ function Areas.ensure(data)
         state.completed=state.completed==true
         state.mobs=type(state.mobs)=="table" and state.mobs or {}
         state.chests=type(state.chests)=="table" and state.chests or {}
+        state.markers=type(state.markers)=="table" and state.markers or {}
         state.gates=type(state.gates)=="table" and state.gates or {}
         local revised=(tonumber(state.contentVersion) or 0)<(definition.version or 1)
         if revised then revisions[areaId]=true end
@@ -262,7 +440,80 @@ function Areas.updateGates(data,areaId)
     end
     state.gates.bossDefeated=hasBoss and allDefeated
     if state.gates.bossDefeated then state.completed=true end
+    if area.completionRequiredMarkers then
+        local marked=0
+        for _,markerId in ipairs(area.completionRequiredMarkers) do
+            if state.markers[markerId]==true then marked=marked+1 end
+        end
+        state.gates.routeSurveyed=marked>=#area.completionRequiredMarkers
+        if state.gates.routeSurveyed then state.completed=true end
+    end
     return state.gates
+end
+
+local function hazardPhase(area,elapsed)
+    local environment=area and area.environment
+    if not environment then return "dry" end
+    local phase=(elapsed or 0)%environment.cycle
+    if phase>=environment.floodAt and phase<environment.floodEnds then return "flooded" end
+    if phase>=environment.warningAt and phase<environment.floodAt then return "warning" end
+    if phase>=environment.floodEnds and phase<environment.recedesAt then return "receding" end
+    return "dry"
+end
+
+function Areas.resetEnvironment(data,areaId)
+    local area=definitions[areaId]
+    if not area or not area.environment then return end
+    local state=Areas.state(data,areaId)
+    state.environmentClock=0
+    state.environmentPhase="dry"
+end
+
+function Areas.updateEnvironment(data,areaId,dt)
+    local area=definitions[areaId]
+    if not area or not area.environment then return nil,false end
+    local state=Areas.state(data,areaId)
+    local previous=state.environmentPhase or hazardPhase(area,state.environmentClock)
+    state.environmentClock=((tonumber(state.environmentClock) or 0)+math.max(0,tonumber(dt) or 0))%area.environment.cycle
+    state.environmentPhase=hazardPhase(area,state.environmentClock)
+    return state.environmentPhase,previous~=state.environmentPhase
+end
+
+function Areas.environment(data,areaId)
+    local area=definitions[areaId]
+    if not area or not area.environment then return nil end
+    local state=Areas.state(data,areaId)
+    local phase=state.environmentPhase or hazardPhase(area,state.environmentClock)
+    return {kind=area.environment.kind,phase=phase,flooded=phase=="flooded",definition=area.environment}
+end
+
+local function insideFloodZone(zone,x,y)
+    if not zone then return false end
+    for i=1,#zone.points-1 do
+        local a,b=zone.points[i],zone.points[i+1]
+        if pointSegmentDistance(x,y,a.x,a.y,b.x,b.y)<=zone.radius then return true end
+    end
+    return false
+end
+
+function Areas.isInFlood(data,areaId,x,y)
+    local area=definitions[areaId]
+    local state=area and Areas.state(data,areaId)
+    return state and state.environmentPhase=="flooded" and insideFloodZone(area.environment and area.environment.floodZone,x,y) or false
+end
+
+function Areas.nearestFloodBank(data,areaId,x,y)
+    local area=definitions[areaId]
+    local banks=area and area.environment and area.environment.floodZone and area.environment.floodZone.safeBanks
+    if not banks then return nil end
+    local best,bestDistance
+    for _,bank in ipairs(banks) do
+        if Areas.isWalkable(data,areaId,bank.x,bank.y) then
+            local d=distance(x,y,bank.x,bank.y)
+            if not bestDistance or d<bestDistance then best,bestDistance=bank,d end
+        end
+    end
+    return best and best.x,best and best.y
 end
 
 local function gateOpen(state,gate)
@@ -319,6 +570,7 @@ function Areas.isWalkable(data,areaId,x,y)
     if not area or x<24 or y<24 or x>area.width-24 or y>area.height-24 then return false end
     local state=Areas.state(data,areaId)
     Areas.updateGates(data,areaId)
+    if Areas.isInFlood(data,areaId,x,y) then return false end
     local mask=walkMask(area)
     if mask then
         local mw,mh=mask:getDimensions()
@@ -384,7 +636,9 @@ local function navigationGraph(data,areaId)
     local area=definitions[areaId]
     if not area then return end
     local gates=Areas.updateGates(data,areaId)
+    local environment=Areas.environment(data,areaId)
     local key=areaId..":"..tostring(gates.bossGateOpen)..":"..tostring(gates.bossDefeated)
+        ..":"..tostring(environment and environment.flooded or false)
     if navigation[key] then return navigation[key] end
     local nodes={}
     local function add(x,y)
@@ -442,7 +696,9 @@ function Areas.pathTarget(data,areaId,x,y,targetX,targetY)
     return targetX,targetY
 end
 
-function Areas.entrance() return stopEntrance end
+-- Preserve the original no-argument behavior for callers that still ask for
+-- the Stop 6 entrance; new stop-aware callers pass their current location.
+function Areas.entrance(stop) return stopEntrances[tonumber(stop) or 6] end
 
 function Areas.cameraOffset(data,player,viewportW,viewportH)
     local area=Areas.current(data)
@@ -461,7 +717,8 @@ end
 
 function Areas.interaction(data,scene,player)
     if not data or not player then return nil end
-    if scene=="stop" and Areas.availableAtStop(data.location) then
+    local stopEntrance=scene=="stop" and Areas.entrance(data.location)
+    if scene=="stop" and stopEntrance then
         if distance(player.x,player.y,stopEntrance.x,stopEntrance.y)<=stopEntrance.radius then
             return {kind="expedition",action=stopEntrance.kind,targetArea=stopEntrance.target,spawn=stopEntrance.spawn,
                 x=stopEntrance.x,y=stopEntrance.y,radius=stopEntrance.radius,hoverRadius=58,label=stopEntrance.label,id=stopEntrance.id}
@@ -484,19 +741,28 @@ function Areas.interaction(data,scene,player)
             and distance(player.x,player.y,saved.x,saved.y)<=180
             and Areas.canReach(data,area.id,player.x,player.y,saved.x,saved.y) then
             return {kind="expedition",action="challenge",mobId=mob.id,id="challenge-"..mob.id,areaId=area.id,
-                x=saved.x,y=saved.y,radius=180,hoverRadius=58,label="CHALLENGE THE BURIED HOST"}
+                x=saved.x,y=saved.y,radius=180,hoverRadius=58,
+                label=area.bossInteractionLabel or ("CHALLENGE "..string.upper(mob.name or "THE GUARDIAN"))}
         end
     end
     if not best then return nil end
-    return {kind="expedition",action=best.kind,targetArea=best.target,spawn=best.spawn,chestId=best.chestId,requires=best.requires,
-        x=best.x,y=best.y,radius=best.radius,hoverRadius=58,label=best.label,id=best.id,areaId=area.id}
+    return {kind="expedition",action=best.kind,targetArea=best.target,spawn=best.spawn,chestId=best.chestId,markerId=best.markerId,requires=best.requires,
+        lockedMessage=best.lockedMessage,x=best.x,y=best.y,radius=best.radius,hoverRadius=58,
+        label=best.label,id=best.id,areaId=area.id,mapLabel=best.mapLabel}
 end
 
 function Areas.audit()
     local errors={}
+    local areaCount,firstStop=0,nil
     for areaId,area in pairs(definitions) do
+        areaCount=areaCount+1
+        firstStop=not firstStop and area.stop or math.min(firstStop,area.stop)
         if area.id~=areaId then errors[#errors+1]=areaId.." id mismatch" end
         if not area.background or area.width<=960 or area.height<=720 then errors[#errors+1]=areaId.." is not a large authored area" end
+        local entrance=stopEntrances[area.stop]
+        if area.kind=="surface" and (not entrance or entrance.target~=areaId) then
+            errors[#errors+1]=areaId.." has no matching stop entrance"
+        end
         local seen={}
         for _,mob in ipairs(area.mobs or {}) do
             if seen[mob.id] then errors[#errors+1]=areaId.." duplicate mob "..mob.id end
@@ -509,6 +775,9 @@ function Areas.audit()
         for spawnId,spawn in pairs(area.spawns or {}) do
             if not Areas.isWalkable(sample,areaId,spawn.x,spawn.y) then errors[#errors+1]=areaId.." blocked spawn "..spawnId end
         end
+        for _,bank in ipairs(area.environment and area.environment.floodZone and area.environment.floodZone.safeBanks or {}) do
+            if not Areas.isWalkable(sample,areaId,bank.x,bank.y) then errors[#errors+1]=areaId.." blocked flood bank" end
+        end
         for _,mob in ipairs(area.mobs or {}) do
             if not Areas.isWalkable(sample,areaId,mob.x,mob.y) then errors[#errors+1]=areaId.." blocked mob "..mob.id end
         end
@@ -516,7 +785,7 @@ function Areas.audit()
             if not Areas.isWalkable(sample,areaId,interaction.x,interaction.y) then errors[#errors+1]=areaId.." blocked interaction "..interaction.id end
         end
     end
-    return {ready=#errors==0,errors=errors,areaCount=2,firstStop=Areas.FIRST_STOP,curve="expedition-area-v1"}
+    return {ready=#errors==0,errors=errors,areaCount=areaCount,firstStop=firstStop,curve="expedition-area-v2"}
 end
 
 Areas.definitions=definitions

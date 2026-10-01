@@ -36,6 +36,12 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
                 assert(math.abs(actual-expected)<.00001,
                     (label or 'coordinate')..': '..tostring(actual)..' ~= '..tostring(expected))
             end
+            function gripAtTouch(session,x,y)
+                local gripX,gripY=Aim.gripForAim(session.weapon,session.aimMode or 'hip',
+                    session.aimX,session.aimY,960,720)
+                close(gripX,x,session.weapon..' grip X at touch')
+                close(gripY,y,session.weapon..' grip Y at touch')
+            end
             function newRangeHarness(scale)
                 scale=scale or 1
                 local h={keys={},released={},moves=0,scale=scale}
@@ -97,9 +103,11 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
                         local state={}
                         local tx,ty=width*.54,height*.72
                         Aim.set(state,tx,ty,weapon,mode,width,height)
-                        assert(ty-state.aimY>math.min(width,height)*.10,weapon..' reticle hidden by aiming hand')
+                        local dx,dy=tx-state.aimX,ty-state.aimY
+                        assert(math.sqrt(dx*dx+dy*dy)>math.min(width,height)*.10,
+                            weapon..' reticle overlaps the aiming hand')
                         local place=Aim.placement(weapon,mode,mode,state.aimX,state.aimY,width,height)
-                        local grip=Grips[weapon][mode]
+                        local grip=place.gripAnchor
                         close(place.x+place.width*grip.x,tx,weapon..' grip X')
                         close(place.y+place.height*grip.y,ty,weapon..' grip Y')
                         assert(place.width<=width*.65+.00001 and place.height<=height*.66+.00001)
@@ -111,6 +119,31 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
                     end
                 end
             end
+        ''')
+
+    def test_frontier_45_1911_hip_crosshair_follows_the_authored_barrel_line(self) -> None:
+        self.lua.execute(r'''
+            local weapon='frontier-45-1911'
+            local anchors=require('game.first_person_weapon_actions').anchorsFor(weapon)
+            -- These sprite-space points sit on the ready frame's visible bore axis.
+            close(anchors.muzzle.x,.25,weapon..' muzzle anchor')
+            close(anchors.muzzle.y,.24,weapon..' muzzle anchor')
+            close(anchors.bore.x,.475,weapon..' bore anchor')
+            close(anchors.bore.y,.316,weapon..' bore anchor')
+
+            local place=Aim.placement(weapon,'hip','hip',480,360,960,720)
+            local muzzleX=place.x+place.width*anchors.muzzle.x
+            local muzzleY=place.y+place.height*anchors.muzzle.y
+            local boreX=place.x+place.width*anchors.bore.x
+            local boreY=place.y+place.height*anchors.bore.y
+            local barrelX,barrelY=muzzleX-boreX,muzzleY-boreY
+            local reticleX,reticleY=480-muzzleX,360-muzzleY
+            assert(math.abs(barrelX*reticleY-barrelY*reticleX)<.001,
+                weapon..' hip crosshair left the visible barrel centerline')
+            assert(barrelX*reticleX+barrelY*reticleY>0,
+                weapon..' hip crosshair is behind the muzzle')
+            close(math.sqrt(reticleX*reticleX+reticleY*reticleY),64.8,
+                weapon..' muzzle-to-crosshair spacing')
         ''')
 
     def test_special_animation_views_keep_the_same_held_point(self) -> None:
@@ -174,7 +207,12 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
         self.lua.globals().spriteSizes = sizes
         self.lua.execute(r'''
             local function noop() end
-            love.filesystem={getInfo=function() return {} end}
+            -- Exercise the calibrated fallback artwork here. The action-sheet
+            -- renderer is covered separately by the firearm smoke test.
+            love.filesystem={getInfo=function(path)
+                if path:find('/actions/',1,true) then return nil end
+                return {}
+            end}
             love.graphics={push=noop,pop=noop,setColor=noop,
                 newImage=function(path)
                     local size=assert(spriteSizes[path])
@@ -187,10 +225,11 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             for weapon,entry in pairs(Manifest.weapons) do
                 if entry.kind=='firearm' then
                     for _,ads in ipairs({false,true}) do
-                        local state={weapon=weapon,ads=ads,recoil=0}
+                        local state={weapon=weapon,ads=ads}
                         Shooting.setTouchAim(state,520,550,960,720)
                         Shooting.draw(state,960,720)
-                        local grip=Grips[weapon][ads and 'sights' or 'hip']
+                        local grip=Aim.placement(weapon,ads and 'sights' or 'hip',ads and 'sights' or 'hip',
+                            state.aimX,state.aimY,960,720).gripAnchor
                         close(drawn.x+drawn.width*grip.x,520,weapon)
                         close(drawn.y+drawn.height*grip.y,550,weapon)
                     end
@@ -204,20 +243,22 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             local c=h.controls
             assert(c:touchpressed('aim',1000,1000))
             assert(c.rangeAimTouch=='aim' and h.session.shots==0)
-            close(h.session.aimX,500); close(h.session.aimY,356)
+            gripAtTouch(h.session,500,500)
+            local aimX,aimY=h.session.aimX,h.session.aimY
             h:targetAtAim()
             c:touchpressed('fire',300,400)
             assert(h.session.shots==1 and h.session.hits==1)
             assert(c.rangeAimTouch=='aim')
-            close(h.session.aimX,500); close(h.session.aimY,356)
+            close(h.session.aimX,aimX); close(h.session.aimY,aimY)
             c:touchmoved('fire',700,650,400,250)
             assert(h.moves==0)
-            close(h.session.aimX,500); close(h.session.aimY,356)
+            close(h.session.aimX,aimX); close(h.session.aimY,aimY)
             c:touchreleased('fire',700,650)
             assert(c.rangeAimTouch=='aim')
             c:touchmoved('aim',1100,1040,100,40)
             assert(h.moves==1)
-            close(h.session.aimX,550); close(h.session.aimY,376)
+            gripAtTouch(h.session,550,520)
+            close(h.session.aimX,aimX+50); close(h.session.aimY,aimY+20)
         ''')
 
     def test_fire_button_uses_existing_aim_and_releases_cleanly(self) -> None:
@@ -225,12 +266,14 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             local h=newRangeHarness()
             local c=h.controls
             c:touchpressed('aim',500,500)
+            local aimX,aimY=h.session.aimX,h.session.aimY
             h:targetAtAim()
             c:touchpressed('fire',480,675)
             assert(h.session.shots==1 and h.session.hits==1)
             assert(c.rangeAimTouch=='aim' and c.touches.fire.kind=='rangeControl')
             c:touchmoved('fire',400,350,-100,-100)
-            close(h.session.aimX,500); close(h.session.aimY,356)
+            close(h.session.aimX,aimX); close(h.session.aimY,aimY)
+            gripAtTouch(h.session,500,500)
             c:touchreleased('fire',400,350)
             assert(c.touches.fire==nil and c.rangeAimTouch=='aim' and #h.keys==0)
         ''')
@@ -265,14 +308,16 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             local h=newRangeHarness()
             local c=h.controls
             c:touchpressed('aim',500,500)
+            local aimX,aimY=h.session.aimX,h.session.aimY
             c:touchpressed('fire',300,300)
             c:touchreleased('aim',500,500)
             assert(c.rangeAimTouch==nil)
             c:touchmoved('fire',450,450,150,150)
-            close(h.session.aimX,500); close(h.session.aimY,356)
+            close(h.session.aimX,aimX); close(h.session.aimY,aimY)
             c:touchpressed('new-aim',550,520)
             assert(c.rangeAimTouch=='new-aim' and h.session.shots==1)
-            close(h.session.aimX,550); close(h.session.aimY,376)
+            gripAtTouch(h.session,550,520)
+            close(h.session.aimX,aimX+50); close(h.session.aimY,aimY+20)
             c:touchreleased('fire',450,450)
             assert(c.rangeAimTouch=='new-aim')
         ''')
@@ -310,8 +355,11 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             assert(c.rangeAimTouch=='new' and h.session.shots==0)
             c:touchreleased('old',600,500)
             assert(c.rangeAimTouch=='new')
+            gripAtTouch(h.session,550,520)
+            local aimX,aimY=h.session.aimX,h.session.aimY
             c:touchmoved('new',570,540,20,20)
-            close(h.session.aimX,570); close(h.session.aimY,396)
+            gripAtTouch(h.session,570,540)
+            close(h.session.aimX,aimX+20); close(h.session.aimY,aimY+20)
         ''')
 
     def test_setup_restart_does_not_reuse_an_old_finger_on_the_same_session(self) -> None:
@@ -346,7 +394,7 @@ class MobileWeaponAimBehaviorTests(unittest.TestCase):
             assert(not c:touchreleased('fire',480,675))
             c:touchpressed('fresh',550,520)
             assert(c.rangeAimTouch=='fresh' and h.session.shots==1)
-            close(h.session.aimX,550); close(h.session.aimY,376)
+            gripAtTouch(h.session,550,520)
         ''')
 
 

@@ -143,22 +143,33 @@ equal(interactions,1,"context action resumes after map closes")
 setmetatable(love.graphics,{__index=function() return noop end})
 runtime={state="game",scene="expedition",animationClock=0,player={x=100,y=100},saveData={location=6,resources={food=10,water=10,coal=10,oil=10},
     trainCars={"engine"},passengers={},inventory={},droppedItems={}}}
-ui={propImages={},drawResource=noop,drawJourneyHUD=noop,drawDialogue=noop,drawMap=function() error("expedition opened the journey map") end}
-local localMapDraws,objectiveFrame=0,nil
+ui={propImages={},drawResource=noop,drawJourneyHUD=noop,drawDialogue=noop,drawInventory=noop,drawChestInventory=noop,
+    drawMap=function() error("expedition opened the journey map") end}
+local localMapDraws=0
 local hud=require("game.gameplay_hud").new(defaults({
     runtime=runtime,width=960,height=720,ui=ui,colors={cream={1,1,1},brass={1,.7,.2},panel={.1,.1,.1},green={0,1,0},blue={0,0,1},red={1,0,0}},
     maintenanceSession={},holdPickupSeconds=1,getCloudLayer=function() return {} end,mobileEnabled=function() return false end,
     engineUpgrades={},trainUpgradeBalance={resourceCapacity=function() return 20 end},clouds={},maintenance={oilCapacity=function() return 20 end},
     firstAid={},shootingRange={},lastStand={},catalog={},scenery={},npcImages={},util={},train={},
     button=function(label,x,y,w,h) return {x=x,y=y,w=w,h=h,label=label} end,
-    drawMenuFrame=function(x,y,w,h) objectiveFrame={x=x,y=y,w=w,h=h} end,
-    expeditionObjective=function() return {title="Riverwood Outskirts",text="Find the buried waystation.",status="Threats 0 / 2  •  Caches 0 / 1"} end,
+    drawMenuFrame=noop,
+    expeditionObjective=function() return {title="Riverwood Outskirts",text="Find the buried waystation.",status="CLEARED 0/2"} end,
     drawExpeditionLocalMap=function() localMapDraws=localMapDraws+1 end,
     travelStatus=function() return {cost={food=1,water=1,coal=1},affordable=true} end,
 }))
 hud.draw()
-equal(objectiveFrame.y,200,"area objective sits below existing journey HUD")
+equal(ui.expeditionHudBounds.x,16,"compact expedition HUD anchors to the corner")
+equal(ui.expeditionHudBounds.w,300,"compact expedition HUD uses a narrow width")
+equal(ui.expeditionHudBounds.h,58,"compact expedition HUD uses a short height")
 equal(ui.map.label,"AREA MAP","expedition map control is clearly labeled")
+runtime.inventoryOpen=true; runtime.chestOpen=true
+hud.draw()
+equal(ui.backpack.label,"CLOSE PACK","expedition storage has a visible close action")
+assert(ui.backpack.y+ui.backpack.h<=35,"desktop storage close control stays above the ammo panel")
+equal(ui.map,nil,"storage hides the area map action")
+equal(ui.options,nil,"storage hides options behind the inventory")
+equal(ui.stopAttack,nil,"storage hides attack while its panels are open")
+runtime.inventoryOpen=false; runtime.chestOpen=false
 runtime.mapOpen=true
 hud.draw()
 equal(localMapDraws,1,"expedition map renderer is used")
@@ -202,4 +213,4 @@ runtime.state="game"; runtime.scene="train"
 equal(audioRuntime.musicCategory(),"train","train return restores train music")
 
 love=previousLove
-return {ready=true,checks="modal-world-pause,player-resume,mobile-attack-and-interact,world-input-guards,area-map-close,hud-map-dispatch,train-return-floor,expedition-music"}
+return {ready=true,checks="modal-world-pause,player-resume,mobile-attack-and-interact,world-input-guards,area-map-close,compact-hud,storage-close,hud-map-dispatch,train-return-floor,expedition-music"}

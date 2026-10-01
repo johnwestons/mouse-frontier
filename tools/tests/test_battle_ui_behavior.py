@@ -67,7 +67,9 @@ class BattleUIBehaviorTests(unittest.TestCase):
                     return function(value) calls[#calls+1]={name=name,value=value} end
                 end
                 local inputContext=setmetatable({
-                    runtime=runtime,ui=ctx.ui,characters={},maintenanceSession={},scenery={},inventory={},catalog={},
+                    runtime=runtime,ui=ctx.ui,characters={},maintenanceSession={},scenery={},inventory=require('game.inventory'),catalog={},
+                    controlBindings=require('game.control_bindings').new({getInfo=function() return nil end}),
+                    mobileEnabled=function() return false end,
                     npcRelationships={},merchantTrade={},util=require('game.util'),engineUpgrades={},trainUpgradeBalance={},
                     maintenance={},battleRules=require('game.battle_rules'),stops={},settlements={},interiorDoors={},firstAid={},shootingRange={},
                     battleAttack=record('attack'),battleHeal=record('heal'),battleGuard=record('guard'),

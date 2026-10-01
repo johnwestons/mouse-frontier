@@ -49,50 +49,55 @@ local function new(context)
   end
 
   local function backVisible()
-      if runtime.exitPrompt then return true end
-      if runtime.state=="slots" or runtime.state=="characters" then return true end
-      if runtime.state=="battle" then return runtime.inventoryOpen end
+      if runtime.exitPrompt or ui.escMenuOpen or ui.optionsOpen then return true end
+      if runtime.state~="game" then return true end
       return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
-          or runtime.editMode or runtime.poseMenu or ui.optionsOpen or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid or runtime.shootingRange)
+          or runtime.editMode or runtime.poseMenu or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid or runtime.shootingRange
+          or (runtime.lastStand and runtime.lastStand.capture))
   end
 
   local function menuVisible()
-      return runtime.state=="game" and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
+      return runtime.state=="game" and not ui.escMenuOpen and not ui.optionsOpen and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
           and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
           and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue and not runtime.firstAid and not runtime.shootingRange
+          and not (runtime.lastStand and runtime.lastStand.capture)
   end
 
   local function contextualAction()
-      if runtime.dialogue then return "q","CLOSE" end
+      if runtime.dialogue then
+          if runtime.dialogue.choice and runtime.questOffer then return "e","ACCEPT" end
+          return "e","CLOSE"
+      end
       local kind=ui.interaction and ui.interaction.kind
       if kind=="radio" then return "p","RADIO"
       elseif kind=="item" then return "e","PICK UP"
       elseif kind=="chest" then return "i","OPEN"
       elseif kind=="fire" then return "e","COAL"
-      elseif kind=="npc" or kind=="passenger" then return "q","TALK"
-      elseif kind=="house" then return "q","ENTER"
-      elseif kind=="houseExit" then return "q","EXIT"
-      elseif kind=="shootingRange" then return "q","RANGE"
+      elseif kind=="npc" or kind=="passenger" then return "e","TALK"
+      elseif kind=="house" then return "e","ENTER"
+      elseif kind=="houseExit" then return "e","EXIT"
+      elseif kind=="shootingRange" then return "e","RANGE"
       elseif kind=="expedition" then
-          if ui.interaction.action=="challenge" then return "q","CHALLENGE" end
+          if ui.interaction.action=="challenge" then return "e","CHALLENGE" end
           local returning=ui.interaction.action=="returnStop" or (ui.interaction.label or ""):find("^RETURN")~=nil
-          return "q",ui.interaction.action=="chest" and "OPEN" or (returning and "RETURN" or "ENTER")
+          return "e",ui.interaction.action=="chest" and "OPEN" or (returning and "RETURN" or "ENTER")
       elseif kind=="crowCaravan" then
           local action=ui.interaction.action
-          return "q",action=="trade" and "TRADE" or (action=="returnStop" and "RETURN" or "CARAVAN")
-      elseif kind=="returnTrain" then return "q","BOARD"
-      elseif kind=="carNext" or kind=="carPrev" then return "q","DOOR"
+          return "e",action=="trade" and "TRADE" or (action=="returnStop" and "RETURN" or "CARAVAN")
+      elseif kind=="returnTrain" then return "e","BOARD"
+      elseif kind=="carNext" or kind=="carPrev" then return "e","DOOR"
       end
       return "e","USE"
   end
 
   local function primaryAction()
-      if runtime.dialogue then return "q","CLOSE" end
+      if runtime.dialogue then return contextualAction() end
       if runtime.scene=="expedition" then return "f","ATTACK" end
       return contextualAction()
   end
 
   local function secondaryAction()
+      if runtime.dialogue then return nil end
       if runtime.scene=="expedition" and not runtime.dialogue and ui.interaction then
           return contextualAction()
       end
@@ -117,7 +122,7 @@ local function new(context)
           cameraGesturesActive=function() return true end,
           shootingRangeActive=shootingRangeActive,
           backVisible=backVisible,
-          backLabel=function() return runtime.state=="slots" and "EXIT" or "BACK" end,
+          backLabel=function() return runtime.state=="slots" and "MENU" or "PAUSE" end,
           menuVisible=menuVisible,
           menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
           menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; endCameraPan() end,
@@ -159,6 +164,7 @@ local function new(context)
   end
 
   local function draw(...)
+      if ui.escMenuOpen or ui.optionsOpen or runtime.exitPrompt then return end
       if controls then return controls:draw(...) end
   end
 
@@ -190,6 +196,17 @@ local function new(context)
       end
       return controls and controls:touchpressed(...)
   end
+  local function movementTouchPressed(id,x,y)
+      local handled=controls and controls:movementTouchPressed(id,x,y) or false
+      if handled and runtime.lastStand then runtime.lastStand.touchControls=true end
+      return handled
+  end
+  local function movementTouchMoved(id,x,y)
+      return controls and controls:movementTouchMoved(id,x,y) or false
+  end
+  local function movementTouchReleased(id)
+      return controls and controls:movementTouchReleased(id) or false
+  end
   local function touchmoved(...) return controls and controls:touchmoved(...) end
   local function touchreleased(...) return controls and controls:touchreleased(...) end
 
@@ -214,6 +231,9 @@ local function new(context)
       touchpressed=touchpressed,
       touchmoved=touchmoved,
       touchreleased=touchreleased,
+      movementTouchPressed=movementTouchPressed,
+      movementTouchMoved=movementTouchMoved,
+      movementTouchReleased=movementTouchReleased,
       focus=focus,
   }
 end

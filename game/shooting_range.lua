@@ -1,6 +1,7 @@
 local WorldView=require("game.world_view")
 local SoundProfiles=require("game.weapon_sound_profiles")
 local FirstPersonWeaponManifest=require("game.first_person_weapon_manifest")
+local WeaponActions=require("game.first_person_weapon_actions")
 local MobileAim=require("game.mobile_weapon_aim")
 local Typography=require("game.typography")
 local Range={}
@@ -34,6 +35,27 @@ local lanes={
     {x=470,y=255,scale=.26,radius=27},
 }
 
+local function shotgunPellets(weapon)
+    local radius=weapon=="sawed-off-shotgun" and 18 or 14
+    local pellets={}
+    for index=1,7 do
+        local x,y
+        for attempt=1,24 do
+            local angle=math.random()*math.pi*2
+            local distance=math.sqrt(math.random())*radius
+            x,y=math.cos(angle)*distance,math.sin(angle)*distance
+            local separated=true
+            for _,previous in ipairs(pellets) do
+                local dx,dy=x-previous.x,y-previous.y
+                if dx*dx+dy*dy<9 then separated=false; break end
+            end
+            if separated then break end
+        end
+        pellets[index]={x=x,y=y}
+    end
+    return pellets
+end
+
 local lobbyRows={
     {kind="weapon",y=270,label="WEAPON"},
     {kind="motion",y=365,label="TARGET MOTION"},
@@ -41,7 +63,9 @@ local lobbyRows={
 }
 
 local DEFAULT_SIGHT_ANCHOR={x=.5,y=.35}
-local MOBILE_FIRE_BUTTON={x=410,y=654,w=140,h=42}
+local MOBILE_FIRE_BUTTON={x=410,y=654,w=132,h=42}
+local MOBILE_MODE_BUTTON={x=548,y=654,w=126,h=42}
+local DESKTOP_MODE_BUTTON={x=548,y=654,w=126,h=42}
 
 local function title(value)
     return (value or "unknown"):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
@@ -203,6 +227,11 @@ local function loadWeapon(session,data,catalog)
     session.capacity=math.max(1,math.floor(combat.capacity or 1))
     session.loaded=math.min(session.capacity,availableAmmo(data,combat))
     session.needsReload=false
+    session.cooldown=0
+    session.reloadTimer=0
+    session.fireHeld=false
+    if not FirstPersonWeaponManifest.fireModeValid(session.weapon,session.fireMode) then session.fireMode="single" end
+    WeaponActions.finish(session)
     clearWeaponViewSequence(session)
     MobileAim.refresh(session,session.weapon,session.aimMode)
 end
@@ -221,9 +250,10 @@ function Range.new(data,spot,catalog,options)
     local session={
         phase="lobby",spot=spot,weapons=weapons,selected=selected,location=data.location,
         npc=options and options.npc,aimX=480,aimY=330,clock=0,score=0,shots=0,hits=0,
-        targets={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,recoil=0,message=nil,
+        targets={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,message=nil,
         menuRow=1,motion=spot.preferences.motion or "stationary",material=spot.preferences.material or "paper",
         aimMode="hip",needsReload=false,reloadPulse=0,targetPattern=targetPattern,stageLength=stageLength,
+        fireMode="single",
     }
     loadWeapon(session,data,catalog)
     return session
@@ -244,21 +274,45 @@ local function spawnTarget(session)
     }
 end
 
+local shoot
+
 local function resetRound(session,data,catalog)
     session.phase="play"; session.clock=0; session.score=0; session.shots=0; session.hits=0
     session.targets={}; session.spawnIndex=0; session.nextSpawn=.1; session.time=session.stageLength or Range.roundSeconds
-    session.recoil=0; session.message=nil; session.completed=false; session.result=nil
+    session.message=nil; session.completed=false; session.result=nil
     session.aimMode=session.aimMode or "hip"; session.needsReload=false; session.reloadPulse=0
     session.spot.preferences={motion=session.motion,material=session.material,targetPattern=session.targetPattern,stageLength=session.stageLength}
     loadWeapon(session,data,catalog)
 end
 
-function Range.update(session,dt)
+function Range.update(session,dt,data,catalog)
     if not session or session.phase~="play" then return nil end
     dt=math.min(.08,math.max(0,dt or 0))
     session.clock=session.clock+dt; session.time=math.max(0,session.time-dt)
-    session.recoil=math.max(0,session.recoil-dt*32)
     updateWeaponViewSequence(session,dt)
+    WeaponActions.update(session,dt)
+    session.cooldown=math.max(0,(session.cooldown or 0)-dt)
+    if (session.reloadTimer or 0)>0 then
+        local tubeReload=session.tubeReloadTotalRounds~=nil
+        if tubeReload then
+            local inserted=WeaponActions.consumeTubeRounds(session)
+            local combat=session.ammoType and {ammo=session.ammoType} or {}
+            local target=math.min(session.capacity,availableAmmo(data or {},combat))
+            for _=1,inserted do
+                if session.loaded<target then session.loaded=session.loaded+1 end
+            end
+        end
+        session.reloadTimer=math.max(0,session.reloadTimer-dt)
+        if session.reloadTimer==0 then
+            local combat=session.ammoType and {ammo=session.ammoType} or {}
+            if not tubeReload then
+                session.loaded=math.min(session.capacity,availableAmmo(data or {},combat))
+            end
+            session.needsReload=session.loaded<=0 and combat.ammo~=nil
+            session.message=session.needsReload and "NO MORE AMMO" or "RELOADED"
+            WeaponActions.finish(session)
+        end
+    end
     session.reloadPulse=(session.reloadPulse or 0)+dt
     session.nextSpawn=session.nextSpawn-dt
     if session.nextSpawn<=0 and #session.targets<4 then
@@ -273,18 +327,26 @@ function Range.update(session,dt)
         if target.x<145 or target.x>830 then target.velocity=-target.velocity end
         if target.life<=0 then table.remove(session.targets,index) end
     end
+    local autoOutcome
+    if session.fireHeld and session.fireMode=="auto" and data and catalog and session.cooldown<=0 and session.time>0 then
+        autoOutcome=shoot(session,data,catalog,session.aimX,session.aimY)
+    end
     if session.time<=0 and not session.completed then session.completed=true; return "complete" end
+    if autoOutcome=="shot" then return "shot" end
 end
 
 function Range.sway(session,catalog)
-    local family=catalog.weaponFamily(session.weapon)
-    local amount=family=="slingshots" and 7 or family=="bows" and 5 or 3.5
-    if session.aimMode=="sights" then amount=amount*.28 end
-    return math.sin(session.clock*1.75)*amount,math.sin(session.clock*2.31+.8)*amount*.72-session.recoil
+    -- The reticle and muzzle remain fixed to authored weapon art. Shot and
+    -- reload motion is shown by swapping sprite frames, never by code offsets.
+    return 0,0
 end
 
-local function shoot(session,data,catalog,x,y)
+shoot=function(session,data,catalog,x,y)
     local combat=catalog.weaponCombat[session.weapon]
+    if FirstPersonWeaponManifest.fireModeValid(session.weapon,session.fireMode) then
+        if session.fireMode=="safe" then session.message="SAFE"; return "safe" end
+        if session.reloadTimer>0 or session.cooldown>0 then return "busy" end
+    end
     if session.loaded<=0 then
         if not combat.ammo then
             session.needsReload=false
@@ -302,29 +364,46 @@ local function shoot(session,data,catalog,x,y)
     session.loaded=session.loaded-1; session.shots=session.shots+1
     session.needsReload=session.loaded<=0 and combat.ammo~=nil
     startWeaponViewSequence(session)
+    if FirstPersonWeaponManifest.fireModeValid(session.weapon,session.fireMode) then
+        session.cooldown=FirstPersonWeaponManifest.fireCooldownFor(session.weapon,session.fireMode)
+        WeaponActions.beginFire(session)
+    end
     local swayX,swayY=Range.sway(session,catalog)
     local shotX,shotY=(x or session.aimX)+swayX,(y or session.aimY)+swayY
     shotX,shotY=WorldView.toWorld(shotX,shotY)
-    session.recoil=catalog.weaponFamily(session.weapon)=="firearms" and 12 or 7
-    local best,bestDistance
-    for _,target in ipairs(session.targets) do
-        local dx,dy=shotX-target.x,shotY-target.y
-        local distance=math.sqrt(dx*dx+dy*dy)
-        local bonus=session.weapon:find("shotgun") and 13 or 0
-        if distance<=target.radius+bonus and (not bestDistance or distance<bestDistance) then best,bestDistance=target,distance end
+    local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon) or {{x=0,y=0}}
+    local struck={}
+    for pelletIndex,pellet in ipairs(pellets) do
+        local pelletX,pelletY=shotX+pellet.x,shotY+pellet.y
+        local best,bestDistance
+        for _,target in ipairs(session.targets) do
+            local dx,dy=pelletX-target.x,pelletY-target.y
+            local distance=math.sqrt(dx*dx+dy*dy)
+            if distance<=target.radius and (not bestDistance or distance<bestDistance) then
+                best,bestDistance=target,distance
+            end
+        end
+        if best then
+            local previous=struck[best]
+            if not previous or bestDistance<previous then struck[best]=bestDistance end
+            if best.material=="clay" then
+                if not best.hit then best.breaking=.001; best.life=math.min(best.life,.48) end
+            else
+                best.impacts[#best.impacts+1]={offsetX=pelletX-best.x,offsetY=pelletY-best.y,
+                    variant=(session.shots+pelletIndex-2)%4+1,material=best.material}
+            end
+        end
     end
-    if best then
-        if best.material=="clay" then
-            if not best.hit then best.breaking=.001; best.life=math.min(best.life,.48) end
-        else
-            local impact={offsetX=shotX-best.x,offsetY=shotY-best.y,variant=(session.shots-1)%4+1,material=best.material}
-            best.impacts[#best.impacts+1]=impact
+    local hitTarget
+    for target,distance in pairs(struck) do
+        hitTarget=hitTarget or target
+        if not target.hit then
+            target.hit=true; session.hits=session.hits+1
+            local precision=math.max(.25,1-distance/(target.radius+1))
+            session.score=session.score+math.floor(target.points*precision+25)
         end
-        if not best.hit then
-            best.hit=true; session.hits=session.hits+1
-            local precision=math.max(.25,1-bestDistance/(best.radius+1))
-            session.score=session.score+math.floor(best.points*precision+25)
-        end
+    end
+    if hitTarget then
         session.message=session.needsReload and "RELOAD REQUIRED" or "HIT"; return "shot"
     end
     session.message=session.needsReload and "RELOAD REQUIRED" or "MISS"; return "shot"
@@ -338,10 +417,49 @@ function Range.reload(session,data,catalog)
         session.message=session.weaponViewSequence and "PROJECTILE RETURNING" or "READY"
         return false
     end
-    clearWeaponViewSequence(session)
+    if session.reloadTimer>0 then return false end
     local amount=math.min(session.capacity,availableAmmo(data,combat))
     if amount<=session.loaded then session.needsReload=session.loaded<=0 and combat.ammo~=nil; session.message=combat.ammo and "NO MORE AMMO" or "READY"; return false end
-    session.loaded=amount; session.needsReload=false; session.message="RELOADED"; return true
+    clearWeaponViewSequence(session)
+    if FirstPersonWeaponManifest.reloadProfileFor(session.weapon) then
+        local profile=FirstPersonWeaponManifest.reloadProfileFor(session.weapon)
+        local rounds
+        if profile.style=="tubeLever" then rounds=amount end
+        if profile.style=="pumpTube" then rounds=math.max(1,amount-session.loaded) end
+        session.reloadTimer=WeaponActions.reloadDuration(session,rounds)
+        session.needsReload=false
+        session.message="RELOADING"
+        WeaponActions.beginReload(session,rounds)
+        if rounds and profile.style=="tubeLever" then session.loaded=0 end
+    else
+        session.loaded=amount; session.needsReload=false; session.message="RELOADED"
+    end
+    return true
+end
+
+function Range.cycleFireMode(session,direction)
+    if not session then return nil end
+    local modes=FirstPersonWeaponManifest.fireModesFor(session.weapon)
+    if #modes<2 then return nil end
+    local selected=1
+    for index,mode in ipairs(modes) do if mode==session.fireMode then selected=index; break end end
+    selected=((selected-1+(direction or 1))%#modes)+1
+    session.fireMode=modes[selected]
+    session.fireHeld=false
+    session.message="FIRE MODE: "..string.upper(session.fireMode)
+    return session.fireMode
+end
+
+function Range.mousereleased(session,button)
+    if not session then return false end
+    if button==nil or button==1 or button==4 or button==5 then session.fireHeld=false end
+    return true
+end
+
+function Range.keyreleased(session,key)
+    if not session then return false end
+    if key=="space" then session.fireHeld=false; return true end
+    return false
 end
 
 function Range.select(session,data,catalog,direction)
@@ -422,7 +540,7 @@ end
 function Range.returnToSetup(session)
     if not session or session.phase~="play" then return false end
     clearWeaponViewSequence(session)
-    session.phase="lobby"; session.targets={}; session.recoil=0; session.needsReload=false
+    session.phase="lobby"; session.targets={}; session.needsReload=false
     session.time=session.stageLength or Range.roundSeconds
     session.message="COURSE RESET - ADJUST YOUR SETUP"
     return true
@@ -463,16 +581,19 @@ function Range.mousepressed(session,x,y,data,catalog,button)
         end
         if hit({x=800,y=654,w=130,h=42},x,y) then return "close" end
     elseif session.phase=="play" then
+        if hit(DESKTOP_MODE_BUTTON,x,y) or hit(MOBILE_MODE_BUTTON,x,y) then return Range.cycleFireMode(session) and "mode" or "dry" end
         if hit({x=18,y=654,w=126,h=42},x,y) then return Range.reload(session,data,catalog) and "reload" or "dry" end
         if hit({x=154,y=654,w=126,h=42},x,y) then Range.toggleAim(session); return "aim" end
         if hit({x=680,y=654,w=126,h=42},x,y) then Range.returnToSetup(session); return "setup" end
         if hit({x=816,y=654,w=126,h=42},x,y) then return "close" end
         if (button==4 or button==5) and hit(MOBILE_FIRE_BUTTON,x,y) then
+            session.fireHeld=true
             return shoot(session,data,catalog,session.aimX,session.aimY)
         end
-        if button==5 then return shoot(session,data,catalog,session.aimX,session.aimY) end
+        if button==5 then session.fireHeld=true; return shoot(session,data,catalog,session.aimX,session.aimY) end
         Range.mousemoved(session,x,y,button==4)
         if button==4 then return "aimPointer" end
+        session.fireHeld=true
         return shoot(session,data,catalog,session.aimX,session.aimY)
     elseif session.phase=="results" then
         if hit({x=238,y=548,w=150,h=58},x,y) then
@@ -485,7 +606,7 @@ function Range.mousepressed(session,x,y,data,catalog,button)
 end
 
 function Range.keypressed(session,key,data,catalog)
-    if key=="escape" or key=="q" then return "close" end
+    if key=="escape" or key=="e" then return "close" end
     if session.phase=="lobby" then
         if key=="up" or key=="w" then session.menuRow=((session.menuRow-2)%#lobbyRows)+1; return "select" end
         if key=="down" or key=="s" then session.menuRow=(session.menuRow%#lobbyRows)+1; return "select" end
@@ -498,9 +619,10 @@ function Range.keypressed(session,key,data,catalog)
         end
     elseif session.phase=="play" then
         if key=="r" then return Range.reload(session,data,catalog) and "reload" or "dry" end
+        if key=="v" then return Range.cycleFireMode(session) and "mode" or "dry" end
         if key=="tab" then Range.returnToSetup(session); return "setup" end
         if key=="lshift" or key=="rshift" then Range.toggleAim(session); return "aim" end
-        if key=="space" then return shoot(session,data,catalog,session.aimX,session.aimY) end
+        if key=="space" then session.fireHeld=true; return shoot(session,data,catalog,session.aimX,session.aimY) end
     elseif session.phase=="results" and (key=="return" or key=="space") then session.phase="lobby"; return "setup" end
 end
 
@@ -570,9 +692,6 @@ local function drawWeapon(ui,name)
     end
 end
 
-local HIP_CURSOR_OFFSET_X=472
-local HIP_CURSOR_OFFSET_Y=376
-
 local function drawFirstPersonWeapon(assets,ui,session,aimX,aimY,swayX,swayY,placement)
     local views=assets and assets.weaponViews and assets.weaponViews[session.weapon]
     local state=session.weaponViewState or session.aimMode
@@ -586,20 +705,38 @@ local function drawFirstPersonWeapon(assets,ui,session,aimX,aimY,swayX,swayY,pla
     end
     if not image then drawWeapon(ui,session.weapon); return false end
     local width,height=image:getDimensions()
+    local actionImage,actionQuad,actionWidth,actionHeight,adsFrame
+    if placement=="sights" and session.weaponAction~="reload"
+        and FirstPersonWeaponManifest.adsActionAtlasFor(session.weapon)
+        and views and type(views.adsActionFrame)=="function" then
+        adsFrame=WeaponActions.adsFrameIndex(session)
+        actionImage,actionQuad,actionWidth,actionHeight=views:adsActionFrame(session.weapon,adsFrame)
+    elseif FirstPersonWeaponManifest.actionAtlasFor(session.weapon)
+        and (placement~="sights" or session.weaponAction=="reload")
+        and views and type(views.actionFrame)=="function" then
+        actionImage,actionQuad,actionWidth,actionHeight=views:actionFrame(session.weapon,WeaponActions.frameIndex(session))
+    end
     love.graphics.setColor(1,1,1,1)
-    if session.touchAim then
-        local place=MobileAim.placement(session.weapon,state,session.aimMode,aimX,aimY,960,720)
-        love.graphics.draw(image,place.x,place.y,0,place.width/width,place.height/height)
+    if actionImage then
+        if placement=="sights" and session.weaponAction~="reload" then
+            local place=MobileAim.adsActionPlacement(session.weapon,aimX,aimY,960,720,
+                actionWidth,actionHeight,560,650,adsFrame)
+            if place then love.graphics.draw(actionImage,actionQuad,place.x,place.y,0,place.scale,place.scale) end
+        else
+            local place=MobileAim.placement(session.weapon,"hip","hip",aimX,aimY,960,720)
+            local actionScale=place.height/actionHeight
+            love.graphics.draw(actionImage,actionQuad,
+                place.gripX-place.gripAnchor.x*actionWidth*actionScale,
+                place.gripY-place.gripAnchor.y*actionHeight*actionScale,0,actionScale,actionScale)
+        end
     elseif placement=="sights" then
         local anchor=DEFAULT_SIGHT_ANCHOR
         if views and type(views.anchor)=="function" then anchor=select(1,views:anchor(session.weapon)) end
         local scale=math.min(560/width,650/height)
         love.graphics.draw(image,aimX-anchor.x*width*scale,aimY-anchor.y*height*scale,0,scale,scale)
     else
-        local scale=math.min(540/width,540/height)
-        local artX=aimX+HIP_CURSOR_OFFSET_X
-        local artY=aimY+HIP_CURSOR_OFFSET_Y
-        love.graphics.draw(image,artX,artY,0,scale,scale,width,height)
+        local place=MobileAim.placement(session.weapon,state,session.aimMode,aimX,aimY,960,720)
+        love.graphics.draw(image,place.x,place.y,0,place.width/width,place.height/height)
     end
     return true
 end
@@ -642,8 +779,8 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         end
         WorldView.finish()
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
-        love.graphics.setColor(1,.88,.58); love.graphics.print(string.format("TIME  %02d",math.ceil(session.time)),28,24,0,1.15,1.15)
-        love.graphics.print("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,58)
+        love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
+        text("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,56,180,24,.84,.74,"left",true)
         text("SCORE\n"..session.score,750,21,180,59,1,.88)
         local sx,sy=Range.sway(session,catalog); local x,y=session.aimX+sx,session.aimY+sy
         local placement=Range.weaponViewPlacement(session)
@@ -665,8 +802,13 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         drawButton(reloadLabel,{x=18,y=654,w=126,h=42},combat.ammo~=nil)
         drawButton(session.aimMode=="sights" and "AIMING" or (mobile and "AIM" or "AIM  [RMB]"),{x=154,y=654,w=126,h=42},true)
         drawButton(mobile and "SETUP" or "SETUP  [TAB]",{x=680,y=654,w=126,h=42},true)
-        drawButton(mobile and "LEAVE" or "LEAVE  [Q]",{x=816,y=654,w=126,h=42},true)
+        drawButton(mobile and "LEAVE" or "LEAVE  [E]",{x=816,y=654,w=126,h=42},true)
         love.graphics.setColor(.045,.03,.02,.93); love.graphics.rectangle("fill",286,mobile and 592 or 648,388,mobile and 128 or 62,7,7)
+        local fireModes=FirstPersonWeaponManifest.fireModesFor(session.weapon)
+        if #fireModes>1 then
+            drawButton("MODE: "..string.upper(session.fireMode or "single"),
+                mobile and MOBILE_MODE_BUTTON or DESKTOP_MODE_BUTTON,true)
+        end
         if mobile then
             love.graphics.setColor(1,.88,.58)
             text(title(session.weapon),292,596,376,26,.90,.78,"center",true)
@@ -677,7 +819,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
                 ..string.upper(session.targetPattern).." | "..session.stageLength.." SEC",292,698,376,20,.78,.72,"center",true)
         else
             love.graphics.setColor(1,.88,.58); text(title(session.weapon).."  |  "..string.upper(session.motion).." "..string.upper(session.material)
-                .."  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,650,376,56,.82,.72)
+                .."  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,650,244,56,.82,.72)
         end
         return
     end

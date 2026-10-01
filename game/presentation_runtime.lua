@@ -138,10 +138,24 @@ local function new(context)
       print("[APP] First frame rendered")
   end
 
+  local function drawGlobalMenus()
+      if ui.drawEscapeMenu then ui.drawEscapeMenu() end
+      if ui.optionsOpen and ui.drawOptions then ui.drawOptions() end
+      if runtime.exitPrompt then drawExitPrompt() end
+      if runtime.pendingConfirmation and ui.drawActionConfirmation then ui.drawActionConfirmation() end
+      if ui.drawKeyboardFocus then ui.drawKeyboardFocus() end
+  end
+
   local function draw()
       love.graphics.clear(0.025,0.02,0.025,1)
       if screens:is("intro") then
           screens:draw(love.graphics.getDimensions())
+          local offsetX,offsetY,scaleX,scaleY=Viewport.transform(W,H)
+          love.graphics.push()
+          love.graphics.translate(offsetX,offsetY)
+          love.graphics.scale(scaleX,scaleY)
+          drawGlobalMenus()
+          love.graphics.pop()
           markFirstFrame()
           return
       end
@@ -151,10 +165,13 @@ local function new(context)
       love.graphics.translate(offsetX,offsetY)
       love.graphics.scale(scaleX,scaleY)
       screens:draw(W,H)
-      if runtime.exitPrompt then drawExitPrompt() end
+      drawGlobalMenus()
       love.graphics.pop()
 
-      if not (runtime.lastStand and runtime.lastStand.capture==true) then
+      local quest=runtime.lastStand
+      local showLastStandMovement=quest and quest.capture==true
+          and (quest.mode=="backyard" or quest.mode=="interior")
+      if not (quest and quest.capture==true) or showLastStandMovement then
           drawMobileControls(offsetX,offsetY,scaleX,scaleY)
       end
       drawTravelFade()

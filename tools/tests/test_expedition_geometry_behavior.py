@@ -157,6 +157,53 @@ class ExpeditionGeometryBehaviorTests(unittest.TestCase):
             end
         ''')
 
+    def test_stop5_badlands_uses_a_timed_flood_and_survey_route(self) -> None:
+        self.lua.execute(r'''
+            local surface,approach=fixture(Areas.BADLANDS_SURFACE_ID)
+            assert(surface.location==6 and approach.stop==5)
+            for _,interaction in ipairs(approach.interactions) do
+                route(surface,approach.id,approach.spawns.town.x,approach.spawns.town.y,
+                    interaction.x,interaction.y,'Badlands surface -> '..interaction.id)
+            end
+            for _,mob in ipairs(approach.mobs) do
+                assert(mob.file=='dust-beetle.png' or mob.file=='cactus-rat.png','Stop 5 should use regular Badlands mobs')
+                route(surface,approach.id,approach.spawns.town.x,approach.spawns.town.y,mob.x,mob.y,'Badlands -> '..mob.id)
+                for _,point in ipairs(mob.patrol) do route(surface,approach.id,mob.x,mob.y,point.x,point.y,mob.id..' patrol') end
+            end
+
+            local basin,area,state=fixture(Areas.BADLANDS_BASIN_ID)
+            assert(area.stop==5 and area.kind=='wilderness' and area.progressType=='survey' and #area.mobs==3)
+            assert(#area.completionRequiredMarkers==3 and not area.gateRequired)
+            for _,interaction in ipairs(area.interactions) do
+                route(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,
+                    interaction.x,interaction.y,'Basin entry -> '..interaction.id)
+            end
+            for _,mob in ipairs(area.mobs) do
+                assert(not mob.boss,'Badlands basin threats remain regular field mobs')
+                route(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,mob.x,mob.y,'Basin entry -> '..mob.id)
+                local x,y=mob.x,mob.y
+                for index,point in ipairs(mob.patrol) do
+                    route(basin,area.id,x,y,point.x,point.y,mob.id..' patrol '..index)
+                    x,y=point.x,point.y
+                end
+            end
+            Areas.resetEnvironment(basin,area.id)
+            Areas.updateEnvironment(basin,area.id,11)
+            assert(state.environmentPhase=='warning')
+            Areas.updateEnvironment(basin,area.id,4)
+            assert(state.environmentPhase=='flooded')
+            assert(not Areas.isWalkable(basin,area.id,832,526),'flood closes the lower wash')
+            local x,y=Areas.pathTarget(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,750,110)
+            assert(x and Areas.canReach(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,x,y),
+                'the high ridge remains navigable during a flood')
+            Areas.updateEnvironment(basin,area.id,8.1)
+            assert(state.environmentPhase=='receding' and Areas.isWalkable(basin,area.id,832,526))
+            for _,markerId in ipairs(area.completionRequiredMarkers) do state.markers[markerId]=true end
+            assert(Areas.updateGates(basin,area.id).routeSurveyed and state.completed,
+                'surveying all cairns completes the route without a boss gate')
+            assert(Areas.availableAtStop(5) and Areas.availableAtStop(6) and not Areas.availableAtStop(4))
+        ''')
+
     def test_map_revision_repairs_only_obsolete_pending_battle_return_points(self) -> None:
         self.lua.execute(r'''
             local destination={areaId=Areas.SURFACE_ID,x=520,y=380}
@@ -192,7 +239,7 @@ class ExpeditionGeometryBehaviorTests(unittest.TestCase):
             Areas.ensure(data)
             local surface=Areas.state(data,Areas.SURFACE_ID)
             local authored=Areas.mobDefinition(Areas.SURFACE_ID,'surface-bandit-a')
-            assert(surface.contentVersion==Areas.CONTENT_VERSION and surface.discovered)
+            assert(surface.contentVersion==Areas.definition(Areas.SURFACE_ID).version and surface.discovered)
             assert(surface.mobs['surface-bandit-a'].x==authored.x and surface.mobs['surface-bandit-a'].y==authored.y)
             assert(surface.mobs['surface-bandit-a'].hp==4 and not surface.mobs['surface-bandit-a'].dead)
             assert(surface.mobs['surface-bandit-b'].dead and surface.mobs['surface-bandit-b'].rewardResolved)

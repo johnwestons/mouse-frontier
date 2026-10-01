@@ -17,22 +17,34 @@ def png_size(path: Path) -> tuple[int, int]:
 
 
 class ExpeditionFrameworkTests(unittest.TestCase):
-    def test_first_area_has_large_surface_dungeon_and_production_art(self) -> None:
+    def test_stop_matched_areas_have_large_maps_and_production_art(self) -> None:
         areas = (ROOT / "game" / "expedition_areas.lua").read_text(encoding="utf-8")
-        self.assertIn('Areas.FIRST_STOP = 6', areas)
+        self.assertIn('Areas.FIRST_STOP = 5', areas)
+        self.assertIn('Areas.BADLANDS_SURFACE_ID = "stop05-badlands-approach"', areas)
+        self.assertIn('Areas.BADLANDS_BASIN_ID = "stop05-redwash-basin"', areas)
+        self.assertIn('kind="wilderness"', areas)
+        self.assertIn('kind="flashFlood"', areas)
+        self.assertIn('completionRequiredMarkers=', areas)
         self.assertIn('Areas.SURFACE_ID = "stop06-outskirts"', areas)
         self.assertIn('Areas.DUNGEON_ID = "stop06-buried-waystation"', areas)
+        self.assertIn('stop=5', areas)
+        self.assertIn('stop=6', areas)
         self.assertIn('kind="returnStop"', areas)
         self.assertIn('kind="chest"', areas)
         self.assertIn('boss=true', areas)
         self.assertIn('requires="bossDefeated"', areas)
 
         expected_maps = {
+            "badlands-approach-background.png": (1672, 941),
+            "redwash-basin-background.png": (1672, 941),
             "outskirts-background.png": (1672, 941),
             "buried-waystation-background.png": (1672, 941),
         }
         for name, dimensions in expected_maps.items():
-            self.assertEqual(png_size(ROOT / "assets" / "sprites" / "expeditions" / "stop06" / name), dimensions)
+            stop = "stop05" if name in {"badlands-approach-background.png", "redwash-basin-background.png"} else "stop06"
+            self.assertEqual(png_size(ROOT / "assets" / "sprites" / "expeditions" / stop / name), dimensions)
+        for name in ("walkmask-badlands-approach.png", "walkmask-redwash-basin.png"):
+            self.assertEqual(png_size(ROOT / "assets" / "sprites" / "expeditions" / "stop05" / name), (1672, 941))
 
     def test_corrupted_mob_action_atlases_are_consistent(self) -> None:
         atlas_dir = ROOT / "assets" / "sprites" / "Mobs" / "expedition"
@@ -46,6 +58,10 @@ class ExpeditionFrameworkTests(unittest.TestCase):
             self.assertIn(f"{table}[file]", runtime)
         self.assertIn('Sprites.load(spec)', runtime)
         self.assertIn('Assets.markExternallyOwned(image)', runtime)
+        self.assertIn('Ordinary world mobs use the same authored sprites', runtime)
+        smoke = (ROOT / "tools" / "expedition-playthrough-smoke" / "main.lua").read_text(encoding="utf-8")
+        self.assertIn('clearBadlandsExpedition()', smoke)
+        self.assertIn('Areas.BADLANDS_SURFACE_ID', smoke)
 
     def test_field_damage_and_battle_handoff_contract(self) -> None:
         roaming = (ROOT / "game" / "roaming_mobs.lua").read_text(encoding="utf-8")

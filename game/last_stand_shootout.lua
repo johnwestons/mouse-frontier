@@ -233,6 +233,9 @@ function Shootout.update(state,dt,data,Catalog,width,height)
         if state.notice.timer<=0 then state.notice=nil end
     end
     FirstPerson.update(state.gun,dt,data,state.quest,width,height)
+    if state.gun.fireHeld and state.gun.fireMode=="auto" then
+        Shootout.fire(state,data,width,height,Catalog)
+    end
     updateEffects(state,dt)
     if state.result=="withdrawing" then
         state.withdrawTimer=state.withdrawTimer-dt
@@ -312,6 +315,30 @@ function Shootout.setTouchAim(state,x,y,width,height)
     FirstPerson.setTouchAim(state.gun,x,y,width,height)
 end
 
+function Shootout.setFireHeld(state,source,held,data,width,height,Catalog)
+    if not state or not state.gun then return false end
+    source=source or "fire"
+    state.fireHeldSources=state.fireHeldSources or {}
+    local wasHeld=state.fireHeldSources[source]==true
+    if held then
+        state.fireHeldSources[source]=true
+    else
+        state.fireHeldSources[source]=nil
+    end
+    state.gun.fireHeld=next(state.fireHeldSources)~=nil
+    if held and not wasHeld then
+        return Shootout.fire(state,data,width,height,Catalog)
+    end
+    return false
+end
+
+function Shootout.cycleFireMode(state,direction)
+    if not state or not state.gun then return nil end
+    local mode=FirstPerson.cycleFireMode(state.gun,direction)
+    if mode then state.notice={text="FIRE MODE: "..string.upper(mode),timer=1.8} end
+    return mode
+end
+
 function Shootout.reload(state,data)
     local reloaded=FirstPerson.reload(state.gun,data,state.quest)
     if not reloaded then state.notice={text="No rounds available to reload.",timer=1.5} end
@@ -350,7 +377,9 @@ function Shootout.fire(state,data,width,height,Catalog)
     if state.result or state.ducking or state.coverProgress>0 or FirstPerson.needsSupply(state.gun,data,state.quest) then return false end
     local fired,reason=FirstPerson.fire(state.gun,data,state.quest)
     if not fired then
-        state.notice={text=reason=="reload" and "Magazine empty. Press R to reload." or "The weapon is not ready.",timer=1.5}
+        local message=reason=="safe" and "Weapon selector is on SAFE. Press V to change mode."
+            or reason=="reload" and "Magazine empty. Press R to reload." or "The weapon is not ready."
+        state.notice={text=message,timer=1.5}
         return false
     end
     local layout=WindowScene.layout(state.windowId,width,height)
@@ -492,7 +521,7 @@ local touchButtons={
     {id="r",label="RELOAD",x=142,w=108},
     {id="ads",label="AIM",x=266,w=108},
     {id="c",label="COVER",x=390,w=108},
-    {id="l",label="SUPPLY",x=514,w=108},
+    {id="v",label="FIRE MODE",x=514,w=108},
     {id="tab",label="WEAPON",x=638,w=148},
     {id="fire",label="FIRE",x=812,w=130},
 }
@@ -524,12 +553,13 @@ function Shootout.mousepressed(state,x,y,button,data,Catalog,width,height)
         if pointIn(x,y,rx,ry,rw,rh) then Shootout.supply(state,data,Catalog) end
         return true
     end
-    Shootout.fire(state,data,width,height,Catalog)
+    Shootout.setFireHeld(state,"mouse",true,data,width,height,Catalog)
     return true
 end
 
 function Shootout.mousereleased(state,button)
     if button==2 then FirstPerson.setADS(state.gun,false) end
+    if button==1 then Shootout.setFireHeld(state,"mouse",false) end
     return true
 end
 
@@ -596,13 +626,14 @@ function Shootout.draw(state,data,width,height)
     textBox("HOSTILES  "..state.quest.kills.." / "..Tuning.requiredKills,32,57,222,28)
     textBox("MORALE  "..math.ceil(state.quest.enemyMorale).."%",32,90,222,28)
 
-    panel(width-260,16,242,140)
+    panel(width-260,16,242,176)
     love.graphics.setColor(.96,.86,.67,1)
     textBox("HEALTH  "..math.ceil(data.health or data.maxHealth or 20).." / "..math.ceil(data.maxHealth or 20),width-246,24,214,28)
     textBox("POSITION  "..math.ceil(state.quest.positionIntegrity).."%",width-246,57,214,28)
     local rounds=FirstPerson.rounds(state.gun,data,state.quest)
     textBox("MAG  "..(state.gun.magazine or 0).." / "..(state.gun.capacity or 0),width-246,90,214,28)
     textBox("ROUNDS  "..rounds,width-246,123,214,28)
+    textBox("FIRE MODE  "..string.upper(state.gun.fireMode or "single").."  [V]",width-246,156,214,28)
 
     local _,stageName=stageFor(state.elapsed)
     if state.stageBanner>0 then
@@ -618,7 +649,7 @@ function Shootout.draw(state,data,width,height)
     end
     love.graphics.setColor(.95,.84,.64,.86)
     local hints=state.touchControls and "Hold the grip. Second touch or FIRE to shoot."
-        or "LMB fire  •  RMB aim  •  R reload  •  C cover  •  TAB weapon  •  ESC leave"
+        or "LMB fire  •  RMB aim  •  R reload  •  V mode  •  C cover  •  TAB weapon  •  ESC leave"
     textBox(hints,24,height-36,width-48,30,.9,"center")
     if state.ducking then
         panel(width/2-230,height/2-52,460,104)

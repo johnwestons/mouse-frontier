@@ -16,6 +16,12 @@ local function new(context)
   local AudioCatalog=required(context,"audioCatalog","table")
   local audio
   local departSource
+  ui.menuSettings=ui.menuSettings or {}
+  ui.menuSettings.audio=ui.menuSettings.audio or {
+      station="chill",musicVolume=.10,sfxVolume=.55,rainVolume=.20,
+      rainEnabled=true,musicPaused=false,musicMuted=false,
+  }
+  local menuSettings=ui.menuSettings.audio
 
   local function initialize()
       if audio then audio:shutdown() end
@@ -25,10 +31,24 @@ local function new(context)
   end
 
   local function settings()
-      return runtime.saveData and runtime.saveData.audio
+      local saved=runtime.saveData and runtime.saveData.audio
+      if runtime.state=="intro" or runtime.state=="slots" or runtime.state=="characters" then
+          if saved then
+              menuSettings.station=saved.station or "chill"
+              menuSettings.musicVolume=saved.musicVolume or .10
+              menuSettings.sfxVolume=saved.sfxVolume or .55
+              menuSettings.rainVolume=saved.rainVolume or .20
+              menuSettings.rainEnabled=saved.rainEnabled~=false
+              menuSettings.musicPaused=saved.musicPaused==true
+              menuSettings.musicMuted=saved.musicMuted==true
+          end
+          return menuSettings
+      end
+      return saved
   end
 
   local function musicCategory()
+      if runtime.state=="intro" or runtime.state=="slots" or runtime.state=="characters" then return "chill" end
       if runtime.state=="ending" then return "endingHappy" end
       if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.boss and "bossFight" or "battle" end
       if runtime.state~="game" and runtime.state~="event" then return nil end

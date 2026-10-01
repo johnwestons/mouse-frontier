@@ -201,6 +201,10 @@ return {
     melee={{x=0.2506,y=0.5335,side=-1,confidence=0.960},{x=0.2506,y=0.5335,side=-1,confidence=0.960},{x=0.2506,y=0.5335,side=-1,confidence=0.960}},
     ranged={{x=0.2324,y=0.4946,side=-1,confidence=0.960},{x=0.2324,y=0.4946,side=-1,confidence=0.960},{x=0.2324,y=0.4946,side=-1,confidence=0.960}},
   },
+  ["young-tinker-fox.png"]={
+    melee={{x=0.2506,y=0.5335,side=-1,confidence=0.960},{x=0.2506,y=0.5335,side=-1,confidence=0.960},{x=0.2506,y=0.5335,side=-1,confidence=0.960}},
+    ranged={{x=0.2324,y=0.4946,side=-1,confidence=0.960},{x=0.2324,y=0.4946,side=-1,confidence=0.960},{x=0.2324,y=0.4946,side=-1,confidence=0.960}},
+  },
   ["tortoise-conductor.png"]={
     melee={{x=0.3525,y=0.5062,side=-1,confidence=0.710},{x=0.6506,y=0.4751,side=1,confidence=0.960},{x=0.6973,y=0.5106,side=1,confidence=0.794}},
     ranged={{x=0.2721,y=0.4979,side=-1,confidence=0.960},{x=0.2503,y=0.4681,side=-1,confidence=0.960},{x=0.3097,y=0.5361,side=-1,confidence=0.798}},

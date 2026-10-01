@@ -22,6 +22,7 @@ local function new(context)
   local cloudLayer=required(context,"cloudLayer","table")
   local maintenanceSession=required(context,"maintenanceSession","table")
   local mobileEnabled=required(context,"mobileEnabled","function")
+  local pointerPosition=context.pointerPosition or function() return love.mouse.getPosition() end
   local mobileMovement=required(context,"mobileMovement","function")
   local mobileHeld=required(context,"mobileHeld","function")
   local mobileSprinting=required(context,"mobileSprinting","function")
@@ -59,6 +60,7 @@ local function new(context)
   local writeSave=required(context,"writeSave","function")
   local FirstAid=required(context,"firstAid","table")
   local ShootingRange=required(context,"shootingRange","table")
+  local controlBindings=required(context,"controlBindings","table")
 
   local function movementAxis(a, b) return (love.keyboard.isDown(b) and 1 or 0) - (love.keyboard.isDown(a) and 1 or 0) end
 
@@ -70,10 +72,16 @@ local function new(context)
       return Util.clampHouseFloor(newX,newY)
   end
 
-  local function updateInteraction()
+  local function updateInteraction(pointerX,pointerY)
       local mx,my
-      if mobileEnabled() then mx,my=runtime.player.x,runtime.player.y
-      else mx,my=screenToGame(love.mouse.getPosition()) end
+      if type(pointerX)=="number" and type(pointerY)=="number" then
+          mx,my=screenToGame(pointerX,pointerY)
+      elseif mobileEnabled() then
+          mx,my=runtime.player.x,runtime.player.y
+      else
+          pointerX,pointerY=pointerPosition()
+          mx,my=screenToGame(pointerX,pointerY)
+      end
       local selected=interactionRouter.select({data=runtime.saveData,scene=runtime.scene,player=runtime.player,npc=runtime.npcActor,car=car,mouseX=mx,mouseY=my,
           itemIsHere=itemIsHere,storageCapacities=Catalog.storageCapacities,nearTrain=Settlements.nearTrain,trainPoint=Settlements.trainPoint,
           nearDoor=Settlements.nearDoor,doorPoint=Settlements.doorPoint,hasSettlements=scenery.settlements~=nil,layout=ensureStopLayout,
@@ -88,15 +96,20 @@ local function new(context)
       runtime.nearCaravan=flags.nearCaravan or false
       runtime.nearCarPrev=flags.nearCarPrev or false; runtime.nearCarNext=flags.nearCarNext or false; ui.nearRadio=flags.nearRadio or false
   end
+  ui.refreshWorldInteraction=updateInteraction
 
   local function update(dt)
       updatePersistence(dt)
+      if ui.escMenuOpen or ui.optionsOpen or runtime.exitPrompt then
+          updateAudio()
+          return
+      end
       runtime.animationClock=runtime.animationClock+dt
       Clouds.update(cloudLayer,dt)
-      if screens:is("intro") then screens:update(dt); return end
+      if screens:is("intro") then updateAudio(); screens:update(dt); return end
       Assets.releaseIntroImages(scenery)
       Assets.releaseDormantSceneArt(scenery,runtime)
-      if ui.assetStreamer then ui.assetStreamer:update(runtime.state,runtime.scene,runtime.saveData,runtime.battle,runtime.npcActor) end
+      if ui.assetStreamer then ui.assetStreamer:update(runtime.state,runtime.scene,runtime.saveData,runtime.battle,runtime.npcActor,runtime.characterPreviewFile) end
       -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
       -- the retired random decoration wildlife remains disconnected.
       runtime.walkingSoundTimer=math.max(0,runtime.walkingSoundTimer-dt)
@@ -108,7 +121,7 @@ local function new(context)
       if runtime.actionTimer<=0 then runtime.actionHeldItem=nil; runtime.actionKind=nil end
       if screens:update(dt) then return end
       if runtime.shootingRange then
-          local outcome=ShootingRange.update(runtime.shootingRange,dt)
+          local outcome=ShootingRange.update(runtime.shootingRange,dt,runtime.saveData,Catalog)
           if outcome then handleShootingRange(outcome) end
           return
       end
@@ -154,7 +167,7 @@ local function new(context)
       end
       if runtime.holdPickupIndex then
           local item=runtime.saveData and runtime.saveData.droppedItems[runtime.holdPickupIndex]
-          local useHeld=love.keyboard.isDown("e") or mobileHeld("e")
+          local useHeld=love.keyboard.isDown("e") or controlBindings:actionDown("interact") or mobileHeld("e")
           if WorldPause.isPaused(runtime,ui,maintenanceSession) or not useHeld or not item or not itemIsHere(item) or math.sqrt((runtime.player.x-item.x)^2+(runtime.player.y-item.y)^2)>=75 then
               runtime.holdPickupIndex,runtime.holdPickupTime=nil,0
           else
@@ -180,11 +193,12 @@ local function new(context)
       end
       local dx=movementAxis("a","d")+movementAxis("left","right")
       local dy=movementAxis("w","s")+movementAxis("up","down")
-      local mobileX,mobileY=mobileMovement(); dx,dy=dx+mobileX,dy+mobileY
+      local mobileX,mobileY=mobileMovement(); local controllerX,controllerY=controlBindings:movement()
+      dx,dy=dx+mobileX+controllerX,dy+mobileY+controllerY
       local motionProfile=CharacterMotion.profileFor(runtime.saveData.character)
       if motionProfile then
           if dx~=0 or dy~=0 then runtime.playerPose="idle"; runtime.poseMenu=false end
-          local sprint=(love.keyboard.isDown("lshift","rshift") or mobileSprinting()) and 1.7 or 1
+          local sprint=(love.keyboard.isDown("lshift","rshift") or controlBindings:actionDown("sprint") or mobileSprinting()) and 1.7 or 1
           CharacterMotion.updateActor(runtime.player,dx,dy,dt,{
               profile=motionProfile,speed=runtime.player.speed,speedScale=sprint,
               move=moveInCurrentScene,
@@ -199,7 +213,7 @@ local function new(context)
           runtime.playerPose="idle"; runtime.poseMenu=false
           local length=math.sqrt(dx*dx+dy*dy); dx,dy=dx/length,dy/length
           if dx~=0 then runtime.player.facing=dx>0 and 1 or -1 end
-          local sprint=(love.keyboard.isDown("lshift","rshift") or mobileSprinting()) and 1.7 or 1
+          local sprint=(love.keyboard.isDown("lshift","rshift") or controlBindings:actionDown("sprint") or mobileSprinting()) and 1.7 or 1
           local oldX,oldY=runtime.player.x,runtime.player.y
           runtime.player.x,runtime.player.y=runtime.player.x+dx*runtime.player.speed*sprint*dt,runtime.player.y+dy*runtime.player.speed*sprint*dt
           if runtime.walkingSoundTimer<=0 then

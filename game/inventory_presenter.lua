@@ -4,6 +4,7 @@ local function required(context,name,expected)
   if expected then assert(type(value)==expected,"inventory presenter "..name.." must be a "..expected) end
   return value
 end
+local UIStyle=require("game.ui_layout")
 
 local function new(context)
   assert(type(context)=="table","inventory presenter requires a context")
@@ -71,7 +72,10 @@ local function new(context)
           isWeapon=isWeapon,
           drawMenuFrame=drawMenuFrame,
           button=button,
-          pointer=pointer,
+          pointer=function()
+              local x,y=pointer()
+              return UIStyle.inversePoint(x,y,"inventory",{x=25,y=35,w=910,h=660})
+          end,
           value=value,
           set=setState,
           battleMode=battleMode,
@@ -83,12 +87,21 @@ local function new(context)
       }
   end
 
+  ui.keyboardInventoryValue=function(slot) return value(slot) end
+  ui.keyboardInventoryMove=function(from,to) return currentContext().move(from,to) end
+  ui.keyboardInventoryConsume=function() return currentContext().consume() end
+  ui.keyboardInventoryDrop=function(slot) return currentContext().drop(slot) end
+
   local function drawInventory()
-      return InventoryUI.draw(currentContext())
+      return UIStyle.scope("inventory",{x=25,y=35,w=910,h=660},function()
+          return InventoryUI.draw(currentContext())
+      end)
   end
 
   local function drawChestInventory()
-      return InventoryUI.drawChest(currentContext())
+      return UIStyle.scope("inventory",{x=25,y=35,w=910,h=660},function()
+          return InventoryUI.drawChest(currentContext())
+      end)
   end
 
   local function drawItem(name,rect)
@@ -96,12 +109,14 @@ local function new(context)
   end
 
   local function handleClick(x,y,offerGift)
+      x,y=UIStyle.inversePoint(x,y,"inventory",{x=25,y=35,w=910,h=660})
       local inventoryContext=currentContext()
       inventoryContext.offerGift=offerGift
       return InventoryUI.handleClick(inventoryContext,x,y)
   end
 
   local function handleRelease(x,y,buttonCode)
+      x,y=UIStyle.inversePoint(x,y,"inventory",{x=25,y=35,w=910,h=660})
       return InventoryUI.handleRelease(currentContext(),x,y,buttonCode)
   end
 

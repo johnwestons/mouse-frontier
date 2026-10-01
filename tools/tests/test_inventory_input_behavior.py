@@ -90,6 +90,8 @@ class InventoryInputBehaviorTests(unittest.TestCase):
             local operations,returns=0,0
             local ui={handleRadioMousePressed=function() return false end,returnStop={x=0,y=0,w=100,h=100}}
             local context={runtime=runtime,ui=ui,characters={},maintenanceSession={},scenery={},inventory={},
+                controlBindings=require('game.control_bindings').new({getInfo=function() return nil end}),
+                mobileEnabled=function() return false end,
                 catalog={},npcRelationships={},merchantTrade={},util=Util,engineUpgrades={},trainUpgradeBalance={},
                 maintenance={},battleRules={},stops={},settlements={},interiorDoors={},firstAid={},shootingRange={},
                 screenToGame=function(x,y) return x,y end,
@@ -100,9 +102,9 @@ class InventoryInputBehaviorTests(unittest.TestCase):
             input.mousepressed(20,20,1)
             assert(runtime.inventoryOpen and not runtime.dialogue and operations==0 and returns==0,
                 'the first touch anywhere should only dismiss the item result')
-            input.mousepressed(200,200,1)
-            assert(runtime.inventoryOpen and operations==1,
-                'the next touch should resume inventory input')
+            input.mousepressed(600,240,1)
+            assert(runtime.inventoryOpen and operations==1 and returns==0,
+                'the next touch inside the backpack should resume inventory input')
         ''')
 
     def test_raw_mobile_touch_dismisses_before_controls_capture_it(self) -> None:

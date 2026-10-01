@@ -11,6 +11,11 @@ function love.conf(t)
     t.window.resizable = true
     t.window.minwidth = Config.minimumWidth
     t.window.minheight = Config.minimumHeight
+    -- The smoke runner gets a separate LÖVE save directory so its slot screen
+    -- cannot read or migrate normal player saves during validation.
+    if os.getenv("MOUSE_FRONTIER_SMOKE") == "1" then
+        t.identity = "mouse-frontier-smoke"
+    end
     -- Modules such as love.system are not loaded yet while love.conf runs.
     -- love._os is the platform value exposed by LÖVE during configuration.
     if love._os == "Android" then

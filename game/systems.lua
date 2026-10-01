@@ -13,6 +13,7 @@ return {
     battleUI = require("game.battle_ui"),
     combatBalance = require("game.combat_balance"),
     contentRegistry = require("game.content_registry"),
+    controlBindings = require("game.control_bindings"),
     crowCaravanArea = require("game.crow_caravan_area"),
     crowCaravans = require("game.crow_caravans"),
     eventBalance = require("game.event_balance"),

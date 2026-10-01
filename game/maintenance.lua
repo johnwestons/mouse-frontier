@@ -441,9 +441,9 @@ local function drawTitle(session)
     love.graphics.translate(480, 126)
     love.graphics.scale(1.20, 1.20)
     love.graphics.setColor(.08, .045, .02, .95)
-    love.graphics.printf(title, -155, -8, 310, "center")
+    Typography.drawText(love.graphics,title,-155,-12,310,24,{scale=1,minScale=.72,align="center",valign="center"})
     love.graphics.setColor(.92, .63, .25, 1)
-    love.graphics.printf(title, -155, -10, 310, "center")
+    Typography.drawText(love.graphics,title,-155,-14,310,24,{scale=1,minScale=.72,align="center",valign="center"})
     love.graphics.pop()
 end
 
@@ -539,7 +539,8 @@ function Maintenance.draw(session, data)
     drawDoneSprite(session)
 
     local textScale=Accessibility.textScale(data)
-    local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1" or (love.system and love.system.getOS and love.system.getOS()=="Android")
+    local platform=love and love.system and love.system.getOS and love.system.getOS()
+    local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1" or platform=="Android" or platform=="iOS"
     love.graphics.setColor(.035, .027, .023, .96); love.graphics.rectangle("fill",690,578,240,58,5,5)
     love.graphics.setColor(.96, .82, .48, 1)
     Typography.drawText(love.graphics,"OIL "..Maintenance.oilSupply(data).." / "..Maintenance.oilCapacity(data).."\nSERVICE COST "..Maintenance.serviceOilCost(data),700,582,220,50,{scale=.95*textScale,minScale=.85,align="center",valign="center"})

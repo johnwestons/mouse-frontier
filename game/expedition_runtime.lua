@@ -3,6 +3,7 @@ local WorldPause=require("game.world_pause")
 local Rewards=require("game.expedition_rewards")
 local Sprites=require("game.expedition_sprites")
 local Assets=require("game.assets")
+local Typography=require("game.typography")
 
 local ExpeditionRuntime={}
 
@@ -58,6 +59,16 @@ local function new(context)
                 mobImages[file]=frames[1]; mobIdleImages[file]=frames[1]; mobWalkImages[file]=frames[2]
                 mobAttackImages[file]=frames[3]; mobHitImages[file]=frames[4]; mobDeathImages[file]=frames[5]
                 mobRangedImages[file]=frames[3]
+            elseif not spec and not actionAssets[file] then
+                -- Ordinary world mobs use the same authored sprites as regular
+                -- encounters. Reuse their standalone sprite in the field until
+                -- a later expedition supplies a dedicated action atlas.
+                local image=mobImages[file]
+                if image then
+                    Assets.markExternallyOwned(image)
+                    actionAssets[file]={[1]=image,[2]=image,[3]=image,[4]=image,[5]=image,[6]=image,
+                        referenceHeight=image:getHeight(),baseFacing=definition.baseFacing or 1}
+                end
             end
         end
     end
@@ -76,6 +87,8 @@ local function new(context)
         runtime.scene=Areas.SCENE; runtime.npcActor=nil
         local x,y=Areas.spawn(areaId,spawnId)
         runtime.player.x,runtime.player.y=Areas.clamp(runtime.saveData,areaId,x,y)
+        Areas.resetEnvironment(runtime.saveData,areaId)
+        runtime.expeditionFloodEjectTimer=0
         runtime.player.velocityX,runtime.player.velocityY=0,0
         runtime.player.moving=false; runtime.expeditionGraceTimer=1.5
         roaming.transient[areaId]=nil; routes=setmetatable({},{__mode="k"})
@@ -83,7 +96,7 @@ local function new(context)
         ensureAssets(area)
         if area.kind=="surface" and not state.tutorialSeen then
             state.tutorialSeen=true
-            runtime.dialogue={speaker="Expedition",text="Strike, then move out of the red attack ring. Enemy hits begin turn-based combat with all damage carried over. Clean field victories earn the same rewards. Open AREA MAP to find the waystation.",timer=10}
+            if area.tutorialText then runtime.dialogue={speaker="Expedition",text=area.tutorialText,timer=10} end
         end
         ui.playSfx("doors"); writeSave()
         return true
@@ -112,11 +125,33 @@ local function new(context)
             local ctx=roamingContext()
             return ctx and RoamingMobs.challenge(roaming,ctx,selected.mobId) or false
         end
+        if selected.action=="survey" then
+            local state=Areas.state(runtime.saveData,selected.areaId or runtime.saveData.activeExpeditionArea)
+            if not state or not selected.markerId then return false end
+            if state.markers[selected.markerId] then
+                roaming.message="This cairn is already marked."
+            else
+                state.markers[selected.markerId]=true
+                local gates=Areas.updateGates(runtime.saveData,selected.areaId or runtime.saveData.activeExpeditionArea)
+                local area=Areas.definition(selected.areaId or runtime.saveData.activeExpeditionArea)
+                local marked=0
+                for _,markerId in ipairs(area and area.completionRequiredMarkers or {}) do
+                    if state.markers[markerId] then marked=marked+1 end
+                end
+                roaming.message=gates and gates.routeSurveyed and "The basin route is fully surveyed."
+                    or ("Cairn marked. "..marked.." of "..#(area and area.completionRequiredMarkers or {}).." charted.")
+                ui.playSfx("menu"); writeSave()
+            end
+            roaming.messageTimer=3.5
+            return true
+        end
         if selected.action=="chest" then
             local state=Areas.state(runtime.saveData,selected.areaId or runtime.saveData.activeExpeditionArea)
             local gates=Areas.updateGates(runtime.saveData,selected.areaId or runtime.saveData.activeExpeditionArea)
             if selected.requires and not (gates and gates[selected.requires]) then
-                runtime.dialogue={speaker="Sealed Vault",text="The sludge-bound guardian still seals this cache.",timer=4.5}
+                local area=Areas.definition(selected.areaId or runtime.saveData.activeExpeditionArea)
+                roaming.message=selected.lockedMessage or (area and area.sealedCacheMessage) or "This cache is sealed."
+                roaming.messageTimer=4.5
                 return true
             end
             local chest=state and state.chests[selected.chestId]
@@ -168,11 +203,25 @@ local function new(context)
         if runtime.scene~=Areas.SCENE or not runtime.saveData or not runtime.player then return end
         Areas.ensure(runtime.saveData); Areas.updateGates(runtime.saveData,runtime.saveData.activeExpeditionArea)
         if WorldPause.isPaused(runtime,ui) then return end
+        runtime.expeditionFloodEjectTimer=math.max(0,(runtime.expeditionFloodEjectTimer or 0)-dt)
+        local environmentPhase,environmentChanged=Areas.updateEnvironment(runtime.saveData,runtime.saveData.activeExpeditionArea,dt)
+        if environmentChanged and environmentPhase=="flooded"
+            and Areas.isInFlood(runtime.saveData,runtime.saveData.activeExpeditionArea,runtime.player.x,runtime.player.y) then
+            local bankX,bankY=Areas.nearestFloodBank(runtime.saveData,runtime.saveData.activeExpeditionArea,runtime.player.x,runtime.player.y)
+            if bankX and bankY then
+                runtime.player.x,runtime.player.y=bankX,bankY
+                runtime.player.velocityX,runtime.player.velocityY=0,0; runtime.player.moving=false
+                runtime.expeditionFloodEjectTimer=3.5
+            end
+        end
+        if environmentChanged then writeSave() end
         runtime.expeditionGraceTimer=math.max(0,(runtime.expeditionGraceTimer or 0)-dt)
         local state=Areas.state(runtime.saveData,runtime.saveData.activeExpeditionArea)
         if state.completed and not state.completionNotified then
             state.completionNotified=true
-            roaming.message="The Buried Host is defeated. The corruption vault is open!"; roaming.messageTimer=7
+            local area=Areas.current(runtime.saveData)
+            roaming.message=(area and area.completionMessage) or "The guardian is defeated. The vault is open!"
+            roaming.messageTimer=7
             writeSave()
         end
         local ctx=roamingContext(); if ctx then RoamingMobs.update(roaming,ctx,dt) end
@@ -195,6 +244,18 @@ local function new(context)
         love.graphics.setColor(1,1,1)
         local background=backgrounds[area.id]
         if background then love.graphics.draw(background,0,0,0,area.width/background:getWidth(),area.height/background:getHeight()) end
+        local environment=Areas.environment(runtime.saveData,area.id)
+        local floodZone=environment and environment.definition.floodZone
+        if environment and environment.flooded and floodZone then
+            love.graphics.setColor(.10,.48,.74,.76); love.graphics.setLineWidth(floodZone.radius*2)
+            for i=1,#floodZone.points-1 do
+                local a,b=floodZone.points[i],floodZone.points[i+1]
+                love.graphics.line(a.x,a.y,b.x,b.y)
+                love.graphics.circle("fill",a.x,a.y,floodZone.radius)
+                if i==#floodZone.points-1 then love.graphics.circle("fill",b.x,b.y,floodZone.radius) end
+            end
+            love.graphics.setLineWidth(1)
+        end
         local gates=Areas.updateGates(runtime.saveData,area.id)
         if area.kind=="dungeon" and gates and not gates.bossGateOpen then
             local pulse=.55+.25*math.sin(runtime.animationClock*5)
@@ -218,7 +279,16 @@ local function new(context)
         local ctx=roamingContext(); if ctx then RoamingMobs.draw(roaming,ctx,options and options.drawPlayer) end
         InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
         love.graphics.pop()
-        local message=RoamingMobs.message(roaming)
+        local message
+        if not WorldPause.isPaused(runtime,ui) then
+            local area=Areas.current(runtime.saveData)
+            local environment=area and Areas.environment(runtime.saveData,area.id)
+            if (runtime.expeditionFloodEjectTimer or 0)>0 then message="THE SURGE CARRIES YOU TO THE NEAREST BANK"
+            elseif environment and environment.phase=="warning" then message="THE WASH IS RISING — TAKE THE HIGH RIDGE"
+            elseif environment and environment.flooded then message="FLASH FLOOD — THE LOW WASH IS CLOSED"
+            elseif environment and environment.phase=="receding" then message="THE FLOOD IS DRAINING — THE WASH WILL REOPEN"
+            else message=RoamingMobs.message(roaming) end
+        end
         if message then
             love.graphics.setColor(.04,.025,.02,.86); love.graphics.rectangle("fill",W/2-205,H-74,410,42,8,8)
             love.graphics.setColor(1,1,1,1); love.graphics.printf(message,W/2-195,H-61,390,"center")
@@ -252,21 +322,33 @@ local function new(context)
         local state=Areas.state(runtime.saveData,area.id)
         local defeated=0
         for _,mob in pairs(state.mobs or {}) do if mob.dead then defeated=defeated+1 end end
-        local text=area.kind=="surface" and "Find the eastern cache and the northeast waystation. AREA MAP shows the route."
-            or gates.bossDefeated and "Search the corruption vault, then return to the surface."
-            or gates.bossGateOpen and "Gate open. Weaken or CHALLENGE the Buried Host; all damage carries over."
-            or "Defeat the two waystation bandits to open the guardian's gate."
-        return {title=area.name,text=text,status=defeated.." / "..#area.mobs.." threats defeated"}
+        local objectives=area.objectives or {}
+        local text=state.completed and objectives.complete
+            or area.kind=="surface" and objectives.surface
+            or area.progressType=="survey" and objectives.explore
+            or gates.bossDefeated and objectives.complete
+            or gates.bossGateOpen and objectives.bossReady
+            or objectives.gateClosed
+            or "Explore the area and follow the route."
+        local status="CLEARED "..defeated.."/"..#area.mobs
+        if area.progressType=="survey" then
+            local marked=0
+            for _,markerId in ipairs(area.completionRequiredMarkers or {}) do
+                if state.markers[markerId] then marked=marked+1 end
+            end
+            status="CAIRNS "..marked.."/"..#(area.completionRequiredMarkers or {})
+        end
+        return {title=area.name,text=text,status=status}
     end
 
     local function drawTrailhead()
         if runtime.scene~="stop" or not runtime.saveData or not Areas.availableAtStop(runtime.saveData.location) then return end
-        local spot=Areas.entrance()
+        local spot=Areas.entrance(runtime.saveData.location)
         local entrance=Areas.interaction(runtime.saveData,"stop",{x=spot.x,y=spot.y})
         love.graphics.push("all")
         love.graphics.setColor(.23,.12,.045,1); love.graphics.rectangle("fill",spot.x-4,spot.y-35,8,42)
         love.graphics.setColor(.38,.23,.08,1); love.graphics.polygon("fill",spot.x-96,spot.y-68,spot.x-3,spot.y-68,spot.x+14,spot.y-49,spot.x-3,spot.y-30,spot.x-96,spot.y-30)
-        love.graphics.setColor(1,.85,.44,1); love.graphics.printf("OUTSKIRTS",spot.x-92,spot.y-57,133,"center",0,.68,.68)
+        love.graphics.setColor(1,.85,.44,1); love.graphics.printf(spot.signLabel or "EXPEDITION",spot.x-92,spot.y-57,133,"center",0,.68,.68)
         love.graphics.pop()
         local options={player=runtime.player,saveData=runtime.saveData}
         InteractionBeacon.drawUnderlay(entrance,runtime.animationClock,options)
@@ -287,24 +369,49 @@ local function new(context)
         if background then love.graphics.draw(background,x,y,0,area.width*scale/background:getWidth(),area.height*scale/background:getHeight()) end
         local state=Areas.state(runtime.saveData,area.id)
         local gates=Areas.updateGates(runtime.saveData,area.id)
+        local nextStep=objective()
+        local environment=Areas.environment(runtime.saveData,area.id)
+        ui.expeditionMapObjectiveBounds={x=110,y=126,w=W-220,h=18}
         love.graphics.setLineWidth(2)
         for _,path in ipairs(area.corridors or {}) do
             local open=not path.gate or gates[path.gate]
             if open then love.graphics.setColor(.96,.82,.41,.46) else love.graphics.setColor(.64,.44,.85,.55) end
             love.graphics.line(x+path.x1*scale,y+path.y1*scale,x+path.x2*scale,y+path.y2*scale)
         end
+        local floodZone=environment and environment.definition.floodZone
+        if environment and environment.phase~="dry" and floodZone then
+            if environment.flooded then love.graphics.setColor(.20,.70,.96,.82)
+            elseif environment.phase=="warning" then love.graphics.setColor(1,.78,.28,.78)
+            else love.graphics.setColor(.45,.78,.93,.48) end
+            love.graphics.setLineWidth(math.max(3,floodZone.radius*2*scale))
+            for i=1,#floodZone.points-1 do
+                local a,b=floodZone.points[i],floodZone.points[i+1]
+                love.graphics.line(x+a.x*scale,y+a.y*scale,x+b.x*scale,y+b.y*scale)
+            end
+            love.graphics.setLineWidth(2)
+        end
         love.graphics.setColor(1,.86,.60,1)
         love.graphics.printf(area.name,110,105,W-220,"center")
+        love.graphics.setColor(.86,.80,.68,1)
+        local guidance=nextStep and nextStep.text or ""
+        if environment and environment.phase=="warning" then guidance="THE WASH IS RISING: USE THE HIGH RIDGE"
+        elseif environment and environment.flooded then guidance="FLASH FLOOD: THE LOW WASH IS CLOSED"
+        elseif environment and environment.phase=="receding" then guidance="FLOODWATER IS DRAINING FROM THE WASH" end
+        Typography.drawText(love.graphics,guidance,110,126,W-220,18,
+            {scale=.72,minScale=.62,singleLine=true,align="center",valign="center"})
         for _,spot in ipairs(area.interactions or {}) do
             local chest=spot.chestId and state.chests[spot.chestId]
             local locked=spot.requires and not gates[spot.requires]
+            local surveyed=spot.markerId and state.markers[spot.markerId]
             local sx,sy=x+spot.x*scale,y+spot.y*scale
-            if locked then love.graphics.setColor(.76,.52,.98,1)
+            if surveyed then love.graphics.setColor(.48,.92,.67,1)
+            elseif locked then love.graphics.setColor(.76,.52,.98,1)
             elseif chest and chest.opened then love.graphics.setColor(.60,.67,.65,1)
             else love.graphics.setColor(.98,.76,.32,1) end
             love.graphics.circle("fill",sx,sy,5)
-            local label=spot.kind=="chest" and (locked and "SEALED VAULT" or chest.opened and "OPENED CACHE" or "CACHE")
-                or spot.kind=="returnStop" and "TOWN" or (spot.target==Areas.DUNGEON_ID and "DUNGEON" or "SURFACE")
+            local label=spot.markerId and (surveyed and "MARKED" or (spot.mapLabel or "CAIRN"))
+                or spot.kind=="chest" and (locked and "SEALED CACHE" or chest.opened and "OPENED CACHE" or (spot.mapLabel or "CACHE"))
+                or spot.kind=="returnStop" and (spot.mapLabel or "TOWN") or (spot.mapLabel or "AREA")
             love.graphics.printf(label,sx-40,sy+8,133,"center",0,.60,.60)
         end
         for _,definition in ipairs(area.mobs or {}) do

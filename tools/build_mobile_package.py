@@ -69,9 +69,26 @@ FIXED_RUNTIME_ATLASES = {
 }
 
 
-def safe_clean(path: Path) -> None:
-    resolved = path.resolve()
+def resolve_output_root(requested: str | Path | None = None) -> Path:
     output = OUTPUT_ROOT.resolve()
+    if requested is None:
+        return output
+    candidate = Path(requested)
+    if not candidate.is_absolute():
+        candidate = ROOT / candidate
+    resolved = candidate.resolve()
+    if resolved != output and output not in resolved.parents:
+        raise RuntimeError(f"Package output must stay inside the mobile output area: {resolved}")
+    return resolved
+
+
+def include_android_build_manifest(output_root: Path) -> bool:
+    return output_root.resolve() == OUTPUT_ROOT.resolve()
+
+
+def safe_clean(path: Path, output_root: Path = OUTPUT_ROOT) -> None:
+    resolved = path.resolve()
+    output = output_root.resolve()
     if resolved == output or output not in resolved.parents:
         raise RuntimeError(f"Refusing to clean path outside the mobile output area: {resolved}")
     if path.exists():
@@ -332,9 +349,9 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def generate_android_icons() -> None:
+def generate_android_icons(output_root: Path = OUTPUT_ROOT) -> None:
     source = ROOT / "assets" / "sprites" / "MainCharacters" / "mouse-engineer.png"
-    icon_root = OUTPUT_ROOT / "android-res"
+    icon_root = output_root / "android-res"
     with Image.open(source) as opened:
         character = opened.convert("RGBA")
         character.thumbnail((390, 390), Image.Resampling.NEAREST)
@@ -351,12 +368,14 @@ def generate_android_icons() -> None:
 
 def build(args: argparse.Namespace) -> Path:
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root = resolve_output_root(getattr(args, "output_dir", None))
+    stage_root = output_root / "stage"
+    output_root.mkdir(parents=True, exist_ok=True)
     CACHE_ROOT.mkdir(parents=True, exist_ok=True)
-    safe_clean(STAGE_ROOT)
+    safe_clean(stage_root, output_root)
 
     for source in [ROOT / "main.lua", ROOT / "conf.lua", *(ROOT / "game").rglob("*.lua")]:
-        destination = STAGE_ROOT / source.relative_to(ROOT)
+        destination = stage_root / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
 
@@ -367,7 +386,7 @@ def build(args: argparse.Namespace) -> Path:
 
     def image_job(source: Path) -> tuple[int, int]:
         relative = source.relative_to(ROOT).as_posix()
-        return optimize_image(source, STAGE_ROOT / Path(relative), relative, config)
+        return optimize_image(source, stage_root / Path(relative), relative, config)
 
     print(f"Optimizing {len(image_sources)} runtime images...", flush=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(2, min(8, os.cpu_count() or 2))) as executor:
@@ -376,7 +395,7 @@ def build(args: argparse.Namespace) -> Path:
             totals["stagedBytes"] += staged
 
     for source in other_assets:
-        destination = STAGE_ROOT / source.relative_to(ROOT)
+        destination = stage_root / source.relative_to(ROOT)
         link_or_copy(source, destination)
         totals["sourceBytes"] += source.stat().st_size
         totals["stagedBytes"] += destination.stat().st_size
@@ -388,7 +407,7 @@ def build(args: argparse.Namespace) -> Path:
     def audio_job(source: Path) -> tuple[int, int]:
         relative_path = source.relative_to(ROOT)
         relative = relative_path.as_posix()
-        destination = STAGE_ROOT / relative_path.with_suffix(".ogg")
+        destination = stage_root / relative_path.with_suffix(".ogg")
         return transcode_audio(source, destination, relative, ffmpeg, config)
 
     print(f"Transcoding {len(audio_sources)} runtime audio files...", flush=True)
@@ -409,24 +428,28 @@ def build(args: argparse.Namespace) -> Path:
         "sourceBytes": totals["sourceBytes"],
         "stagedBytes": totals["stagedBytes"],
     }
-    (STAGE_ROOT / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    if include_android_build_manifest(output_root):
+        # Preserve the existing Android archive contract. Alternate playtest
+        # archives contain only the game and runtime assets.
+        (stage_root / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    package = OUTPUT_ROOT / f"mouse-frontier-{config['versionName']}.love"
+    package = output_root / f"mouse-frontier-{config['versionName']}.love"
     temporary_package = package.with_suffix(".tmp.love")
     temporary_package.unlink(missing_ok=True)
     print("Creating the shared Android game package...", flush=True)
     with zipfile.ZipFile(temporary_package, "w", allowZip64=True) as archive:
-        for source in sorted(path for path in STAGE_ROOT.rglob("*") if path.is_file()):
-            relative = source.relative_to(STAGE_ROOT).as_posix()
+        for source in sorted(path for path in stage_root.rglob("*") if path.is_file()):
+            relative = source.relative_to(stage_root).as_posix()
             compressed = source.suffix.lower() not in {".png", ".ogg", ".jpg", ".jpeg"}
             archive.write(source, relative, zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED)
     temporary_package.replace(package)
     manifest["package"] = str(package)
     manifest["packageBytes"] = package.stat().st_size
     manifest["packageSha256"] = sha256_file(package)
-    report = OUTPUT_ROOT / "build-report.json"
+    report = output_root / "build-report.json"
     report.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    generate_android_icons()
+    if include_android_build_manifest(output_root):
+        generate_android_icons()
     print(json.dumps(manifest, indent=2), flush=True)
     return package
 
@@ -434,6 +457,7 @@ def build(args: argparse.Namespace) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ffmpeg", help="Path to ffmpeg; downloaded and verified when omitted")
+    parser.add_argument("--output-dir", help="Optional package, report, and stage directory inside output/mobile")
     args = parser.parse_args()
     package = build(args)
     print(f"Mobile package ready: {package}")

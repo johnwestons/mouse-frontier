@@ -48,7 +48,10 @@ def magenta_matte_mask(rgba: np.ndarray) -> np.ndarray:
     blue = rgba[:, :, 2].astype(np.int16)
     return (
         (red >= 155)
-        & (blue >= 105)
+        # Some generated sheets carry the pink matte as a dark red-magenta
+        # fringe (for example, roughly RGB 205/18/104), so the old 105 blue
+        # floor left a visible outline around otherwise clean silhouettes.
+        & (blue >= 55)
         & (green <= 130)
         & ((red + blue - 2 * green) >= 190)
         & (np.abs(red - blue) <= 125)

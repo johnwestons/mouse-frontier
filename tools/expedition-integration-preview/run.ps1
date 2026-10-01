@@ -1,10 +1,11 @@
 param(
     [ValidateSet('desktop','mobile','both')][string]$Mode='both',
-    [string]$LoveExecutable='C:\Program Files\LOVE\lovec.exe'
+    [string]$LoveExecutable='C:\Program Files\LOVE\lovec.exe',
+    [string]$OutputDirectory=(Join-Path $PSScriptRoot '..\..\docs\concepts\expedition-validation')
 )
 $ErrorActionPreference='Stop'
 $repositoryPath=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-$outputPath=Join-Path $repositoryPath 'docs\concepts\expedition-validation'
+$outputPath=[IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 $previewStage=Join-Path $env:TEMP ('mouse-frontier-expedition-preview-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $previewStage | Out-Null

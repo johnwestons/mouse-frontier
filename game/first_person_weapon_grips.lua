@@ -151,7 +151,7 @@ return {
         sights={x=0.5000,y=0.7010,aspect=1.00000000},
     },
     ["sawed-off-shotgun"]={
-        hip={x=0.7474,y=0.6215,aspect=1.09424520},
+        hip={x=0.7000,y=0.6600,aspect=1.50000000},
         sights={x=0.5000,y=0.7010,aspect=1.00000000},
     },
     ["machine-pistol"]={

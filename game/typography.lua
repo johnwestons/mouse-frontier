@@ -1,4 +1,5 @@
 local Typography = {}
+local UIStyle = require("game.ui_layout")
 
 Typography.BASE_SIZE = 20
 Typography.MIN_SCALE = 0.85
@@ -8,6 +9,7 @@ Typography.FONT_PATHS = {
 }
 
 local fontCache = setmetatable({}, {__mode="k"})
+local fontSizes = setmetatable({}, {__mode="k"})
 
 function Typography.font(Graphics, weight, size)
     weight = weight or "regular"
@@ -22,6 +24,7 @@ function Typography.font(Graphics, weight, size)
         -- This is per-font; pixel-art images retain the nearest-neighbour filter.
         font:setFilter("linear", "linear")
         font:setLineHeight(1.08)
+        fontSizes[font] = size
         cache[key] = font
     end
     return cache[key]
@@ -78,8 +81,17 @@ end
 function Typography.drawText(Graphics, text, x, y, width, height, options)
     options = options or {}
     text = tostring(text or "")
+    local groupScale,groupFont=UIStyle.currentTextStyle()
+    local originalFont=Graphics.getFont()
+    if groupFont then
+        -- The line-box height includes font metrics and is not the requested
+        -- font size. Reusing it here enlarges text whenever a style is applied.
+        Graphics.setFont(Typography.font(Graphics,groupFont,fontSizes[originalFont] or Typography.BASE_SIZE))
+    end
+    local preferredScale=(options.scale or 1)*groupScale
+    local minimumScale=(options.minScale or Typography.MIN_SCALE)*groupScale
     local scale, measuredHeight, lines, fits = Typography.fitText(
-        Graphics, text, width, height, options.scale, options.minScale, options
+        Graphics, text, width, height, preferredScale, minimumScale, options
     )
     local offset = 0
     if options.valign == "center" then offset = math.max(0, (height - measuredHeight) / 2)
@@ -92,6 +104,7 @@ function Typography.drawText(Graphics, text, x, y, width, height, options)
     else
         Graphics.printf(text, x, y + offset, math.max(1, width / scale), options.align or "left", 0, scale, scale)
     end
+    Graphics.setFont(originalFont)
     return scale, measuredHeight, lines, fits
 end
 

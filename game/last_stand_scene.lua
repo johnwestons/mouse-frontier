@@ -1,8 +1,13 @@
 local WorldView=require("game.world_view")
 local CharacterMotion=require("game.character_motion")
 local CharacterAnimation=require("game.character_animation")
+local Typography=require("game.typography")
 local Scene={}
 local WindowScene=require("game.window_scene")
+
+local function text(value,x,y,w,h,scale,align)
+    return Typography.drawText(love.graphics,value,x,y,w,h,{scale=scale or 1,minScale=.66,align=align or "center",valign="center"})
+end
 
 local ROOT="assets/sprites/quests/last-stand/runtime/"
 local PATHS={
@@ -267,7 +272,7 @@ local function actorsFor(scene)
     }
 end
 
-local function drawAction(action,width,height)
+local function drawAction(action,width,height,touchControls)
     if not action then return end
     local x,y,w,h=330,height-66,300,44
     love.graphics.setColor(.07,.045,.025,.94)
@@ -275,10 +280,31 @@ local function drawAction(action,width,height)
     love.graphics.setColor(.88,.62,.27,1)
     love.graphics.setLineWidth(2)
     love.graphics.rectangle("line",x,y,w,h,8,8)
-    love.graphics.printf("[E]  "..action.label,x,y+13,w,"center")
+    text((touchControls and "TAP  " or "[E]  ")..action.label,x,y+7,w,30,.92)
 end
 
-function Scene.draw(scene,width,height,playerImage,needsLoan)
+local function drawMovementHint(width,height,touchControls)
+    local label=touchControls and "JOYSTICK  MOVE  •  TAP ACTION TO INTERACT"
+        or "MOVE  WASD / ARROWS OR CLICK     SPRINT  SHIFT     ACTION  E"
+    local x,y,w,h=width/2-270,height-112,540,30
+    love.graphics.setColor(.055,.038,.025,.82)
+    love.graphics.rectangle("fill",x,y,w,h,6,6)
+    love.graphics.setColor(.96,.84,.62,.94)
+    text(label,x+8,y+4,w-16,22,.82)
+end
+
+local function drawPauseButton(width,height,touchControls)
+    local x,y,w,h=Scene.pauseRect(width,height)
+    love.graphics.setColor(.055,.038,.025,.92)
+    love.graphics.rectangle("fill",x,y,w,h,7,7)
+    love.graphics.setColor(.88,.62,.27,1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line",x,y,w,h,7,7)
+    love.graphics.setColor(.96,.84,.62,1)
+    text(touchControls and "PAUSE" or "PAUSE  [P]",x+4,y+5,w-8,26,.88)
+end
+
+function Scene.draw(scene,width,height,playerImage,needsLoan,touchControls,showPause)
     love.graphics.push("all")
     WorldView.begin()
     drawBackground(scene,width,height)
@@ -300,12 +326,18 @@ function Scene.draw(scene,width,height,playerImage,needsLoan)
         if scene.defenders.gecko.flash and scene.defenders.gecko.flash>0 then WindowScene.drawEffect(0,666,248,.06,1) end
     end
     WorldView.finish()
-    drawAction(Scene.action(scene,needsLoan),width,height)
+    drawMovementHint(width,height,touchControls)
+    drawAction(Scene.action(scene,needsLoan),width,height,touchControls)
+    if showPause then drawPauseButton(width,height,touchControls) end
     love.graphics.pop()
 end
 
 function Scene.actionRect(height)
     return 330,height-66,300,44
+end
+
+function Scene.pauseRect(width,height)
+    return width-122,height-156,104,36
 end
 
 function Scene.drawApproach(state)
@@ -325,7 +357,7 @@ function Scene.drawApproach(state)
         love.graphics.setColor(.98,.88,.68,1)
         local bark=state.quest.state=="paused" and "[E] Return to the homestead"
             or state.manualOffer and "[E] Talk to the scout" or "[E] Farmhouse defense"
-        love.graphics.printf(bark,hintX-96,hintY-132,192,"center")
+        text(bark,hintX-96,hintY-139,192,26,.78)
     end
     love.graphics.pop()
 end
@@ -376,10 +408,10 @@ function Scene.drawTransition(state,width,height,returning,playerVisual)
     love.graphics.setColor(.04,.025,.016,.82)
     love.graphics.rectangle("fill",110,height*.14,width-220,118,12,12)
     love.graphics.setColor(.96,.84,.62,1)
-    love.graphics.printf(returning and "The relay falls quiet behind you." or "You follow the scout beyond the town limits.",135,height*.14+26,width-270,"center")
+    text(returning and "The relay falls quiet behind you." or "You follow the scout beyond the town limits.",135,height*.14+18,width-270,28,.94)
     love.graphics.setColor(.82,.70,.52,1)
-    love.graphics.printf(returning and "The survivors can finally leave the windows." or "Distant rifle cracks roll over the fields.",135,height*.14+67,width-270,"center")
-    love.graphics.printf("[SPACE] Skip journey",width/2-120,height-55,240,"center")
+    text(returning and "The survivors can finally leave the windows." or "Distant rifle cracks roll over the fields.",135,height*.14+59,width-270,28,.86)
+    text("[SPACE] Skip journey",width/2-120,height-59,240,24,.76)
     love.graphics.pop()
 end
 

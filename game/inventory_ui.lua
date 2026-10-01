@@ -1,4 +1,5 @@
 local Typography = require("game.typography")
+local UIStyle = require("game.ui_layout")
 local InventoryUI = {}
 
 local function text(value,x,y,w,h,scale,minimum,align)
@@ -54,12 +55,15 @@ end
 function InventoryUI.drawItem(ctx,name,r)
     local atlas=ctx.ui.atlasItems and ctx.ui.atlasItems[name]
     local img=ctx.ui.propImages[name]
+    local variant=UIStyle.iconVariant()
+    if variant=="prop" and img then atlas=nil
+    elseif variant=="atlas" and atlas then img=nil end
     if atlas then
-        local s=math.min(math.min(64,r.w-8)/atlas.w,math.min(64,r.h-8)/atlas.h)
+        local s=math.min(math.min(64,r.w-8)/atlas.w,math.min(64,r.h-8)/atlas.h)*UIStyle.iconScale()
         love.graphics.setColor(1,1,1)
         love.graphics.draw(atlas.image,atlas.quad,r.x+r.w/2,r.y+r.h/2,0,s,s,atlas.w/2,atlas.h/2)
     elseif img then
-        local s=math.min(math.min(58,r.w-8)/img:getWidth(),math.min(58,r.h-8)/img:getHeight())
+        local s=math.min(math.min(58,r.w-8)/img:getWidth(),math.min(58,r.h-8)/img:getHeight())*UIStyle.iconScale()
         love.graphics.setColor(1,1,1)
         love.graphics.draw(img,r.x+r.w/2,r.y+r.h/2,0,s,s,img:getWidth()/2,img:getHeight()/2)
     else
@@ -137,20 +141,22 @@ function InventoryUI.draw(ctx)
     local battleUsable=ctx.battleMode and (ctx.isWeapon(selectedName) or (effect and (effect.health or effect.potion)))
     local actionLabel=ctx.battleMode and (ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1" or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON"))
         or (gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT AN ITEM TO USE"))))
-    ui.consume=ctx.button(actionLabel,565,mobile and 620 or 628,230,mobile and 62 or 38,ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift))
+    local consumeEnabled=ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift)
+    ui.consume=ctx.button(actionLabel,565,mobile and 620 or 628,230,mobile and 62 or 38,consumeEnabled)
+    if ui.consume then ui.consume.enabled=consumeEnabled end
     if ctx.giftOpen then
         ctx.drawMenuFrame(220,170,520,180,3,.97); love.graphics.setColor(ctx.colors.cream)
         text("GIVE TO "..ctx.title(ctx.giftNPC or "NPC"),240,187,480,29,1.15,.92,"center")
         text("Place one item in the offer slot",250,218,460,22,.90,.78,"center")
         local offer={x=445,y=245,w=70,h=70}; love.graphics.setColor(.28,.22,.16); love.graphics.rectangle("fill",offer.x,offer.y,offer.w,offer.h,7,7)
         if ctx.giftSlot then InventoryUI.drawItem(ctx,data.inventory[ctx.giftSlot],offer) end
-        ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,ctx.giftSlot~=nil); ui.giftCancel=ctx.button("CANCEL",mobile and 295 or 325,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,true)
+        ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,ctx.giftSlot~=nil); ui.giftConfirm.enabled=ctx.giftSlot~=nil; ui.giftCancel=ctx.button("CANCEL",mobile and 295 or 325,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,true)
     else ui.giftSlot=nil; ui.giftConfirm=nil; ui.giftCancel=nil end
     if ctx.battleMode then
         ui.drop=nil
         love.graphics.setColor(ctx.colors.cream)
         text("NO DROPS\nIN BATTLE",805,mobile and 626 or 628,110,mobile and 48 or 38,.74,.67,"center")
-    else ui.drop=ctx.button("DROP",805,mobile and 620 or 628,110,mobile and 62 or 38,ctx.draggedSlot~=nil) end
+    else ui.drop=ctx.button("DROP",805,mobile and 620 or 628,110,mobile and 62 or 38,ctx.draggedSlot~=nil); ui.drop.enabled=ctx.draggedSlot~=nil end
 end
 
 function InventoryUI.drawChest(ctx)

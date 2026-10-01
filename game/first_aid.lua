@@ -1,4 +1,5 @@
 local Typography=require("game.typography")
+local UIStyle=require("game.ui_layout")
 local FirstAid={}
 
 local function text(value,x,y,w,h,scale,minimum)
@@ -313,13 +314,16 @@ local function drawTreatment(session,assets,cream,brass)
     end
 end
 
-function FirstAid.draw(session,colors,assets)
+function FirstAid.draw(session,colors,assets,skipBackdrop)
     if not session then return end
     assets=assets or {}; assets.bandageStrips=assets.bandageStrips or {}
     local panel=colors.panel or {.08,.055,.035}; local cream=colors.cream or {1,.92,.74}; local brass=colors.brass or {.86,.57,.22}
-    love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,960,720)
-    love.graphics.setColor(panel); love.graphics.rectangle("fill",105,40,750,635,18,18)
-    love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",105,40,750,635,18,18)
+    if not skipBackdrop then love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,960,720) end
+    if assets.drawFrame then assets.drawFrame(105,40,750,635,2,.99)
+    else
+        love.graphics.setColor(panel); love.graphics.rectangle("fill",105,40,750,635,18,18)
+        love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",105,40,750,635,18,18)
+    end
     love.graphics.setColor(brass); text("FIRST AID  •  SMALL CUT",155,63,650,39,1.32,1.1)
     local step=session.phase==1 and phaseNames[1] or ("TREATMENT STEP "..(session.phase-1).." OF "..FirstAid.treatmentStepCount.."  •  "..phaseNames[session.phase])
     love.graphics.setColor(cream); text(step,160,108,640,27,.95,.82)
@@ -327,7 +331,7 @@ function FirstAid.draw(session,colors,assets)
 
     love.graphics.setColor(.12,.085,.06,.95); love.graphics.rectangle("fill",125,188,105,332,12,12)
     love.graphics.setColor(brass); text("SUPPLY",130,202,95,26,.90,.82)
-    if assets.medical then drawImage(assets.medical,177,294,92) end
+    if assets.medical then drawImage(assets.medical,177,294,92*UIStyle.iconScale()) end
     love.graphics.setColor(cream); text(title(session.itemName),131,346,93,78,.78,.68)
     text("Used after treatment",131,428,93,76,.74,.68)
 

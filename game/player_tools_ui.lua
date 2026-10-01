@@ -1,6 +1,7 @@
 local Model=require("game.player_tools_model")
 local Layout=require("game.control_layout")
 local Typography=require("game.typography")
+local Editor=require("game.player_ui_editor")
 local UI={}
 local function hit(r,x,y) return r and x>=r.x and x<=r.x+r.w and y>=r.y and y<=r.y+r.h end
 local function text(value,x,y,w,h,scale,opacity)
@@ -31,6 +32,9 @@ function UI.new(context)
             self.opacity=Layout.normalizeOpacity(self.layout.opacity) or (controls.getOpacity and controls:getOpacity()) or 1
         else self.layout=Layout.normalize(); self.opacity=1; self.opacityExplicit=false end
         self.layout.opacity=self.opacityExplicit and self.opacity or nil
+        self.uiElement=self.uiElement or "journeyHud"
+        self.uiDrag=nil; self.uiSliderDrag=nil; self.uiPanelDrag=nil
+        self.uiEditorScreen=nil; self.uiPicker=false; self.uiResetConfirm=false
     end
     function self:close()
         self:finishDrag(); self.open=false; self:focus(nil); self.buttons={}; self.hover=nil
@@ -146,7 +150,8 @@ function UI.new(context)
         return {x=480-w*scale/2,y=192+(412-h*scale)/2,w=w*scale,h=h*scale}
     end
     function self:drawControls()
-        text("Drag controls to move them. Positions and opacity save on this device.",34,132,890,42)
+        text("Drag controls to move them. Positions and opacity save on this device.",34,132,630,42)
+        self:button("ADVANCED UI EDITOR",682,132,246,38,function() self:finishDrag(); self.tab="UI Editor"; self.hover=nil end)
         local p=self:controlPreview(); panel(p.x,p.y,p.w,p.h)
         self.controlRects={}
         for _,key in ipairs(Layout.order) do
@@ -172,17 +177,22 @@ function UI.new(context)
     end
     function self:draw()
         self.buttons={}
+        if self.tab=="UI Editor" then self:drawUIEditor(); return end
         love.graphics.setColor(.045,.035,.025,1); love.graphics.rectangle("fill",0,0,960,720)
         text("PLAYER OPTIONS",32,20,680,46,1.35)
-        self:button("CLOSE",804,24,124,44,function() self:close() end)
-        for i,tab in ipairs({"Items","Cheats","Controls"}) do
-            self:button(tab:upper(),32+(i-1)*300,80,288,42,function() self:finishDrag(); self.tab=tab; self.hover=nil; self:focus(nil) end,self.tab==tab)
+        do
+            self:button("CLOSE",804,24,124,44,function() self:close() end)
+            for i,tab in ipairs({"Items","Cheats","Controls","UI Editor"}) do
+                self:button(tab:upper(),32+(i-1)*226,80,218,42,function() self:finishDrag(); self.tab=tab; self.hover=nil; self:focus(nil) end,self.tab==tab)
+            end
+            if self.tab=="Items" then self:drawItems() elseif self.tab=="Cheats" then self:drawResources() else self:drawControls() end
         end
-        if self.tab=="Items" then self:drawItems() elseif self.tab=="Cheats" then self:drawResources() else self:drawControls() end
         local data=context.data()
-        local status=self.message
-        if status=="" then status=data and "Changes apply to your current journey.  F2 / Esc: close" or "Load a journey to add items or resources. Control positions can be edited now." end
-        text(status,32,670,896,40,.72)
+        if self.tab~="UI Editor" then
+            local status=self.message
+            if status=="" then status=data and "Changes apply to your current journey.  F2 / Esc: close" or "Load a journey to add items or resources. Control positions can be edited now." end
+            text(status,32,670,896,40,.72)
+        end
         if self.hover and self.tab=="Items" then
             local entry=self.hover
             panel(600,190,328,414,true)
@@ -197,12 +207,14 @@ function UI.new(context)
         if self.tab=="Controls" then
             if hit(self.opacityRect,x,y) then self.opacityDragging=true; self:setOpacityAt(x); return true end
             for _,r in ipairs(self.controlRects or {}) do if hit(r,x,y) then self.drag=r.key; self.dragOffsetX=x-(r.x+r.w/2); self.dragOffsetY=y-(r.y+r.h/2); return true end end
+        elseif self.tab=="UI Editor" then return self:pressUiEditor(x,y)
         end
         self:focus(nil); return true
     end
     function self:move(x,y)
         self.hover=nil
-        if self.opacityDragging then self:setOpacityAt(x)
+        if self.tab=="UI Editor" then self:moveUiEditor(x,y)
+        elseif self.opacityDragging then self:setOpacityAt(x)
         elseif self.drag then
             local p=self:controlPreview()
             self.layout[self.drag]={x=(x-self.dragOffsetX-p.x)/p.w,y=(y-self.dragOffsetY-p.y)/p.h}
@@ -213,6 +225,7 @@ function UI.new(context)
     function self:finishDrag()
         local moved=self.drag~=nil
         local changedOpacity=self.opacityDragging==true
+        self:finishUiDrag()
         if moved or changedOpacity then
             self.drag=nil; self.opacityDragging=false
             self.layout.opacity=self.opacityExplicit and self.opacity or nil
@@ -220,6 +233,7 @@ function UI.new(context)
         end
     end
     function self:key(key)
+        if self.tab=="UI Editor" and self:keyUiEditor(key) then return true end
         if key=="escape" or key=="acback" then if self.field then self:focus(nil) else self:close() end
         elseif key=="f2" then self:close()
         elseif key=="return" or key=="kpenter" then self:focus(nil)
@@ -227,7 +241,11 @@ function UI.new(context)
             local value=self[self.field]
             self[self.field]=value:gsub("[%z\1-\127\194-\244][\128-\191]*$","")
             if self.field=="query" then self.page=1; self:refresh() end
-        elseif key=="tab" then self:finishDrag(); self.tab=self.tab=="Items" and "Cheats" or self.tab=="Cheats" and "Controls" or "Items"; self:focus(nil)
+        elseif key=="tab" then
+            self:finishDrag()
+            local tabs={"Items","Cheats","Controls","UI Editor"}; local index=1
+            for i,name in ipairs(tabs) do if name==self.tab then index=i end end
+            self.tab=tabs[index%#tabs+1]; self:focus(nil)
         elseif not self.field and (key=="pagedown" or key=="pageup") then self:wheel(key=="pagedown" and -1 or 1) end
         return true
     end
@@ -241,6 +259,7 @@ function UI.new(context)
         if self.tab=="Items" then self.page=math.max(1,math.min(math.max(1,math.ceil(#self.filtered/6)),self.page+(delta<0 and 1 or -1))); self.hover=nil
         elseif self.tab=="Cheats" then self.resourcePage=math.max(1,math.min(math.ceil(#Model.resources(context.data())/7),self.resourcePage+(delta<0 and 1 or -1))) end
     end
+    Editor.attach(self,context,{text=text,panel=panel})
     return self
 end
 return UI

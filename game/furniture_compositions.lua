@@ -12,17 +12,33 @@ Compositions.groups = {
     containers={"travel-chest","supply-crate","storage-bench"},
 }
 
+-- Room slots are points on the visible floor, arranged as two loose furniture
+-- bays with a clear path through the middle. The doorway moves with the
+-- generated interior variant, so shift the bays away from that entry side.
+-- Coordinates use the game's 960x720 space (the interior art is drawn within
+-- x=105..855, y=205..650).
+local roomSlots = {
+    [1]={{300,435},{360,550},{700,440},{700,565},{435,420}},
+    [2]={{300,445},{360,565},{650,490},{715,585},{425,420}},
+    [3]={{290,480},{365,575},{720,460},{720,570},{610,415}},
+    [4]={{360,440},{410,570},{720,455},{715,565},{610,415}},
+    [5]={{350,430},{390,565},{720,440},{715,565},{615,415}},
+}
+
+-- Each entry selects a furnishing category, a room slot, and its relative
+-- scale. Slot numbers keep the composition's functional mix while allowing
+-- each doorway-facing floor plan to get its own placement.
 Compositions.templates = {
-    {{"storage",300,350,1.25},{"heat",470,350,1.2},{"seating",735,365,1.2},{"containers",330,535,1.3},{"work",700,530,1.25}},
-    {{"sleep",285,360,1.2},{"work",500,350,1.2},{"storage",735,370,1.2},{"seating",355,530,1.25},{"containers",680,525,1.25}},
-    {{"containers",300,355,1.25},{"seating",485,365,1.2},{"heat",720,355,1.2},{"sleep",325,525,1.3},{"storage",705,525,1.25}},
-    {{"work",290,360,1.2},{"storage",470,350,1.2},{"seating",730,365,1.2},{"containers",350,525,1.3},{"heat",685,530,1.2}},
-    {{"storage",300,355,1.2},{"sleep",490,350,1.25},{"containers",725,360,1.2},{"seating",335,530,1.3},{"work",700,525,1.2}},
-    {{"heat",300,355,1.2},{"seating",430,365,1.2},{"storage",735,350,1.2},{"sleep",330,525,1.3},{"containers",690,525,1.25}},
-    {{"work",300,355,1.2},{"containers",470,355,1.25},{"sleep",735,360,1.2},{"storage",335,530,1.25},{"seating",690,525,1.25}},
-    {{"seating",290,360,1.2},{"heat",465,350,1.2},{"work",730,365,1.2},{"storage",350,530,1.25},{"containers",680,525,1.25}},
-    {{"sleep",300,355,1.25},{"storage",485,355,1.2},{"seating",720,360,1.2},{"work",330,530,1.25},{"heat",700,525,1.2}},
-    {{"containers",300,355,1.2},{"work",470,355,1.2},{"heat",735,365,1.2},{"seating",340,530,1.25},{"sleep",690,525,1.25}},
+    {{"storage",1,1.25},{"heat",2,1.2},{"seating",3,1.2},{"containers",4,1.3},{"work",5,1.25}},
+    {{"sleep",1,1.2},{"work",2,1.2},{"storage",3,1.2},{"seating",4,1.25},{"containers",5,1.25}},
+    {{"containers",1,1.25},{"seating",2,1.2},{"heat",3,1.2},{"sleep",4,1.3},{"storage",5,1.25}},
+    {{"work",1,1.2},{"storage",2,1.2},{"seating",3,1.2},{"containers",4,1.3},{"heat",5,1.2}},
+    {{"storage",1,1.2},{"sleep",2,1.25},{"containers",3,1.2},{"seating",4,1.3},{"work",5,1.25}},
+    {{"heat",1,1.2},{"seating",2,1.2},{"storage",3,1.2},{"sleep",4,1.3},{"containers",5,1.25}},
+    {{"work",1,1.2},{"containers",2,1.25},{"sleep",3,1.2},{"storage",4,1.25},{"seating",5,1.25}},
+    {{"seating",1,1.2},{"heat",2,1.2},{"work",3,1.2},{"storage",4,1.25},{"containers",5,1.25}},
+    {{"sleep",1,1.25},{"storage",2,1.2},{"seating",3,1.2},{"work",4,1.25},{"heat",5,1.2}},
+    {{"containers",1,1.2},{"work",2,1.2},{"heat",3,1.2},{"seating",4,1.25},{"sleep",5,1.25}},
 }
 
 local function available(name)
@@ -36,10 +52,19 @@ function Compositions.pick(group)
 end
 
 function Compositions.build(index)
-    local template=Compositions.templates[((index or 1)-1)%#Compositions.templates+1]; local result={}
-    for layer,entry in ipairs(template) do
+    index=math.max(1,math.floor(index or 1))
+    local template=Compositions.templates[(index-1)%#Compositions.templates+1]
+    -- Indices 1-5 are the original interiors. Generated homes use five-image
+    -- groups beginning at index 6, with matching numbered doorway variants.
+    local variant=index<=5 and index or ((index-6)%5+1)
+    local slots=roomSlots[variant] or roomSlots[1]
+    local result={}
+    for _,entry in ipairs(template) do
         local name=Compositions.pick(entry[1])
-        if name then result[#result+1]={name=name,x=entry[2],y=entry[3],scale=entry[4],rotation=0,layer=layer} end
+        local point=slots[entry[2]]
+        if name and point then
+            result[#result+1]={name=name,x=point[1],y=point[2],scale=entry[3],rotation=0,layer=math.floor(point[2]/10)}
+        end
     end
     return result
 end

@@ -34,14 +34,17 @@ local function add(keep,file)
     if type(file)=="string" and file~="" then keep[file]=true end
 end
 
-function AssetStreamer:update(state,scene,data,battle,npcActor)
+function AssetStreamer:update(state,scene,data,battle,npcActor,characterPreviewFile)
     if not data then
         Settlements.release(self.settlements)
-        CharacterAnimation.retain(self.characterAnimations,{})
+        local keep={}
+        if state=="characters" then add(keep,characterPreviewFile) end
+        CharacterAnimation.retain(self.characterAnimations,keep)
         Assets.retainAnimationImages(self.legacyAnimationTables,{})
         self.interiors:release()
         self.lastSettlement=nil
-        self.lastSignature=""
+        local names={}; for file in pairs(keep) do names[#names+1]=file end; table.sort(names)
+        self.lastSignature=table.concat(names,"|")
         return
     end
 

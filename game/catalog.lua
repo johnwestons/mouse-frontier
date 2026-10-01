@@ -1,5 +1,6 @@
 local Catalog = {}
 local TrainUpgradeBalance = require("game.train_upgrade_balance")
+local HouseholdItems = require("game.household_items")
 
 Catalog.characterTraitProfiles = {
     {name="Scrapper",combat=1,armor=0,coal=1.00,reward=1.25,description="Finds 25% more scrap and quest rewards."},
@@ -243,7 +244,7 @@ Catalog.weaponCombat = {
     ["scrap-boomerang"]={kind="ranged",range=18,capacity=1,projectile="boomerang"},
     ["steam-shock-baton"]={kind="melee",range=5,family="blunt",status="paralyze",statusChance=.18,animation="jab"}, ["hunting-bow"]={kind="ranged",range=24,ammo="arrows",capacity=1},
     ["trail-slingshot"]={kind="ranged",range=18,ammo="rocks",capacity=1}, ["critter-crossbow"]={kind="ranged",range=26,ammo="arrows",capacity=1},
-    ["scrap-pistol"]={kind="ranged",range=24,ammo="9mm",capacity=8}, ["sawed-off-shotgun"]={kind="ranged",range=12,ammo="45-cal",capacity=2},
+    ["scrap-pistol"]={kind="ranged",range=24,ammo="9mm",capacity=8}, ["sawed-off-shotgun"]={kind="ranged",range=12,ammo="12-gauge",capacity=2},
     ["railway-cutlass"]={kind="melee",range=6,family="blade",accuracy=1,status="bleed",statusChance=.28,bleedDamage=2,animation="slash"},
     ["hooked-railway-halberd"]={kind="melee",range=7,family="polearm",armorPierce=3,animation="thrust"},
     ["rail-splitter-axe"]={kind="melee",range=5,family="axe",armorPierce=3,animation="chop"},
@@ -382,6 +383,11 @@ Catalog.lootPools = {
 Catalog.itemRarity={}
 for _,rarity in ipairs({"common","uncommon","rare","legendary"}) do
     for _,name in ipairs(Catalog.lootPools[rarity]) do Catalog.itemRarity[name]=rarity end
+end
+Catalog.householdItems=HouseholdItems.definitions
+Catalog.householdItemPools=HouseholdItems.pools
+for name,definition in pairs(Catalog.householdItems) do
+    Catalog.itemRarity[name]=definition.rarity
 end
 
 function Catalog.rarityFor(name)

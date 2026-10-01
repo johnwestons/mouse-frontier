@@ -47,6 +47,7 @@ local function new(context)
   local Stops=required(context,"stops","table")
   local Clouds=required(context,"clouds","table")
   local Maintenance=required(context,"maintenance","table")
+  local controlBindings=required(context,"controlBindings","table")
 
   local screenUI,inventoryPresenter,worldRenderer,gameplayHUD
 
@@ -64,6 +65,8 @@ local function new(context)
     drawTracks=function(...) return worldRenderer.drawTracks(...) end,
     drawLocomotive=function(...) return worldRenderer.drawLocomotive(...) end,
     drawTrainCar=function(...) return worldRenderer.drawTrainCar(...) end,
+    drawAnimatedCharacter=function(...) return worldRenderer.drawAnimatedCharacter(...) end,
+    getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
     isWeapon=adventure.inventoryActions.isWeapon,travelCost=adventure.journeyRules.travelCost,
     repairStatus=adventure.inventoryActions.repairStatus,
     questSummary=adventure.journeyRules.questSummary,
@@ -104,13 +107,16 @@ local function new(context)
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,
+    questSummary=adventure.journeyRules.questSummary,
     screenToGame=platform.presentationRuntime.screenToGame,pointerPosition=platform.mobileRuntime.pointerPosition,
     getTrainView=platform.presentationRuntime.getTrainView,
     getAudioStatus=platform.audioRuntime.status,drawLandscape=worldRenderer.drawLandscape,
     drawTracks=worldRenderer.drawTracks,drawTrainView=worldRenderer.drawTrainView,
     drawHouse=worldRenderer.drawHouse,drawStop=worldRenderer.drawStop,drawExpedition=worldRenderer.drawExpedition,drawCaravan=worldRenderer.drawCaravan,
     expeditionObjective=world.worldScene.expeditionObjective,drawExpeditionLocalMap=world.worldScene.drawExpeditionLocalMap,
+    controlBindings=controlBindings,
   })
+  ui.drawOptions=gameplayHUD.drawOptions
 
   local views={screenUI=screenUI,inventoryPresenter=inventoryPresenter,worldRenderer=worldRenderer,gameplayHUD=gameplayHUD}
   function views.status()

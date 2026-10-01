@@ -77,7 +77,9 @@ end
 function InteractionRouter.keyAction(ctx,key)
     if ctx.blocked then return nil end
     local selected=ctx.selected
-    if key=="q" then
+    if key=="g" then
+        if selected and (selected.kind=="npc" or selected.kind=="passenger") then return "give",selected.index end
+    elseif key=="e" then
         if ctx.dialogue then return "closeDialogue"
         elseif selected and selected.kind=="passenger" then return "talkPassenger",selected.index
         elseif selected and selected.kind=="carNext" then return "car",1
@@ -88,11 +90,7 @@ function InteractionRouter.keyAction(ctx,key)
         elseif selected and selected.kind=="shootingRange" then return "shootingRange"
         elseif selected and selected.kind=="expedition" then return "expedition",selected
         elseif selected and selected.kind=="crowCaravan" then return "caravan",selected
-        elseif selected and selected.kind=="returnTrain" then return "returnTrain" end
-    elseif key=="g" then
-        if selected and (selected.kind=="npc" or selected.kind=="passenger") then return "give",selected.index end
-    elseif key=="e" then
-        if ctx.dialogue then return "closeDialogue"
+        elseif selected and selected.kind=="returnTrain" then return "returnTrain"
         elseif selected and selected.kind=="mailbox" then return "openStorage",selected.index
         elseif selected and selected.kind=="chest" then return "holdPickup",selected.index
         elseif selected and selected.kind=="item" then return ctx.isFurniture(selected.index) and "holdPickup" or "pickup",selected.index
@@ -102,9 +100,10 @@ end
 
 function InteractionRouter.mouseAction(selected,button)
     if button==1 and selected and selected.hovered then
-        local qKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,shootingRange=true,returnTrain=true,expedition=true,crowCaravan=true}
-        local eKinds={mailbox=true,chest=true,item=true,fire=true}
-        if qKinds[selected.kind] then return "routeKey","q" end
+        if selected.kind=="mailbox" or selected.kind=="chest" then return "openStorage",selected.index end
+        if selected.kind=="radio" then return "routeKey","p" end
+        local eKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,shootingRange=true,
+            returnTrain=true,expedition=true,crowCaravan=true,item=true,fire=true}
         if eKinds[selected.kind] then return "routeKey","e" end
     end
     if button==2 and selected and (selected.kind=="chest" or selected.kind=="mailbox") then

@@ -14,7 +14,15 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from tools.build_mobile_package import CARAVAN_PACKED_REGIONS, image_bounds, optimize_image, runtime_asset  # noqa: E402
+from tools.build_mobile_package import (
+    CARAVAN_PACKED_REGIONS,
+    OUTPUT_ROOT,
+    image_bounds,
+    include_android_build_manifest,
+    optimize_image,
+    resolve_output_root,
+    runtime_asset,
+)  # noqa: E402
 
 
 class MobilePackageTests(unittest.TestCase):
@@ -32,6 +40,15 @@ class MobilePackageTests(unittest.TestCase):
         ):
             with self.subTest(action=action):
                 self.assertTrue(runtime_asset(character_root / f"{action}.png"))
+
+    def test_package_output_can_be_isolated_inside_mobile_output(self) -> None:
+        requested = OUTPUT_ROOT / "ios-player-test"
+        self.assertEqual(requested.resolve(), resolve_output_root(requested))
+        self.assertTrue(include_android_build_manifest(OUTPUT_ROOT))
+        self.assertFalse(include_android_build_manifest(requested))
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "inside the mobile output area"):
+                resolve_output_root(Path(temporary) / "outside")
 
     def test_future_run_sheets_pass_runtime_asset_filter(self) -> None:
         # Run art remains privately staged; classify synthetic present files

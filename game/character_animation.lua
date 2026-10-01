@@ -40,7 +40,14 @@ local function loadSet(manager,file)
         local path=manager.root.."/"..directory.."/"..action..".png"
         local image=manager.loadImage(path)
         if image then
-            local width,height=image:getDimensions(); local frameWidth=width/count; local quads={}
+            local width,height=image:getDimensions()
+            if isWalkAction(action) then
+                -- Walk strips can use a different frame count from the legacy
+                -- default; infer it from every direction's sheet dimensions.
+                local sheetFrames=math.floor(width/math.max(1,height)+.5)
+                if sheetFrames>0 and math.abs(width-sheetFrames*height)<=1 then count=sheetFrames end
+            end
+            local frameWidth=width/count; local quads={}
             for frame=1,count do quads[frame]=love.graphics.newQuad((frame-1)*frameWidth,0,frameWidth,height,width,height) end
             -- Runtime transparency scans used to decode every sheet a second
             -- time and inspect every pixel. Frame bounds are stable metadata

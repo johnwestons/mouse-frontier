@@ -402,7 +402,7 @@ local function install(context)
                 return result.consumed and result.gifts==1 and result.speaker and result.speaker:find("Familiar Face",1,true)
                     and result.text and result.text:find("water",1,true)
             end},
-            {name="audio_priority_and_title_silence",action=function()
+            {name="audio_priority_and_menu_ambience",action=function()
                 local settings=game.saveData.audio
                 settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()
                 local stationCategory=audioRuntime.status().category
@@ -412,8 +412,11 @@ local function install(context)
                 game.state="slots"; audioRuntime.update()
                 local titleStatus=audioRuntime.status()
                 game.state,game.battle=oldState,oldBattle; settings.station="8bit"; audioRuntime.resetMusic(); audioRuntime.update()
-                return {station=stationCategory,battle=battleCategory,titleSilent=titleStatus.nowPlaying==nil and titleStatus.rainPath==nil}
-            end,check=function(_,_,_,result) return result.station=="chill" and result.battle=="bossFight" and result.titleSilent end},
+                return {station=stationCategory,battle=battleCategory,menuMusic=titleStatus.category,menuRain=titleStatus.rainPath~=nil,
+                    menuPlaying=titleStatus.nowPlaying~=nil}
+            end,check=function(_,_,_,result)
+                return result.station=="chill" and result.battle=="bossFight" and result.menuMusic=="chill" and result.menuRain and result.menuPlaying
+            end},
             {name="radio_transport_render",action=function()
                 ui.radioOpen=true; ui.smokeDraw()
                 local controls={ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose,ui.radioPrevious,ui.radioPause,ui.radioNext,ui.radioMute}
@@ -570,7 +573,7 @@ local function install(context)
                 game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
                 local beforeAmmo,beforeGoodwill=game.saveData.ammo.rocks,game.saveData.goodwill
                 game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
-                ui.smokeUpdate(.05); ui.interaction={kind="shootingRange",label="TARGET RANGE"}; love.keypressed("q")
+                ui.smokeUpdate(.05); ui.interaction={kind="shootingRange",label="TARGET RANGE"}; love.keypressed("e")
                 local opened=game.shootingRange and game.shootingRange.phase=="lobby"
                 assert(opened,"range did not open; dialogue="..tostring(game.dialogue and game.dialogue.text))
                 ui.smokeDraw(); love.keypressed("return"); ui.smokeUpdate(.2); ui.smokeUpdate(.2); ui.smokeDraw()
@@ -581,7 +584,7 @@ local function install(context)
                 assert(impacts==1,"range shot impact count="..tostring(impacts))
                 worldSessionComposition.worldScene.handleShootingRange("complete"); ui.smokeDraw()
                 local result=game.shootingRange and game.shootingRange.result
-                love.keypressed("q")
+                love.keypressed("e")
                 return {opened=opened,impactCount=impacts,ammoUsed=beforeAmmo-game.saveData.ammo.rocks,
                     goodwill=(result and result.gained or 0),goodwillDelta=game.saveData.goodwill-beforeGoodwill,
                     closed=game.shootingRange==nil,rewarded=spot.rewarded==true}
@@ -594,7 +597,7 @@ local function install(context)
                     .." ammo="..tostring(result and result.ammoUsed).." goodwill="..tostring(result and result.goodwill)
                     .." delta="..tostring(result and result.goodwillDelta).." closed="..tostring(result and result.closed)
             end},
-            {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return "q" end,expect={state="game",scene="house"}},
+            {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return "e" end,expect={state="game",scene="house"}},
             fixtureStep("house"),
             {name="exit_home_button",action=function()
                 ui.smokeDraw()
@@ -605,8 +608,8 @@ local function install(context)
             end,check=function(_,_,snapshot,result)
                 return result and result.width>=135 and result.height>=38 and snapshot.state=="game" and snapshot.scene=="stop"
             end},
-            {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("q"); return true end,expect={state="game",scene="house"}},
-            {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("q"); return "q" end,expect={state="game",scene="stop"}},
+            {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return true end,expect={state="game",scene="house"}},
+            {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("e"); return "e" end,expect={state="game",scene="stop"}},
             {name="return_to_train_button",action=function()
                 ui.smokeDraw()
                 local control=ui.returnTrain
@@ -804,7 +807,7 @@ local function install(context)
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
                 {name="mobile_exit_home_touch",action=function()
                     game.saveData=newSave(character); enterGame(game.saveData)
-                    game.scene="stop"; game.saveData.scene="stop"; ui.interaction={kind="house",index=1}; love.keypressed("q")
+                    game.scene="stop"; game.saveData.scene="stop"; ui.interaction={kind="house",index=1}; love.keypressed("e")
                     ui.smokeDraw()
                     local control=ui.exitHome
                     if not control then return false end
@@ -855,7 +858,7 @@ local function install(context)
                     local result={aimedOnly=aimedOnly,fireHeld=fireHeld,shots=range.shots,
                         ammoUsed=ammoBefore-game.saveData.ammo.rocks,aimMode=range.aimMode,
                         controlsClear=next(mobileControls.touches)==nil}
-                    love.keypressed("q")
+                    love.keypressed("e")
                     return result
                 end,check=function(_,_,_,result)
                     return result and result.aimedOnly and result.fireHeld and result.shots==1 and result.ammoUsed==1

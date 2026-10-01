@@ -1,6 +1,7 @@
 local House = {}
 local Compositions = require("game.furniture_compositions")
 local LootProgression = require("game.loot_progression")
+local HouseholdItems = require("game.household_items")
 
 local arrangements={
     {{300,350,1.35},{470,350,1.35},{735,365,1.35},{330,535,1.45},{700,530,1.5}},
@@ -66,19 +67,31 @@ end
 
 function House.rollLoot(data,catalog,location)
     data.lootRolls=data.lootRolls or {}; local key=tostring(location)..":"..tostring(data.activeHouseDoor or 1)
-    if data.lootRolls[key] then return end
-    House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"food",location),location)
-    House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"water",location),location)
-    local rolls=love.math.random(2,4)+(location%10==0 and 1 or 0)
-    for _=1,rolls do
-        local item=LootProgression.rollItem(catalog,location,{weaponChance=.12})
-        if item then House.storeLoot(data,catalog,item,location) end
+    if not data.lootRolls[key] then
+        House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"food",location),location)
+        House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"water",location),location)
+        local rolls=love.math.random(2,4)+(location%10==0 and 1 or 0)
+        for _=1,rolls do
+            local item=LootProgression.rollItem(catalog,location,{weaponChance=.12})
+            if item then House.storeLoot(data,catalog,item,location) end
+        end
+        if location%5==0 and (data.activeHouseDoor or 1)==1 then
+            local milestone=LootProgression.rollWeapon(catalog,location,"uncommon")
+            if milestone then House.storeLoot(data,catalog,milestone,location) end
+        end
+        data.lootRolls[key]=true
     end
-    if location%5==0 and (data.activeHouseDoor or 1)==1 then
-        local milestone=LootProgression.rollWeapon(catalog,location,"uncommon")
-        if milestone then House.storeLoot(data,catalog,milestone,location) end
+    -- A separate marker lets already-visited houses gain the new curiosity
+    -- layer once, without rerolling their existing supplies or weapons.
+    local householdKey="household:"..key
+    if not data.lootRolls[householdKey] then
+        for _=1,2 do
+            local rarity=LootProgression.rollRarity(location)
+            local item=HouseholdItems.roll(rarity,catalog.householdItemPools)
+            if item then House.storeLoot(data,catalog,item,location) end
+        end
+        data.lootRolls[householdKey]=true
     end
-    data.lootRolls[key]=true
 end
 
 function House.ensure(data,catalog,isFurniture)

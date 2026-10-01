@@ -21,9 +21,12 @@ class LuaArchitectureTests(unittest.TestCase):
             "load", "update", "draw", "mousepressed", "mousemoved", "mousereleased",
             "wheelmoved", "keypressed", "keyreleased", "touchpressed", "touchmoved",
             "touchreleased", "focus", "quit", "textinput",
+            "gamepadpressed", "gamepadreleased", "gamepadaxis",
         }
         forwarded = set(re.findall(r"function love\.([a-z]+)\(", source))
         self.assertEqual(forwarded, expected_callbacks)
+        for callback in expected_callbacks:
+            self.assertRegex(source, rf"function love\.{callback}\(([^)]*)\) return app\.{callback}\(\1\) end")
 
     def test_application_boundaries_exist(self) -> None:
         app_adapter = (ROOT / "game" / "app.lua").read_text(encoding="utf-8")
@@ -105,7 +108,11 @@ class LuaArchitectureTests(unittest.TestCase):
             self.assertIn(f"function App.{callback}", app)
         self.assertTrue(app_adapter.rstrip().endswith("return App"))
         active_app_lines = [line for line in app_adapter.splitlines() if line.strip() and not line.lstrip().startswith("--")]
-        self.assertLessEqual(len(active_app_lines), 26)
+        # Controller press/release/axis each add one lifecycle forwarding line.
+        self.assertLessEqual(len(active_app_lines), 29)
+        for callback in ("gamepadpressed", "gamepadreleased", "gamepadaxis"):
+            self.assertIn(f"function App.{callback}(...) return application.{callback}(...) end", app_adapter)
+            self.assertIn(f"function application.{callback}", application_composition)
         self.assertEqual(re.findall(r'require\("game\.[^"]+"\)', app_adapter), ['require("game.application_composition")'])
         self.assertIn('require("game.application_composition").new({engine=love})', app_adapter)
         self.assertNotIn('require("game.systems")', app_adapter)
@@ -113,7 +120,10 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn('require("game.save_schema")', app)
         self.assertIn('require("game.config")', app)
         self.assertIn('require("game.runtime_state")', app)
-        self.assertNotRegex(app, r"local\s+state\s*=")
+        # Controller routing may read runtime.state locally; it must not create
+        # a separate state store with an independently initialized value.
+        state_snapshots = re.findall(r"local\s+state\s*=\s*([^\r\n;]+)", app)
+        self.assertTrue(all(value.strip() == "runtime.state" for value in state_snapshots))
         self.assertNotRegex(app, r"local\s+selectedSlot\s*[,=]")
         self.assertNotRegex(app, r"local\s+scene\s*[,=]")
         self.assertIn("CURRENT_VERSION = 35", schema)
@@ -312,7 +322,8 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("function Accessibility.touchProfile", accessibility)
         self.assertIn("function Accessibility.audit", accessibility)
         self.assertIn('runtime.optionsPage="accessibility"', gameplay_input)
-        self.assertIn('Accessibility.toggle(runtime.saveData,"highContrast")', gameplay_input)
+        self.assertIn('local data=runtime.saveData or ui.menuSettings', gameplay_input)
+        self.assertIn('Accessibility.toggle(optionsData(),"highContrast")', gameplay_input)
         self.assertIn('Accessibility.enabled(runtime.saveData,"controlHints")', gameplay_hud)
         self.assertIn('Accessibility.enabled(saveData,"highContrast")', battle_ui)
         self.assertIn('Accessibility.motionSpeed(runtime.saveData)', gameplay_update)
@@ -336,7 +347,8 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn('local FirstAid=required(context,"firstAid","table")', adventure_composition)
         self.assertIn("resolveFirstAid=resolveFirstAid", journey_rules)
         self.assertIn("helpBalanceAudit=function()", journey_rules)
-        self.assertIn("FirstAid.draw(runtime.firstAid,colors,assets)", gameplay_hud)
+        self.assertIn("FirstAid.draw(runtime.firstAid,colors,assets,true)", gameplay_hud)
+        self.assertIn('UIStyle.scope("firstAid"', gameplay_hud)
         self.assertNotIn('require("game.activity_minigame_ui")', first_aid)
         self.assertIn("bandageStrips=firstAidAssets.bandageStrips", gameplay_hud)
         self.assertIn("drawImageSized(assets.bandageStrips[index]", first_aid)
@@ -433,7 +445,8 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("ShootingRange.update", gameplay_update)
         self.assertIn("ShootingRange.draw", gameplay_hud)
         self.assertIn("drawShootingRangeSpot()", world_renderer)
-        self.assertIn('elseif kind=="shootingRange" then return "q","RANGE"', mobile_runtime)
+        self.assertIn('elseif kind=="shootingRange" then return "e","RANGE"', mobile_runtime)
+        self.assertRegex(interaction_router, r'(?s)elseif key=="e" then.*?selected.kind=="shootingRange" then return "shootingRange"')
         self.assertIn("shootingRangeActive=shootingRangeActive", mobile_runtime)
         self.assertIn('self.touches[id]={kind="rangePointer",button=4,session=rangeSession}', mobile_controls)
         self.assertNotIn('drawButton(self.primary,"FIRE"', mobile_controls)
@@ -444,7 +457,8 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn('name="mobile_shooting_range_aim_then_fire"', smoke_playthrough)
         self.assertIn('Range.hostStops={2,8,14,20,26,32,38,44,50}', shooting_range)
         self.assertIn('impact.material=="steel"', shooting_range)
-        self.assertIn('best.impacts[#best.impacts+1]=impact', shooting_range)
+        self.assertIn('best.impacts[#best.impacts+1]={offsetX=pelletX-best.x,offsetY=pelletY-best.y,', shooting_range)
+        self.assertIn('variant=(session.shots+pelletIndex-2)%4+1,material=best.material}', shooting_range)
         self.assertIn('best.material=="clay"', shooting_range)
         self.assertIn('sprite=target.breaking<.13 and 11 or 12', shooting_range)
         self.assertIn('data.ammo[combat.ammo]=reserve-1', shooting_range)
@@ -541,7 +555,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertIn("drawHandPatch", weapon_attachment)
         self.assertIn("WeaponAttachment.itemSprite(ui,u.actionItem)", battle_ui)
         self.assertIn("WeaponAttachment.itemSprite(ui,runtime.actionHeldItem)", world_renderer)
-        self.assertEqual(54, weapon_attachment_points.count('.png"]={'))
+        self.assertEqual(55, weapon_attachment_points.count('.png"]={'))
         sludge_assets = (
             "sludge-crawler-mouse-ears-idle-walk.png",
             "sludge-crawler-mouse-ears-attack.png",

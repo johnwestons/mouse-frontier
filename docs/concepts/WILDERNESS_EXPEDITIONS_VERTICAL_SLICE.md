@@ -4,14 +4,16 @@
 
 Stop 6 now owns the first data-driven expedition: **Riverwood Outskirts**, leading to **Buried Waystation**. It is deliberately small enough to tune, but it uses the final reusable boundaries for area data, roaming enemies, interactions, combat handoff, persistent loot, and save migration.
 
+Stop 5 now adds the first earlier-stop expedition: the **Red Mesa Approach** opens into **Redwash Basin**, a broad outdoor route through split ridges and a flood-carved wash. The low crossing periodically floods; players can wait on high ground or take the longer ridge path. A player caught in the wash is carried to the nearest safe bank. They survey three cairns, find optional caches, and deal with regular Badlands creatures along the way. This gives Stop 5 a traversal and route-reading loop instead of reusing Stop 6's guardian gate and vault.
+
 ### Play route
 
-1. Reach stop 6 and follow the permanent **OUTSKIRTS** sign near `(875, 367)`.
-2. Enter Riverwood Outskirts at the southern trail.
-3. Search the eastern ruin cache or enter the buried waystation in the northeast.
-4. In the dungeon, defeat both sludge-taken bandits to dissolve the boss gate.
-5. Weaken **The Buried Host** in real time, or use **CHALLENGE** nearby to enter its tactical battle immediately. Every point of damage carries over. The guardian's shell stops field damage at 1 HP; challenging it lets the player finish without deliberately taking a hit.
-6. Defeat it to open the corruption vault, then return through the dungeon and surface exits.
+1. At Stop 5, enter **Red Mesa Approach**, fight or pass the dust beetle and cactus rat, search the supply cache, and follow the trail into **Redwash Basin**.
+2. Explore the wash and the elevated ridge. The UI warns before each flash flood; the low crossing closes briefly while the ridge remains passable. Anyone caught in the wash is carried to a safe bank.
+3. Mark the north, wash, and arch cairns to survey the basin route. Two optional supply caches and three roaming regular mobs reward exploration.
+4. Return to Red Mesa when ready. At Stop 6, follow the familiar Riverwood Outskirts route into the Buried Waystation.
+5. Defeat both sludge-taken bandits to open the boss chamber. Weaken **The Buried Host** in real time or challenge it nearby; field damage carries into tactical combat.
+6. Defeat the Host to open the corruption vault, then return through both areas.
 
 ### Controls and combat contract
 
@@ -27,20 +29,24 @@ Stop 6 now owns the first data-driven expedition: **Riverwood Outskirts**, leadi
 - Loss or retreat returns the player inside the train and clears the active expedition.
 - An active battle checkpoint saves the turn, board, health, statuses and used supplies. Result destinations are saved before Continue; closing the game on a defeat screen cannot bypass the train return.
 - Field and tactical kills claim the same once-only per-enemy XP, coal and scrap. Authored chests provide item treasure. Defeat/retreat preserve survivor damage and already earned casualty rewards.
-- **AREA MAP** shows paths, exits, caches, sealed routes, threats and the player. The expedition objective sits below the journey HUD. Opened caches and completion have persistent feedback.
+- **AREA MAP** shows paths, exits, caches, sealed routes, threats and the player. Opened caches and completion have persistent feedback.
+
+The expedition HUD keeps only the area name, player health and a clearly labeled defeated-enemy count in a small corner card. Train supplies, campaign progression and ammunition summaries stay off the playfield. Desktop actions share one top row; the area map hides the HUD and row while open, then shows the current objective above the route artwork. Opening expedition storage hides the toolbar and keeps a close control in the clear strip above the inventory panels. Touch movement, attack and context controls remain available around the screen edges.
 
 ## Content manifest
 
 | Area | ID | Size | Content |
 | --- | --- | ---: | --- |
+| Red Mesa Approach | `stop05-badlands-approach` | 1672 x 941 | Stop 5 trailhead, supply cache, Redwash Basin entrance, dust beetle and cactus rat |
+| Redwash Basin | `stop05-redwash-basin` | 1672 x 941 | Open wash and ridge routes, timed flash floods, three survey cairns, two optional caches, three regular Badlands mobs |
 | Riverwood Outskirts | `stop06-outskirts` | 1672 x 941 | Town return, ruin cache, dungeon entrance, two corrupted bandits |
 | Buried Waystation | `stop06-buried-waystation` | 1672 x 941 | Surface return, side cache, two gate bandits, boss arena, locked vault |
 
-Persistent state lives under `saveData.expeditions[areaId]`. Each mob has a stable ID, position, health, death state, and reward receipt. Each chest has a stable ID and persistent storage contents. Gates and completion are derived from those facts. Content version 2 moves old mob origins onto corrected paths without restoring health or refilling emptied chests. An obsolete pending return point is repaired only during that map migration. Transient AI resets when switching saves.
+Persistent state lives under `saveData.expeditions[areaId]`. Each mob has a stable ID, position, health, death state, and reward receipt. Each chest has a stable ID and persistent storage contents; cairn survey progress is saved per marker. Redwash Basin completion derives from all three cairns being recorded. Its flood phase advances while the area is active and pauses with the world. Stop 6 content version 2 moves old mob origins onto corrected paths without restoring health or refilling emptied chests. Stop 5's approach has its own version 2 layout, and the replacement basin uses a new area ID so old mine progress cannot mark it complete. Transient AI resets when switching saves.
 
 ## Art and animation contract
 
-The two maps are clean 1672 x 941 background sprites. Gameplay characters, mobs, gates, health feedback, and interaction beacons are rendered separately.
+All four maps are 1672 x 941 backgrounds with matching black-and-white walk masks. Gameplay characters, mobs, health feedback, the moving flood water, and interaction beacons are rendered separately. Wilderness maps can reuse a normal enemy sprite for field encounters; a dedicated action atlas adds richer field animation when one is authored.
 
 The pilot corrupted mobs use 1536 x 1024 action atlases arranged as a 3 x 2 grid of 512-pixel cells:
 
@@ -59,13 +65,13 @@ These remain single-view pilot sprites with horizontal facing, not eight distinc
 
 ## Adding the next expedition
 
-1. Add a new surface or dungeon definition to `game/expedition_areas.lua` with an ID, stop, dimensions, background, spawns, clearings/corridors, interactions, and mobs.
+1. Add a new surface or wilderness definition to `game/expedition_areas.lua` with an ID, stop, dimensions, background, spawns, clearings/corridors, interactions, and mobs. Use dungeon gates and bosses only where they fit the area's intended play loop.
 2. Give every mob, chest, and interaction a stable unique ID.
 3. Add clean background art at the declared dimensions.
-4. Register any new mob action atlas in `game/expedition_runtime.lua`, or reuse an existing corrupted host.
+4. Reuse a regular mob sprite for field encounters, or register a dedicated action atlas in `game/expedition_runtime.lua` for richer field animation.
 5. Trace footpaths against the art, including narrow bridge decks and gated floors. Keep exits, mob origins and every patrol target reachable. Visibility-graph waypoints route mobs around corners using the same collision data.
 6. Add behavioral geometry and progression tests, including closed/open gates, every route, migration and once-only rewards. Increment the area's content version when changing authored geometry.
-7. Play-test the path at normal and sprint speed, with camera zoom at minimum and maximum, then verify save/reload from both surface and dungeon.
+7. Play-test the path at normal and sprint speed, with camera zoom at minimum and maximum, then verify save/reload across connected areas.
 
 No new scene-specific combat or inventory UI should be added for future areas. New expeditions should be content manifests and art unless they introduce a genuinely new shared mechanic.
 
@@ -86,6 +92,6 @@ Mobs follow a cached visibility graph built from authored path endpoints and flo
 ## Validation
 
 - All Lua sources parse successfully.
-- The expedition content audit verifies both maps, stable IDs, art sizes, walkable spawns, walkable mob origins, walkable interaction origins, and gate progression.
+- The expedition content audit verifies all four maps, stable IDs, art sizes, walkable spawns, walkable mob origins, walkable interaction origins, and gate progression.
 - Behavioral tests cover combat, aiming, weapon condition, gates, routes, interruption/reload, exact return, modal pause, touch controls, migration and resource ownership. See [regression guide](WILDERNESS_EXPEDITIONS_REGRESSION_GUIDE.md).
-- The isolated full-application LÖVE preview exercises desktop and touch layouts and captures entry, maps, menus, chests, dungeon, boss battle, victory, vault and defeat return. It uses a separate QA identity and no user save slots; see `tools/expedition-integration-preview/run.ps1` and `expedition-validation/`.
+- The isolated playthrough smoke visits Stop 5 and Stop 6. It verifies the flood warning, closed low wash, open ridge detour, cairn survey, optional caches, regular field fights, and Stop 6 gate/boss/vault flow. It uses a separate QA identity and no user save slots; see `tools/expedition-playthrough-smoke/run.ps1`. The visual integration preview continues to capture the Stop 6 pilot at `tools/expedition-integration-preview/run.ps1`.

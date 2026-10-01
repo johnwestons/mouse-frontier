@@ -90,8 +90,10 @@ function Quest.new(context)
     local getCharacterAnimations=context.getCharacterAnimations or function() return {} end
     local mobileMovement=context.mobileMovement or function() return 0,0 end
     local mobileSprinting=context.mobileSprinting or function() return false end
+    local mobileEnabled=context.mobileEnabled or function() return false end
     local width=required(context,"width","number")
     local height=required(context,"height","number")
+    local controlBindings=required(context,"controlBindings","table")
 
     local service={}
     local resourcesActive=false
@@ -388,57 +390,67 @@ function Quest.new(context)
         return true
     end
 
-    local controllerButtons={a="e",b="escape",x="r",y="l",start="p",back="tab",leftshoulder="c",rightshoulder="space"}
+    local controllerButtons={"a","b","x","y","start","back","leftshoulder","rightshoulder","rightstick"}
     local controllerHeld={}
     local controllerADS=false
+    local controllerFire=false
     local controllerGun
     local function pollController(dt)
         local state=runtime.lastStand
         if not state or not love.joystick then return end
         local pads=love.joystick.getJoysticks()
-        local pad=pads[1]
-        if not pad or not pad:isGamepad() then
+        local pad
+        for _,candidate in ipairs(pads) do if candidate:isGamepad() then pad=candidate; break end end
+        if not pad then
             if controllerADS and state.shootout then Shootout.setADS(state.shootout,false) end
-            controllerADS=false; controllerGun=nil
+            if controllerFire and state.shootout then Shootout.setFireHeld(state.shootout,"controller",false) end
+            controllerADS=false; controllerGun=nil; controllerFire=false
             controllerHeld={}
             if state.scene then state.scene.axisX=0; state.scene.axisY=0 end
             return
         end
-        for button,key in pairs(controllerButtons) do
+        local scope=state.treatment and "last_stand_treatment"
+            or state.mode=="offer" and "last_stand_offer"
+            or (state.mode=="escort" or state.mode=="returning") and "last_stand_escort"
+            or state.mode=="shootout" and "last_stand_shootout"
+            or (state.mode=="backyard" or state.mode=="interior") and "last_stand_world"
+            or "last_stand"
+        for _,button in ipairs(controllerButtons) do
             local down=pad:isGamepadDown(button)
-            if down and not controllerHeld[button] then
-                local action=key
-                if button=="a" then
-                    action=state.treatment and "return" or state.mode=="offer" and "y"
-                        or (state.mode=="escort" or state.mode=="returning") and "space" or "e"
-                end
-                service:keypressed(action)
+            local key=controlBindings:translateButton(button,scope)
+            if key and down and not controllerHeld[button] then
+                service:keypressed(key)
+            elseif key and not down and controllerHeld[button] then
+                service:keyreleased(key)
             end
             controllerHeld[button]=down
         end
         state=runtime.lastStand
         if not state then return end
-        local function axis(name)
-            local value=pad:getGamepadAxis(name)
-            return math.abs(value)<.18 and 0 or value
-        end
+        local function axis(name) return controlBindings:axisValue(name) end
         if state.scene then
-            state.scene.axisX=axis("leftx")+(pad:isGamepadDown("dpright") and 1 or 0)-(pad:isGamepadDown("dpleft") and 1 or 0)
-            state.scene.axisY=axis("lefty")+(pad:isGamepadDown("dpdown") and 1 or 0)-(pad:isGamepadDown("dpup") and 1 or 0)
+            state.scene.axisX,state.scene.axisY=controlBindings:movement()
         end
         if state.mode=="shootout" and not state.paused then
             local gun=state.shootout.gun
-            local aimDX,aimDY=axis("rightx"),axis("righty")
+            local aimDX,aimDY=axis("aim_x"),axis("aim_y")
             if aimDX~=0 or aimDY~=0 then
                 Shootout.setAim(state.shootout,math.max(0,math.min(width,gun.aimX+aimDX*340*dt)),
                     math.max(0,math.min(height,gun.aimY+aimDY*340*dt)))
             end
-            local aiming=pad:getGamepadAxis("triggerleft")>.4
+            local aiming=axis("ads")>.4
             if aiming~=controllerADS or (aiming and controllerGun~=gun) then Shootout.setADS(state.shootout,aiming) end
             controllerADS=aiming; controllerGun=gun
-            if pad:getGamepadAxis("triggerright")>.4 then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog) end
+            local firing=axis("fire")>.4
+            if firing and not controllerFire then
+                Shootout.setFireHeld(state.shootout,"controller",true,runtime.saveData,width,height,Catalog)
+            elseif not firing and controllerFire then
+                Shootout.setFireHeld(state.shootout,"controller",false)
+            end
+            controllerFire=firing
         elseif state.mode~="shootout" then
-            controllerADS=false; controllerGun=nil
+            if controllerFire then Shootout.setFireHeld(state.shootout,"controller",false) end
+            controllerADS=false; controllerGun=nil; controllerFire=false
         end
     end
 
@@ -507,7 +519,7 @@ function Quest.new(context)
             state.scene.reducedMotion=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedMotion==true
             state.scene.reducedFlashes=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedFlashes==true
             local mobileX,mobileY=mobileMovement()
-            local sprinting=love.keyboard.isDown("lshift","rshift") or mobileSprinting()
+            local sprinting=love.keyboard.isDown("lshift","rshift") or controlBindings:actionDown("sprint") or mobileSprinting()
             local reports=Scene.update(state.scene,dt,{
                 mobileX=mobileX,mobileY=mobileY,sprinting=sprinting,
                 speed=runtime.player and runtime.player.speed or 185,
@@ -609,6 +621,7 @@ function Quest.new(context)
             return true
         end
         if state.mode=="shootout" then
+            if key=="v" then Shootout.cycleFireMode(state.shootout); return true end
             if key=="escape" then
                 state.quest.state="interior"
                 enterScene(state,"interior")
@@ -617,7 +630,7 @@ function Quest.new(context)
             elseif key=="tab" then Shootout.cycleWeapon(state.shootout,runtime.saveData,Catalog)
             elseif key=="c" then Shootout.setCover(state.shootout,not state.shootout.ducking)
             elseif key=="return" and state.shootout.result=="retreat" then Shootout.retry(state.shootout)
-            elseif key=="space" then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog)
+            elseif key=="space" then Shootout.setFireHeld(state.shootout,"keyboard",true,runtime.saveData,width,height,Catalog)
             end
             return true
         end
@@ -629,11 +642,15 @@ function Quest.new(context)
         return state.capture==true
     end
 
-    function service:keyreleased()
+    function service:keyreleased(key)
+        local state=runtime.lastStand
+        if state and state.mode=="shootout" and key=="space" then
+            Shootout.setFireHeld(state.shootout,"keyboard",false)
+        end
         return runtime.lastStand and runtime.lastStand.capture==true or false
     end
 
-    function service:mousepressed(x,y,button,istouch)
+    function service:mousepressed(x,y,button,istouch,touchId)
         local state=runtime.lastStand
         if not state then return false end
         if state.mode=="approach" and button==1 and state.arrival and state.arrival>0 and not busy() then
@@ -654,6 +671,8 @@ function Quest.new(context)
             return true
         end
         if (state.mode=="backyard" or state.mode=="interior") and button==1 then
+            local px,py,pw,ph=Scene.pauseRect(width,height)
+            if pointIn(x,y,px,py,pw,ph) then state.paused=true; return true end
             local rx,ry,rw,rh=Scene.actionRect(height)
             if pointIn(x,y,rx,ry,rw,rh) and handleSceneAction(state) then return true end
             Scene.setDestination(state.scene,WorldView.toWorld(x,y))
@@ -663,7 +682,11 @@ function Quest.new(context)
             if istouch then
                 local action=Shootout.touchAction(x,y,width,height)
                 if action then
-                    if action=="fire" then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog)
+                    if action=="fire" then
+                        state.fireTouchSources=state.fireTouchSources or {}
+                        local fireId=touchId or "touch-action"
+                        state.fireTouchSources[fireId]=true
+                        Shootout.setFireHeld(state.shootout,"touch:"..tostring(fireId),true,runtime.saveData,width,height,Catalog)
                     elseif action=="ads" then Shootout.setADS(state.shootout,not state.shootout.gun.ads)
                     else self:keypressed(action) end
                     return true
@@ -734,7 +757,11 @@ function Quest.new(context)
                 and not Shootout.touchAction(x,y,width,height) and state.shootout.result~="retreat"
                 and not Shootout.needsSupply(state.shootout,runtime.saveData) then
                 if state.aimTouch then
-                    if state.aimTouch~=id then Shootout.fire(state.shootout,runtime.saveData,width,height,Catalog) end
+                    if state.aimTouch~=id then
+                        state.fireTouchSources=state.fireTouchSources or {}
+                        state.fireTouchSources[id]=true
+                        Shootout.setFireHeld(state.shootout,"touch:"..tostring(id),true,runtime.saveData,width,height,Catalog)
+                    end
                 else
                     state.aimTouch=id
                     Shootout.setTouchAim(state.shootout,x,y,width,height)
@@ -742,7 +769,7 @@ function Quest.new(context)
                 return true
             end
         end
-        return self:mousepressed(x,y,1,true)
+        return self:mousepressed(x,y,1,true,id)
     end
 
     function service:touchmoved(id,x,y)
@@ -760,6 +787,10 @@ function Quest.new(context)
     function service:touchreleased(id,x,y)
         local state=runtime.lastStand
         if not state then return false end
+        if state.fireTouchSources and state.fireTouchSources[id] then
+            state.fireTouchSources[id]=nil
+            Shootout.setFireHeld(state.shootout,"touch:"..tostring(id),false)
+        end
         if state.aimTouch==id then state.aimTouch=nil end
         return self:mousereleased(x,y,1)
     end
@@ -767,6 +798,10 @@ function Quest.new(context)
     function service:focus(focused)
         if not focused and runtime.lastStand and runtime.lastStand.capture then
             runtime.lastStand.aimTouch=nil
+            if runtime.lastStand.shootout then
+                runtime.lastStand.shootout.fireHeldSources={}
+                runtime.lastStand.shootout.gun.fireHeld=false
+            end
             runtime.lastStand.paused=true
             save()
         end
@@ -783,6 +818,10 @@ function Quest.new(context)
     local function drawState()
         local state=runtime.lastStand
         if not state then return end
+        if mobileEnabled() then
+            state.touchControls=true
+            if state.shootout then state.shootout.touchControls=true end
+        end
         if state.mode=="approach" then Scene.drawApproach(state); return end
         if state.mode=="offer" then
             Scene.drawApproach(state)
@@ -807,7 +846,7 @@ function Quest.new(context)
         end
         if state.mode=="escort" then Scene.drawTransition(state,width,height,false,playerVisual()); return end
         if state.mode=="backyard" or state.mode=="interior" then
-            Scene.draw(state.scene,width,height,playerVisual(),needsLoan(state.quest))
+            Scene.draw(state.scene,width,height,playerVisual(),needsLoan(state.quest),state.touchControls,not state.paused)
             drawNotice(state)
             if state.treatment then
                 local assets={}

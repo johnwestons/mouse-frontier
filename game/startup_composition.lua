@@ -40,6 +40,7 @@ local function new(context)
   local Passengers=required(context,"passengers","table")
   local FirstAid=required(context,"firstAid","table")
   local ShootingRange=required(context,"shootingRange","table")
+  local controlBindings=required(context,"controlBindings","table")
 
   local startupRuntime=StartupRuntime.new({
     ui=ui,scenery=content.scenery,graphics=Graphics,filesystem=Filesystem,assets=Assets,
@@ -50,6 +51,7 @@ local function new(context)
     gameplayContext={
       runtime=runtime,width=W,holdPickupSeconds=holdPickupSeconds,ui=ui,car=car,landscape=landscape,scenery=content.scenery,
       maintenanceSession=maintenanceSession,mobileEnabled=platform.mobileRuntime.isEnabled,
+      pointerPosition=platform.mobileRuntime.pointerPosition,
       mobileMovement=platform.mobileRuntime.movement,mobileHeld=platform.mobileRuntime.isHeld,
       mobileSprinting=platform.mobileRuntime.isSprinting,interactionRouter=interactionRouter,
       inventoryActions=adventure.inventoryActions,journeyRules=adventure.journeyRules,catalog=Catalog,
@@ -65,6 +67,7 @@ local function new(context)
       moveCaravan=world.worldScene.moveCaravan,currentCaravanInteraction=world.worldScene.currentCaravanInteraction,
       updateCarTransition=platform.trainCarRuntime.updateTransition,writeSave=platform.persistenceRuntime.schedule,
       firstAid=FirstAid,shootingRange=ShootingRange,
+      controlBindings=controlBindings,
     },
   })
 

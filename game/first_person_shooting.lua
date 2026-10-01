@@ -1,4 +1,6 @@
 local WeaponViews=require("game.first_person_weapon_views")
+local WeaponActions=require("game.first_person_weapon_actions")
+local WeaponManifest=require("game.first_person_weapon_manifest")
 local MobileAim=require("game.mobile_weapon_aim")
 
 local Shooting={}
@@ -67,6 +69,10 @@ local function totalRounds(state,data,quest)
     return math.max(0,math.floor(tonumber(data.ammo and data.ammo[state.ammoType]) or 0))
 end
 
+local function stagedTubeReload(profile)
+    return profile and (profile.style=="tubeLever" or profile.style=="pumpTube")
+end
+
 local function configure(state,name,stats,borrowed,data,quest)
     state.weapon=name
     state.ammoType=stats and stats.ammo or "22lr"
@@ -75,6 +81,8 @@ local function configure(state,name,stats,borrowed,data,quest)
     state.magazine=math.min(state.capacity,totalRounds(state,data,quest))
     state.reloadTimer=0
     state.cooldown=0
+    if not WeaponManifest.fireModeValid(name,state.fireMode) then state.fireMode="single" end
+    WeaponActions.finish(state)
 end
 
 function Shooting.new(data,Catalog,quest,width,height)
@@ -91,7 +99,9 @@ function Shooting.new(data,Catalog,quest,width,height)
             saved.magazine=math.max(0,math.min(tonumber(saved.magazine) or 0,saved.capacity,totalRounds(saved,data,quest)))
             saved.ads=false
             saved.touchAim=nil
-            saved.recoil=0
+            saved.fireHeld=false
+            saved.fireHeldSources={}
+            if not WeaponManifest.fireModeValid(saved.weapon,saved.fireMode) then saved.fireMode="single" end
             return saved
         end
     end
@@ -101,7 +111,6 @@ function Shooting.new(data,Catalog,quest,width,height)
         weaponX=(width or 960)*.68,
         weaponY=(height or 720)*.70,
         ads=false,
-        recoil=0,
         cooldown=0,
         reloadTimer=0,
     }
@@ -157,7 +166,7 @@ function Shooting.chooseWeapon(state,option,data,Catalog,quest)
     end
     if option.borrowed then quest.loanActive=true end
     if not selected then
-        selected={aimX=state.aimX,aimY=state.aimY,weaponX=state.weaponX,weaponY=state.weaponY,recoil=0,ads=false}
+        selected={aimX=state.aimX,aimY=state.aimY,weaponX=state.weaponX,weaponY=state.weaponY,ads=false}
         configure(selected,option.name,firearmStats(option.name,Catalog),option.borrowed,data,quest)
         quest.weaponSessions[key]=selected
     end
@@ -231,13 +240,45 @@ function Shooting.setADS(state,value)
     MobileAim.refresh(state,state.weapon,state.ads and "sights" or "hip")
 end
 
+function Shooting.fireModes(name)
+    return WeaponManifest.fireModesFor(name)
+end
+
+function Shooting.cycleFireMode(state,direction)
+    if not state or not state.weapon then return nil end
+    local modes=WeaponManifest.fireModesFor(state.weapon)
+    if #modes<2 then return nil end
+    local selected=1
+    for index,mode in ipairs(modes) do if mode==state.fireMode then selected=index; break end end
+    selected=((selected-1+(direction or 1))%#modes)+1
+    state.fireMode=modes[selected]
+    state.fireHeld=false
+    state.fireHeldSources={}
+    return state.fireMode
+end
+
 function Shooting.reload(state,data,quest)
     if not state.weapon or state.reloadTimer>0 or totalRounds(state,data,quest)<=0 then return false end
-    state.reloadTimer=.72
+    local profile=WeaponManifest.reloadProfileFor(state.weapon)
+    local rounds
+    if stagedTubeReload(profile) then
+        local target=math.min(state.capacity,totalRounds(state,data,quest))
+        if profile.style=="pumpTube" then
+            rounds=target-math.max(0,tonumber(state.magazine) or 0)
+            if rounds<=0 then return false end
+        else
+            if target<=(tonumber(state.magazine) or 0) then return false end
+            rounds=target
+        end
+    end
+    state.reloadTimer=WeaponActions.reloadDuration(state,rounds)
+    WeaponActions.beginReload(state,rounds)
+    if profile and profile.style=="tubeLever" and rounds then state.magazine=0 end
     return true
 end
 
 function Shooting.fire(state,data,quest)
+    if state.fireMode=="safe" then return false,"safe" end
     if not state.weapon or state.reloadTimer>0 or state.cooldown>0 then return false,"busy" end
     if state.magazine<=0 then return false,totalRounds(state,data,quest)>0 and "reload" or "empty" end
     state.magazine=state.magazine-1
@@ -247,25 +288,31 @@ function Shooting.fire(state,data,quest)
         data.ammo=data.ammo or {}
         data.ammo[state.ammoType]=math.max(0,(tonumber(data.ammo[state.ammoType]) or 0)-1)
     end
-    state.cooldown=state.weapon:find("rifle",1,true) and .34 or .20
-    state.recoil=1
+    state.cooldown=WeaponManifest.fireCooldownFor(state.weapon,state.fireMode)
+    WeaponActions.beginFire(state)
     return true
 end
 
 function Shooting.update(state,dt,data,quest,width,height)
+    WeaponActions.update(state,dt)
     state.cooldown=math.max(0,(state.cooldown or 0)-dt)
-    state.recoil=math.max(0,(state.recoil or 0)-dt*5.5)
     if state.reloadTimer and state.reloadTimer>0 then
+        local tubeReload=state.tubeReloadTotalRounds~=nil
+        if tubeReload then
+            local inserted=WeaponActions.consumeTubeRounds(state)
+            for _=1,inserted do
+                local target=math.min(state.capacity,totalRounds(state,data,quest))
+                if state.magazine<target then state.magazine=state.magazine+1 end
+            end
+        end
         state.reloadTimer=math.max(0,state.reloadTimer-dt)
         if state.reloadTimer==0 then
-            state.magazine=math.min(state.capacity,totalRounds(state,data,quest))
+            if not tubeReload then
+                state.magazine=math.min(state.capacity,totalRounds(state,data,quest))
+            end
+            WeaponActions.finish(state)
         end
     end
-    local targetX=state.aimX+(width or 960)*.17
-    local targetY=state.aimY+(height or 720)*.20
-    local follow=math.min(1,dt*13)
-    state.weaponX=state.weaponX+(targetX-state.weaponX)*follow
-    state.weaponY=state.weaponY+(targetY-state.weaponY)*follow
 end
 
 local function ensureViews()
@@ -275,7 +322,8 @@ local function ensureViews()
             local ok,image=pcall(love.graphics.newImage,file)
             return ok and image or nil
         end,
-        function(file) return love.filesystem.getInfo(file)~=nil end
+        function(file) return love.filesystem.getInfo(file)~=nil end,
+        function(...) return love.graphics.newQuad(...) end
     )
     return viewCache
 end
@@ -301,20 +349,41 @@ function Shooting.draw(state,width,height)
     local maxWidth=state.ads and width*1.03 or width*.80
     local maxHeight=state.ads and height*.94 or height*.84
     local scale=math.min(maxWidth/iw,maxHeight/ih)
+    local actionImage,actionQuad,actionWidth,actionHeight,adsFrame
+    if state.ads and state.weaponAction~="reload" then
+        adsFrame=WeaponActions.adsFrameIndex(state)
+        actionImage,actionQuad,actionWidth,actionHeight=views:adsActionFrame(state.weapon,adsFrame)
+    else
+        local frame=WeaponActions.frameIndex(state)
+        actionImage,actionQuad,actionWidth,actionHeight=views:actionFrame(state.weapon,frame)
+    end
     love.graphics.setColor(1,1,1,1)
-    if state.touchAim then
+    if actionImage then
+        if state.ads and state.weaponAction~="reload" then
+            local place=MobileAim.adsActionPlacement(state.weapon,state.aimX,state.aimY,width,height,
+                actionWidth,actionHeight,width*1.03,height*.94,adsFrame)
+            if place then love.graphics.draw(actionImage,actionQuad,place.x,place.y,0,place.scale,place.scale) end
+        else
+            local place=MobileAim.placement(state.weapon,"hip","hip",state.aimX,state.aimY,width,height)
+            local actionScale=place.height/actionHeight
+            love.graphics.draw(actionImage,actionQuad,
+                place.gripX-place.gripAnchor.x*actionWidth*actionScale,
+                place.gripY-place.gripAnchor.y*actionHeight*actionScale,0,actionScale,actionScale)
+        end
+    elseif state.ads then
+        if state.touchAim then
+            local place=MobileAim.placement(state.weapon,"sights","sights",state.aimX,state.aimY,width,height)
+            love.graphics.draw(image,place.x,place.y,0,place.width/iw,place.height/ih)
+        else
+            local anchor=views:anchor(state.weapon)
+            local x=state.aimX-iw*scale*anchor.x
+            local y=state.aimY-ih*scale*anchor.y
+            love.graphics.draw(image,x,y,0,scale,scale)
+        end
+    else
         local mode=state.ads and "sights" or "hip"
         local place=MobileAim.placement(state.weapon,mode,mode,state.aimX,state.aimY,width,height)
-        love.graphics.draw(image,place.x,place.y+(state.recoil or 0)*12,0,place.width/iw,place.height/ih)
-    elseif state.ads then
-        local anchor=views:anchor(state.weapon)
-        local x=state.aimX-iw*scale*anchor.x
-        local y=state.aimY-ih*scale*anchor.y+(state.recoil or 0)*18
-        love.graphics.draw(image,x,y,0,scale,scale)
-    else
-        local x=state.weaponX-iw*scale*.36
-        local y=state.weaponY-ih*scale*.24+(state.recoil or 0)*24
-        love.graphics.draw(image,x,y,0,scale,scale)
+        love.graphics.draw(image,place.x,place.y,0,place.width/iw,place.height/ih)
     end
     love.graphics.pop()
 end

@@ -18,5 +18,15 @@
 - On September 19, 2026, the user confirmed the original regular talk lines in `Catalog.dialogueLines` were theirs and explicitly requested their restoration. These lines are approved; preserve them verbatim. This approval does not extend to all other archived text. Regular chatter remains available alongside the one-time conversation trees.
 - When a task needs dialogue the user has not supplied, implement the necessary mechanics with neutral UI instructions where possible. Add the missing speaker, trigger, context and required branches to `docs/DIALOGUE_REVIEW.md`, and request the user's rewrite in the task report. Do not ship invented placeholder speech.
 - Legacy text is archived for review in `docs/dialogue-review/legacy-text.md`; presence there is not approval. Prior dialogue design documents are historical drafts, not authorization.
+
+# First-person weapon art
+
+- Lever-action rifles always retain the lever and trigger guard beneath the receiver. Never relocate them above the barrel or receiver to imply a side change. A reload showing the opposite side must depict the entire upright rifle from that side with coherent stock, sights, receiver, and lever placement.
+
+- Weapon sprites must never contain hands, fingers, gloves, arms, or other body parts, including during reloads.
+- Preserve each weapon's original approved shape, proportions, materials, and colors across its animation frames. Redesign a weapon only when the user requests it.
+- Weapon animation must use authored sprite frames. Do not generate weapon motion, recoil, or reload animation with code.
+- Keep ejection and loading mechanisms on the correct side of the weapon. A port on the hidden side must not appear on the visible side during firing or reloads.
+- Inspect every replacement frame composited over contrasting backgrounds before integrating it. Transparent corners or RGBA format alone do not prove that a sprite is free of opaque halos or background patches.
 - Conversation assignments, completion and rewards must persist across saves; completed conversations must never repeat in the same playthrough.
 - Player reply choices show only the supplied dialogue. Do not show advance reward, cost, XP, or outcome hints below choices or elsewhere in the conversation prompt. Apply mechanics normally and report actual changes only after the choice is made.

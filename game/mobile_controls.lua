@@ -2,6 +2,7 @@ local MobileControls = {}
 MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
+local UIStyle=require("game.ui_layout")
 local ControlLayout=require("game.control_layout")
 local WideLayout=require("game.wide_layout")
 
@@ -12,7 +13,8 @@ end
 
 local function defaultEnabled()
     if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then return true end
-    return love and love.system and love.system.getOS and love.system.getOS()=="Android"
+    local platform=love and love.system and love.system.getOS and love.system.getOS()
+    return platform=="Android" or platform=="iOS"
 end
 
 function MobileControls.new(options)
@@ -164,6 +166,42 @@ function MobileControls:_updateCornerLayout()
     end
 end
 
+local function extendBounds(bounds,x,y,w,h)
+    local right,bottom=x+w,y+h
+    if not bounds then return {x=x,y=y,w=w,h=h} end
+    local left,top=math.min(bounds.x,x),math.min(bounds.y,y)
+    right=math.max(bounds.x+bounds.w,right); bottom=math.max(bounds.y+bounds.h,bottom)
+    return {x=left,y=top,w=right-left,h=bottom-top}
+end
+
+function MobileControls:uiBounds()
+    self:_updateCornerLayout()
+    local bounds
+    if self:isMovementActive() then
+        local r=self.joystick.radius
+        bounds=extendBounds(bounds,self.joystick.x-r,self.joystick.y-r,r*2,r*2)
+    end
+    if self:isGameplayActive() then
+        local r=self.primary.radius
+        bounds=extendBounds(bounds,self.primary.x-r,self.primary.y-r,r*2,r*2)
+        local secondaryKey=self.secondaryAction()
+        if secondaryKey then
+            local sr=self.secondary.radius
+            bounds=extendBounds(bounds,self.secondary.x-sr,self.secondary.y-sr,sr*2,sr*2)
+        end
+    end
+    if self.backVisible() then bounds=extendBounds(bounds,self.back.x,self.back.y,self.back.w,self.back.h) end
+    if self.menuVisible() then bounds=extendBounds(bounds,self.menu.x,self.menu.y,self.menu.w,self.menu.h) end
+    if self.backpackVisible() then bounds=extendBounds(bounds,self.backpack.x,self.backpack.y,self.backpack.w,self.backpack.h) end
+    if self.feedback then bounds=extendBounds(bounds,self.feedback.x-50,self.feedback.y-50,100,100) end
+    return bounds or {x=0,y=0,w=self.width,h=self.height}
+end
+
+function MobileControls:_controlPoint(x,y)
+    local gx,gy=self.toGame(x,y)
+    return UIStyle.inversePoint(gx,gy,"mobileControls",self:uiBounds())
+end
+
 function MobileControls:_feedback(x,y)
     if not Accessibility.enabled(self.accessibilityData(),"touchFeedback") then return end
     local now=love and love.timer and love.timer.getTime and love.timer.getTime() or 0
@@ -194,6 +232,38 @@ function MobileControls:isHeld(key)
     return false
 end
 
+function MobileControls:movementTouchPressed(id,x,y)
+    if not self.enabled or not self:isMovementActive() then return false end
+    self.lastPointerX,self.lastPointerY=x,y
+    self:_updateCornerLayout()
+    local gx,gy=self:_controlPoint(x,y)
+    local stick=self.joystick
+    local onStick=self.controlLayout and distance(gx,gy,stick.x,stick.y)<=stick.radius*1.2
+        or not self.controlLayout and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7
+    if self.joystickTouch or not onStick then return false end
+    self.joystickTouch=id
+    self.touches[id]={kind="joystick"}
+    self:_updateJoystick(gx,gy)
+    return true
+end
+
+function MobileControls:movementTouchMoved(id,x,y)
+    local touch=self.touches[id]
+    if not touch or touch.kind~="joystick" then return false end
+    self.lastPointerX,self.lastPointerY=x,y
+    local gx,gy=self:_controlPoint(x,y)
+    self:_updateJoystick(gx,gy)
+    return true
+end
+
+function MobileControls:movementTouchReleased(id)
+    local touch=self.touches[id]
+    if not touch or touch.kind~="joystick" then return false end
+    if self.joystickTouch==id then self.joystickTouch=nil; self.axisX,self.axisY=0,0 end
+    self.touches[id]=nil
+    return true
+end
+
 function MobileControls:pointer(fallbackX,fallbackY)
     if self.enabled and self.lastPointerX then return self.lastPointerX,self.lastPointerY end
     return fallbackX,fallbackY
@@ -221,7 +291,7 @@ function MobileControls:touchpressed(id,x,y)
     if not self.enabled then return false end
     self:_updateCornerLayout()
     self.lastPointerX,self.lastPointerY=x,y
-    local gx,gy=self.toGame(x,y)
+    local gx,gy=self:_controlPoint(x,y)
     if self.backVisible() and gx>=self.back.x and gx<=self.back.x+self.back.w and gy>=self.back.y and gy<=self.back.y+self.back.h then
         self:_feedback(gx,gy); self.touches[id]={kind="key",key="escape"}; self.pressKey("escape"); return true
     end
@@ -249,14 +319,7 @@ function MobileControls:touchpressed(id,x,y)
         return true
     end
     if self:isGameplayActive() or self:isMovementActive() then
-        local stick=self.joystick
-        if not self.joystickTouch and ((self.controlLayout and distance(gx,gy,stick.x,stick.y)<=stick.radius*1.2)
-            or (not self.controlLayout and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7)) then
-            self.joystickTouch=id
-            self.touches[id]={kind="joystick"}
-            self:_updateJoystick(gx,gy)
-            return true
-        end
+        if self:movementTouchPressed(id,x,y) then return true end
         if self:isGameplayActive() and distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
             local key=self.primaryAction()
             if key then self:_feedback(gx,gy); self.touches[id]={kind="key",key=key}; self.pressKey(key); return true end
@@ -284,7 +347,7 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
     local touch=self.touches[id]
     if not touch then return false end
     if touch.kind=="joystick" then
-        local gx,gy=self.toGame(x,y)
+        local gx,gy=self:_controlPoint(x,y)
         self:_updateJoystick(gx,gy)
     elseif touch.kind=="rangePointer" then
         if self.rangeAimTouch==id and touch.session==self.shootingRangeActive() then
@@ -384,6 +447,7 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     love.graphics.push()
     love.graphics.translate(offsetX,offsetY)
     love.graphics.scale(scaleX,scaleY)
+    UIStyle.scope("mobileControls",self:uiBounds(),function()
     local textScale=Accessibility.textScale(self.accessibilityData())
     local gameplayActive=self:isGameplayActive()
     if self:isMovementActive() then
@@ -420,6 +484,7 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
         else self.feedback=nil end
     end
     love.graphics.setLineWidth(1)
+    end)
     love.graphics.pop()
 end
 

@@ -11,12 +11,247 @@ local function run()
     local View=require("game.window_scene")
     local Gun=require("game.first_person_shooting")
     local Shootout=require("game.last_stand_shootout")
+    local WeaponManifest=require("game.first_person_weapon_manifest")
+    local WeaponActions=require("game.first_person_weapon_actions")
+    local WeaponViews=require("game.first_person_weapon_views")
+    local WeaponAim=require("game.mobile_weapon_aim")
+    local Range=require("game.shooting_range")
+    local Grips=require("game.first_person_weapon_grips")
+    local Muzzles=require("game.first_person_weapon_muzzles")
     local saves=0
     local data={version=33,location=4,scene="stop",stopped=true,health=20,maxHealth=20,
         equipment={},inventory={},inventoryCapacity=6,weaponDurability={},ammo={["22lr"]=0},
         scrap=5,goodwill=2,resources={food=3},character="missing-player.png",lastStand={},audio={sfxVolume=0}}
     local runtime={state="game",scene="stop",saveData=data,player={x=480,y=500,facing=1}}
     data.character="botanist-frog.png"
+
+    local manifestOk,manifestIssues=WeaponManifest.validate()
+    expect(manifestOk,"weapon manifest invalid: "..table.concat(manifestIssues,"; "))
+    local firearmCount,atlasCount=0,0
+    for name,entry in pairs(WeaponManifest.weapons) do
+        if entry.kind=="firearm" then
+            firearmCount=firearmCount+1
+            local modes=WeaponManifest.fireModesFor(name)
+            expect(modes[1]=="safe" and modes[2]=="single","fire selector missing SAFE/single modes: "..name)
+            expect(type(entry.actionAtlas)=="string" and entry.reloadSeconds>0,"firearm sprite profile missing: "..name)
+            expect(Muzzles[name]~=nil,"hip muzzle anchor missing: "..name)
+            local pivots=WeaponActions.anchorsFor(name)
+            expect(pivots and pivots.grip and pivots.bore and pivots.muzzle,
+                "sprite grip/bore/muzzle pivots missing: "..name)
+            if love.filesystem.getInfo(entry.actionAtlas) then atlasCount=atlasCount+1 end
+        end
+    end
+    expect(firearmCount==39,"smoke manifest no longer covers all first-person firearms")
+    expect(atlasCount==firearmCount,"every firearm must have an authored sprite action atlas")
+    for weapon,style in pairs({
+        ["frontier-762-carbine"]="sksStripperClip",
+        ["frontier-12g-pump-shotgun"]="pumpTube",
+        ["frontier-22-lever-rifle"]="tubeLever",
+    }) do
+        local profile=WeaponManifest.reloadProfileFor(weapon)
+        expect(profile and profile.style==style,"weapon-specific reload profile changed: "..weapon)
+        if weapon=="frontier-22-lever-rifle" then
+            expect(profile.startSeconds>0 and profile.roundSeconds>0 and profile.finishSeconds>0,
+                "Frontier .22 tube reload is missing its open, per-round, or reseat timing")
+            expect(math.abs(WeaponActions.reloadDuration({weapon=weapon},12)-profile.duration)<.001,
+                "Frontier .22 full-tube timing does not match its reload profile")
+        end
+    end
+
+    local actionSequences,adsSequences=0,0
+    for name,entry in pairs(WeaponManifest.weapons) do
+        if entry.kind=="firearm" then
+            local actionState={weapon=name}
+            expect(WeaponActions.frameIndex(actionState)==1,
+                "ready pose did not select sprite frame 1: "..name)
+            WeaponActions.beginFire(actionState)
+            expect(WeaponActions.frameIndex(actionState)==2,
+                "muzzle flash did not select authored frame 2: "..name)
+            WeaponActions.update(actionState,.10)
+            expect(WeaponActions.frameIndex(actionState)==3,
+                "recoil did not select authored frame 3: "..name)
+            WeaponActions.update(actionState,.11)
+            expect(WeaponActions.frameIndex(actionState)==1,
+                "fire animation did not return to ready: "..name)
+            local profile=assert(WeaponManifest.reloadProfileFor(name),
+                "reload profile missing during sprite playback: "..name)
+            local tubeRounds=profile.style=="tubeLever" and 3
+                or (profile.style=="pumpTube" and 1 or nil)
+            WeaponActions.beginReload(actionState,tubeRounds)
+            expect(WeaponActions.frameIndex(actionState)==4,
+                "reload start did not select authored frame 4: "..name)
+            if tubeRounds then
+                local startSeconds=profile.startSeconds or .28
+                local roundSeconds=profile.roundSeconds or .42
+                WeaponActions.update(actionState,startSeconds+.01)
+                expect(WeaponActions.frameIndex(actionState)==5,
+                    "tube reload did not enter its shell-loading pose: "..name)
+                for _=1,tubeRounds do
+                    WeaponActions.update(actionState,roundSeconds)
+                    expect(WeaponActions.consumeTubeRounds(actionState)==1,
+                        "tube reload did not insert exactly one round per loading beat: "..name)
+                end
+                expect(WeaponActions.frameIndex(actionState)==6,
+                    "tube reload did not select its finish pose: "..name)
+                expect(math.abs(actionState.weaponReloadDuration-WeaponActions.reloadDuration(actionState,tubeRounds))<.001,
+                    "tube reload duration did not scale with the inserted round count")
+            else
+                WeaponActions.update(actionState,profile.duration*.21)
+                expect(WeaponActions.frameIndex(actionState)==5,
+                    "reload work did not select authored frame 5: "..name)
+                WeaponActions.update(actionState,profile.duration*.46)
+                expect(WeaponActions.frameIndex(actionState)==6,
+                    "reload finish did not select authored frame 6: "..name)
+            end
+            WeaponActions.finish(actionState)
+            expect(WeaponActions.frameIndex(actionState)==1,
+                "reload did not return to its ready sprite: "..name)
+            actionSequences=actionSequences+1
+
+            local adsState={weapon=name}
+            expect(WeaponActions.adsFrameIndex(adsState)==1,
+                "ADS ready pose did not select authored frame 1: "..name)
+            WeaponActions.beginFire(adsState)
+            expect(WeaponActions.adsFrameIndex(adsState)==2,
+                "ADS muzzle flash did not select authored frame 2: "..name)
+            WeaponActions.update(adsState,.08)
+            expect(WeaponActions.adsFrameIndex(adsState)==3,
+                "ADS recoil did not select authored frame 3: "..name)
+            WeaponActions.update(adsState,.07)
+            expect(WeaponActions.adsFrameIndex(adsState)==4,
+                "ADS settle did not select authored frame 4: "..name)
+            WeaponActions.finish(adsState)
+            expect(WeaponActions.adsFrameIndex(adsState)==1,
+                "ADS fire animation did not return to ready: "..name)
+            adsSequences=adsSequences+1
+        end
+    end
+    expect(actionSequences==firearmCount,
+        "smoke did not play the hip fire and reload sequence for every firearm")
+    expect(adsSequences==firearmCount,
+        "smoke did not play the ADS firing sequence for every firearm")
+
+    for weapon,muzzle in pairs(Muzzles) do
+        local placement=WeaponAim.placement(weapon,"hip","hip",480,360,960,720)
+        local grip=placement.gripAnchor or Grips[weapon].hip
+        local actionAnchors=WeaponActions.anchorsFor(weapon)
+        muzzle=actionAnchors and actionAnchors.muzzle or muzzle
+        local bore=actionAnchors and actionAnchors.bore or grip
+        local muzzleX=placement.gripX+(muzzle.x-grip.x)*placement.width
+        local muzzleY=placement.gripY+(muzzle.y-grip.y)*placement.height
+        local vx,vy=480-muzzleX,360-muzzleY
+        local dx,dy=(muzzle.x-bore.x)*placement.width,(muzzle.y-bore.y)*placement.height
+        local cross=math.abs(vx*dy-vy*dx)
+        expect(cross<.05,"hip reticle is not on the muzzle ray: "..weapon)
+        expect(vx*dx+vy*dy>0,"hip reticle falls behind the muzzle: "..weapon)
+        local flash=WeaponAim.actionMuzzlePlacement(weapon,480,360,960,720)
+        local flashDx,flashDy=(muzzle.x-bore.x)*flash.width,(muzzle.y-bore.y)*flash.height
+        local flashVx,flashVy=480-flash.muzzleX,360-flash.muzzleY
+        expect(math.abs(flashVx*flashDy-flashVy*flashDx)<.05,
+            "ADS muzzle-flash sprite is not placed on the calibrated bore ray: "..weapon)
+        expect(flashVx*flashDx+flashVy*flashDy>0,
+            "ADS muzzle-flash sprite points behind the reticle: "..weapon)
+    end
+
+    local actionViews=WeaponViews.new(function(path)
+        local ok,image=pcall(love.graphics.newImage,path)
+        return ok and image or nil
+    end,function(path) return love.filesystem.getInfo(path)~=nil end,
+    function(...) return love.graphics.newQuad(...) end)
+    local checkedFrames,checkedAdsFrames,checkedAdsAtlases=0,0,0
+    for name,entry in pairs(WeaponManifest.weapons) do
+        if entry.kind=="firearm" and love.filesystem.getInfo(entry.actionAtlas) then
+            for frame=1,6 do
+                local image,quad,frameWidth,frameHeight=actionViews:actionFrame(name,frame)
+                expect(image and quad and frameWidth==512 and frameHeight==512,
+                    "could not load sprite action frame "..frame.." for "..name)
+                checkedFrames=checkedFrames+1
+            end
+            actionViews:release()
+        end
+        if entry.kind=="firearm" and love.filesystem.getInfo(entry.adsActionAtlas) then
+            checkedAdsAtlases=checkedAdsAtlases+1
+            for frame=1,4 do
+                local image,quad,frameWidth,frameHeight=actionViews:adsActionFrame(name,frame)
+                expect(image and quad and frameWidth>=512 and frameHeight>=512
+                    and frameWidth*2==image:getWidth() and frameHeight*2==image:getHeight(),
+                    "could not load a full-size authored ADS firing frame "..frame.." for "..name)
+                local anchor=WeaponManifest.adsActionAnchorFor(name,frame)
+                local placement=WeaponAim.adsActionPlacement(name,480,360,960,720,
+                    frameWidth,frameHeight,990,678,frame)
+                expect(placement and math.abs(placement.x+anchor.x*frameWidth*placement.scale-480)<.001
+                    and math.abs(placement.y+anchor.y*frameHeight*placement.scale-360)<.001,
+                    "ADS sprite frame is not pinned to its sight anchor: "..name.." frame "..frame)
+                checkedAdsFrames=checkedAdsFrames+1
+            end
+            actionViews:release()
+        end
+    end
+    expect(checkedFrames==firearmCount*6,"smoke did not load all six authored action frames for every firearm")
+    expect(checkedAdsAtlases==firearmCount and checkedAdsFrames==firearmCount*4,
+        "smoke did not play all four authored ADS frames for every firearm")
+
+    local rangeWeapon="frontier-9mm-smg"
+    local rangeCombat=Catalog.weaponCombat[rangeWeapon]
+    local rangeData={location=2,equipment={rangeWeapon},inventory={},ammo={[rangeCombat.ammo]=90},
+        weaponDurability={[rangeWeapon]=100},scrap=10}
+    local rangeSpot={preferences={},highScores={}}
+    local range=assert(Range.new(rangeData,rangeSpot,Catalog))
+    expect(Range.keypressed(range,"return",rangeData,Catalog)=="start","smoke could not start target range")
+    Range.mousepressed(range,560,666,rangeData,Catalog,1)
+    expect(range.fireMode=="auto","visible range mode button did not select auto")
+    Range.mousepressed(range,560,666,rangeData,Catalog,1)
+    expect(range.fireMode=="safe","visible range mode button did not select safe")
+    local safeAmmo=rangeData.ammo[rangeCombat.ammo]
+    expect(Range.mousepressed(range,480,330,rangeData,Catalog,1)=="safe" and range.shots==0
+        and rangeData.ammo[rangeCombat.ammo]==safeAmmo,"SAFE allowed a range shot")
+    Range.mousepressed(range,560,666,rangeData,Catalog,1)
+    expect(range.fireMode=="single","range selector did not leave SAFE for single fire")
+    expect(Range.mousepressed(range,480,330,rangeData,Catalog,1)=="shot" and range.shots==1,
+        "single-fire range input did not fire once")
+    Range.mousereleased(range,1)
+    expect(Range.reload(range,rangeData,Catalog) and range.reloadTimer>0 and range.weaponAction=="reload",
+        "range reload did not start its sprite sequence")
+    for _=1,20 do Range.update(range,.08,rangeData,Catalog) end
+    expect(range.reloadTimer==0 and range.loaded==range.capacity,"timed range reload did not finish")
+    Range.mousepressed(range,560,666,rangeData,Catalog,1)
+    expect(range.fireMode=="auto","range selector could not reselect auto")
+    local beforeAuto=range.shots
+    Range.mousepressed(range,480,330,rangeData,Catalog,1)
+    for _=1,5 do Range.update(range,.08,rangeData,Catalog) end
+    Range.mousereleased(range,1)
+    expect(range.shots>=beforeAuto+3,"held auto input did not repeat at its fire rate")
+
+    local tubeRangeData={location=2,equipment={"frontier-22-lever-rifle"},inventory={},ammo={["22lr"]=8},
+        weaponDurability={["frontier-22-lever-rifle"]=100},scrap=10}
+    local tubeRange=assert(Range.new(tubeRangeData,{preferences={},highScores={}},Catalog))
+    expect(Range.keypressed(tubeRange,"return",tubeRangeData,Catalog)=="start",
+        "smoke could not start a Frontier .22 tube-loading range round")
+    tubeRange.loaded=4
+    expect(Range.reload(tubeRange,tubeRangeData,Catalog) and tubeRange.reloadTimer>0,
+        "Frontier .22 range tube reload did not start")
+    expect(tubeRange.loaded==0,
+        "Frontier .22 range tube reload did not empty the tube before refilling it")
+    for _=1,10 do Range.update(tubeRange,.08,tubeRangeData,Catalog) end
+    expect(tubeRange.loaded==1 and tubeRange.reloadTimer>0 and WeaponActions.frameIndex(tubeRange)==5,
+        "Frontier .22 range did not increment ammunition one cartridge at a time")
+    for _=1,40 do Range.update(tubeRange,.08,tubeRangeData,Catalog) end
+    expect(tubeRange.reloadTimer==0 and tubeRange.loaded==8,
+        "Frontier .22 range tube reload did not stop at the available round count")
+
+    local shotgunName="frontier-12g-pump-shotgun"
+    local shotgunCombat=Catalog.weaponCombat[shotgunName]
+    local shotgunData={location=2,equipment={shotgunName},inventory={},ammo={[shotgunCombat.ammo]=12},
+        weaponDurability={[shotgunName]=100},scrap=10}
+    local shotgun=assert(Range.new(shotgunData,{preferences={},highScores={}},Catalog))
+    expect(Range.keypressed(shotgun,"return",shotgunData,Catalog)=="start",
+        "smoke could not start a shotgun range round")
+    local pelletTarget={x=480,y=330,radius=20,points=100,material="paper",hit=false,impacts={}}
+    shotgun.targets={pelletTarget}
+    expect(Range.mousepressed(shotgun,480,330,shotgunData,Catalog,1)=="shot",
+        "shotgun pellet pattern did not hit its centered target")
+    expect(#pelletTarget.impacts>1,"shotgun did not leave multiple pellet holes on one target")
+    Range.releaseWeaponViews({weaponViews=actionViews})
     local animations=require("game.character_animation").load("assets/sprites/character-animations",
         function(path)
             if love.filesystem.getInfo(path) then return love.graphics.newImage(path) end
@@ -97,6 +332,24 @@ local function run()
     expect(house.borrowed and ownQuest.loanAmmo==48 and sparse.ammo["22lr"]==3,"voluntary loan changed personal ammo")
     own=Gun.chooseWeapon(house,{name="frontier-22-lever-rifle",borrowed=false},sparse,Catalog,ownQuest)
     expect(not own.borrowed and own.magazine==3,"weapon selection refilled a magazine or lost its ammo source")
+
+    local tubeData={equipment={"frontier-22-lever-rifle"},inventory={},ammo={["22lr"]=8},
+        weaponDurability={["frontier-22-lever-rifle"]=100}}
+    local tubeQuest={}
+    local tubeGun=Gun.new(tubeData,Catalog,tubeQuest,960,720)
+    tubeGun.magazine=4
+    expect(Gun.reload(tubeGun,tubeData,tubeQuest) and tubeGun.reloadTimer>0,
+        "Frontier .22 tube reload did not start")
+    expect(tubeGun.magazine==0,
+        "Frontier .22 tube reload did not empty the tube before refilling it")
+    Gun.update(tubeGun,.75,tubeData,tubeQuest)
+    expect(tubeGun.magazine==1 and tubeGun.reloadTimer>0 and WeaponActions.frameIndex(tubeGun)==5,
+        "Frontier .22 tube reload did not insert rounds incrementally during its loading pose")
+    expect(not Gun.fire(tubeGun,tubeData,tubeQuest),
+        "Frontier .22 became fireable before its inner magazine tube was reseated")
+    for _=1,35 do Gun.update(tubeGun,.1,tubeData,tubeQuest) end
+    expect(tubeGun.reloadTimer==0 and tubeGun.magazine==8 and tubeData.ammo["22lr"]==8,
+        "Frontier .22 tube reload did not stop at the available round count")
 
     -- The supply shortcut must preserve the personal firearm it replaces.
     local supplyData={equipment={"compact-scrap-pistol"},inventory={},ammo={["9mm"]=20}}
@@ -253,6 +506,36 @@ local function run()
     takeWindow(350,285)
     expect(runtime.lastStand.mode=="shootout","wide window did not start shootout")
     local battle=runtime.lastStand.shootout
+    expect(battle.gun.fireMode=="single","new firearm did not start in single-fire mode")
+    quest:keypressed("v")
+    expect(battle.gun.fireMode=="safe","keyboard fire selector did not enter SAFE")
+    local safeRounds=data.lastStand.loanAmmo
+    expect(not Shootout.fire(battle,data,960,720,Catalog) and data.lastStand.loanAmmo==safeRounds,
+        "SAFE allowed a Last Stand shot")
+    quest:keypressed("v")
+    expect(battle.gun.fireMode=="single","keyboard fire selector did not return to single fire")
+
+    local autoWeapon="frontier-9mm-smg"
+    local autoAmmo=Catalog.weaponCombat[autoWeapon].ammo
+    local savedAutoAmmo=data.ammo[autoAmmo]
+    local savedGun=battle.gun
+    local savedTargets=battle.targets
+    data.ammo[autoAmmo]=10
+    battle.gun={weapon=autoWeapon,ammoType=autoAmmo,capacity=10,magazine=10,borrowed=false,
+        reloadTimer=0,cooldown=0,fireMode="auto",aimX=480,aimY=360,
+        weaponX=640,weaponY=500,ads=false}
+    battle.targets={}
+    battle.fireHeldSources={}
+    Shootout.setFireHeld(battle,"smoke",true,data,960,720,Catalog)
+    local ammoAfterPress=data.ammo[autoAmmo]
+    Shootout.update(battle,.16,data,Catalog,960,720)
+    expect(ammoAfterPress==9 and data.ammo[autoAmmo]==8,
+        "held auto selector did not fire a second round after its cooldown")
+    Shootout.setFireHeld(battle,"smoke",false)
+    battle.gun=savedGun
+    battle.targets=savedTargets
+    battle.fireHeldSources=nil
+    data.ammo[autoAmmo]=savedAutoAmmo
     local x,y=View.slotPosition(View.layout("wide",960,720),1)
     battle.targets[1].status="exposed"; battle.targets[1].timer=2
     quest:mousemoved(x,y)
@@ -264,7 +547,12 @@ local function run()
     expect(data.lastStand.kills==1 and data.lastStand.loanAmmo==47,"target hit or loan ammunition debit failed")
     expect(battle.targets[1].status=="dying","target skipped its death animation")
     quest:update(.1)
-    expect(battle.gun.weaponX>battle.gun.aimX and battle.gun.weaponY>battle.gun.aimY,"hip-fire offset is not below-right")
+    local hipPlacement=require("game.mobile_weapon_aim").placement(
+        battle.gun.weapon,"hip","hip",battle.gun.aimX,battle.gun.aimY,960,720)
+    local hipGripX,hipGripY=require("game.mobile_weapon_aim").gripForAim(
+        battle.gun.weapon,"hip",battle.gun.aimX,battle.gun.aimY,960,720)
+    expect(math.abs(hipPlacement.gripX-hipGripX)<.001 and math.abs(hipPlacement.gripY-hipGripY)<.001,
+        "hip-fire sprite pivot is not anchored to the calibrated muzzle ray")
     draw("05-wide-hipfire")
     local magazine=battle.gun.magazine
     local texturesAtWindow=love.graphics.getStats().texturememory
@@ -435,6 +723,7 @@ local function run()
                 if target.status=="exposed" then
                     x,y=View.slotPosition(View.layout(battle.windowId,960,720),index)
                     quest:mousepressed(x,y,1)
+                    quest:mousereleased(x,y,1)
                     break
                 end
             end

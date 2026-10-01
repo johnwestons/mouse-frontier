@@ -12,16 +12,21 @@ local TRANSIENT_DEFAULTS = {
     animationClock = 0,
     actionTimer = 0,
     characterScroll = 0,
+    characterGridDrag = false,
     chestOpen = false,
     editDragging = false,
     editMode = false,
     firstAid = false,
     helpDialogue = false,
     characterPreviewFile = false,
+    characterPreviewAction = "walk",
+    characterPreviewDirection = "SE",
     giftOpen = false,
     holdPickupTime = 0,
     inventoryDragActive = false,
     inventoryOpen = false,
+    journeyLogOpen = false,
+    journeyLogScroll = 0,
     landscapeOffset = 0,
     lastStand = false,
     mapOpen = false,
@@ -35,6 +40,10 @@ local TRANSIENT_DEFAULTS = {
     nearNPC = false,
     nearReturnTrain = false,
     optionsPage = "audio",
+    optionsControlDevice = "keyboard",
+    optionsControlScroll = 0,
+    optionsControllerSection = "buttons",
+    pendingConfirmation = false,
     playerPose = "idle",
     poseMenu = false,
     sceneryOffset = 0,
@@ -104,6 +113,8 @@ end
 
 function RuntimeState:resetForGameEntry()
     self.inventoryOpen=false
+    self.journeyLogOpen=false
+    self.journeyLogScroll=0
     self.mapOpen=false
     self.dialogue=nil
     self.editMode=false
@@ -119,9 +130,13 @@ function RuntimeState:resetForGameEntry()
     self.tradeMessage=nil
     self.tradeBuyPage=0
     self.tradeSellPage=0
+    self.pendingConfirmation=false
     self.npcActor=nil
     self.helpDialogue=nil
     self.characterPreviewFile=nil
+    self.characterPreviewAction="walk"
+    self.characterPreviewDirection="SE"
+    self.characterGridDrag=false
     self.optionsPage="audio"
 end
 

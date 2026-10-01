@@ -358,6 +358,12 @@ function Assets.load(targets)
     AssetDiagnostics.reset()
     missingRequired = {}
     local ui, scenery = targets.ui, targets.scenery
+    ui.resourceIcons = {}
+    for _, name in ipairs({"food", "water", "coal", "oil"}) do
+        local image = requireImage("assets/sprites/ui/resources/" .. name .. "-v1.png")
+        if image then image:setFilter("nearest", "nearest") end
+        ui.resourceIcons[name] = image
+    end
     local characters, characterImages = targets.characters, targets.characterImages
     local npcImages, mobImages, mobFiles = targets.npcImages, targets.mobImages, targets.mobFiles
     local characterWalkImages, npcWalkImages = targets.characterWalkImages, targets.npcWalkImages
@@ -502,7 +508,8 @@ function Assets.load(targets)
     end
     local shootingRangeWeaponViews=FirstPersonWeaponViews.new(
         function(path) return loadImage(path,"shooting range weapon") end,
-        function(path) return love.filesystem.getInfo(path)~=nil end)
+        function(path) return love.filesystem.getInfo(path)~=nil end,
+        function(...) return love.graphics.newQuad(...) end)
     scenery.shootingRangeAssets={weaponViews=shootingRangeWeaponViews}
     prepareLazyImages(scenery.shootingRangeAssets)
     for name,file in pairs({background="range-background.png",targets="target-atlas.png",

@@ -3,6 +3,81 @@ local Manifest={}
 local ROOT="assets/sprites/weapons/first-person/"
 local DEFAULT_ADS_ANCHOR={x=.5,y=.35,calibrated=false}
 
+-- ADS action sheet aim points use each weapon's calibrated sight anchor;
+-- weapons with a separately measured firing-sheet point override it here.
+local ADS_ACTION_ANCHORS={
+    ["frontier-45-1911"]={x=.53,y=.26,calibrated=true},
+    ["vintage-bolt-action-rifle"]={x=.5,y=.20,calibrated=true},
+    ["frontier-sr22-pistol"]={x=.5,y=.20,calibrated=true},
+    ["frontier-compact-9mm"]={x=.5,y=.18,calibrated=true},
+    ["frontier-380-pocket-pistol"]={x=.5,y=.26,calibrated=true},
+    ["frontier-pearl-pocket-pistol"]={x=.5,y=.27,calibrated=true},
+    ["frontier-22-target-pistol"]={x=.5,y=.28,calibrated=true},
+    ["heavy-frontier-pistol"]={x=.5,y=.27,calibrated=true},
+    ["frontier-long-barrel-revolver"]={x=.5,y=.25,calibrated=true},
+    ["frontier-lever-rifle"]={x=.5,y=.24,calibrated=true},
+    ["wood-stock-survival-carbine"]={x=.53,y=.29,calibrated=true},
+    ["frontier-lever-carbine"]={x=.5,y=.27,calibrated=true},
+    ["rugged-submachine-gun"]={x=.5,y=.19,calibrated=true},
+    ["sawed-off-shotgun"]={x=.515,y=.323,calibrated=true},
+    ["machine-pistol"]={x=.5,y=.33,calibrated=true},
+    ["frontier-9mm-service-pistol"]={x=.5,y=.15,calibrated=true},
+    ["frontier-9mm-glock"]={x=.5,y=.13,calibrated=true},
+    ["frontier-762-carbine"]={x=.5,y=.26,calibrated=true},
+    ["patched-22-survival-rifle"]={x=.5,y=.20,calibrated=true},
+    ["compact-carbine"]={x=.5,y=.25,calibrated=true},
+    ["improvised-556-rifle"]={x=.5,y=.22,calibrated=true},
+    ["improvised-service-rifle"]={x=.5,y=.24,calibrated=true},
+}
+local ADS_ACTION_FRAME_ANCHORS={
+    -- The generated flash cell sits slightly left of the ready pose. Pin its
+    -- iron-sight/bore line to the same reticle point during the shot.
+    ["frontier-45-1911"]={[2]={x=.47,y=.26,calibrated=true}},
+    ["sawed-off-shotgun"]={[2]={x=.498,y=.323,calibrated=true}},
+}
+
+local AUTOMATIC_WEAPONS={
+    ["compact-carbine"]=true,
+    ["frontier-556-carbine"]=true,
+    ["frontier-9mm-smg"]=true,
+    ["frontier-ak-compact"]=true,
+    ["improvised-556-rifle"]=true,
+    ["improvised-service-rifle"]=true,
+    ["machine-pistol"]=true,
+    ["rugged-submachine-gun"]=true,
+}
+
+local RELOAD_DURATIONS={
+    magazine=1.15,
+    revolver=1.65,
+    lever=1.35,
+    tubeLever=5.24,
+    pumpTube=1.55,
+    sksStripperClip=1.55,
+    bolt=1.28,
+    pump=1.50,
+    breakAction=1.42,
+    singleShot=1.32,
+}
+
+-- The inner tube is pulled out, its full available load goes in one round at a time,
+-- then the tube is reseated and locked: .35 + 12*.38 + .33 = 5.24 seconds.
+local TUBE_LEVER_RELOAD_TIMING={startSeconds=.35,roundSeconds=.38,finishSeconds=.33}
+
+local function reloadStyleFor(id)
+    if id=="frontier-762-carbine" then return "sksStripperClip" end
+    if id=="frontier-12g-pump-shotgun" then return "pumpTube" end
+    if id=="frontier-22-lever-rifle" then return "tubeLever" end
+    if id:find("revolver",1,true) then return "revolver" end
+    if id=="scrap-pistol" then return "singleShot" end
+    if id=="sawed-off-shotgun" then return "breakAction" end
+    if id:find("pump-shotgun",1,true) then return "pump" end
+    if id:find("lever",1,true) then return "lever" end
+    if id:find("bolt-action",1,true) then return "bolt" end
+    if id:find("single-shot",1,true) then return "singleShot" end
+    return "magazine"
+end
+
 -- Keep an entry uncalibrated until its production PNG has been checked against
 -- the in-game reticle. The renderer can use the safe default without presenting
 -- that default as weapon-specific sight data.
@@ -12,13 +87,27 @@ local function path(file)
 end
 
 local function pair(id,anchor)
+    local reloadStyle=reloadStyleFor(id)
+    local modes={"safe","single"}
+    if AUTOMATIC_WEAPONS[id] then modes[#modes+1]="auto" end
+    local rapid=AUTOMATIC_WEAPONS[id]
     return {
         kind="firearm",
         views={
             hip=path(id.."-hip.png"),
             sights=path(id.."-sights.png"),
         },
+        actionAtlas=ROOT.."actions/"..id.."-actions.png",
+        adsActionAtlas=ROOT.."actions/"..id.."-ads-fire.png",
         adsAnchor=anchor,
+        adsActionAnchor=ADS_ACTION_ANCHORS[id] or anchor,
+        adsActionFrameAnchors=ADS_ACTION_FRAME_ANCHORS[id],
+        fireModes=modes,
+        fireCooldown=rapid and .18 or .27,
+        autoCooldown=rapid and (id:find("smg",1,true) or id:find("submachine",1,true)
+            or id=="machine-pistol") and .10 or .12,
+        reloadStyle=reloadStyle,
+        reloadSeconds=RELOAD_DURATIONS[reloadStyle],
     }
 end
 
@@ -67,7 +156,7 @@ Manifest.weapons={
     ["frontier-single-shot-hunter"]=pair("frontier-single-shot-hunter",{x=.500000,y=.186198,calibrated=true}),
     ["scrap-pistol"]=pair("scrap-pistol",{x=.500000,y=.162679,calibrated=true}),
     ["compact-scrap-pistol"]=pair("compact-scrap-pistol",{x=.500000,y=.231260,calibrated=true}),
-    ["sawed-off-shotgun"]=pair("sawed-off-shotgun",{x=.500000,y=.125199,calibrated=true}),
+    ["sawed-off-shotgun"]=pair("sawed-off-shotgun",{x=.500000,y=.091,calibrated=true}),
     ["machine-pistol"]=pair("machine-pistol",{x=.500000,y=.092504,calibrated=true}),
     ["rugged-submachine-gun"]=pair("rugged-submachine-gun",{x=.500424,y=.101949,calibrated=true}),
 
@@ -180,6 +269,57 @@ function Manifest.shotSequenceFor(name)
     return entry and entry.shotSequence or nil
 end
 
+function Manifest.actionAtlasFor(name)
+    local entry=Manifest.weapons[name]
+    return entry and entry.actionAtlas or nil
+end
+
+function Manifest.adsActionAtlasFor(name)
+    local entry=Manifest.weapons[name]
+    return entry and entry.adsActionAtlas or nil
+end
+
+function Manifest.adsActionAnchorFor(name,frame)
+    local entry=Manifest.weapons[name]
+    local frameAnchor=entry and entry.adsActionFrameAnchors and entry.adsActionFrameAnchors[frame]
+    local anchor=frameAnchor or (entry and entry.adsActionAnchor)
+    if validAnchor(anchor) then return {x=anchor.x,y=anchor.y},anchor.calibrated==true end
+    return Manifest.anchorFor(name)
+end
+
+function Manifest.fireModesFor(name)
+    local entry=Manifest.weapons[name]
+    local result={}
+    for index,mode in ipairs(entry and entry.fireModes or {}) do result[index]=mode end
+    return result
+end
+
+function Manifest.fireModeValid(name,mode)
+    for _,candidate in ipairs(Manifest.fireModesFor(name)) do
+        if candidate==mode then return true end
+    end
+    return false
+end
+
+function Manifest.fireCooldownFor(name,mode)
+    local entry=Manifest.weapons[name]
+    if not entry then return .27 end
+    return mode=="auto" and (entry.autoCooldown or entry.fireCooldown or .27)
+        or (entry.fireCooldown or .27)
+end
+
+function Manifest.reloadProfileFor(name)
+    local entry=Manifest.weapons[name]
+    if not entry or entry.kind~="firearm" then return nil end
+    local profile={style=entry.reloadStyle,duration=entry.reloadSeconds}
+    if entry.reloadStyle=="tubeLever" then
+        profile.startSeconds=TUBE_LEVER_RELOAD_TIMING.startSeconds
+        profile.roundSeconds=TUBE_LEVER_RELOAD_TIMING.roundSeconds
+        profile.finishSeconds=TUBE_LEVER_RELOAD_TIMING.finishSeconds
+    end
+    return profile
+end
+
 local function validateShotSequence(name,entry,issues)
     local sequence=entry.shotSequence
     if sequence==nil then return end
@@ -221,6 +361,29 @@ function Manifest.validate()
             end
             if entry.adsAnchor~=nil and not validAnchor(entry.adsAnchor) then
                 issues[#issues+1]=name.." has an invalid ADS anchor"
+            end
+            if entry.kind=="firearm" then
+                if type(entry.actionAtlas)~="string" or not entry.actionAtlas:match("%-actions%.png$") then
+                    issues[#issues+1]=name.." has no action sprite atlas"
+                end
+                if type(entry.adsActionAtlas)~="string" or not entry.adsActionAtlas:match("%-ads%-fire%.png$") then
+                    issues[#issues+1]=name.." has no ADS firing sprite atlas"
+                end
+                if entry.adsActionAnchor~=nil and not validAnchor(entry.adsActionAnchor) then
+                    issues[#issues+1]=name.." has an invalid ADS firing anchor"
+                end
+                for frame,anchor in pairs(entry.adsActionFrameAnchors or {}) do
+                    if type(frame)~="number" or frame<1 or frame>4 or frame%1~=0 or not validAnchor(anchor) then
+                        issues[#issues+1]=name.." has an invalid ADS firing frame anchor"
+                    end
+                end
+                if type(entry.fireModes)~="table" or entry.fireModes[1]~="safe" or entry.fireModes[2]~="single"
+                    or (#entry.fireModes>2 and entry.fireModes[3]~="auto") or #entry.fireModes>3 then
+                    issues[#issues+1]=name.." has invalid fire selector modes"
+                end
+                if type(entry.reloadStyle)~="string" or type(entry.reloadSeconds)~="number" or entry.reloadSeconds<=0 then
+                    issues[#issues+1]=name.." has an invalid reload sprite profile"
+                end
             end
             validateShotSequence(name,entry,issues)
         end

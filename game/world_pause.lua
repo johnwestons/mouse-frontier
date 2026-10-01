@@ -10,9 +10,9 @@ function WorldPause.isPaused(runtime,ui,maintenanceSession,options)
         or runtime.travelConfirm==true or runtime.travelTransition~=nil and runtime.travelTransition~=false
         or runtime.carTransition~=nil and runtime.carTransition~=false
         or maintenanceSession.open==true
-        or runtime.inventoryOpen==true or runtime.mapOpen==true or runtime.editMode==true
+        or runtime.inventoryOpen==true or runtime.mapOpen==true or runtime.journeyLogOpen==true or runtime.editMode==true
         or runtime.tradeOpen==true or runtime.trainUpgradeOpen==true or runtime.poseMenu==true
-        or ui.optionsOpen==true or ui.radioOpen==true or ui.mobileMenuOpen==true
+        or ui.optionsOpen==true or ui.escMenuOpen==true or ui.radioOpen==true or ui.mobileMenuOpen==true
         or runtime.firstAid~=nil and runtime.firstAid~=false
         or runtime.shootingRange~=nil and runtime.shootingRange~=false
         or runtime.helpDialogue~=nil and runtime.helpDialogue~=false

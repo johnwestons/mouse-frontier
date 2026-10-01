@@ -36,6 +36,7 @@ local function new(context)
   local resolveFirstAid=required(context,"resolveFirstAid","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
   local FinaleProgression=required(context,"finaleProgression","table")
+  local controlBindings=required(context,"controlBindings","table")
 
   -- Editor controls use UI coordinates, while train objects retain their
   -- authored positions beneath the train's shared presentation transform.
@@ -88,6 +89,7 @@ local function new(context)
     firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
     beginShootingRange=worldScene.beginShootingRange,handleShootingRange=worldScene.handleShootingRange,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
+    controlBindings=controlBindings,mobileEnabled=platform.mobileRuntime.isEnabled,
   })
 
   local input={gameplayInput=gameplayInput}
