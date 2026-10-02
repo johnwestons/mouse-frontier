@@ -240,7 +240,9 @@ function Audio:playSfx(kind,settings,battle)
     if not pool or #pool==0 then report(self,"No sound files registered for "..tostring(kind)); return nil end
     local path=battle and battle.soundChoices and battle.soundChoices[kind] or pool[self.random(#pool)]
     if battle then battle.soundChoices=battle.soundChoices or {}; battle.soundChoices[kind]=path end
-    local options=kind=="trainArrive" and {seek=13,looping=false} or nil
+    local options
+    if kind=="menu" then options={volume=.32}
+    elseif kind=="trainArrive" then options={seek=13,looping=false} end
     local source=self:playSfxPath(path,settings,options)
     if kind=="trainArrive" then self.arrivalSource=source end
     return source
