@@ -109,7 +109,7 @@ local function new(context)
           if profile and ui.playSfxPath then ui.playSfxPath(profile.path,profile) else ui.playSfx(ShootingRange.sound(runtime.shootingRange,Catalog)) end
       end
       if outcome=="shot" or outcome=="complete" or outcome=="close" then handleShootingRange(outcome) end
-      if outcome=="start" or outcome=="reload" or outcome=="select" then ui.playSfx("menu") end
+      if outcome=="start" or outcome=="reload" or outcome=="select" or outcome=="monocular" then ui.playSfx("menu") end
       return outcome
   end
 

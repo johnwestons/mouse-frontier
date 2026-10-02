@@ -221,6 +221,7 @@ function LootProgression.validate(catalog)
         if not catalog.lootPools[rarity] or #catalog.lootPools[rarity]==0 then errors[#errors+1]="empty loot pool: "..rarity end
     end
     for name in pairs(catalog.itemEffects or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="item missing rarity: "..name end end
+    for name in pairs(catalog.rangeTools or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="range tool missing rarity: "..name end end
     for name in pairs(catalog.backpackUpgrades or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="backpack missing rarity: "..name end end
     for name in pairs(catalog.ammoPickupAmounts or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end end
     for name,combat in pairs(catalog.weaponCombat or {}) do

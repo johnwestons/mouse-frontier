@@ -1,7 +1,7 @@
 local Catalog=require("game.catalog")
 local Inventory=require("game.inventory")
 local Model={}
-Model.categories={"All","Weapons","Ammunition","Food & drink","Medicine","Potions","Supplies","Backpacks","Storage","Furniture","Decorations","Other"}
+Model.categories={"All","Weapons","Ammunition","Food & drink","Medicine","Potions","Supplies","Tools","Backpacks","Storage","Furniture","Decorations","Other"}
 Model.directories={"props","items","furniture","weapons","train-decorations","ammo","gear"}
 -- Source sheets and engine effects share asset folders but are not inventory objects.
 local excluded={["backpack-upgrades-v1"]=true,["backpack-upgrades-v1-source"]=true,
@@ -12,6 +12,7 @@ function Model.entry(name,directory)
     local category="Other"
     if weapon then category="Weapons"
     elseif Catalog.ammoPickupAmounts[name] then category="Ammunition"
+    elseif Catalog.rangeTools and Catalog.rangeTools[name] then category="Tools"
     elseif pack then category="Backpacks"
     elseif storage then category="Storage"
     elseif effect and effect.potion then category="Potions"
@@ -35,6 +36,8 @@ function Model.entry(name,directory)
             end
         end
     end
+    local rangeTool=Catalog.rangeTools and Catalog.rangeTools[name]
+    if rangeTool and rangeTool.description then detail[#detail+1]=rangeTool.description end
     if name=="coal-chunk" then detail[#detail+1]="Adds coal when used as fuel." end
     if pack then detail[#detail+1]="Backpack capacity: "..pack.capacity.." slots." end
     if storage then detail[#detail+1]="Storage capacity: "..storage.." items." end
@@ -55,7 +58,7 @@ function Model.build(fs,atlases)
         end
     end
     for name in pairs(atlases or {}) do names[name]=names[name] or "items" end
-    for _,field in ipairs({"weaponStats","itemEffects","backpackUpgrades","ammoPickupAmounts","storageCapacities"}) do
+    for _,field in ipairs({"weaponStats","itemEffects","rangeTools","backpackUpgrades","ammoPickupAmounts","storageCapacities"}) do
         for name in pairs(Catalog[field]) do if name~="scratch" and not name:match("^mob%-") then names[name]=names[name] or "items" end end
     end
     local entries={}

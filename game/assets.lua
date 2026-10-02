@@ -219,6 +219,7 @@ local function validateCatalogArt(ui)
 
     requireKeys(Catalog.weaponStats, "catalog weapon")
     requireKeys(Catalog.itemEffects, "catalog item")
+    requireKeys(Catalog.rangeTools, "catalog range tool")
     requireKeys(Catalog.backpackUpgrades, "catalog backpack")
     requireKeys(Catalog.storageCapacities, "catalog furniture")
     requireKeys(Catalog.ammoPickupAmounts, "catalog ammunition")

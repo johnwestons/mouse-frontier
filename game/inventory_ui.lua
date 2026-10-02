@@ -133,14 +133,27 @@ function InventoryUI.draw(ctx)
         detailCard(ctx)
         text(ctx.title(inspectName),578,565,324,17,.83,.70)
         text(effect.health and ("RESTORES "..effect.health.." HP") or effect.description or (effect.label or "USE"),578,585,324,28,.76,.64)
+    elseif inspectName and Catalog.rangeTools and Catalog.rangeTools[inspectName] then
+        local tool=Catalog.rangeTools[inspectName]
+        detailCard(ctx)
+        text(ctx.title(inspectName),578,565,324,17,.83,.70)
+        text(tool.description or "Reusable tool for the shooting range.",578,585,324,28,.76,.64)
     end
     local special=selectedName=="rose-heart-arrow" or selectedName=="blade-hearts"
     local effect=selectedName and Catalog.itemEffects[selectedName]
+    local rangeTool=selectedName and Catalog.rangeTools and Catalog.rangeTools[selectedName]
     local pack=selectedName and Catalog.backpackUpgrades[selectedName]
     local gift=ctx.isWeapon(selectedName) and (ctx.nearNPC or ctx.nearPassenger)
     local battleUsable=ctx.battleMode and (ctx.isWeapon(selectedName) or (effect and (effect.health or effect.potion)))
-    local actionLabel=ctx.battleMode and (ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1" or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON"))
-        or (gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label) or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName)) or "SELECT AN ITEM TO USE"))))
+    local actionLabel
+    if ctx.battleMode then
+        actionLabel=ctx.isWeapon(selectedName) and "EQUIP TO WEAPON SLOT 1"
+            or (effect and ((effect.label or "USE").." "..ctx.title(selectedName)) or "SELECT MEDICINE, POTION, OR WEAPON")
+    else
+        actionLabel=gift and "GIVE WEAPON TO ALLY" or (pack and ("EQUIP "..pack.label)
+            or (special and ("USE "..ctx.title(selectedName)) or (effect and (effect.label.." "..ctx.title(selectedName))
+            or (rangeTool and "REUSABLE TOOL - ACTIVATE AT THE RANGE" or "SELECT AN ITEM TO USE"))))
+    end
     local consumeEnabled=ctx.battleMode and battleUsable or (effect~=nil or special or pack~=nil or gift)
     ui.consume=ctx.button(actionLabel,565,mobile and 620 or 628,230,mobile and 62 or 38,consumeEnabled)
     if ui.consume then ui.consume.enabled=consumeEnabled end

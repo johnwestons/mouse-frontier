@@ -67,6 +67,9 @@ local DEFAULT_SIGHT_ANCHOR={x=.5,y=.35}
 local MOBILE_FIRE_BUTTON={x=410,y=654,w=132,h=42}
 local MOBILE_MODE_BUTTON={x=548,y=654,w=126,h=42}
 local DESKTOP_MODE_BUTTON={x=548,y=654,w=126,h=42}
+local MONOCULAR_BUTTON={x=366,y=50,w=228,h=40}
+local MONOCULAR_CENTER={x=480,y=330}
+local MONOCULAR_ZOOM=1.5
 
 local function title(value)
     return (value or "unknown"):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
@@ -172,6 +175,17 @@ function Range.ownedWeapons(data,catalog)
     return result
 end
 
+function Range.hasMonocular(data)
+    local inventory=data and data.inventory or {}
+    local capacity=math.max(0,math.floor(tonumber(data and data.inventoryCapacity) or 6))
+    for index=1,capacity do if inventory[index]=="monocular" then return true end end
+    return false
+end
+
+function Range.magnification(session)
+    return session and session.phase=="play" and session.hasMonocular and session.monocularActive and MONOCULAR_ZOOM or 1
+end
+
 local function firstReady(data,catalog,weapons)
     for index,name in ipairs(weapons) do if weaponReady(data,catalog,name) then return index end end
     return nil
@@ -266,6 +280,7 @@ function Range.new(data,spot,catalog,options)
         phase="lobby",spot=spot,weapons=weapons,selected=selected,location=data.location,
         npc=options and options.npc,aimX=480,aimY=330,clock=0,score=0,shots=0,hits=0,
         targets={},dirtImpacts={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,message=nil,
+        hasMonocular=Range.hasMonocular(data),monocularActive=false,
         menuRow=1,motion=spot.preferences.motion or "stationary",material=spot.preferences.material or "paper",
         aimMode="hip",needsReload=false,reloadPulse=0,targetPattern=targetPattern,stageLength=stageLength,
         distance=validDistance(spot.preferences.distance),fireMode="single",sectionsHit=0,
@@ -532,6 +547,11 @@ shoot=function(session,data,catalog,x,y)
     local swayX,swayY=Range.sway(session,catalog)
     local shotX,shotY=(x or session.aimX)+swayX,(y or session.aimY)+swayY
     shotX,shotY=WorldView.toWorld(shotX,shotY)
+    local magnification=Range.magnification(session)
+    if magnification>1 then
+        shotX=MONOCULAR_CENTER.x+(shotX-MONOCULAR_CENTER.x)/magnification
+        shotY=MONOCULAR_CENTER.y+(shotY-MONOCULAR_CENTER.y)/magnification
+    end
     local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon) or {{x=0,y=0}}
     local struck={}
     local struckSections={}
@@ -737,6 +757,12 @@ function Range.setAim(session,aiming)
     return true
 end
 
+function Range.toggleMonocular(session)
+    if not session or session.phase~="play" or not session.hasMonocular then return false end
+    session.monocularActive=not session.monocularActive
+    return true
+end
+
 function Range.setWeaponViewState(session,state)
     if not session then return false end
     clearWeaponViewSequence(session)
@@ -773,6 +799,10 @@ end
 function Range.mousepressed(session,x,y,data,catalog,button)
     if not session then return nil end
     button=button or 1
+    if session.phase=="play" and session.hasMonocular and (button==1 or button==4 or button==5)
+        and hit(MONOCULAR_BUTTON,x,y) then
+        Range.toggleMonocular(session); return "monocular"
+    end
     if button==2 and session.phase=="play" then Range.setAim(session,true); return "aim" end
     if session.phase=="lobby" then
         for index,row in ipairs(lobbyRows) do
@@ -825,6 +855,7 @@ function Range.keypressed(session,key,data,catalog)
             session.message=weaponIssue(data,catalog,session.weapon); return "dry"
         end
     elseif session.phase=="play" then
+        if key=="o" then return Range.toggleMonocular(session) and "monocular" or nil end
         if key=="r" then return Range.reload(session,data,catalog) and "reload" or "dry" end
         if key=="v" then return Range.cycleFireMode(session) and "mode" or "dry" end
         if key=="tab" then Range.returnToSetup(session); return "setup" end
@@ -958,6 +989,13 @@ end
 
 function Range.draw(session,data,assets,ui,catalog,mobile)
     WorldView.begin()
+    local magnification=Range.magnification(session)
+    if magnification>1 then
+        love.graphics.push()
+        love.graphics.translate(MONOCULAR_CENTER.x,MONOCULAR_CENTER.y)
+        love.graphics.scale(magnification)
+        love.graphics.translate(-MONOCULAR_CENTER.x,-MONOCULAR_CENTER.y)
+    end
     local background=assets and session.distance>=150 and assets.longRangeBackground or assets and assets.background
     if background then
         love.graphics.setColor(1,1,1); love.graphics.draw(background,0,0,0,960/background:getWidth(),720/background:getHeight())
@@ -1001,10 +1039,15 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
                 end
             end
         end
+        if magnification>1 then love.graphics.pop() end
         WorldView.finish()
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
         text("DISTANCE  "..session.distance.." M",355,18,250,27,.92,.80,"center",true)
+        if session.hasMonocular then
+            local label="MONO 1.5X "..(session.monocularActive and "ON" or "OFF")
+            drawButton(label,MONOCULAR_BUTTON,true)
+        end
         text("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,56,180,24,.84,.74,"left",true)
         text("SCORE\n"..session.score,750,16,180,48,1,.88)
         if session.material=="sectioned" then

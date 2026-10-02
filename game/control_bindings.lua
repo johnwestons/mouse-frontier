@@ -37,6 +37,7 @@ local KEY_ACTIONS={
     {id="reload_retreat",label="Reload / retreat",group="Combat",token="r",default="r"},
     {id="buy_ammo",label="Buy ammunition",group="Combat",token="b",default="b"},
     {id="fire_mode",label="Fire mode",group="Combat",token="v",default="v"},
+    {id="range_monocular",label="Toggle range monocular",group="Shooting Range",token="o",default="o"},
     {id="accept",label="Accept",group="Menus",token="y",default="y"},
     {id="decline",label="Decline",group="Menus",token="n",default="n"},
     {id="heal",label="Heal",group="Combat",token="h",default="h"},
