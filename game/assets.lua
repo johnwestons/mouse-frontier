@@ -512,7 +512,8 @@ function Assets.load(targets)
         function(...) return love.graphics.newQuad(...) end)
     scenery.shootingRangeAssets={weaponViews=shootingRangeWeaponViews}
     prepareLazyImages(scenery.shootingRangeAssets)
-    for name,file in pairs({background="range-background.png",targets="target-atlas.png",
+    for name,file in pairs({background="range-background.png",longRangeBackground="range-long-background.png",targets="target-atlas.png",
+        sectionedTarget="sectioned-paper-target.png",sectionedFrame="sectioned-paper-target-frame.png",
         impacts="impact-atlas.png",entrance="range-trail-flag-atlas.png"}) do
         registerRequiredLazyImage(scenery.shootingRangeAssets,name,"assets/sprites/props/shooting-range/"..file)
     end

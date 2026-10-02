@@ -10,13 +10,14 @@ local function text(value,x,y,w,h,scale,minimum,align,singleLine)
     return Typography.drawText(love.graphics,value,x,y,w,h,{scale=scale or 1,minScale=minimum or .78,align=align or "center",valign="center",singleLine=singleLine})
 end
 
-Range.version=3
+Range.version=4
 Range.roundSeconds=45
 Range.stageLengths={30,45,60,90}
 Range.hostStops={2,8,14,20,26,32,38,44,50}
 Range.motionModes={"stationary","moving","mixed"}
-Range.targetTypes={"paper","steel","clay"}
+Range.targetTypes={"paper","steel","clay","sectioned"}
 Range.targetPatterns={"stay-up","pop-up"}
+Range.targetDistances={25,50,75,100,125,150,175,200,225,250,275,300}
 Range.motionScoreMultipliers={stationary=1,mixed=1.15,moving=1.30}
 Range.ammoBundles={
     rocks={amount=16,cost=1},arrows={amount=8,cost=2},["ball-bearings"]={amount=12,cost=2},
@@ -85,6 +86,19 @@ local function availableAmmo(data,combat)
     return math.max(0,math.floor(tonumber(data and data.ammo and data.ammo[combat.ammo]) or 0))
 end
 
+local function validDistance(value)
+    value=math.floor(tonumber(value) or 50)
+    for _,distance in ipairs(Range.targetDistances) do
+        if distance==value then return value end
+    end
+    return 50
+end
+
+local function distanceScale(distance)
+    local progress=(validDistance(distance)-25)/275
+    return 1-.4*progress
+end
+
 local function weaponDurability(data,name)
     local value=data and data.weaponDurability and data.weaponDurability[name]
     return math.max(0,math.min(100,math.floor(tonumber(value) or 100)))
@@ -118,6 +132,7 @@ function Range.ensure(layout,location,settlements)
     local spot=layout.shootingRange
     spot.highScores=type(spot.highScores)=="table" and spot.highScores or {}
     spot.preferences=type(spot.preferences)=="table" and spot.preferences or {motion="stationary",material="paper"}
+    spot.preferences.distance=validDistance(spot.preferences.distance)
     local rewardTier=tonumber(spot.rewardTier)
     if rewardTier==nil then rewardTier=spot.rewarded==true and 3 or 0 end
     spot.rewardTier=math.max(0,math.min(3,math.floor(rewardTier)))
@@ -253,7 +268,7 @@ function Range.new(data,spot,catalog,options)
         targets={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,message=nil,
         menuRow=1,motion=spot.preferences.motion or "stationary",material=spot.preferences.material or "paper",
         aimMode="hip",needsReload=false,reloadPulse=0,targetPattern=targetPattern,stageLength=stageLength,
-        fireMode="single",
+        distance=validDistance(spot.preferences.distance),fireMode="single",sectionsHit=0,
     }
     loadWeapon(session,data,catalog)
     return session
@@ -266,12 +281,135 @@ local function spawnTarget(session)
     local direction=session.spawnIndex%2==0 and 1 or -1
     local material=session.material
     local sprite=material=="paper" and ((session.spawnIndex-1)%4+1) or material=="steel" and ((session.spawnIndex-1)%4+5) or 10
+    local sizeScale=distanceScale(session.distance)
+    local positionScale=.55+.45*sizeScale
+    local x=480+(lane.x-480)*positionScale
+    local y=278+(lane.y-278)*positionScale
     local points=math.floor(100*Range.scoreMultiplier(session)+.5)
     session.targets[#session.targets+1]={
-        x=lane.x,y=lane.y,baseX=lane.x,scale=lane.scale,material=material,sprite=sprite,
-        radius=lane.radius,points=points,life=session.targetPattern=="stay-up" and math.huge or (moving and 3.4 or 2.8),age=0,
-        velocity=moving and direction*(48+session.spawnIndex%4*8) or 0,hit=false,impacts={},
+        x=x,y=y,baseX=x,scale=lane.scale*sizeScale,material=material,sprite=sprite,
+        radius=lane.radius*sizeScale,points=points,
+        life=(material=="sectioned" or session.targetPattern=="stay-up") and math.huge or (moving and 3.4 or 2.8),age=0,
+        velocity=moving and direction*(48+session.spawnIndex%4*8)*positionScale or 0,hit=false,impacts={},
+        sections=material=="sectioned" and {} or nil,
     }
+end
+
+local SECTION_RINGS={
+    {outer={56,81},inner={40,60},score="7"},
+    {outer={40,60},inner={26,40},score="8"},
+    {outer={26,40},inner={12,17},score="9"},
+}
+
+local function superellipseValue(x,y,radii)
+    local nx=math.abs(x)/radii[1]
+    local ny=math.abs(y)/radii[2]
+    return nx^4+ny^4
+end
+
+local function sectionAtPoint(target,x,y)
+    local localX=(x-target.x)/target.scale
+    local localY=(y-target.y)/target.scale
+    for ringIndex,ring in ipairs(SECTION_RINGS) do
+        if superellipseValue(localX,localY,ring.outer)<=1 then
+            if superellipseValue(localX,localY,ring.inner)>1 then
+                local sector=math.floor((math.atan2(localY,localX)+math.pi)/(math.pi/2))+1
+                sector=math.max(1,math.min(4,sector))
+                return (ringIndex-1)*4+sector
+            end
+        else
+            return nil
+        end
+    end
+    if superellipseValue(localX,localY,{12,17})<=1 then return 13 end
+    return nil
+end
+
+local function superellipsePoint(rx,ry,angle)
+    local cosine,sine=math.cos(angle),math.sin(angle)
+    local function signedRoot(value)
+        return (value<0 and -1 or 1)*math.abs(value)^.5
+    end
+    return rx*signedRoot(cosine),ry*signedRoot(sine)
+end
+
+local sectionedQuadCache=setmetatable({}, {__mode="k"})
+
+local function sectionedQuad(image,index)
+    local quads=sectionedQuadCache[image]
+    if not quads then
+        quads={}
+        local imageWidth,imageHeight=image:getDimensions()
+        local cellWidth,cellHeight,padding=128,174,2
+        local slotWidth,slotHeight=cellWidth+padding*2,cellHeight+padding*2
+        for sectionIndex=1,13 do
+            local column=(sectionIndex-1)%4
+            local row=math.floor((sectionIndex-1)/4)
+            quads[sectionIndex]=love.graphics.newQuad(column*slotWidth+padding,row*slotHeight+padding,
+                cellWidth,cellHeight,imageWidth,imageHeight)
+        end
+        sectionedQuadCache[image]=quads
+    end
+    return quads[index]
+end
+
+local function drawSectionedTarget(target,image,frame)
+    if not image then return end
+    love.graphics.push()
+    love.graphics.translate(target.x,target.y)
+    love.graphics.scale(target.scale)
+    local frameAlpha=target.clearing and math.max(0,target.life/.55) or 1
+    if frame then
+        love.graphics.setColor(1,1,1,frameAlpha)
+        love.graphics.draw(frame,-64,-87,0,128/frame:getWidth(),174/frame:getHeight())
+    end
+    local font=love.graphics.getFont()
+    for index=1,13 do
+        local section=target.sections[index]
+        if not (section and section.broken) then
+            local elapsed=section and section.breaking and section.breakElapsed or 0
+            local progress=math.max(0,math.min(1,elapsed/.5))
+            local shard=math.max(0,(progress-.20)/.80)
+            local dx,dy,rotation=0,0,0
+            if shard>0 then
+                local angle=-math.pi+(index-1)*math.pi*2/13
+                dx=math.cos(angle)*shard*27
+                dy=math.sin(angle)*shard*18+shard*shard*43
+                rotation=math.cos(angle)*shard*.24
+            end
+            local alpha=1-shard*.95
+            love.graphics.push()
+            love.graphics.translate(dx,dy)
+            love.graphics.rotate(rotation)
+            love.graphics.setColor(1,1,1,alpha)
+            love.graphics.draw(image,sectionedQuad(image,index),-64,-87)
+            if section and section.breaking and progress<=.22 then
+                local hitX=(section.impactX-target.x)/target.scale
+                local hitY=(section.impactY-target.y)/target.scale
+                local crackLength=math.max(1,progress/.22*18)
+                love.graphics.setColor(.29,.23,.18,alpha)
+                love.graphics.setLineWidth(1.25)
+                for branch=0,3 do
+                    local angle=(index*2.399+branch*math.pi/2)
+                    local length=crackLength*(branch%2==0 and 1 or .66)
+                    love.graphics.line(hitX,hitY,hitX+math.cos(angle)*length,hitY+math.sin(angle)*length)
+                end
+            elseif not section and index<=12 then
+                local ringIndex=math.floor((index-1)/4)+1
+                local sector=(index-1)%4
+                local angle=-math.pi+sector*math.pi/2+math.pi/4
+                local ring=SECTION_RINGS[ringIndex]
+                local x,y=superellipsePoint((ring.outer[1]+ring.inner[1])/2,
+                    (ring.outer[2]+ring.inner[2])/2,angle)
+                local labelWidth=font:getWidth(ring.score)
+                love.graphics.setColor(.96,.93,.85,alpha)
+                love.graphics.print(ring.score,x-labelWidth/2,y-font:getHeight()/2)
+            end
+            love.graphics.pop()
+        end
+    end
+    love.graphics.setLineWidth(1)
+    love.graphics.pop()
 end
 
 local shoot
@@ -279,9 +417,11 @@ local shoot
 local function resetRound(session,data,catalog)
     session.phase="play"; session.clock=0; session.score=0; session.shots=0; session.hits=0
     session.targets={}; session.spawnIndex=0; session.nextSpawn=.1; session.time=session.stageLength or Range.roundSeconds
+    session.sectionsHit=0
     session.message=nil; session.completed=false; session.result=nil
     session.aimMode=session.aimMode or "hip"; session.needsReload=false; session.reloadPulse=0
-    session.spot.preferences={motion=session.motion,material=session.material,targetPattern=session.targetPattern,stageLength=session.stageLength}
+    session.spot.preferences={motion=session.motion,material=session.material,targetPattern=session.targetPattern,
+        stageLength=session.stageLength,distance=validDistance(session.distance)}
     loadWeapon(session,data,catalog)
 end
 
@@ -315,7 +455,7 @@ function Range.update(session,dt,data,catalog)
     end
     session.reloadPulse=(session.reloadPulse or 0)+dt
     session.nextSpawn=session.nextSpawn-dt
-    if session.nextSpawn<=0 and #session.targets<4 then
+    if session.nextSpawn<=0 and #session.targets<(session.material=="sectioned" and 1 or 4) then
         spawnTarget(session)
         session.nextSpawn=.8+(session.spawnIndex%3)*.18
     end
@@ -323,6 +463,21 @@ function Range.update(session,dt,data,catalog)
         local target=session.targets[index]
         target.age=target.age+dt; target.life=target.life-dt
         if target.breaking then target.breaking=target.breaking+dt end
+        if target.sections then
+            local allBroken=true
+            for sectionIndex=1,13 do
+                local section=target.sections[sectionIndex]
+                if section and section.breaking then
+                    section.breakElapsed=section.breakElapsed+dt
+                    if section.breakElapsed>=.5 then section.breaking=false; section.broken=true end
+                end
+                if not section or not section.broken then allBroken=false end
+            end
+            if allBroken and not target.clearing then
+                target.clearing=true
+                target.life=.55
+            end
+        end
         target.x=target.x+target.velocity*dt
         if target.x<145 or target.x>830 then target.velocity=-target.velocity end
         if target.life<=0 then table.remove(session.targets,index) end
@@ -373,24 +528,41 @@ shoot=function(session,data,catalog,x,y)
     shotX,shotY=WorldView.toWorld(shotX,shotY)
     local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon) or {{x=0,y=0}}
     local struck={}
+    local struckSections={}
     for pelletIndex,pellet in ipairs(pellets) do
         local pelletX,pelletY=shotX+pellet.x,shotY+pellet.y
         local best,bestDistance
+        local bestSection
         for _,target in ipairs(session.targets) do
             local dx,dy=pelletX-target.x,pelletY-target.y
             local distance=math.sqrt(dx*dx+dy*dy)
-            if distance<=target.radius and (not bestDistance or distance<bestDistance) then
+            if target.material=="sectioned" then
+                local sectionIndex=sectionAtPoint(target,pelletX,pelletY)
+                local section=sectionIndex and target.sections[sectionIndex]
+                if sectionIndex and not (section and (section.hit or section.broken))
+                    and (not bestDistance or distance<bestDistance) then
+                    best,bestDistance,bestSection=target,distance,sectionIndex
+                end
+            elseif distance<=target.radius and (not bestDistance or distance<bestDistance) then
                 best,bestDistance=target,distance
             end
         end
         if best then
-            local previous=struck[best]
-            if not previous or bestDistance<previous then struck[best]=bestDistance end
-            if best.material=="clay" then
-                if not best.hit then best.breaking=.001; best.life=math.min(best.life,.48) end
+            if best.material=="sectioned" then
+                local sections=struckSections[best] or {}
+                struckSections[best]=sections
+                if not sections[bestSection] then
+                    sections[bestSection]={distance=bestDistance,x=pelletX,y=pelletY}
+                end
             else
-                best.impacts[#best.impacts+1]={offsetX=pelletX-best.x,offsetY=pelletY-best.y,
-                    variant=(session.shots+pelletIndex-2)%4+1,material=best.material}
+                local previous=struck[best]
+                if not previous or bestDistance<previous then struck[best]=bestDistance end
+                if best.material=="clay" then
+                    if not best.hit then best.breaking=.001; best.life=math.min(best.life,.48) end
+                else
+                    best.impacts[#best.impacts+1]={offsetX=pelletX-best.x,offsetY=pelletY-best.y,
+                        variant=(session.shots+pelletIndex-2)%4+1,material=best.material}
+                end
             end
         end
     end
@@ -402,6 +574,22 @@ shoot=function(session,data,catalog,x,y)
             local precision=math.max(.25,1-distance/(target.radius+1))
             session.score=session.score+math.floor(target.points*precision+25)
         end
+    end
+    for target,sections in pairs(struckSections) do
+        hitTarget=hitTarget or target
+        local newlyHit=0
+        for index,impact in pairs(sections) do
+            local section=target.sections[index] or {}
+            target.sections[index]=section
+            if not section.hit and not section.broken then
+                section.hit=true; section.breaking=true; section.breakElapsed=0
+                section.impactX=impact.x; section.impactY=impact.y
+                newlyHit=newlyHit+1
+                local precision=math.max(.25,1-impact.distance/(target.radius+1))
+                session.score=session.score+math.floor(target.points*precision+25)
+            end
+        end
+        if newlyHit>0 then session.hits=session.hits+1; session.sectionsHit=session.sectionsHit+newlyHit end
     end
     if hitTarget then
         session.message=session.needsReload and "RELOAD REQUIRED" or "HIT"; return "shot"
@@ -476,11 +664,12 @@ local function cycle(list,value,direction)
 end
 
 lobbyRows={
-    {kind="weapon",label="PRACTICE WEAPON",y=216},
-    {kind="motion",label="TARGET MOTION",y=278},
-    {kind="material",label="TARGET MATERIAL",y=340},
-    {kind="pattern",label="TARGET STYLE",y=402},
-    {kind="length",label="STAGE LENGTH",y=464},
+    {kind="weapon",label="PRACTICE WEAPON",y=205},
+    {kind="motion",label="TARGET MOTION",y=255},
+    {kind="material",label="TARGET TYPE",y=305},
+    {kind="pattern",label="TARGET STYLE",y=355},
+    {kind="distance",label="TARGET DISTANCE",y=405},
+    {kind="length",label="STAGE LENGTH",y=455},
 }
 
 function Range.changeSetup(session,data,catalog,kind,direction)
@@ -489,9 +678,11 @@ function Range.changeSetup(session,data,catalog,kind,direction)
     if kind=="motion" then session.motion=cycle(Range.motionModes,session.motion,direction)
     elseif kind=="material" then session.material=cycle(Range.targetTypes,session.material,direction)
     elseif kind=="pattern" then session.targetPattern=cycle(Range.targetPatterns,session.targetPattern,direction)
+    elseif kind=="distance" then session.distance=cycle(Range.targetDistances,validDistance(session.distance),direction)
     elseif kind=="length" then session.stageLength=cycle(Range.stageLengths,session.stageLength,direction)
     else return false end
-    session.spot.preferences={motion=session.motion,material=session.material,targetPattern=session.targetPattern,stageLength=session.stageLength}; session.message=nil
+    session.spot.preferences={motion=session.motion,material=session.material,targetPattern=session.targetPattern,
+        stageLength=session.stageLength,distance=validDistance(session.distance)}; session.message=nil
     return true
 end
 
@@ -750,7 +941,7 @@ end
 
 function Range.draw(session,data,assets,ui,catalog,mobile)
     WorldView.begin()
-    local background=assets and assets.background
+    local background=assets and session.distance>=150 and assets.longRangeBackground or assets and assets.background
     if background then
         love.graphics.setColor(1,1,1); love.graphics.draw(background,0,0,0,960/background:getWidth(),720/background:getHeight())
     else love.graphics.setColor(.18,.12,.07); love.graphics.rectangle("fill",0,0,960,720) end
@@ -763,7 +954,9 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         for _,target in ipairs(session.targets) do
             local sprite=target.sprite
             if target.material=="clay" and target.breaking then sprite=target.breaking<.13 and 11 or 12 end
-            if targetImage and targetQuads and targetQuads[sprite] then
+            if target.material=="sectioned" then
+                drawSectionedTarget(target,assets and assets.sectionedTarget,assets and assets.sectionedFrame)
+            elseif targetImage and targetQuads and targetQuads[sprite] then
                 local reveal=session.targetPattern=="pop-up" and math.max(0,math.min(1,target.age/.15,target.life/.15)) or 1
                 love.graphics.setColor(1,1,1,(target.hit and .88 or 1)*reveal)
                 love.graphics.draw(targetImage,targetQuads[sprite],target.x,target.y+(1-reveal)*18,0,target.scale,target.scale,targetQuads.cellW/2,targetQuads.cellH*.46)
@@ -780,8 +973,24 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         WorldView.finish()
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
+        text("DISTANCE  "..session.distance.." M",355,18,250,27,.92,.80,"center",true)
         text("AMMO  "..(combat.ammo and tostring(session.loaded) or "--"),28,56,180,24,.84,.74,"left",true)
-        text("SCORE\n"..session.score,750,21,180,59,1,.88)
+        text("SCORE\n"..session.score,750,16,180,48,1,.88)
+        if session.material=="sectioned" then
+            local remaining=13
+            for _,target in ipairs(session.targets) do
+                if target.sections then
+                    remaining=0
+                    for index=1,13 do
+                        local section=target.sections[index]
+                        if not (section and section.hit) then remaining=remaining+1 end
+                    end
+                    break
+                end
+            end
+            love.graphics.setColor(1,.88,.58)
+            text("PANELS LEFT  "..remaining,745,67,192,19,.74,.68,"center",true)
+        end
         local sx,sy=Range.sway(session,catalog); local x,y=session.aimX+sx,session.aimY+sy
         local placement=Range.weaponViewPlacement(session)
         drawFirstPersonWeapon(assets,ui,session,x,y,sx,sy,placement)
@@ -816,10 +1025,10 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             drawButton("FIRE",MOBILE_FIRE_BUTTON,true)
             love.graphics.setColor(1,.88,.58)
             text(string.upper(session.motion).." "..string.upper(session.material).." | "
-                ..string.upper(session.targetPattern).." | "..session.stageLength.." SEC",292,698,376,20,.78,.72,"center",true)
+                ..string.upper(session.targetPattern).." | "..session.distance.." M | "..session.stageLength.." SEC",292,698,376,20,.78,.72,"center",true)
         else
             love.graphics.setColor(1,.88,.58); text(title(session.weapon).."  |  "..string.upper(session.motion).." "..string.upper(session.material)
-                .."  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,650,244,56,.82,.72)
+                .."  |  "..session.distance.." M  |  "..string.upper(session.targetPattern).."  |  "..session.stageLength.." SEC",292,650,244,56,.82,.72)
         end
         return
     end
@@ -834,11 +1043,11 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         for index,row in ipairs(lobbyRows) do
             local selected=session.menuRow==index
             love.graphics.setColor(selected and 1 or .74,selected and .77 or .70,selected and .28 or .62)
-            text(row.label,300,row.y-36,360,22,.92,.85)
+            text(row.label,300,row.y-14,165,28,.84,.76,"left",true)
             local value=row.kind=="weapon" and title(session.weapon) or row.kind=="motion" and title(session.motion)
                 or row.kind=="material" and title(session.material) or row.kind=="pattern" and title(session.targetPattern)
-                or tostring(session.stageLength).." Seconds"
-            love.graphics.setColor(1,.89,.68); text(value,290,row.y-9,380,30,row.kind=="weapon" and 1.16 or 1.08,.82,"center",true)
+                or row.kind=="distance" and (validDistance(session.distance).." Meters") or tostring(session.stageLength).." Seconds"
+            love.graphics.setColor(1,.89,.68); text(value,468,row.y-14,192,28,row.kind=="weapon" and 1 or .96,.78,"center",true)
             drawButton("<",{x=218,y=row.y-21,w=62,h=46},true); drawButton(">",{x=680,y=row.y-21,w=62,h=46},true)
         end
         local offer=Range.ammoOffer(session,catalog)
@@ -864,7 +1073,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             or "GOODWILL TIER ALREADY EARNED"
         love.graphics.setColor(.52,1,.57); text(reward,230,410,500,40,1,.85)
         love.graphics.setColor(.82,.78,.68); text(string.upper(session.motion).."  •  "..string.upper(session.material)
-            .."  •  "..string.upper(session.targetPattern).."  •  "..session.stageLength.." SEC  •  SCORE x"..string.format("%.2f",Range.scoreMultiplier(session)),220,464,520,36,.92,.78)
+            .."  •  "..string.upper(session.targetPattern).."  •  "..validDistance(session.distance).." M  •  "..session.stageLength.." SEC  •  SCORE x"..string.format("%.2f",Range.scoreMultiplier(session)),220,464,520,36,.92,.78)
         drawButton("REPLAY",{x=238,y=548,w=150,h=58},weaponReady(data,catalog,session.weapon))
         drawButton("SETUP",{x=405,y=548,w=150,h=58},true)
         drawButton("DONE",{x=572,y=548,w=150,h=58},true)
