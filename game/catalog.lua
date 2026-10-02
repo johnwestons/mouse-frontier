@@ -390,6 +390,7 @@ for _,rarity in ipairs({"common","uncommon","rare","legendary"}) do
 end
 Catalog.householdItems=HouseholdItems.definitions
 Catalog.householdItemPools=HouseholdItems.pools
+Catalog.miscItems=HouseholdItems.definitions
 for name,definition in pairs(Catalog.householdItems) do
     Catalog.itemRarity[name]=definition.rarity
 end

@@ -244,7 +244,9 @@ local function new(context)
           ui.itemOrderCache[cacheKey]={revision=revision,items=ordered}
       end
       for _,entry in ipairs(ordered) do local i,item=entry.index,entry.item
-          local img=ui.propImages[item.name]; local scale=item.scale or 1; local rotation=item.rotation or 0
+          local img=ui.propImages[item.name]
+          local misc=Catalog.miscItems and Catalog.miscItems[item.name]
+          local scale=(item.scale or 1)*(misc and misc.worldScale or 1); local rotation=item.rotation or 0
           if img then
               local idleFrames=itemIdleImages[item.name]
               if idleFrames and not runtime.editMode then img=idleFrames[(math.floor(runtime.animationClock/1.05)%#idleFrames)+1] or img end

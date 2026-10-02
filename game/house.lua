@@ -81,9 +81,9 @@ function House.rollLoot(data,catalog,location)
         end
         data.lootRolls[key]=true
     end
-    -- A separate marker lets already-visited houses gain the new curiosity
-    -- layer once, without rerolling their existing supplies or weapons.
-    local householdKey="household:"..key
+    -- A separate version marker lets already-visited houses gain this added
+    -- curiosity layer once, without rerolling their existing supplies/weapons.
+    local householdKey="household:2:"..key
     if not data.lootRolls[householdKey] then
         for _=1,2 do
             local rarity=LootProgression.rollRarity(location)

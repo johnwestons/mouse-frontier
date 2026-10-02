@@ -222,6 +222,11 @@ function LootProgression.validate(catalog)
     end
     for name in pairs(catalog.itemEffects or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="item missing rarity: "..name end end
     for name in pairs(catalog.rangeTools or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="range tool missing rarity: "..name end end
+    for name,item in pairs(catalog.miscItems or {}) do
+        if not catalog.itemRarity[name] then errors[#errors+1]="miscellaneous item missing rarity: "..name end
+        if type(item.description)~="string" or item.description=="" then errors[#errors+1]="miscellaneous item missing tooltip: "..name end
+        if type(item.worldScale)~="number" or item.worldScale<=0 then errors[#errors+1]="miscellaneous item missing world scale: "..name end
+    end
     for name in pairs(catalog.backpackUpgrades or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="backpack missing rarity: "..name end end
     for name in pairs(catalog.ammoPickupAmounts or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end end
     for name,combat in pairs(catalog.weaponCombat or {}) do

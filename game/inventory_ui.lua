@@ -138,6 +138,11 @@ function InventoryUI.draw(ctx)
         detailCard(ctx)
         text(ctx.title(inspectName),578,565,324,17,.83,.70)
         text(tool.description or "Reusable tool for the shooting range.",578,585,324,28,.76,.64)
+    elseif inspectName and Catalog.miscItems and Catalog.miscItems[inspectName] then
+        local item=Catalog.miscItems[inspectName]
+        detailCard(ctx)
+        text(ctx.title(inspectName),578,565,324,17,.83,.70)
+        text(item.description,578,585,324,28,.76,.64)
     end
     local special=selectedName=="rose-heart-arrow" or selectedName=="blade-hearts"
     local effect=selectedName and Catalog.itemEffects[selectedName]
