@@ -265,7 +265,7 @@ function Range.new(data,spot,catalog,options)
     local session={
         phase="lobby",spot=spot,weapons=weapons,selected=selected,location=data.location,
         npc=options and options.npc,aimX=480,aimY=330,clock=0,score=0,shots=0,hits=0,
-        targets={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,message=nil,
+        targets={},dirtImpacts={},spawnIndex=0,nextSpawn=.15,time=Range.roundSeconds,message=nil,
         menuRow=1,motion=spot.preferences.motion or "stationary",material=spot.preferences.material or "paper",
         aimMode="hip",needsReload=false,reloadPulse=0,targetPattern=targetPattern,stageLength=stageLength,
         distance=validDistance(spot.preferences.distance),fireMode="single",sectionsHit=0,
@@ -416,7 +416,7 @@ local shoot
 
 local function resetRound(session,data,catalog)
     session.phase="play"; session.clock=0; session.score=0; session.shots=0; session.hits=0
-    session.targets={}; session.spawnIndex=0; session.nextSpawn=.1; session.time=session.stageLength or Range.roundSeconds
+    session.targets={}; session.dirtImpacts={}; session.spawnIndex=0; session.nextSpawn=.1; session.time=session.stageLength or Range.roundSeconds
     session.sectionsHit=0
     session.message=nil; session.completed=false; session.result=nil
     session.aimMode=session.aimMode or "hip"; session.needsReload=false; session.reloadPulse=0
@@ -454,6 +454,12 @@ function Range.update(session,dt,data,catalog)
         end
     end
     session.reloadPulse=(session.reloadPulse or 0)+dt
+    session.dirtImpacts=session.dirtImpacts or {}
+    for index=#session.dirtImpacts,1,-1 do
+        local impact=session.dirtImpacts[index]
+        impact.age=impact.age+dt
+        if impact.age>=impact.duration then table.remove(session.dirtImpacts,index) end
+    end
     session.nextSpawn=session.nextSpawn-dt
     if session.nextSpawn<=0 and #session.targets<(session.material=="sectioned" and 1 or 4) then
         spawnTarget(session)
@@ -529,6 +535,7 @@ shoot=function(session,data,catalog,x,y)
     local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon) or {{x=0,y=0}}
     local struck={}
     local struckSections={}
+    local missedPellets={}
     for pelletIndex,pellet in ipairs(pellets) do
         local pelletX,pelletY=shotX+pellet.x,shotY+pellet.y
         local best,bestDistance
@@ -564,6 +571,8 @@ shoot=function(session,data,catalog,x,y)
                         variant=(session.shots+pelletIndex-2)%4+1,material=best.material}
                 end
             end
+        else
+            missedPellets[#missedPellets+1]={x=pelletX,y=pelletY}
         end
     end
     local hitTarget
@@ -590,6 +599,13 @@ shoot=function(session,data,catalog,x,y)
             end
         end
         if newlyHit>0 then session.hits=session.hits+1; session.sectionsHit=session.sectionsHit+newlyHit end
+    end
+    if #missedPellets>0 then
+        local miss=missedPellets[math.random(1,#missedPellets)]
+        local rangeScale=distanceScale(session.distance)
+        session.dirtImpacts=session.dirtImpacts or {}
+        session.dirtImpacts[#session.dirtImpacts+1]={x=miss.x,y=miss.y,variant=math.random(1,5),
+            age=0,duration=.55,size=48*rangeScale,lift=14*rangeScale}
     end
     if hitTarget then
         session.message=session.needsReload and "RELOAD REQUIRED" or "HIT"; return "shot"
@@ -850,6 +866,7 @@ end
 
 local targetQuadCache=setmetatable({},{__mode="k"})
 local impactQuadCache=setmetatable({},{__mode="k"})
+local dirtImpactQuadCache=setmetatable({},{__mode="k"})
 local function atlasQuads(image,columns,rows,cache)
     if not image then return nil end
     if cache[image] then return cache[image] end
@@ -951,6 +968,20 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         local combat=catalog.weaponCombat[session.weapon] or {}
         local targetImage=assets and assets.targets; local targetQuads=atlasQuads(targetImage,4,3,targetQuadCache)
         local impactImage=assets and assets.impacts; local impactQuads=atlasQuads(impactImage,4,2,impactQuadCache)
+        local dirtImage=assets and assets.dirtImpacts; local dirtQuads=atlasQuads(dirtImage,5,1,dirtImpactQuadCache)
+        for _,impact in ipairs(session.dirtImpacts or {}) do
+            local quad=dirtQuads and dirtQuads[impact.variant]
+            if dirtImage and quad then
+                local progress=math.max(0,math.min(1,impact.age/impact.duration))
+                local expansion=math.min(1,progress*3.2)
+                local scale=impact.size/quad.cellH*(.62+.52*expansion)
+                local rise=impact.lift*progress
+                local alpha=(1-progress)^1.4
+                love.graphics.setColor(1,1,1,alpha)
+                love.graphics.draw(dirtImage,quad,impact.x,impact.y-rise,0,scale,scale,
+                    quad.cellW/2,quad.cellH-12)
+            end
+        end
         for _,target in ipairs(session.targets) do
             local sprite=target.sprite
             if target.material=="clay" and target.breaking then sprite=target.breaking<.13 and 11 or 12 end
