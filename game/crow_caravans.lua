@@ -539,6 +539,7 @@ local function candidateItems(catalog,lootProgression,predicate,used,minimumRank
     for name,rarity in pairs(catalog.itemRarity or {}) do
         local rank=ranks[rarity] or 1
         if rank>=(minimumRank or 1) and rank<=(maximumRank or 4) and not used[name]
+            and not (catalog.repairParts and catalog.repairParts[name])
             and (not predicate or predicate(name)) then result[#result+1]=name end
     end
     table.sort(result)

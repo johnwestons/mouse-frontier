@@ -44,7 +44,12 @@ function Battle.begin(c,encounter)
     local profile=c.CombatBalance.enemyProfile(c.saveData.location,tier)
     local maxHP=encounter.maxHP or profile.maxHP; encounter.maxHP=maxHP
     local d=c.saveData; local C=c.Catalog; local levelBonuses=c.PlayerProgression.combatBonuses(d.stats.level)
-    local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=3,hp=d.health,maxHP=d.maxHealth,move=2+(d.trait and d.trait.move or 0)+levelBonuses.move,armor=2+(d.trait and d.trait.armor or 0)+levelBonuses.armor,aim=2+(d.trait and d.trait.combat or 0),controlled=true}}
+    local wearableBonuses=C.wearableBonuses and C.wearableBonuses(d.wearables) or {}
+    local playerMaxHealth=math.max(1,d.maxHealth+(wearableBonuses.maxHealth or 0))
+    local units={{id="player",team="ally",name=c.Util.titleFromFile(d.character),file=d.character,q=1,r=3,hp=math.min(playerMaxHealth,d.health),maxHP=playerMaxHealth,
+        move=math.max(1,2+(d.trait and d.trait.move or 0)+levelBonuses.move+(wearableBonuses.move or 0)),
+        armor=math.max(0,2+(d.trait and d.trait.armor or 0)+levelBonuses.armor+(wearableBonuses.armor or 0)),
+        aim=2+(d.trait and d.trait.combat or 0)+(wearableBonuses.aim or 0),controlled=true}}
     local starts={{q=1,r=2},{q=0,r=3},{q=1,r=4}}
     if encounter.temporaryAllies then
         for i,file in ipairs(encounter.temporaryAllies) do
@@ -218,9 +223,9 @@ function Battle.resolve(c,attacker,target,weaponName)
     if attacker.team=="ally" and weaponName~="scratch" then LootProgression.wearWeapon(d,weaponName,1) end
     local prof=0
     if attacker.id=="player" then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or d.weaponProficiency.melee or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
-    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local staggerPenalty=(attacker.staggeredRounds or 0)>0 and 2 or 0; local bonus=(attacker.aim or 0)+levelAttack+(combat.accuracy or 0)-staggerPenalty; local effectiveArmor=math.max(0,(target.armor or 0)-(combat.armorPierce or 0)); local defense=8+effectiveArmor+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
+    local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=love.math.random(1,20); local levelAttack=attacker.id=="player" and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local wearableBonuses=attacker.id=="player" and C.wearableBonuses and C.wearableBonuses(d.wearables) or {}; local wearableAttack=wearableBonuses.attack or 0; local staggerPenalty=(attacker.staggeredRounds or 0)>0 and 2 or 0; local bonus=(attacker.aim or 0)+levelAttack+(combat.accuracy or 0)-staggerPenalty; local effectiveArmor=math.max(0,(target.armor or 0)-(combat.armorPierce or 0)); local defense=8+effectiveArmor+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
     if not attacker.perfectAccuracy and (roll==1 or (roll~=20 and roll+bonus<defense)) then msg(c,attacker.name.." used "..name.." against "..target.name.." — MISS."); b.attackTimer=attacker.team=="enemy" and .90 or .45; advanceAttack(c,attacker); return true end
-    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-effectiveArmor); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
+    local raw=love.math.random(stats.min,stats.max)+(attacker.aim or 0)+prof+wearableAttack+(roll==20 and 3 or 0); local damage=math.max(1,math.floor(raw*condition.multiplier)-effectiveArmor); if target.guarding then damage=love.math.random()<.30 and 0 or math.max(1,math.floor(damage*.4)); target.guarding=false end
     target.hp=math.max(0,target.hp-damage); target.hitTimer=.58; target.damageNumber=damage; target.damageNumberTimer=.9; if target.id=="player" then d.health=target.hp end
     local effect=""
     if target.hp>0 and combat.status and love.math.random()<(combat.statusChance or 0) then

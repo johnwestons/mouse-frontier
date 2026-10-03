@@ -1,0 +1,465 @@
+{
+  "cellSize": 362,
+  "columns": [
+    "raw",
+    "marked",
+    "prepared",
+    "finished"
+  ],
+  "atlases": {
+    "soft-workpieces-v2.png": {
+      "width": 1448,
+      "height": 1086,
+      "cells": [
+        {
+          "material": "fabric",
+          "phase": "raw",
+          "row": 1,
+          "column": 1,
+          "quad": [
+            128,
+            162,
+            182,
+            172
+          ]
+        },
+        {
+          "material": "fabric",
+          "phase": "marked",
+          "row": 1,
+          "column": 2,
+          "quad": [
+            470,
+            168,
+            166,
+            159
+          ]
+        },
+        {
+          "material": "fabric",
+          "phase": "prepared",
+          "row": 1,
+          "column": 3,
+          "quad": [
+            806,
+            164,
+            182,
+            168
+          ]
+        },
+        {
+          "material": "fabric",
+          "phase": "finished",
+          "row": 1,
+          "column": 4,
+          "quad": [
+            1147,
+            165,
+            171,
+            163
+          ]
+        },
+        {
+          "material": "canvas",
+          "phase": "raw",
+          "row": 2,
+          "column": 1,
+          "quad": [
+            129,
+            467,
+            181,
+            175
+          ]
+        },
+        {
+          "material": "canvas",
+          "phase": "marked",
+          "row": 2,
+          "column": 2,
+          "quad": [
+            470,
+            471,
+            166,
+            159
+          ]
+        },
+        {
+          "material": "canvas",
+          "phase": "prepared",
+          "row": 2,
+          "column": 3,
+          "quad": [
+            805,
+            466,
+            185,
+            171
+          ]
+        },
+        {
+          "material": "canvas",
+          "phase": "finished",
+          "row": 2,
+          "column": 4,
+          "quad": [
+            1147,
+            467,
+            172,
+            167
+          ]
+        },
+        {
+          "material": "wool",
+          "phase": "raw",
+          "row": 3,
+          "column": 1,
+          "quad": [
+            126,
+            765,
+            193,
+            189
+          ]
+        },
+        {
+          "material": "wool",
+          "phase": "marked",
+          "row": 3,
+          "column": 2,
+          "quad": [
+            462,
+            768,
+            185,
+            176
+          ]
+        },
+        {
+          "material": "wool",
+          "phase": "prepared",
+          "row": 3,
+          "column": 3,
+          "quad": [
+            802,
+            767,
+            192,
+            179
+          ]
+        },
+        {
+          "material": "wool",
+          "phase": "finished",
+          "row": 3,
+          "column": 4,
+          "quad": [
+            1143,
+            768,
+            183,
+            179
+          ]
+        }
+      ]
+    },
+    "hard-workpieces-v2.png": {
+      "width": 1448,
+      "height": 1086,
+      "cells": [
+        {
+          "material": "leather",
+          "phase": "raw",
+          "row": 1,
+          "column": 1,
+          "quad": [
+            94,
+            114,
+            206,
+            208
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "marked",
+          "row": 1,
+          "column": 2,
+          "quad": [
+            462,
+            135,
+            170,
+            165
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "prepared",
+          "row": 1,
+          "column": 3,
+          "quad": [
+            800,
+            121,
+            208,
+            196
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "finished",
+          "row": 1,
+          "column": 4,
+          "quad": [
+            1176,
+            132,
+            173,
+            168
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "raw",
+          "row": 2,
+          "column": 1,
+          "quad": [
+            89,
+            437,
+            215,
+            218
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "marked",
+          "row": 2,
+          "column": 2,
+          "quad": [
+            427,
+            477,
+            236,
+            145
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "prepared",
+          "row": 2,
+          "column": 3,
+          "quad": [
+            794,
+            445,
+            224,
+            205
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "finished",
+          "row": 2,
+          "column": 4,
+          "quad": [
+            1151,
+            453,
+            226,
+            182
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "raw",
+          "row": 3,
+          "column": 1,
+          "quad": [
+            89,
+            762,
+            213,
+            213
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "marked",
+          "row": 3,
+          "column": 2,
+          "quad": [
+            445,
+            766,
+            201,
+            207
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "prepared",
+          "row": 3,
+          "column": 3,
+          "quad": [
+            796,
+            762,
+            219,
+            217
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "finished",
+          "row": 3,
+          "column": 4,
+          "quad": [
+            1164,
+            768,
+            200,
+            202
+          ]
+        }
+      ]
+    },
+    "hard-workpieces-v3.png": {
+      "width": 1448,
+      "height": 1086,
+      "cells": [
+        {
+          "material": "leather",
+          "phase": "raw",
+          "row": 1,
+          "column": 1,
+          "quad": [
+            96,
+            114,
+            217,
+            221
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "marked",
+          "row": 1,
+          "column": 2,
+          "quad": [
+            476,
+            137,
+            177,
+            174
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "prepared",
+          "row": 1,
+          "column": 3,
+          "quad": [
+            825,
+            121,
+            220,
+            209
+          ]
+        },
+        {
+          "material": "leather",
+          "phase": "finished",
+          "row": 1,
+          "column": 4,
+          "quad": [
+            1197,
+            134,
+            181,
+            177
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "raw",
+          "row": 2,
+          "column": 1,
+          "quad": [
+            90,
+            448,
+            227,
+            229
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "marked",
+          "row": 2,
+          "column": 2,
+          "quad": [
+            438,
+            489,
+            247,
+            155
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "prepared",
+          "row": 2,
+          "column": 3,
+          "quad": [
+            817,
+            457,
+            235,
+            218
+          ]
+        },
+        {
+          "material": "metal",
+          "phase": "finished",
+          "row": 2,
+          "column": 4,
+          "quad": [
+            1171,
+            465,
+            236,
+            191
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "raw",
+          "row": 3,
+          "column": 1,
+          "quad": [
+            90,
+            786,
+            227,
+            222
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "marked",
+          "row": 3,
+          "column": 2,
+          "quad": [
+            456,
+            789,
+            211,
+            217
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "prepared",
+          "row": 3,
+          "column": 3,
+          "quad": [
+            820,
+            785,
+            230,
+            228
+          ]
+        },
+        {
+          "material": "gusset",
+          "phase": "finished",
+          "row": 3,
+          "column": 4,
+          "quad": [
+            1186,
+            791,
+            210,
+            213
+          ]
+        }
+      ]
+    }
+  },
+  "selectedAtlases": [
+    "soft-workpieces-v2.png",
+    "hard-workpieces-v3.png"
+  ]
+}

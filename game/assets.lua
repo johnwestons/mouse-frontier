@@ -8,6 +8,7 @@ local AssetDiagnostics = require("game.asset_diagnostics")
 local LootProgression = require("game.loot_progression")
 local FirstPersonWeaponViews = require("game.first_person_weapon_views")
 local CrowCaravanArt = require("game.crow_caravan_art")
+local OutfitItemArt = require("game.outfit_item_art")
 
 local Assets = {}
 local missingRequired
@@ -206,7 +207,7 @@ local function validateCatalogArt(ui)
         if not name or checked[name] or virtual[name] then return end
         checked[name] = true
         local registered=(rawget(ui.propImages,name)~=nil) or (lazyPaths[ui.propImages] and lazyPaths[ui.propImages][name]~=nil)
-        if not registered and not ui.atlasItems[name] then
+        if not registered and not ui.atlasItems[name] and not OutfitItemArt.has(name) then
             AssetDiagnostics.record("catalog:" .. name, category, "no standalone sprite or atlas entry")
         end
     end
@@ -222,6 +223,7 @@ local function validateCatalogArt(ui)
     requireKeys(Catalog.rangeTools, "catalog range tool")
     requireKeys(Catalog.miscItems, "catalog miscellaneous item")
     requireKeys(Catalog.backpackUpgrades, "catalog backpack")
+    requireKeys(Catalog.wearableItems, "catalog wearable")
     requireKeys(Catalog.storageCapacities, "catalog furniture")
     requireKeys(Catalog.ammoPickupAmounts, "catalog ammunition")
     requireList(Catalog.questRewardItems, "catalog quest reward")
@@ -564,8 +566,18 @@ function Assets.load(targets)
     table.sort(mobFiles)
 
     ui.propImages = {}; prepareLazyImages(ui.propImages)
-    for _, path in ipairs({"assets/sprites/props", "assets/sprites/items", "assets/sprites/furniture", "assets/sprites/weapons", "assets/sprites/train-decorations", "assets/sprites/ammo", "assets/sprites/gear"}) do
+    for _, path in ipairs({"assets/sprites/props", "assets/sprites/items", "assets/sprites/furniture", "assets/sprites/weapons", "assets/sprites/weapon-parts", "assets/sprites/train-decorations", "assets/sprites/ammo", "assets/sprites/gear"}) do
         if love.filesystem.getInfo(path) then for _,file in ipairs(love.filesystem.getDirectoryItems(path)) do if file:match("%.png$") then registerLazyImage(ui.propImages,file:gsub("%.png$", ""),path.."/"..file,"item/furniture/weapon") end end end
+    end
+    for name,part in pairs(Catalog.repairParts or {}) do
+        if type(part.sprite)=="string" then
+            if not love.filesystem.getInfo(part.sprite) then AssetDiagnostics.record(part.sprite,"weapon repair component","dedicated sprite is missing") end
+            registerLazyImage(ui.propImages,name,part.sprite,"weapon repair component")
+        end
+    end
+    for alias,target in pairs(Catalog.repairPartAliases or {}) do
+        local part=rawget(Catalog.repairParts or {},target)
+        if part and type(part.sprite)=="string" then registerLazyImage(ui.propImages,alias,part.sprite,"weapon repair component") end
     end
     targets.itemIdleImages["flower-pot"] = {ui.propImages["flower-pot"], loadImage("assets/sprites/items/animations/flower-pot-idle-2.png"), loadImage("assets/sprites/items/animations/flower-pot-idle-3.png")}
 

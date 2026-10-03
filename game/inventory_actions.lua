@@ -24,7 +24,7 @@ local function new(context)
   end
 
   local function setContainerValue(ref,value)
-      Inventory.setValue(runtime.saveData,runtime.activeChest,ref,value)
+      Inventory.setValue(runtime.saveData,runtime.activeChest,ref,value,Catalog.wearableItems)
   end
 
   local function inventoryResult(speaker,text,timer)
@@ -32,14 +32,14 @@ local function new(context)
   end
 
   local function moveBetweenSlots(source,target)
-      local moved=Inventory.move(runtime.saveData,runtime.activeChest,source,target,Catalog.weaponStats,Catalog.ammoPickupAmounts)
+      local moved,reason=Inventory.move(runtime.saveData,runtime.activeChest,source,target,Catalog.weaponStats,Catalog.ammoPickupAmounts,Catalog.wearableItems)
       if moved then writeSave() end
-      return moved
+      return moved,reason
   end
 
   local function quickTransfer(ref)
       if not runtime.chestOpen then return false end
-      local moved=Inventory.quickTransfer(runtime.saveData,runtime.activeChest,ref,Catalog.weaponStats,Catalog.ammoPickupAmounts,Catalog.storageCapacities)
+      local moved=Inventory.quickTransfer(runtime.saveData,runtime.activeChest,ref,Catalog.weaponStats,Catalog.ammoPickupAmounts,Catalog.storageCapacities,Catalog.wearableItems)
       if moved then writeSave() end
       return moved
   end
@@ -56,6 +56,13 @@ local function new(context)
 
   local function dropFromContainer(ref)
       local name=containerValue(ref); if not name then return false end
+      if ref.kind=="wearable" and ref.slot=="backpack" then
+          local canRemove=Inventory.canChangeBackpack(runtime.saveData,nil,Catalog.wearableItems)
+          if not canRemove then
+              inventoryResult("Backpack Full","Move items out of the extra backpack slots before removing it.",2.2)
+              return false
+          end
+      end
       local dropped={name=name,x=runtime.player.x+35,y=runtime.player.y,scene=runtime.scene,scale=1,rotation=0,droppedByPlayer=true}
       if runtime.scene=="train" then dropped.carIndex=runtime.saveData.activeCar or 1 end
       if runtime.scene~="train" then dropped.location=runtime.saveData.location end
@@ -81,12 +88,29 @@ local function new(context)
           inventoryResult("Weapon Given",Util.titleFromFile(name).." is now equipped by your ally.",2)
           setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
       end
-      local pack=Catalog.backpackUpgrades[name]
-      if pack then
-          if pack.capacity<=(runtime.saveData.inventoryCapacity or 6) then inventoryResult(pack.label,"Your current backpack already carries at least that much.",2); return false end
-          runtime.saveData.inventoryCapacity=pack.capacity; runtime.saveData.backpack=name
-          inventoryResult(pack.label,"Equipped! Carry capacity increased to "..pack.capacity.." slots.",2.5)
-          setContainerValue(runtime.draggedSlot,nil); runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave(); return true
+      local wearable=Catalog.wearableItems[name]
+      if wearable then
+          local source=runtime.draggedSlot
+          local target
+          if source.kind=="wearable" then
+              local slot=Inventory.firstEmptySlot(runtime.saveData)
+              if not slot then
+                  inventoryResult("Inventory Full","Free a backpack slot before removing this gear upgrade.",2.2)
+                  return false
+              end
+              target={kind="inventory",index=slot}
+          else target={kind="wearable",slot=wearable.slot} end
+          local moved,reason=moveBetweenSlots(source,target)
+          if not moved then
+              if reason then inventoryResult("Gear Upgrades",reason,2.2)
+              else inventoryResult("Gear Upgrades","That item cannot be placed in this upgrade slot.",2.2) end
+              return false
+          end
+          runtime.inventoryMode="wearables"
+          local result=source.kind=="wearable" and "Gear upgrade removed." or (wearable.slot=="backpack" and "Backpack equipped." or "Outfit upgrade installed.")
+          if wearable.slot=="backpack" then result=result.." Backpack capacity: "..(runtime.saveData.inventoryCapacity or 6).." slots." end
+          inventoryResult("Gear Upgrades",result,2)
+          runtime.draggedSlot=nil; runtime.inventoryDragActive=false; return true
       end
       if name=="rose-heart-arrow" or name=="blade-hearts" then
           runtime.saveData.maxHealth=runtime.saveData.maxHealth+5; runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+5)
@@ -172,15 +196,33 @@ local function new(context)
       return true
   end
 
-  local function repairStatus()
-      return LootProgression.repairStatus(runtime.saveData,Catalog)
+  local function repairStatus(name)
+      return LootProgression.repairStatus(runtime.saveData,Catalog,name)
   end
 
   local function repairEquipped()
-      local result=LootProgression.repairEquipped(runtime.saveData,Catalog)
+      runtime.weaponRepairOpen=true
+      runtime.weaponRepairSelected=runtime.weaponRepairSelected or (LootProgression.ownedWeapons(runtime.saveData,Catalog)[1])
+      return repairStatus(runtime.weaponRepairSelected)
+  end
+
+  local function repairWeapon(name,quality)
+      local result=LootProgression.completeRepair(runtime.saveData,Catalog,name,quality)
       if result.ok then
-          runtime.dialogue={speaker="Train Workshop",text=Util.titleFromFile(result.name).." repaired to 100% for "..result.cost.." scrap.",timer=3}
+          runtime.weaponRepairMessage="Repair complete: "..Util.titleFromFile(name).." at "..result.restored.."% condition."
           writeSave()
+      elseif result.reason=="miss" then
+          runtime.weaponRepairMessage="Missed the mark. No scrap or parts were used."
+      elseif result.reason=="precision" then
+          runtime.weaponRepairMessage="A perfect hit is needed above 95%. No scrap or parts were used."
+      elseif result.reason=="part" then
+          runtime.weaponRepairMessage="Required part is missing from your backpack."
+      elseif result.reason=="scrap" then
+          runtime.weaponRepairMessage="Not enough scrap for this repair."
+      elseif result.reason=="ready" then
+          runtime.weaponRepairMessage="This weapon does not need repair."
+      else
+          runtime.weaponRepairMessage="Select a weapon you own."
       end
       return result
   end
@@ -213,6 +255,7 @@ local function new(context)
     giveWeaponToNearby=giveWeaponToNearby,
     repairStatus=repairStatus,
     repairEquipped=repairEquipped,
+    repairWeapon=repairWeapon,
     balanceAudit=function() return LootProgression.audit(Catalog) end,
     consumeBattleSelected=consumeBattleSelected
   }

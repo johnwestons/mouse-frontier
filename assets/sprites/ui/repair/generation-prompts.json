@@ -1,0 +1,26 @@
+{
+  "tool": "built-in image_gen",
+  "selected": [
+    {
+      "asset": "assets/sprites/ui/repair/workbench-surface-v1.png",
+      "source": "exec-b288377f-aa70-4be9-a1d5-22c66e2da213.png",
+      "prompt": {
+        "referenced_image_paths": [
+          "C:/Users/johnw/OneDrive/Documents/ChatGPT/Mouse Frontier 8.10/assets/sprites/outfit-crafting/bench-background-v1.png",
+          "C:/Users/johnw/OneDrive/Documents/ChatGPT/Mouse Frontier 8.10/docs/concepts/outfit-crafting/bench-preview.png"
+        ],
+        "transparent_background": false,
+        "prompt": "Use case: precise-object-edit. Image1 is the APPROVED blank sewing-minigame sprite background. Image2 shows how its real UI overlays fit. Create its sibling WEAPON REPAIR WORKBENCH background, same established detailed 2D pixel-art game style, SAME EXACT layout and relative positions as Image1. Preserve warm dark timber tabletop, deep grooves, brass screws, book/clipboard parchment color, green woven workmat, crisp authored pixel contours, restrained worn textures. Fill full opaque canvas aspect4:3, output1536x1152 or1440x1080. This is a production BACKGROUND sprite, absolutely NO text, letters, numerals, UI icons, meter, labels, rowcards, buttons, cursor, weapons, component pieces or character hands. Keep all interiors empty for game-rendered content. Maintain left open parchment ledger occupying logical x20..270,y120..580 on960x720 canvas; central green tool-work mat x286..686,y126..445; right parchment clipboard x710..930,y126..637; bottom-center blank paper instruction area x286..686,y470..637; top dark wooden signboard x70..810,y25..88 and small blank plate x820..917,y27..77; bottom dark footer x20..940,y642..701. Keep same crisp brass perimeter fasteners. Re-theme decorative SEWING supplies OUTSIDE these functional areas into repair-bench supplies: at the extreme top-left edge a folded olive shop rag and a small capped brass oil can, at top-right edge a wood-handled screwdriver and small closed tool tin; bottom-left edge a few metal washers and ordinary hex nuts; bottom-right edge a short metal file and folded cloth. These props must stay ONLY in narrow outside margins, never intrude into ledger,clipboard,mat,paper orheader. Do not add gun internals or ammo. Maintain straight orthographic top-down desk view and EXACT samepanel boundaries. Remove spools of thread, pin cushion,thimbles,fabricbuttons,andsewingneedle props. No modern UI gradients,no vector shapes,no photograph,no blur,no perspective slant. This must look like it belongs beside the game's sewing bench and uses the same sprite artist."
+      }
+    },
+    {
+      "asset": "assets/sprites/ui/repair/workbench-controls-v1.png",
+      "source": "exec-85ed51f1-80d4-438b-93f9-46efd10f405c.png",
+      "prompt": {
+        "transparent_background": true,
+        "prompt": "Use case: stylized-concept. Production sprite sheet for Mouse Frontier's repair-workbench GUI. ONE cohesive 2D pixel-art controls atlas, exactly1024x1024 pixels with a strict2-column by4-row equal cell grid (each cell512x256). Genuine transparent background, NO gridlines, NO letters, NO numbers, NO words, NO captions. Every cell contains exactly ONE centered isolated sprite; all eight sprites fully separate with generous transparent gutters. Match a dark cozy woodland railway RPG: restrained walnut wood, blackened iron, antique brass, muted olive green and worn red enamel; crisp clustered pixels, low-res handcrafted game art at 2x pixel scale, sharp pixel edges, no grain/dither/no blur/no photorealism/no smooth modern vector rectangles. Arrange EXACTLY reading order: cell1 top-left is unselected dark leather weapon-list plaque wide400x90, thin worn iron edge, dark readable center, tiny corner rivets. Cell2 top-right same plaque geometry selected, brighter fine brass edge and subtle amber interior. Cell3 row2left is narrow EMPTY horizontal condition-gauge trough wide420x36, iron outer lip and nearblack recessed channel, very shallow height. Cell4 row2right is a horizontal full green-enamel gauge fill strip wide420x28, square ends, softly stepped pixel bevel, uniform muted green readable at tiny size, no metal border. Cell5 row3left same gauge fill in muted brick red, wide420x28. Cell6 row3right is empty TIMING rail, wide420x46, brass/iron thin end caps, nearblack recessed empty center with subtle etched short tick marks along bottomedge only, NO colored zones. Cell7 row4left is a solid antique-brass/golden gauge fill strip wide420x36, square ends and stepped pixel highlight, no text, no frame. Cell8 row4right is a slim upright ivory/bright-brass timing needle, approx28pixels wide and140pixels tall, a small pointed cap at top, narrow straight light stem, dark pixel contour; NO horizontal ruler. All sprites' visible bounding boxes should stay well INSIDE each assigned cell. No other objects. Orthographic front view, authentic game UI sprites, actual alpha transparency everywhere between elements."
+      }
+    }
+  ],
+  "reused": "Existing authored sewing-bench parchment cards and wood/brass buttons from assets/sprites/outfit-crafting/bench-controls-v1.png"
+}

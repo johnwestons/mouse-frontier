@@ -100,6 +100,7 @@ function Stops.ensure(data,catalog,scene)
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"
     if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end
+    if layout.tradeStock then LootProgression.ensureCraftingStock(layout,catalog,data.location) end
     return layout
 end
 

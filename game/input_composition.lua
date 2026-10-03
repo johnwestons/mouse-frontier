@@ -85,7 +85,7 @@ local function new(context)
     requestExitPrompt=views.screenUI.requestExitPrompt,resolveExitPrompt=views.screenUI.resolveExitPrompt,
     trainItemAt=trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
-    repairEquipped=adventure.inventoryActions.repairEquipped,
+    repairWeapon=adventure.inventoryActions.repairWeapon,
     firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
     beginShootingRange=worldScene.beginShootingRange,handleShootingRange=worldScene.handleShootingRange,
     chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,

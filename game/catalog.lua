@@ -1,6 +1,8 @@
 local Catalog = {}
 local TrainUpgradeBalance = require("game.train_upgrade_balance")
 local HouseholdItems = require("game.household_items")
+local OutfitCatalog = require("game.outfit_catalog")
+local WeaponRepairParts = require("game.weapon_repair_parts")
 
 Catalog.characterTraitProfiles = {
     {name="Scrapper",combat=1,armor=0,coal=1.00,reward=1.25,description="Finds 25% more scrap and quest rewards."},
@@ -91,6 +93,33 @@ Catalog.backpackUpgrades = {
     , ["compact-sling-pack"]={capacity=8,label="Compact Sling Pack"}
     , ["black-sling-pack"]={capacity=10,label="Black Sling Pack"}
 }
+
+Catalog.wearableSlots = {
+    {id="backpack",label="BACKPACK"},
+    {id="clothing",label="OUTFIT UPGRADE"},
+    {id="armor",label="UNDERLAYER"},
+}
+
+Catalog.wearableItems = {}
+for name,profile in pairs(Catalog.backpackUpgrades) do
+    profile.slot="backpack"
+    Catalog.wearableItems[name]=profile
+end
+Catalog.outfitUpgrades=OutfitCatalog.upgrades
+Catalog.craftMaterials=OutfitCatalog.materials
+Catalog.outfitRecipes=OutfitCatalog.recipes
+for name,profile in pairs(Catalog.outfitUpgrades) do Catalog.wearableItems[name]=profile end
+
+function Catalog.wearableBonuses(wearables)
+    local totals={armor=0,aim=0,attack=0,move=0,maxHealth=0}
+    for _,name in pairs(wearables or {}) do
+        local profile=Catalog.wearableItems[name]
+        for stat,value in pairs(profile and profile.bonuses or {}) do
+            if totals[stat]~=nil then totals[stat]=totals[stat]+(tonumber(value) or 0) end
+        end
+    end
+    return totals
+end
 
 Catalog.itemEffects = {
     ["food-ration"]={food=3,label="EAT"}, ["bread-loaf"]={food=3,label="EAT"},
@@ -208,7 +237,7 @@ Catalog.weaponStats = {
     , ["frontier-380-pocket-pistol"]={name="Frontier .380 Pocket Pistol",min=6,max=10,tier=5}
     , ["frontier-12g-pump-shotgun"]={name="Frontier 12-Gauge Pump Shotgun",min=9,max=15,tier=7}
     , ["frontier-762-carbine"]={name="Frontier 7.62x39 Carbine",min=10,max=16,tier=8}
-    , ["frontier-sr22-pistol"]={name="Frontier .22 Target Pistol",min=5,max=9,tier=4}
+    , ["frontier-sr22-pistol"]={name="Frontier SR22 Pistol",min=5,max=9,tier=4}
     , ["frontier-9mm-service-pistol"]={name="Frontier 9mm Service Pistol",min=7,max=12,tier=6}
     , ["frontier-compact-9mm"]={name="Frontier Compact 9mm",min=7,max=12,tier=6}
     , ["frontier-32-pocket-pistol"]={name="Frontier .32 Pocket Pistol",min=5,max=9,tier=4}
@@ -390,9 +419,34 @@ for _,rarity in ipairs({"common","uncommon","rare","legendary"}) do
 end
 Catalog.householdItems=HouseholdItems.definitions
 Catalog.householdItemPools=HouseholdItems.pools
-Catalog.miscItems=HouseholdItems.definitions
+Catalog.miscItems={}
 for name,definition in pairs(Catalog.householdItems) do
+    Catalog.miscItems[name]=definition
     Catalog.itemRarity[name]=definition.rarity
+end
+-- Material bundles occupy normal inventory slots. Finished upgrades enter
+-- the world through the sewing bench, rather than generic reward pools.
+for name,definition in pairs(Catalog.craftMaterials) do
+    definition.worldScale=definition.worldScale or .52
+    Catalog.miscItems[name]=definition
+    Catalog.itemRarity[name]=definition.rarity
+end
+for name,definition in pairs(Catalog.outfitUpgrades) do
+    Catalog.itemRarity[name]=definition.rarity
+end
+
+-- Exactly one fitted repair component per player weapon, found in chest salvage.
+local repairCatalog=WeaponRepairParts.build(Catalog.weaponStats)
+Catalog.repairParts=repairCatalog.definitions
+Catalog.weaponRepairParts=repairCatalog.byWeapon
+Catalog.repairPartAliases=repairCatalog.aliases
+for name,part in pairs(Catalog.repairParts) do
+    Catalog.miscItems[name]={name=part.name,description=part.description,worldScale=part.worldScale,rarity=part.rarity,repairPart=true}
+    Catalog.itemRarity[name]=part.rarity
+end
+for oldId,canonicalId in pairs(Catalog.repairPartAliases) do
+    Catalog.miscItems[oldId]=Catalog.miscItems[canonicalId]
+    Catalog.itemRarity[oldId]=Catalog.itemRarity[canonicalId]
 end
 
 function Catalog.rarityFor(name)

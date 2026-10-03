@@ -124,6 +124,7 @@ local function new(context)
           choices = {}, stopLayouts = {}, stopSludges={}, expeditions={}, crowCaravans={version=1,scheduleVersion=0,scheduledStops={},camps={}}, events = {}, eventCategoryHistory={}, weaponDurability={}, weaponProficiency={}, mailQuests={}, supplyQuests={}, passengers={}, questAsked={}, lootRolls={}, npcOffers={}, npcWeapons={}, goodwill=0, helpHistory={},relationships={},helpQuestSessions={},lastStand={},
           maintenance={condition=72,lastServicedStop=0,totalServices=0,totalWear=0}, finale={},
           inventoryCapacity=6, backpack=nil,
+          wearables={},
           scrap=0, trainCars={"living-car"}, activeCar=1, engineLevel=0,
           specialItemsAdded=true, lootContainerMigration=true, expandedLootAdded=true, radioAdded=true,lootBalanceVersion=1,
           trainObjectLayoutVersion=TRAIN_OBJECT_LAYOUT_VERSION,
@@ -192,6 +193,11 @@ local function new(context)
       data.nextBattlePotions=data.nextBattlePotions or {}
       data.npcOffers=data.npcOffers or {}; data.npcWeapons=data.npcWeapons or {}
       data.inventoryCapacity=data.inventoryCapacity or 6
+      local equippedBackpack=data.wearables and Catalog.wearableItems[data.wearables.backpack]
+      if equippedBackpack then
+          data.backpack=data.wearables.backpack
+          data.inventoryCapacity=equippedBackpack.capacity
+      end
       data.scrap=data.scrap or 0
       data.audio=data.audio or {station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false}
       data.audio.musicPaused=data.audio.musicPaused or false; data.audio.musicMuted=data.audio.musicMuted or false

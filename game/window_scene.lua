@@ -11,6 +11,7 @@ local PATHS={
     effects=ROOT.."shootout-effects-atlas.png",
     damage=ROOT.."house-surface-damage-decals.png",
 }
+local BACKGROUND_COVER_SCALE=1.08
 
 WindowScene.targetAtlases={
     ROOT.."mouse-bandit-rifle-target-atlas.png",
@@ -142,10 +143,11 @@ function WindowScene.drawBackground(state,width,height)
     local time=state.reducedMotion and 0 or (state.clock or state.elapsed or 0)
     if source then
         local iw,ih=source:getDimensions()
-        local scale=math.max(width/iw,height/ih)*1.025
+        local scale=math.max(width/iw,height/ih)*BACKGROUND_COVER_SCALE
         local drift=math.sin(time*.055)*width*.008
+        local y=height-ih*scale
         love.graphics.setColor(.88,.85,.79,1)
-        love.graphics.draw(source,(width-iw*scale)/2+drift,(height-ih*scale)*.45,0,scale,scale)
+        love.graphics.draw(source,(width-iw*scale)/2+drift,y,0,scale,scale)
     end
     love.graphics.setColor(.63,.55,.42,.10)
     love.graphics.rectangle("fill",0,0,width,height)

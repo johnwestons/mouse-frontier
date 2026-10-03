@@ -40,6 +40,7 @@ Reply with a review ID and DELETE, your replacement text, or confirmation that a
 | Four retired dialogue quests | Missing Family Trail, Share the Water, A Trustworthy Warning, The Unfinished Promise: opening, branches and follow-up | Retired; old sessions removed on save migration, earned rewards preserved |
 | Rookery Caravan | First meeting, repeat meetings and return greetings | Neutral trading notice |
 | Last Stand | Scout approach, offer, refusal, pause/return, Fox/Gecko/scout replies, window handoff, intermissions, loan weapon/ammo lines and aftermath | Neutral objectives and controls preserve the complete quest |
+| Train bandit ambush | Optional bandit leader demand when the pickup approaches; optional crew warnings; optional responses to Fight, Hide, Pay scrap and retreat | Neutral event narration, action labels and outcome statistics; no character speech is required to play |
 | Family letter | The quoted letter in the bottle | Neutral westward clue; progression preserved |
 
 Please supply rewrites for any of these contexts you want to speak. No substitute character dialogue has been invented. Event descriptions, unquoted story narration, ending narration, item descriptions and controls remain as non-dialogue text; the broader inventory includes these for optional review. Historical drafts such as `LAST_STAND_DIALOGUE_AND_BEAT_SHEET.md` remain reference material, not live or approved dialogue.

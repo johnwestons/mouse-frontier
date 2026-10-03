@@ -3,6 +3,14 @@ local LootProgression = {}
 LootProgression.rarityOrder={"common","uncommon","rare","legendary"}
 LootProgression.rarityRank={common=1,uncommon=2,rare=3,legendary=4}
 LootProgression.ammoUnlockTier={rocks=1,arrows=1,["ball-bearings"]=1,["22lr"]=3,["32-acp"]=3,["380-acp"]=4,["9mm"]=4,["45-cal"]=5,["30-carbine"]=5,["12-gauge"]=6,["556"]=7,["762x39"]=8,["8mm"]=8}
+LootProgression.materialUnlockTier={
+    ["thread-spool"]=1,["fabric-scraps"]=1,["wool-batting"]=1,
+    ["canvas-bundle"]=2,["leather-pieces"]=2,["waxed-thread"]=2,["metal-sheet"]=3,
+}
+local materialPrices={
+    ["thread-spool"]=2,["fabric-scraps"]=2,["wool-batting"]=3,
+    ["canvas-bundle"]=4,["leather-pieces"]=5,["waxed-thread"]=4,["metal-sheet"]=7,
+}
 
 local function randomFloat(rng)
     return rng and rng() or love.math.random()
@@ -122,6 +130,37 @@ function LootProgression.tradeStock(catalog,location,rng)
     return result
 end
 
+function LootProgression.rollCraftMaterial(catalog,location,rng)
+    local candidates={}
+    local tier=LootProgression.locationTier(location)
+    for name,definition in pairs(catalog.craftMaterials or {}) do
+        if (definition.unlockTier or LootProgression.materialUnlockTier[name] or 1)<=tier then
+            candidates[#candidates+1]=name
+        end
+    end
+    table.sort(candidates)
+    return choice(candidates,rng)
+end
+
+function LootProgression.ensureCraftingStock(layout,catalog,location)
+    if not layout or type(layout.tradeStock)~="table" or layout.outfitStockVersion==1 then return end
+    local tier=LootProgression.locationTier(location)
+    local names={}
+    for name,definition in pairs(catalog.craftMaterials or {}) do
+        if (definition.unlockTier or LootProgression.materialUnlockTier[name] or 1)<=tier then names[#names+1]=name end
+    end
+    table.sort(names)
+    local last=0
+    for index in pairs(layout.tradeStock) do if type(index)=="number" then last=math.max(last,index) end end
+    for _,name in ipairs(names) do
+        last=last+1
+        -- Quantities are a merchant listing feature; purchases still deliver
+        -- one ordinary material bundle per inventory slot.
+        layout.tradeStock[last]={item=name,quantity=3,basePrice=LootProgression.itemPrice(catalog,name)}
+    end
+    layout.outfitStockVersion=1
+end
+
 function LootProgression.qualityRarity(quality)
     if quality=="legendary" then return "legendary" end
     if quality=="rare" then return "rare" end
@@ -131,12 +170,19 @@ function LootProgression.qualityRarity(quality)
 end
 
 function LootProgression.itemPrice(catalog,name)
+    local material=catalog.craftMaterials and catalog.craftMaterials[name]
+    if material then return material.basePrice or materialPrices[name] or 3 end
     local stats=catalog.weaponStats[name]
     if stats then
         local ranged=(catalog.weaponCombat[name] or {}).kind=="ranged" and 2 or 0
         return 4+(stats.tier or 1)*3+ranged
     end
-    if catalog.backpackUpgrades[name] then return math.floor(catalog.backpackUpgrades[name].capacity*2) end
+    local wearable=catalog.wearableItems and catalog.wearableItems[name]
+    if wearable and wearable.slot=="backpack" then return math.floor(wearable.capacity*2) end
+    if wearable and wearable.tier then
+        local quality=wearable.quality=="masterwork" and 6 or (wearable.quality=="fine" and 3 or 0)
+        return wearable.basePrice or (5+wearable.tier*5+quality)
+    end
     local rarity=catalog.rarityFor(name)
     local base=({common=3,uncommon=6,rare=11,legendary=18})[rarity] or 3
     if catalog.ammoPickupAmounts[name] then return base+2 end
@@ -146,7 +192,7 @@ end
 function LootProgression.weaponCondition(durability)
     durability=math.max(0,math.min(100,math.floor(tonumber(durability) or 100)))
     if durability==0 then return {durability=0,label="broken",multiplier=0} end
-    if durability<25 then return {durability=durability,label="critical",multiplier=.65} end
+    if durability<=25 then return {durability=durability,label="critical",multiplier=.65} end
     if durability<50 then return {durability=durability,label="worn",multiplier=.78} end
     if durability<75 then return {durability=durability,label="used",multiplier=.90} end
     return {durability=durability,label="sound",multiplier=1}
@@ -169,29 +215,140 @@ function LootProgression.repairCost(catalog,name,durability)
     return math.max(1,math.ceil((100-durability)/20)+math.ceil((stats.tier or 1)/2))
 end
 
-function LootProgression.repairStatus(data,catalog)
+local function isPlayerWeapon(catalog,name)
+    return type(name)=="string" and name~="scratch" and not name:find("mob%-")
+        and catalog.weaponStats[name]~=nil
+end
+
+function LootProgression.repairPartFor(catalog,name)
+    if not isPlayerWeapon(catalog,name) then return nil end
+    local partName=catalog.weaponRepairParts and catalog.weaponRepairParts[name]
+    local part=partName and catalog.repairParts and rawget(catalog.repairParts,partName)
+    -- A component fits one named weapon. Never infer compatibility from a
+    -- weapon family or from similar words in its item ID.
+    if part and part.weapon==name then return partName end
+    return nil
+end
+
+local function canonicalRepairPart(catalog,name)
+    return (catalog.repairPartAliases and catalog.repairPartAliases[name]) or name
+end
+
+local function ownsWeapon(data,catalog,name)
+    if not isPlayerWeapon(catalog,name) then return false end
+    for _,equipped in pairs(data.equipment or {}) do if equipped==name then return true end end
+    for index=1,(data.inventoryCapacity or 6) do if data.inventory and data.inventory[index]==name then return true end end
+    return false
+end
+
+function LootProgression.ownedWeapons(data,catalog)
+    local owned,seen={},{}
+    local function add(name)
+        if isPlayerWeapon(catalog,name) and not seen[name] then
+            seen[name]=true; owned[#owned+1]=name
+        end
+    end
+    for _,name in ipairs(catalog.weaponProgression or {}) do if ownsWeapon(data,catalog,name) then add(name) end end
+    for _,name in pairs(data.equipment or {}) do add(name) end
+    for index=1,(data.inventoryCapacity or 6) do add(data.inventory and data.inventory[index]) end
+    return owned
+end
+
+local function inventoryPartCount(data,catalog,partName)
+    local count=0
+    for index=1,(data.inventoryCapacity or 6) do
+        local item=data.inventory and data.inventory[index]
+        if item and canonicalRepairPart(catalog,item)==partName then count=count+1 end
+    end
+    return count
+end
+
+function LootProgression.repairStatus(data,catalog,name)
     local candidate
-    for _,name in ipairs(data.equipment or {}) do
-        if name and name~="scratch" and catalog.weaponStats[name] then
-            local durability=(data.weaponDurability and data.weaponDurability[name]) or 100
-            if durability<100 and (not candidate or durability<candidate.durability) then
-                candidate={name=name,durability=durability,cost=LootProgression.repairCost(catalog,name,durability)}
+    if name then
+        if ownsWeapon(data,catalog,name) then
+            candidate={name=name,durability=LootProgression.weaponCondition(data.weaponDurability and data.weaponDurability[name]).durability}
+        end
+    else
+        for _,weapon in pairs(data.equipment or {}) do
+            if isPlayerWeapon(catalog,weapon) then
+                local durability=LootProgression.weaponCondition(data.weaponDurability and data.weaponDurability[weapon]).durability
+                if durability<100 and (not candidate or durability<candidate.durability) then candidate={name=weapon,durability=durability} end
             end
         end
     end
     if not candidate then return {needed=false,affordable=false} end
-    candidate.needed=true; candidate.affordable=(data.scrap or 0)>=candidate.cost
+    candidate.part=LootProgression.repairPartFor(catalog,candidate.name)
+    candidate.major=candidate.durability<=25
+    candidate.baseCost=LootProgression.repairCost(catalog,candidate.name,candidate.durability)
+    candidate.cost=candidate.baseCost+(candidate.major and (6+2*((catalog.weaponStats[candidate.name] or {}).tier or 1)) or 0)
+    candidate.partCount=candidate.part and inventoryPartCount(data,catalog,candidate.part) or 0
+    candidate.hasPart=not candidate.major or candidate.partCount>0
+    candidate.needed=candidate.durability<100
+    candidate.affordable=(data.scrap or 0)>=candidate.cost and candidate.hasPart
     return candidate
 end
 
-function LootProgression.repairEquipped(data,catalog)
-    local status=LootProgression.repairStatus(data,catalog)
+function LootProgression.completeRepair(data,catalog,name,quality)
+    local status=LootProgression.repairStatus(data,catalog,name)
+    if quality~="perfect" and quality~="good" then return {ok=false,reason="miss",status=status} end
+    if not status.name then return {ok=false,reason="ownership",status=status} end
     if not status.needed then return {ok=false,reason="ready",status=status} end
-    if not status.affordable then return {ok=false,reason="scrap",status=status} end
+    if status.major and not status.hasPart then return {ok=false,reason="part",status=status} end
+    if (data.scrap or 0)<status.cost then return {ok=false,reason="scrap",status=status} end
+    local restored=100
+    if quality=="good" then
+        restored=math.min(95,math.max(75,status.durability+math.floor((100-status.durability)*.70)))
+        restored=math.max(status.durability,restored)
+    end
+    if restored<=status.durability then return {ok=false,reason="precision",status=status} end
     data.weaponDurability=data.weaponDurability or {}
     data.scrap=data.scrap-status.cost
-    data.weaponDurability[status.name]=100
-    return {ok=true,name=status.name,cost=status.cost,status=LootProgression.repairStatus(data,catalog)}
+    data.weaponDurability[status.name]=restored
+    if status.major then
+        for index=1,(data.inventoryCapacity or 6) do
+            local item=data.inventory and data.inventory[index]
+            if item and canonicalRepairPart(catalog,item)==status.part then data.inventory[index]=nil; break end
+        end
+    end
+    return {ok=true,name=status.name,cost=status.cost,quality=quality,restored=restored,part=status.major and status.part or nil,
+        status=LootProgression.repairStatus(data,catalog,name)}
+end
+
+function LootProgression.repairEquipped(data,catalog)
+    return {ok=false,reason="workbench",status=LootProgression.repairStatus(data,catalog)}
+end
+
+function LootProgression.rollRepairPart(data,catalog,location,rng)
+    local all={}
+    for name,part in pairs(catalog.repairParts or {}) do
+        if LootProgression.repairPartFor(catalog,part.weapon)==name then all[#all+1]=name end
+    end
+    table.sort(all)
+    if #all==0 then return nil end
+    local targeted,hasParts={},{}
+    for index=1,(data.inventoryCapacity or 6) do
+        local part=canonicalRepairPart(catalog,data.inventory and data.inventory[index])
+        if part then hasParts[part]=(hasParts[part] or 0)+1 end
+    end
+    for _,weapon in ipairs(LootProgression.ownedWeapons(data,catalog)) do
+        local durability=LootProgression.weaponCondition(data.weaponDurability and data.weaponDurability[weapon]).durability
+        if durability<=25 then
+            local part=LootProgression.repairPartFor(catalog,weapon)
+            if part and not hasParts[part] then targeted[#targeted+1]=part end
+        end
+    end
+    if #targeted>0 and randomFloat(rng)<.72 then return choice(targeted,rng),"targeted" end
+    local tier=LootProgression.locationTier(location)
+    -- Component rarities rise at weapon tiers 3, 6 and 9. The final tier
+    -- must also unlock legendary parts before the player owns that weapon.
+    local maxRank=math.min(4,math.max(2,1+math.floor(tier/3)))
+    local eligible={}
+    for _,name in ipairs(all) do
+        local part=catalog.repairParts[name]
+        if (LootProgression.rarityRank[part.rarity] or 1)<=maxRank then eligible[#eligible+1]=name end
+    end
+    return choice(eligible,rng) or choice(all,rng),"general"
 end
 
 function LootProgression.resalePrice(catalog,name,durability)
@@ -216,6 +373,7 @@ function LootProgression.validate(catalog)
     for name,stats in pairs(catalog.weaponStats or {}) do
         if name~="scratch" and not name:find("mob%-") and not seen[name] then errors[#errors+1]="weapon missing from progression: "..name end
         if stats.tier and (stats.tier<0 or stats.tier>9) then errors[#errors+1]="weapon tier out of range: "..name end
+        if name~="scratch" and not name:find("mob%-") and not LootProgression.repairPartFor(catalog,name) then errors[#errors+1]="weapon has no compatible repair part: "..name end
     end
     for _,rarity in ipairs(LootProgression.rarityOrder) do
         if not catalog.lootPools[rarity] or #catalog.lootPools[rarity]==0 then errors[#errors+1]="empty loot pool: "..rarity end
@@ -227,7 +385,53 @@ function LootProgression.validate(catalog)
         if type(item.description)~="string" or item.description=="" then errors[#errors+1]="miscellaneous item missing tooltip: "..name end
         if type(item.worldScale)~="number" or item.worldScale<=0 then errors[#errors+1]="miscellaneous item missing world scale: "..name end
     end
+    local componentOwners,spriteOwners={},{}
+    for weapon,partName in pairs(catalog.weaponRepairParts or {}) do
+        if not catalog.weaponStats[weapon] or weapon=="scratch" or weapon:find("mob%-") then
+            errors[#errors+1]="repair compatibility references an invalid player weapon: "..tostring(weapon)
+        end
+        if componentOwners[partName] then
+            errors[#errors+1]="repair component shared by weapons: "..tostring(partName).." -> "..componentOwners[partName]..", "..weapon
+        else componentOwners[partName]=weapon end
+        local part=catalog.repairParts and rawget(catalog.repairParts,partName)
+        if not part or part.weapon~=weapon then errors[#errors+1]="repair compatibility does not match its component: "..weapon end
+    end
+    for name,part in pairs(catalog.repairParts or {}) do
+        if not catalog.miscItems[name] then errors[#errors+1]="repair part missing inventory definition: "..name end
+        if not part.name or not part.component or not part.weapon or not part.icon or not part.rarity then errors[#errors+1]="repair part has incomplete metadata: "..name end
+        if not LootProgression.rarityRank[part.rarity] then errors[#errors+1]="repair part has invalid rarity: "..name end
+        if not part.weapon or LootProgression.repairPartFor(catalog,part.weapon)~=name then errors[#errors+1]="repair part has no exact weapon compatibility: "..name end
+        if type(part.sprite)~="string" or not part.sprite:match("^assets/sprites/weapon%-parts/.+%.png$") then
+            errors[#errors+1]="repair part missing dedicated sprite: "..name
+        elseif spriteOwners[part.sprite] then
+            errors[#errors+1]="repair parts share a sprite: "..spriteOwners[part.sprite]..", "..name
+        else spriteOwners[part.sprite]=name end
+    end
+    for alias,target in pairs(catalog.repairPartAliases or {}) do
+        if rawget(catalog.repairParts or {},alias) then errors[#errors+1]="legacy repair alias shadows an active component: "..alias end
+        if not rawget(catalog.repairParts or {},target) then errors[#errors+1]="legacy repair alias has no exact component: "..alias end
+    end
     for name in pairs(catalog.backpackUpgrades or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="backpack missing rarity: "..name end end
+    local wearableSlots={}
+    for _,slot in ipairs(catalog.wearableSlots or {}) do wearableSlots[slot.id]=true end
+    local wearableStats={armor=true,aim=true,attack=true,move=true,maxHealth=true}
+    for name,profile in pairs(catalog.wearableItems or {}) do
+        if not catalog.itemRarity[name] then errors[#errors+1]="wearable missing rarity: "..name end
+        if not profile.slot or not wearableSlots[profile.slot] then errors[#errors+1]="wearable has invalid slot: "..name end
+        if profile.slot=="backpack" and (type(profile.capacity)~="number" or profile.capacity<1) then errors[#errors+1]="backpack wearable has invalid capacity: "..name end
+        for stat,value in pairs(profile.bonuses or {}) do
+            if not wearableStats[stat] or type(value)~="number" then errors[#errors+1]="wearable has invalid bonus: "..name.." -> "..tostring(stat) end
+        end
+    end
+    for name,material in pairs(catalog.craftMaterials or {}) do
+        if not catalog.miscItems[name] then errors[#errors+1]="craft material missing inventory definition: "..name end
+        if not material.label or not material.description or not material.icon then errors[#errors+1]="craft material has incomplete metadata: "..name end
+    end
+    for _,pool in pairs(catalog.lootPools or {}) do
+        for _,name in ipairs(pool) do
+            if catalog.outfitUpgrades and catalog.outfitUpgrades[name] then errors[#errors+1]="crafted upgrade in random loot pool: "..name end
+        end
+    end
     for name in pairs(catalog.ammoPickupAmounts or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end end
     for name,combat in pairs(catalog.weaponCombat or {}) do
         if combat.ammo and not catalog.ammoPickupAmounts[combat.ammo] then errors[#errors+1]="weapon ammunition has no pickup: "..name.." -> "..combat.ammo end
@@ -258,18 +462,118 @@ function LootProgression.audit(catalog)
     end
     local early,late=LootProgression.rarityWeights(1),LootProgression.rarityWeights(50)
     local repairData={equipment={"frontier-short-sword"},weaponDurability={["frontier-short-sword"]=40},scrap=20}
-    local repair=LootProgression.repairEquipped(repairData,catalog)
+    local repair=LootProgression.completeRepair(repairData,catalog,"frontier-short-sword","perfect")
+    local repairFlow=LootProgression.repairAudit(catalog)
     local broken=LootProgression.weaponCondition(0)
     local ready=valid and weaponCount==83 and familyCount>=6 and statusProfiles>=12 and damageReady and early.common>late.common and late.rare>early.rare
         and LootProgression.itemPrice(catalog,"frontier-longsword")>LootProgression.itemPrice(catalog,"trail-slingshot")
         and LootProgression.itemPrice(catalog,"rose-heart-arrow")>LootProgression.itemPrice(catalog,"food-ration")
-        and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100
+        and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100 and repairFlow.ready
         and LootProgression.resalePrice(catalog,"frontier-short-sword",25)<LootProgression.resalePrice(catalog,"frontier-short-sword",100)
     return {ready=ready,valid=valid,errors=errors,weaponCount=weaponCount,tierCounts=tierCounts,damageReady=damageReady,familyCount=familyCount,statusProfiles=statusProfiles,
         earlyWeights=early,lateWeights=late,brokenMultiplier=broken.multiplier,repairCost=repair.cost,
+        repair=repairFlow,
         commonPrice=LootProgression.itemPrice(catalog,"food-ration"),legendaryPrice=LootProgression.itemPrice(catalog,"rose-heart-arrow"),
         starterWeaponPrice=LootProgression.itemPrice(catalog,"trail-slingshot"),lateWeaponPrice=LootProgression.itemPrice(catalog,"frontier-longsword"),
         wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v3"}
+end
+
+function LootProgression.repairAudit(catalog)
+    local firearm="frontier-22-lever-rifle"
+    local firearmPart=LootProgression.repairPartFor(catalog,firearm)
+    local blockedData={equipment={firearm},inventory={},inventoryCapacity=6,scrap=200,
+        weaponDurability={[firearm]=10}}
+    local blockedStatus=LootProgression.repairStatus(blockedData,catalog,firearm)
+    local blocked=LootProgression.completeRepair(blockedData,catalog,firearm,"perfect")
+    local missingPartBlocks=blocked.reason=="part" and not blockedStatus.hasPart
+        and blockedData.scrap==200 and blockedData.weaponDurability[firearm]==10
+
+    blockedData.inventory[1]=firearmPart
+    local majorStatus=LootProgression.repairStatus(blockedData,catalog,firearm)
+    local major=LootProgression.completeRepair(blockedData,catalog,firearm,"perfect")
+    local partConsumed=major.ok and major.part==firearmPart and blockedData.inventory[1]==nil
+    local majorScrapCharged=major.ok and blockedData.scrap==200-majorStatus.cost
+        and blockedData.weaponDurability[firearm]==100
+
+    local fieldWeapon="frontier-short-sword"
+    local fieldData={equipment={fieldWeapon},inventory={},inventoryCapacity=6,scrap=200,
+        weaponDurability={[fieldWeapon]=50}}
+    local fieldStatus=LootProgression.repairStatus(fieldData,catalog,fieldWeapon)
+    local field=LootProgression.completeRepair(fieldData,catalog,fieldWeapon,"good")
+    local fieldServiceWorks=field.ok and not fieldStatus.major and fieldStatus.partCount==0
+        and fieldData.weaponDurability[fieldWeapon]>=75 and fieldData.weaponDurability[fieldWeapon]<=95
+        and fieldData.scrap==200-fieldStatus.cost
+
+    local missData={equipment={fieldWeapon},inventory={},inventoryCapacity=6,scrap=200,
+        weaponDurability={[fieldWeapon]=50}}
+    local miss=LootProgression.completeRepair(missData,catalog,fieldWeapon,"miss")
+    local missIsFree=not miss.ok and miss.reason=="miss" and missData.scrap==200
+        and missData.weaponDurability[fieldWeapon]==50
+
+    local targetedData={equipment={firearm},inventory={},inventoryCapacity=6,
+        weaponDurability={[firearm]=0}}
+    local foundPart,source=LootProgression.rollRepairPart(targetedData,catalog,1,function() return 0 end)
+    local salvageTargetsCriticalWeapon=source=="targeted" and foundPart==firearmPart
+
+    local compatible,uniqueComponents,wrongPartBlocks,eachPartRepairs=true,true,true,true
+    local partOwners,weaponNames={},{}
+    for name,stats in pairs(catalog.weaponStats or {}) do
+        if name~="scratch" and not name:find("mob%-") then
+            local part=LootProgression.repairPartFor(catalog,name)
+            compatible=compatible and part~=nil and catalog.repairParts[part]~=nil and catalog.repairParts[part].weapon==name and stats~=nil
+            if part then
+                if partOwners[part] then uniqueComponents=false end
+                partOwners[part]=name
+            end
+            weaponNames[#weaponNames+1]=name
+        end
+    end
+    table.sort(weaponNames)
+    for index,name in ipairs(weaponNames) do
+        local correctPart=LootProgression.repairPartFor(catalog,name)
+        local wrongPart=LootProgression.repairPartFor(catalog,weaponNames[index%#weaponNames+1])
+        local sample={equipment={name},inventory={[1]=wrongPart},inventoryCapacity=6,scrap=200,
+            weaponDurability={[name]=0}}
+        local rejected=LootProgression.completeRepair(sample,catalog,name,"perfect")
+        wrongPartBlocks=wrongPartBlocks and wrongPart~=nil and wrongPart~=correctPart
+            and not rejected.ok and rejected.reason=="part" and sample.scrap==200
+            and sample.weaponDurability[name]==0 and sample.inventory[1]==wrongPart
+        sample.inventory[1]=correctPart
+        local restored=LootProgression.completeRepair(sample,catalog,name,"perfect")
+        eachPartRepairs=eachPartRepairs and correctPart~=nil and restored.ok
+            and restored.part==correctPart and sample.inventory[1]==nil and sample.weaponDurability[name]==100
+    end
+    local aliasesFitExactly=true
+    for alias,target in pairs(catalog.repairPartAliases or {}) do
+        local part=rawget(catalog.repairParts or {},target)
+        if not part then aliasesFitExactly=false
+        else
+            local sample={equipment={part.weapon},inventory={[1]=alias},inventoryCapacity=6,scrap=200,
+                weaponDurability={[part.weapon]=0}}
+            local restored=LootProgression.completeRepair(sample,catalog,part.weapon,"perfect")
+            aliasesFitExactly=aliasesFitExactly and restored.ok and restored.part==target and sample.inventory[1]==nil
+            for _,other in ipairs(weaponNames) do
+                if other~=part.weapon then
+                    sample={equipment={other},inventory={[1]=alias},inventoryCapacity=6,scrap=200,
+                        weaponDurability={[other]=0}}
+                    local rejected=LootProgression.completeRepair(sample,catalog,other,"perfect")
+                    aliasesFitExactly=aliasesFitExactly and not rejected.ok and rejected.reason=="part"
+                        and sample.inventory[1]==alias and sample.scrap==200
+                    break
+                end
+            end
+        end
+    end
+    local ready=compatible and uniqueComponents and wrongPartBlocks and eachPartRepairs and aliasesFitExactly
+        and missingPartBlocks and partConsumed and majorScrapCharged
+        and fieldServiceWorks and missIsFree and salvageTargetsCriticalWeapon
+    return {ready=ready,compatibleWeapons=compatible,missingPartBlocks=missingPartBlocks,
+        uniqueComponents=uniqueComponents,wrongPartBlocks=wrongPartBlocks,eachPartRepairs=eachPartRepairs,
+        aliasesFitExactly=aliasesFitExactly,componentCount=#weaponNames,
+        partConsumed=partConsumed,majorScrapCharged=majorScrapCharged,
+        fieldServiceWorks=fieldServiceWorks,missIsFree=missIsFree,
+        targetedSalvage=salvageTargetsCriticalWeapon,criticalPart=firearmPart,
+        majorCost=majorStatus.cost,fieldCost=fieldStatus.cost}
 end
 
 return LootProgression

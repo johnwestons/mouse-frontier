@@ -3,6 +3,7 @@ local WorldPause=require("game.world_pause")
 local UIStyle=require("game.ui_layout")
 local UIFocus=require("game.ui_focus")
 local LootProgression=require("game.loot_progression")
+local RepairLayout=require("game.repair_workbench_layout")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -94,7 +95,7 @@ local function new(context)
   local skipIntro=required(context,"skipIntro","function")
   local interactionMouseAction=required(context,"interactionMouseAction","function")
   local interactionKeyAction=required(context,"interactionKeyAction","function")
-  local repairEquipped=required(context,"repairEquipped","function")
+  local repairWeapon=required(context,"repairWeapon","function")
   local FirstAid=required(context,"firstAid","table")
   local ShootingRange=required(context,"shootingRange","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
@@ -249,7 +250,7 @@ local function new(context)
   end
 
   function ui.offerGift(slot)
-      local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.backpackUpgrades[name] or name=="coal-chunk" or name=="coal-bucket"
+      local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.wearableItems[name] or name=="coal-chunk" or name=="coal-bucket"
       if accepted then
           local passenger; for _,p in ipairs(runtime.saveData.passengers or {}) do if p.npc==runtime.giftNPC then passenger=p; break end end
           if isWeapon(name) then
@@ -257,7 +258,7 @@ local function new(context)
               else local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]; if layout then layout.npcWeapon=name end; if runtime.npcActor then runtime.npcActor.weapon=name end end
           end
           local effect=Catalog.itemEffects[name]
-          local category=isWeapon(name) and "weapon" or (Catalog.backpackUpgrades[name] and "gear"
+          local category=isWeapon(name) and "weapon" or (Catalog.wearableItems[name] and "gear"
               or ((name=="coal-chunk" or name=="coal-bucket") and "fuel"
               or (effect and effect.health and "medical" or (effect and effect.food and "food" or (effect and effect.water and "water" or "useful")))))
           local result=NpcRelationships.recordGift(runtime.saveData,runtime.giftNPC,name,category)
@@ -333,8 +334,6 @@ local function new(context)
               runtime.dialogue={speaker="Train Workshop",text=entry.name.." added to your train! "..entry.description,timer=3}
               writeSave()
           end
-      elseif request.kind=="weaponRepair" then
-          repairEquipped()
       elseif request.kind=="rangeAmmo" then
           local purchased=ShootingRange.buyAmmo(runtime.shootingRange,runtime.saveData,Catalog)
           if purchased then writeSave(); ui.playSfx("menu") end
@@ -494,14 +493,91 @@ local function new(context)
       persistOptions(); return true
   end
 
+  local function cancelWeaponRepair()
+      runtime.weaponRepairStartedAt=nil
+      runtime.weaponRepairActiveWeapon=nil
+      runtime.weaponRepairDrag=nil
+      runtime.weaponRepairMessage=nil
+  end
+
+  local function selectRepairWeapon(name)
+      cancelWeaponRepair()
+      runtime.weaponRepairSelected=name
+  end
+
+  local function scrollRepairWeapons(value)
+      local count=#LootProgression.ownedWeapons(runtime.saveData,Catalog)
+      runtime.weaponRepairScroll=math.max(1,math.min(math.max(1,count-RepairLayout.visibleRows+1),math.floor(value+.5)))
+  end
+
+  local function activateWeaponRepair()
+      local name=runtime.weaponRepairSelected
+      local status=name and LootProgression.repairStatus(runtime.saveData,Catalog,name)
+      if not status or not status.name then
+          cancelWeaponRepair(); runtime.weaponRepairMessage="Select a weapon you own."
+      elseif not status.needed then
+          cancelWeaponRepair(); runtime.weaponRepairMessage="This weapon does not need repair."
+      elseif not status.hasPart then
+          cancelWeaponRepair(); runtime.weaponRepairMessage="Find this part in chests; carry it in your backpack."
+      elseif (runtime.saveData.scrap or 0)<status.cost then
+          cancelWeaponRepair(); runtime.weaponRepairMessage="Not enough scrap for this repair."
+      elseif not runtime.weaponRepairStartedAt or runtime.weaponRepairActiveWeapon~=name then
+          runtime.weaponRepairStartedAt=runtime.animationClock
+          runtime.weaponRepairActiveWeapon=name
+          runtime.weaponRepairMessage="Tap or press confirm on the brass mark."
+          ui.keyboardFocusScreen="weapon-repair"; ui.keyboardFocusId="weapon-repair.start"
+      else
+          local phase=((runtime.animationClock-runtime.weaponRepairStartedAt)*.86)%1
+          local quality=phase>=.62 and phase<=.69 and "perfect" or (phase>=.53 and phase<=.78 and "good" or "miss")
+          local result=repairWeapon(name,quality)
+          runtime.weaponRepairStartedAt=nil; runtime.weaponRepairActiveWeapon=nil
+          if result.ok then
+              runtime.weaponRepairMessage="Repair complete: "..tostring(result.restored).."% condition."
+              ui.playSfx("trainArrive")
+          else ui.playSfx("menu") end
+      end
+  end
+
   function ui.handleUpgradeMousePressed(x,y)
       if not runtime.trainUpgradeOpen then return false end
-      if Util.pointIn(x,y,ui.upgradeClose) then runtime.trainUpgradeOpen=false; return true end
+      if runtime.weaponRepairOpen then
+          local listX,listY=UIStyle.inversePoint(x,y,"trainUpgrades",RepairLayout.bounds)
+          if Util.pointIn(listX,listY,RepairLayout.listBounds) then
+              local name
+              for _,entry in ipairs(ui.repairRows or {}) do
+                  if Util.pointIn(listX,listY,entry.rect) then name=entry.name; break end
+              end
+              runtime.weaponRepairDrag={startX=listX,startY=listY,startScroll=runtime.weaponRepairScroll or 1,name=name,moved=false}
+              return true
+          end
+          if ui.repairListUp and Util.pointIn(x,y,ui.repairListUp) then
+              scrollRepairWeapons((runtime.weaponRepairScroll or 1)-1); return true
+          end
+          if ui.repairListDown and Util.pointIn(x,y,ui.repairListDown) then
+              scrollRepairWeapons((runtime.weaponRepairScroll or 1)+1); return true
+          end
+          if ui.repairBack and Util.pointIn(x,y,ui.repairBack) then
+              runtime.weaponRepairOpen=false; cancelWeaponRepair(); ui.playSfx("menu"); return true
+          end
+          if ui.repairClose and Util.pointIn(x,y,ui.repairClose) then
+              runtime.weaponRepairOpen=false; runtime.trainUpgradeOpen=false; cancelWeaponRepair(); ui.playSfx("menu"); return true
+          end
+          if ui.repairStart and Util.pointIn(x,y,ui.repairStart) then
+              activateWeaponRepair()
+              return true
+          end
+          return true
+      end
+      if ui.sewingBench and ui.sewingBench.enabled and Util.pointIn(x,y,ui.sewingBench) then
+          if ui.openOutfitWorkbench then ui.openOutfitWorkbench() end
+          return true
+      end
+      if Util.pointIn(x,y,ui.upgradeClose) then runtime.trainUpgradeOpen=false; runtime.weaponRepairOpen=false; cancelWeaponRepair(); return true end
       if ui.weaponRepair and Util.pointIn(x,y,ui.weaponRepair) then
-          local repair=LootProgression.repairStatus(runtime.saveData,Catalog)
-          if repair.needed and repair.affordable then
-              requestConfirmation("weaponRepair",{message="Repair "..Util.titleFromFile(repair.name).." to full condition for "..repair.cost.." scrap?"})
-          else repairEquipped() end
+          runtime.weaponRepairOpen=true
+          cancelWeaponRepair(); runtime.weaponRepairScroll=1
+          local owned=LootProgression.ownedWeapons(runtime.saveData,Catalog)
+          runtime.weaponRepairSelected=runtime.weaponRepairSelected or owned[1]
           return true
       end
       if Util.pointIn(x,y,ui.engineUpgrade) then
@@ -554,6 +630,7 @@ local function new(context)
       runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
       runtime.editMode=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil
       runtime.trainUpgradeOpen=false; runtime.poseMenu=false; runtime.firstAid=nil; runtime.shootingRange=nil
+      runtime.weaponRepairOpen=false; cancelWeaponRepair()
       runtime.travelConfirm=false; runtime.exitPrompt=nil
       ui.optionsOpen=false; ui.radioOpen=false; ui.mobileMenuOpen=false
   end
@@ -568,6 +645,7 @@ local function new(context)
   local function inventoryMenuContainsPoint(x,y)
       x,y=UIStyle.inversePoint(x,y,"inventory",{x=25,y=35,w=910,h=660})
       if Util.pointIn(x,y,{x=545,y=35,w=390,h=660}) then return true end
+      if ui.outfitWorkbenchPanel and Util.pointIn(x,y,ui.outfitWorkbenchPanel) then return true end
       if runtime.chestOpen and Util.pointIn(x,y,{x=25,y=145,w=505,h=490}) then return true end
       if runtime.giftOpen and Util.pointIn(x,y,{x=220,y=170,w=520,h=180}) then return true end
       return false
@@ -665,7 +743,7 @@ local function new(context)
           if Util.pointIn(x,y,tab) then beginCarTransition(index); return true end
       end
       if Util.pointIn(x,y,ui.editMode) then runtime.editMode=not runtime.editMode; ui.mobileMenuOpen=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil; runtime.inventoryOpen=false; runtime.mapOpen=false; writeSave(); return true end
-      if Util.pointIn(x,y,ui.trainUpgrade) then runtime.trainUpgradeOpen=true; ui.mobileMenuOpen=false; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; return true end
+      if Util.pointIn(x,y,ui.trainUpgrade) then runtime.trainUpgradeOpen=true; runtime.weaponRepairOpen=false; cancelWeaponRepair(); ui.mobileMenuOpen=false; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; return true end
       if Util.pointIn(x,y,ui.pauseMenu) then
           ui.mobileMenuOpen=false
           ui.escMenuOpen=true
@@ -738,7 +816,7 @@ local function new(context)
           runtime.dialogue=nil
           return
       end
-      if button==3 then beginCameraPan(x,y); return end
+      if button==3 then if not runtime.trainUpgradeOpen then beginCameraPan(x,y) end; return end
       -- Check the persistent campsite exit before any modal input capture. This
       -- lets it dismiss inventory, trade, settings, dialogue, and even stale
       -- overlay state in one tap/click.
@@ -862,6 +940,18 @@ local function new(context)
   end
 
   local function mousemoved(x,y,dx,dy,touchAim)
+      if runtime.weaponRepairDrag then
+          if not runtime.trainUpgradeOpen or not runtime.weaponRepairOpen then runtime.weaponRepairDrag=nil; return end
+          x,y=screenToGame(x,y)
+          x,y=UIStyle.inversePoint(x,y,"trainUpgrades",RepairLayout.bounds)
+          local drag=runtime.weaponRepairDrag
+          local distance=drag.startY-y
+          if math.abs(distance)>12 or drag.moved then
+              drag.moved=true
+              scrollRepairWeapons(drag.startScroll+distance/RepairLayout.rowStep)
+          end
+          return
+      end
       if runtime.state=="characters" and runtime.characterGridDrag then
           x,y=screenToGame(x,y)
           local drag=runtime.characterGridDrag
@@ -898,6 +988,16 @@ local function new(context)
 
   local function mousereleased(x,y,button)
       if button==3 then endCameraPan(); return end
+      if button==1 and runtime.weaponRepairDrag then
+          local drag=runtime.weaponRepairDrag
+          runtime.weaponRepairDrag=nil
+          if runtime.trainUpgradeOpen and runtime.weaponRepairOpen and not drag.moved and drag.name then
+              x,y=screenToGame(x,y)
+              x,y=UIStyle.inversePoint(x,y,"trainUpgrades",RepairLayout.bounds)
+              if math.abs(x-drag.startX)<=12 and math.abs(y-drag.startY)<=12 then selectRepairWeapon(drag.name) end
+          end
+          return
+      end
       if button==1 and runtime.state=="characters" and runtime.characterGridDrag then
           local drag=runtime.characterGridDrag
           runtime.characterGridDrag=false
@@ -929,6 +1029,16 @@ local function new(context)
   local function wheelmoved(_,y)
       local mouseX,mouseY=pointerPosition()
       local shifted=love.keyboard and love.keyboard.isDown and love.keyboard.isDown("lshift","rshift")
+      if runtime.state=="game" and runtime.trainUpgradeOpen and not ui.optionsOpen and not ui.escMenuOpen and not runtime.exitPrompt then
+          if runtime.weaponRepairOpen and y~=0 then
+              local mx,my=screenToGame(mouseX,mouseY)
+              mx,my=UIStyle.inversePoint(mx,my,"trainUpgrades",RepairLayout.bounds)
+              if Util.pointIn(mx,my,RepairLayout.wheelBounds) then
+                  scrollRepairWeapons((runtime.weaponRepairScroll or 1)+(y>0 and -1 or 1))
+              end
+          end
+          return
+      end
       if ui.optionsOpen and runtime.optionsPage=="controls" and runtime.optionsControlDevice~="touch" and y~=0 then
           local list=runtime.optionsControlDevice=="keyboard" and controlBindings:keyActions()
               or (runtime.optionsControllerSection=="axes" and controlBindings:axisActions() or controlBindings:buttonActions())
@@ -1241,11 +1351,23 @@ local function new(context)
           trade("buyNext",ui.tradeBuyNext,ui.tradeBuyNext and ui.tradeBuyNext.enabled)
           trade("sellPrevious",ui.tradePrev,ui.tradePrev and ui.tradePrev.enabled)
           trade("sellNext",ui.tradeNext,ui.tradeNext and ui.tradeNext.enabled); trade("close",ui.tradeClose)
+      elseif runtime.trainUpgradeOpen and runtime.weaponRepairOpen then
+          screenKey="weapon-repair"
+          for _,entry in ipairs(ui.repairRows or {}) do
+              local name=entry.name
+              add("weapon-repair.select."..name,entry.rect,function() selectRepairWeapon(name) end,true,"trainUpgrades",RepairLayout.bounds)
+          end
+          add("weapon-repair.list-up",ui.repairListUp,function() scrollRepairWeapons((runtime.weaponRepairScroll or 1)-1) end)
+          add("weapon-repair.list-down",ui.repairListDown,function() scrollRepairWeapons((runtime.weaponRepairScroll or 1)+1) end)
+          add("weapon-repair.start",ui.repairStart,activateWeaponRepair)
+          add("weapon-repair.back",ui.repairBack,function() runtime.weaponRepairOpen=false; cancelWeaponRepair() end)
+          add("weapon-repair.close",ui.repairClose,function() runtime.weaponRepairOpen=false; runtime.trainUpgradeOpen=false; cancelWeaponRepair() end)
       elseif runtime.trainUpgradeOpen then
           screenKey="train-upgrades"
           local function upgrade(id,rect,enabled) clickHandler("upgrade."..id,rect,ui.handleUpgradeMousePressed,enabled) end
           upgrade("engine",ui.engineUpgrade,ui.engineUpgrade and ui.engineUpgrade.enabled)
           upgrade("repair",ui.weaponRepair,ui.weaponRepair and ui.weaponRepair.enabled); upgrade("close",ui.upgradeClose)
+          upgrade("sewing",ui.sewingBench,ui.sewingBench and ui.sewingBench.enabled)
           for index,rect in ipairs(ui.trainCars or {}) do upgrade("car."..index,rect,rect.enabled) end
       elseif runtime.mapOpen then
           screenKey="map"
@@ -1256,15 +1378,16 @@ local function new(context)
       elseif runtime.inventoryOpen then
           screenKey="inventory"
           local panel={x=25,y=35,w=910,h=660}
-          local function inventorySlot(kind,index,rect)
-              local slot={kind=kind,index=index}
+          local function inventorySlot(kind,index,rect,slotName)
+              local slot={kind=kind,index=index,slot=slotName}
               local transformed=UIStyle.transformRectFor("inventory",panel,rect)
-              add("inventory."..kind.."."..index,transformed,function()
+              add("inventory."..kind.."."..(slotName or index),transformed,function()
                   if runtime.giftOpen then
                       if kind=="inventory" and runtime.saveData.inventory[index] then runtime.giftSlot=index end
                   elseif runtime.draggedSlot then
                       local from=runtime.draggedSlot
-                      if from.kind==kind and from.index==index then runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+                      local same=from.kind==kind and (kind=="wearable" and from.slot==slotName or kind~="wearable" and from.index==index)
+                      if same then runtime.draggedSlot=nil; runtime.inventoryDragActive=false
                       elseif ui.keyboardInventoryMove and ui.keyboardInventoryMove(from,slot) then runtime.draggedSlot=nil; runtime.inventoryDragActive=false
                       elseif ui.keyboardInventoryValue and ui.keyboardInventoryValue(slot) then runtime.draggedSlot=slot; runtime.inventoryDragActive=false end
                   elseif ui.keyboardInventoryValue and ui.keyboardInventoryValue(slot) then
@@ -1288,10 +1411,27 @@ local function new(context)
               local rect=mobileEnabled() and Inventory.mobileEquipmentSlotRect(index) or Inventory.equipmentSlotRect(index)
               inventorySlot("equipment",index,rect)
           end
+          for mode,rect in pairs(ui.inventoryModeTabs or {}) do
+              local selectedMode=mode
+              add("inventory.mode."..selectedMode,UIStyle.transformRectFor("inventory",panel,rect),function()
+                  runtime.inventoryMode=selectedMode; runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+              end)
+          end
+          if runtime.inventoryMode=="wearables" then
+              for index,slot in ipairs(Catalog.wearableSlots or {}) do
+                  local rect=ui.wearableSlots and ui.wearableSlots[slot.id] or Inventory.wearableSlotRect(index)
+                  inventorySlot("wearable",nil,rect,slot.id)
+              end
+          end
           if runtime.giftOpen then
               add("inventory.giftOffer",ui.giftConfirm,function() if runtime.giftSlot then ui.offerGift(runtime.giftSlot) end end)
               add("inventory.giftCancel",ui.giftCancel,function() runtime.giftOpen=false; runtime.giftSlot=nil end)
           else
+              if ui.inventorySewingBench then
+                  add("inventory.sewing",UIStyle.transformRectFor("inventory",panel,ui.inventorySewingBench),function()
+                      if ui.openOutfitWorkbench then ui.openOutfitWorkbench() end
+                  end,ui.inventorySewingBench.enabled)
+              end
               add("inventory.use",ui.consume,function() if ui.keyboardInventoryConsume then ui.keyboardInventoryConsume() end end)
               add("inventory.drop",ui.drop,function() if runtime.draggedSlot and ui.keyboardInventoryDrop then ui.keyboardInventoryDrop(runtime.draggedSlot) end end)
           end
@@ -1346,7 +1486,7 @@ local function new(context)
       return false
   end
 
-  local function keypressed(key)
+  local function keypressed(key,scancode,isrepeat)
       if runtime.pendingConfirmation then
           if key=="escape" or key=="q" or key=="n" then commitConfirmation(false); return true end
           if key=="y" then commitConfirmation(true); return true end
@@ -1365,6 +1505,22 @@ local function new(context)
               if handleKeyboardFocus(key) then return true end
               return true
           end
+      end
+      if runtime.state=="game" and runtime.trainUpgradeOpen and not runtime.exitPrompt and not ui.escMenuOpen and not ui.optionsOpen then
+          if isrepeat and (key=="space" or key=="return" or key=="kpenter") then return true end
+          if key=="escape" or key=="q" then
+              if runtime.weaponRepairOpen then runtime.weaponRepairOpen=false else runtime.trainUpgradeOpen=false end
+              cancelWeaponRepair(); return true
+          end
+          if runtime.weaponRepairOpen then
+              if runtime.weaponRepairStartedAt and (key=="space" or key=="return" or key=="kpenter") then
+                  activateWeaponRepair(); return true
+              elseif key=="pageup" or key=="pagedown" then
+                  scrollRepairWeapons((runtime.weaponRepairScroll or 1)+(key=="pageup" and -RepairLayout.visibleRows or RepairLayout.visibleRows)); return true
+              end
+          end
+          handleKeyboardFocus(key)
+          return true
       end
       if handleKeyboardFocus(key) then return true end
       if key=="escape" then

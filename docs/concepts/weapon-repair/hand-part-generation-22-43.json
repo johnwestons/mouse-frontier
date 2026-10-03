@@ -1,0 +1,114 @@
+[
+  {
+    "partId": "trail-slingshot-leather-pouch",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: the Leather Pouch for trail-slingshot. Reference image is only the approved weapon identity/style reference: assets/sprites/weapons/trail-slingshot.png. Isolate and depict only this real component, not the complete weapon. Small brown leather oval pouch with upturned concave sides, darker center cradle and two reinforced side holes with short red tied band stubs. Match simple red-band wooden trail slingshot. No fork frame or ammunition. Match the reference's warm detailed pixel-art style, dark crisp outlines, controlled steel highlights and brown/brass patina. Readable sturdy silhouette at 56px inventory size. Object centered, fills85% of square with transparent margin, no ground/shadow, no text, no labels, no hands/body parts, no scene, no checkerboard or background paint. This is one replacement component, not an exploded diagram.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-f1442c0c-8798-4385-b6fc-06221b3f59ac.png",
+    "sprite": "assets/sprites/weapon-parts/trail-slingshot-leather-pouch.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "critter-crossbow-recurve-prod",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: the Recurve Prod for critter-crossbow. Reference image is only the approved weapon identity/style reference: assets/sprites/weapons/critter-crossbow.png. Isolate and depict only this real component, not the complete weapon. One shallow curved dark reddish-brown wooden prod with source red leather reinforcement bands and little brass tip caps at two ends, thick center seating block. Match short simple wooden crossbow bow shape. No stock, trigger, arrow or loose cables. Match the reference's warm detailed pixel-art style, dark crisp outlines, controlled steel highlights and brown/brass patina. Readable sturdy silhouette at 56px inventory size. Object centered, fills85% of square with transparent margin, no ground/shadow, no text, no labels, no hands/body parts, no scene, no checkerboard or background paint. This is one replacement component, not an exploded diagram.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-c73a0acf-754a-4ca3-935e-09204fdcf7a2.png",
+    "sprite": "assets/sprites/weapon-parts/critter-crossbow-recurve-prod.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "railway-cutlass-knuckle-guard",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: the Knuckle Guard for railway-cutlass. Reference image is only the approved weapon identity/style reference: assets/sprites/atlases/melee-blades-v1.png (bottom-left cell, 2x2 atlas). Isolate and depict only this real component, not the complete weapon. Oval D-shaped dark gunmetal knuckle guard with narrow upper crosspiece and short bottom pommel attachment lug, source slightly asymmetric loop. Warm edge wear, silver corner chips, thick rectangular blade aperture; no blade or red wrapped handle. Match the reference's warm detailed pixel-art style, dark crisp outlines, controlled steel highlights and brown/brass patina. Readable sturdy silhouette at 56px inventory size. Object centered, fills85% of square with transparent margin, no ground/shadow, no text, no labels, no hands/body parts, no scene, no checkerboard or background paint. This is one replacement component, not an exploded diagram.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-bc7e3a48-5f29-4d72-a544-afb3a1b26e13.png",
+    "sprite": "assets/sprites/weapon-parts/railway-cutlass-knuckle-guard.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "hooked-railway-halberd-halberd-head",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: the Halberd Head for hooked-railway-halberd. Reference image is only the approved weapon identity/style reference: assets/sprites/atlases/melee-polearms-v1.png (bottom-left cell, 2x2 atlas). Isolate and depict only this real component, not the complete weapon. Single dark iron halberd head: long straight spear spike above socket, broad swept crescent axe blade one side, small triangular hook opposite. Warm rust and thin cream cutting edge, compact bronze socket collar; no wood shaft or bindings. Match the reference's warm detailed pixel-art style, dark crisp outlines, controlled steel highlights and brown/brass patina. Readable sturdy silhouette at 56px inventory size. Object centered, fills85% of square with transparent margin, no ground/shadow, no text, no labels, no hands/body parts, no scene, no checkerboard or background paint. This is one replacement component, not an exploded diagram.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-9ab32d6d-6f27-4fd8-9701-1c311c9d99f0.png",
+    "sprite": "assets/sprites/weapon-parts/hooked-railway-halberd-halberd-head.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "rail-splitter-axe-splitter-head",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Splitter Head for rail-splitter-axe. Input is approved weapon reference (assets/sprites/atlases/melee-axes-v1.png (bottom-left cell, 2x2 atlas)). Render only the detachable component: Large wedge-shaped iron splitting head with broad straight-to-rounded silver cutting edge, thick squared poll, warm gray scuffed face, gold brass two-rivet plate beside central haft eye. Match source stout asymmetrical wedge; no wooden haft. Preserve approved weapon colors/materials. Detailed warm pixel art, crisp dark contour, controlled highlights, same established inventory style. Readable at56px. Centered isolated component filling85% of square, entire silhouette visible. No full weapon, no background, no shadow, no text, no hands/body parts. Genuine transparent background.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-2c84e4fb-8873-4854-8d64-5df4b87d8ff2.png",
+    "sprite": "assets/sprites/weapon-parts/rail-splitter-axe-splitter-head.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "wrist-braced-slingshot-tube-band",
+    "prompt": "Edit only this slingshot replacement tube-and-pouch assembly. Correct the impossible topology: exactly TWO separate flexible amber rubber tubes, one from the left pouch hole to a free end at upper-left, the other from the right pouch hole to a free end at upper-right. Remove the EXTRA diagonal tube connecting the left pouch attachment to the upper-right end. The open center between the two tubes must be transparent. Both free ends simple rubber tube ends with small tan binding collars, no wooden fork pieces or solid wooden dowels. Preserve brown leather pouch, pixel-art texture, warm colors, scale and isolated framing. Genuinely transparent background; no hands, text, shadows or other objects.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-da05cf03-ba54-409f-a3c8-570306eef4ea.png",
+    "sprite": "assets/sprites/weapon-parts/wrist-braced-slingshot-tube-band.png",
+    "method": "built-in imagegen",
+    "revision": true
+  },
+  {
+    "partId": "metal-scrap-slingshot-fork-clamp",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Fork Clamp for metal-scrap-slingshot. Input is approved weapon reference (assets/sprites/weapons/metal-scrap-slingshot.png). Render only the detachable component: One compact steel fork-end band clamp from this metal slingshot, crescent outer saddle with two dark screw heads and a warm brass rounded retaining pin. Gray steel and ochre trim match source metal frame; no entire Y fork or bands. Preserve approved weapon colors/materials. Detailed warm pixel art, crisp dark contour, controlled highlights, same established inventory style. Readable at56px. Centered isolated component filling85% of square, entire silhouette visible. No full weapon, no background, no shadow, no text, no hands/body parts. Genuine transparent background.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-1076c147-0c62-4eb1-a59b-b41ced2d403f.png",
+    "sprite": "assets/sprites/weapon-parts/metal-scrap-slingshot-fork-clamp.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "long-hunting-slingshot-long-bandset",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Long Bandset for long-hunting-slingshot. Input is approved weapon reference (assets/sprites/weapons/long-hunting-slingshot.png). Render only the detachable component: Long slim olive green paired rubber bands tied to a russet leather pouch, laid in a loose elongated loop with small amber attachment cuffs at free tips. Match source olive bands and tawny bindings; no long wooden grip or ammunition. Preserve approved weapon colors/materials. Detailed warm pixel art, crisp dark contour, controlled highlights, same established inventory style. Readable at56px. Centered isolated component filling85% of square, entire silhouette visible. No full weapon, no background, no shadow, no text, no hands/body parts. Genuine transparent background.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-9c2d661e-5eaa-4f63-b6f3-986e0838f64a.png",
+    "sprite": "assets/sprites/weapon-parts/long-hunting-slingshot-long-bandset.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-katana-blade-collar",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Blade Collar for frontier-katana. Input is approved weapon reference. Render only this component, removed from the weapon: Short silver-gray blade collar shaped as a flattened tapered rectangular sleeve, thin copper-brown seam on underside, oval rectangular opening edge-on at the top. Match modest source silver fittings; isolated collar, no tsuba, blade or wrapped grip.  Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-564e75e7-9072-4b6b-bb7c-44dfaa5505a1.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-katana-blade-collar.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-mace-flanged-head",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Flanged Head for frontier-mace. Input is approved weapon reference. Render only this component, removed from the weapon: Dark steel elongated flanged mace head with six angular leaf fins, each projecting to a mid-height triangular point, thin polished gray ridges and central shaft socket. Source cold iron and low brown patina, compact complete head only.  Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-d50c2698-b45f-463d-85c0-ff3271743c40.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-mace-flanged-head.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-battle-axe-battle-axe-head",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Battle Axe Head for frontier-battle-axe. Input is approved weapon reference. Render only this component, removed from the weapon: Broad pale steel fan-shaped axe head with curved upper crest, sweeping outer edge and straight dark rear spike opposite; thick oval haft eye center, gray scuffs, no ornaments. Preserve source silver crescent with long triangular rear beak; no wooden handle.  Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-c45727c2-5199-430e-ae84-bf1a3b0f7f57.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-battle-axe-battle-axe-head.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-longsword-wheel-pommel",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Wheel Pommel for frontier-longsword. Input is approved weapon reference. Render only this component, removed from the weapon: Solid small silver wheel pommel with faceted circular rim and dark central peen recess, slightly flattened round faces, pale edge wear over charcoal iron. Match gray longsword hardware; three-quarter close view, no blade or grip.  Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-77578c86-13f7-4af2-a852-5357c037e80a.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-longsword-wheel-pommel.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-machete-grip-scale",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Grip Scale for frontier-machete. Input is approved weapon reference. Render only this component, removed from the weapon: One long dark brown-black machete handle scale, curved waist and rounded hooked butt, three small brass rivet holes aligned along the curved center. Match source black polymer/wood-like grip and plain utility silhouette; no blade. Use FOUR small rivet holes as visible on the source grip. Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-57a7393c-f450-406c-8423-dd4b75eda18d.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-machete-grip-scale.png",
+    "method": "built-in imagegen",
+    "revision": false
+  },
+  {
+    "partId": "frontier-spear-leaf-head",
+    "prompt": "Use case: stylized-concept. Create ONE transparent inventory sprite for Mouse Frontier: Leaf Head for frontier-spear. Input is approved weapon reference. Render only this component, removed from the weapon: Slim long dark copper-gray leaf spearhead with strong central ridge, two pale bevels, elongated tapered shoulder and short tubular iron socket. Small tawny copper collar under blade; matches source pointed unbarbed spear. No yellow wood shaft or black grip.  Match its colors and materials, same warm detailed pixel art with crisp dark contours and controlled shading. No redesign. Readable silhouette at56px. One object centered filling85% square with transparent margin. Genuinely transparent background. NO floor/shadow/aura/checkerboard, no full weapon, no text, no hands/body parts.",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0ee21-081b-7782-8ae1-ea9fad8f6680\\exec-39f1559a-3926-49c2-8447-c8bc81af833b.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-spear-leaf-head.png",
+    "method": "built-in imagegen",
+    "revision": false
+  }
+]

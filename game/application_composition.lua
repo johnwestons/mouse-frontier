@@ -33,6 +33,7 @@ local Maintenance = require("game.maintenance")
 local MobileControls = require("game.mobile_controls")
 local Modules = require("game.systems")
 local UIStyle = require("game.ui_layout")
+local TrainAmbush = require("game.train_ambush")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -58,12 +59,16 @@ local function new(context)
   local content=Modules.contentRegistry.new({filesystem=Filesystem})
   local scenery,ui=content.scenery,content.ui
   local maintenanceSession=Maintenance.new()
+  local trainAmbush
   services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,ui=ui,screens=screens,intro=Modules.intro,scenery=scenery,colors=colors,
     updateBattle=function(...) return services.battleRuntime.update(...) end,
     drawBattle=function(...) return services.battleRuntime.draw(...) end,
     drawEnding=function(...) return services.screenUI.drawEnding(...) end,
-    drawGameplay=function(...) return services.gameplayHUD.draw(...) end,
+    drawGameplay=function(...)
+      if trainAmbush and trainAmbush:draw() then return end
+      return services.gameplayHUD.draw(...)
+    end,
   }))
   services.screenFlow.install()
 
@@ -154,6 +159,11 @@ local function new(context)
     controlBindings=controlBindings,
   })
 
+  trainAmbush=TrainAmbush.new({
+    runtime=runtime,catalog=Catalog,width=W,height=H,controlBindings=controlBindings,
+    writeSave=platform.persistenceRuntime.schedule,enterStop=adventure.journeyRules.enterStop,
+  })
+
   local views=Modules.viewComposition.new({
     screenUIFactory=Modules.screenUI,inventoryPresenterFactory=Modules.inventoryPresenter,
     worldRendererFactory=Modules.worldRenderer,gameplayHUDFactory=Modules.gameplayHUD,inventoryUI=Modules.inventory,
@@ -219,6 +229,12 @@ local function new(context)
 
   function application.update(dt)
     if globalMenuActive() then
+      trainAmbush:suspend()
+      platform.persistenceRuntime.update(dt)
+      platform.audioRuntime.update()
+      return true
+    end
+    if trainAmbush:update(dt) then
       platform.persistenceRuntime.update(dt)
       platform.audioRuntime.update()
       return true
@@ -245,6 +261,10 @@ local function new(context)
       if istouch then return true end
       return services.gameplayInput.mousepressed(x,y,button,istouch,presses)
     end
+    if trainAmbush:isCapturing() then
+      local ax,ay=platform.presentationRuntime.screenToGame(x,y)
+      return trainAmbush:mousepressed(ax,ay,button,istouch)
+    end
     if button==3 then return services.gameplayInput.mousepressed(x,y,button,istouch,presses) end
     if istouch and lastStand:isCapturing() then return true end
     local gx,gy=lastStandPoint(x,y)
@@ -253,6 +273,10 @@ local function new(context)
   end
   function application.mousemoved(x,y,dx,dy,istouch)
     if globalMenuActive() then return true end
+    if trainAmbush:isCapturing() then
+      local ax,ay=platform.presentationRuntime.screenToGame(x,y)
+      return trainAmbush:mousemoved(ax,ay,dx,dy,istouch)
+    end
     if platform.presentationRuntime.isPanning() then return services.gameplayInput.mousemoved(x,y,dx,dy,istouch) end
     if istouch and lastStand:isCapturing() then return true end
     local gx,gy=lastStandPoint(x,y)
@@ -260,6 +284,7 @@ local function new(context)
     return services.mobileRuntime.mousemoved(x,y,dx,dy,istouch)
   end
   function application.mousereleased(x,y,button,istouch,presses)
+    if trainAmbush:isCapturing() then return trainAmbush:mousereleased(x,y,button) end
     if globalMenuActive() then return true end
     if button==3 then return services.gameplayInput.mousereleased(x,y,button,istouch,presses) end
     if istouch and lastStand:isCapturing() then return true end
@@ -272,6 +297,7 @@ local function new(context)
       if ui.optionsOpen and runtime.optionsPage=="controls" then return services.gameplayInput.wheelmoved(x,y) end
       return true
     end
+    if trainAmbush:isCapturing() then return true end
     return services.gameplayInput.wheelmoved(x,y)
   end
   function application.keypressed(key,scancode,isrepeat)
@@ -284,9 +310,11 @@ local function new(context)
     key,knownKey=controlBindings:translateKey(key)
     if knownKey and not key then return true end
     if key=="escape" or key=="acback" then
+      trainAmbush:suspend()
       return services.mobileRuntime.keypressed(key,scancode,isrepeat)
     end
     if globalMenuActive() then return services.gameplayInput.keypressed(key) end
+    if trainAmbush:keypressed(key,scancode,isrepeat) then return true end
     if key=="=" or key=="+" or key=="kp+" or key=="-" or key=="kp-" or key=="0" or key=="kp0" then
       return services.gameplayInput.keypressed(key)
     end
@@ -297,6 +325,7 @@ local function new(context)
     local knownKey
     key,knownKey=controlBindings:translateKey(key)
     if knownKey and not key then return true end
+    if trainAmbush:keyreleased(key,scancode) then return true end
     if lastStand:keyreleased(key,scancode) then return true end
     return services.mobileRuntime.keyreleased(key,scancode)
   end
@@ -315,12 +344,14 @@ local function new(context)
       if controlBindings.capture.device=="button" then controlBindings:captureButton(button); return true end
       return true
     end
+    if not globalMenuActive() and trainAmbush:gamepadpressed(joystick,button) then return true end
     if lastStand:isCapturing() then return true end
     local key=controlBindings:translateButton(button,controllerScope())
     if key then services.gameplayInput.keypressed(key); return true end
     return false
   end
   function application.gamepadreleased(joystick,button)
+    if trainAmbush:gamepadreleased(joystick,button) then return true end
     if lastStand:isCapturing() then return true end
     return false
   end
@@ -367,6 +398,10 @@ local function new(context)
       globalMenuTouches[id]=true
       return services.gameplayInput.mousepressed(x,y,1)
     end
+    if trainAmbush:isCapturing() then
+      local ax,ay=platform.presentationRuntime.screenToGame(x,y)
+      return trainAmbush:touchpressed(id,ax,ay)
+    end
     -- Claim Last Stand's movement stick before the shared camera gesture layer
     -- can pair it with an action touch and reinterpret both as a pinch.
     if lastStandWalkControls() and services.mobileRuntime.movementTouchPressed(id,x,y) then return true end
@@ -375,21 +410,32 @@ local function new(context)
   end
   function application.touchmoved(id,x,y,dx,dy,pressure)
     if globalMenuTouches[id] then return true end
+    if trainAmbush:isCapturing() then
+      local ax,ay=platform.presentationRuntime.screenToGame(x,y)
+      return trainAmbush:touchmoved(id,ax,ay)
+    end
     if sceneGesture:moved(id,x,y,dx,dy) then return true end
     return sceneTouchmoved(id,x,y,dx,dy,pressure)
   end
   function application.touchreleased(id,x,y,dx,dy,pressure)
     if globalMenuTouches[id] then globalMenuTouches[id]=nil; return true end
+    if trainAmbush:touchreleased(id) then return true end
     if sceneGesture:released(id,x,y) then return true end
     return sceneTouchreleased(id,x,y,dx,dy,pressure)
   end
   function application.focus(focused)
     if not focused then sceneGesture:cancel() end
+    trainAmbush:focus(focused)
     lastStand:focus(focused)
     return services.persistenceRuntime.focus(focused)
   end
   function application.installSmoke() return smoke.install() end
   function application.quit() services.persistenceRuntime.shutdown() end
+  application=require("game.outfit_workbench_host").wrap(application,{
+    runtime=runtime,ui=ui,mobile=platform.mobileRuntime,presentation=platform.presentationRuntime,
+    persistence=platform.persistenceRuntime,audio=platform.audioRuntime,bindings=controlBindings,
+    maintenanceSession=maintenanceSession,
+  })
   return require("game.player_tools_host").wrap(application,{
     runtime=runtime,ui=ui,filesystem=Filesystem,mobile=platform.mobileRuntime,
     presentation=platform.presentationRuntime,persistence=platform.persistenceRuntime,

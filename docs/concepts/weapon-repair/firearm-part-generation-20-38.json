@@ -1,0 +1,362 @@
+[
+  {
+    "index": 20,
+    "partId": "frontier-556-carbine-bolt-carrier-group",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-595afaf1-8836-40d0-9980-5f9eb862f05a.png",
+    "reference": "assets/sprites/weapons/frontier-556-carbine.png",
+    "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Bolt Carrier Group for frontier-556-carbine (Colt M4 / M4A1). Input image is the approved complete weapon: use it only to preserve the exact metal colors and the game's crisp, richly shaded pixel-art look, do not include the complete weapon. Subject: One clean dark phosphated M4/AR carrier group: long cylindrical carrier with squared lower cutout, small raised gas key along the top and short toothed bolt head at the front. Match source clean black finish with cool grey clustered highlights. Oblique side view shows key and cutout. No long AK piston, charging handle, barrel or ammunition. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters, no grain or speckle noise. Center the single part in a square transparent image, fill 82% of canvas longest dimension, angled slightly upward right if elongated; high legibility at a 64px inventory size. Must be physically coherent, no arbitrary extra geometry or attached unrelated parts. NO hands, fingers, gloves, arms, text, label, numbers, brand mark, ammunition, border, ground shadow, checkerboard, colored background or opaque halo. Use genuinely transparent alpha background. This is visual game art only, not a technical drawing.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-556-carbine-bolt-carrier-group.png",
+    "dimensions": [
+      512,
+      512
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 21,
+    "partId": "frontier-9mm-smg-roller-bolt-group",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-d3dba603-55db-42d4-ae30-becb25b268ac.png",
+    "reference": "assets/sprites/weapons/frontier-9mm-smg.png",
+    "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Roller Bolt Group for frontier-9mm-smg (Full-size Heckler & Koch MP5). The input is the approved full weapon: reference for correct metal/wood color and crisp richly shaded pixel-art style only. Produce only the specified loose component, do not reproduce full weapon. Subject: One compact MP5 carrier and bolt-head group, dark rectangular stepped rear carrier joined to a short rounded front head, small side roller details at the forward head. Black steel with clean cool grey highlights like the approved MP5. Side/top oblique silhouette, wider and shorter than an AR carrier, with no gas key or long piston. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters with no grain or speckle. Center it, fill 84% canvas width or longest dimension with balanced transparent padding. Consistent high legibility at 64px size. Physically coherent simple perspective, far front end turned away with no circular muzzle opening visible. NO hands, fingers, gloves, arms, text, label, numbers, logos, ammunition, border, cast shadow, checkerboard, colored background or opaque halo. Genuine transparent alpha background. Visual game sprite only.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-9mm-smg-roller-bolt-group.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 22,
+    "partId": "frontier-22-target-pistol-cylindrical-target-bolt",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-879e5539-dabc-4119-9c99-7e203b1e7401.png",
+    "reference": "assets/sprites/weapons/frontier-22-target-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Cylindrical Target Bolt for frontier-22-target-pistol (Ruger Mark IV Target / Standard family). The input is the approved full weapon: reference for correct metal/wood color and crisp richly shaded pixel-art style only. Produce only the specified loose component, do not reproduce full weapon. Subject: A narrow silver-grey cylindrical internal bolt with a flat broad pair of rounded cocking ears at the rear and small dark extractor detail near its front. Match the source black tubular target pistol with contrasting steel bolt highlights. Side/top view exposes rear ear silhouette. No conventional pistol slide, barrel or frame; one compact grouped bolt. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters with no grain or speckle. Center it, fill 84% canvas width or longest dimension with balanced transparent padding. Consistent high legibility at 64px size. Physically coherent simple perspective, far front end turned away with no circular muzzle opening visible. NO hands, fingers, gloves, arms, text, label, numbers, logos, ammunition, border, cast shadow, checkerboard, colored background or opaque halo. Genuine transparent alpha background. Visual game sprite only.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-22-target-pistol-cylindrical-target-bolt.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 23,
+    "partId": "frontier-380-pocket-pistol-stainless-pocket-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-032aecc4-8546-4afc-ad09-16cce227fac6.png",
+    "reference": "assets/sprites/weapons/frontier-380-pocket-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Stainless Pocket Slide for frontier-380-pocket-pistol (Walther PPK stainless, short six-round visual family). The input is the approved full weapon: reference for correct metal/wood color and crisp richly shaded pixel-art style only. Produce only the specified loose component, do not reproduce full weapon. Subject: One short curved-nose satin-silver PPK slide, narrow rounded top, wave-like nose contour, rear vertical serrations and tiny sights. A restrained ejection opening on its correct visible right side. Match source's compact polished silver shape. Three-quarter side/top view hides the muzzle face. No wood grip, frame, barrel, magazine or PPK/S extension. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters with no grain or speckle. Center it, fill 84% canvas width or longest dimension with balanced transparent padding. Consistent high legibility at 64px size. Physically coherent simple perspective, far front end turned away with no circular muzzle opening visible. NO hands, fingers, gloves, arms, text, label, numbers, logos, ammunition, border, cast shadow, checkerboard, colored background or opaque halo. Genuine transparent alpha background. Visual game sprite only.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-380-pocket-pistol-stainless-pocket-slide.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 24,
+    "partId": "frontier-12g-pump-shotgun-sighted-pump-barrel",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-a198d090-63f8-4f25-b138-8e3ef42fca2c.png",
+    "reference": "assets/sprites/weapons/frontier-12g-pump-shotgun.png",
+    "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Sighted Pump Barrel for frontier-12g-pump-shotgun (Remington 870 Fieldmaster Fully Rifled Deer configuration). The input is the approved full weapon: reference for correct metal/wood color and crisp richly shaded pixel-art style only. Produce only the specified loose component, do not reproduce full weapon. Subject: One long slender blued-steel shotgun barrel with adjustable open rear sight near breech, small ramped front blade and one short barrel ring beneath near its rear half. Preserve source deer/slug sight pair rather than a bead-only tube. Dark grey steel, soft warm highlights. Pure side profile with forward end edge-on: no visible muzzle hole or oval end face. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters with no grain or speckle. Center it, fill 84% canvas width or longest dimension with balanced transparent padding. Consistent high legibility at 64px size. Physically coherent simple perspective, far front end turned away with no circular muzzle opening visible. NO hands, fingers, gloves, arms, text, label, numbers, logos, ammunition, border, cast shadow, checkerboard, colored background or opaque halo. Genuine transparent alpha background. Visual game sprite only.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-12g-pump-shotgun-sighted-pump-barrel.png",
+    "dimensions": [
+      512,
+      171
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 25,
+    "partId": "frontier-762-carbine-gas-tube-handguard",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-4952e7de-a16e-4b13-8e2e-d061fd3b6d03.png",
+    "reference": "assets/sprites/weapons/frontier-762-carbine.png",
+    "prompt": "Use case: precise-object-edit. Correct this SKS gas tube handguard game sprite. Keep same pixel-art style, same reddish orange wood and dark metal, same transparent background. The pictured lower long wooden fore-end strip is an extra part: REMOVE that entire lower wood strip. Retain ONLY the slim curved upper wooden handguard sleeve with dark metal ferrules and its gas tube. This is one small removable upper gas-tube handguard, not an entire rifle fore-end. No lower stock or second wooden layer, no barrel, no receiver, no grip. Make the remaining wood shell shallow and slim, close around the one tube. Keep it centered and fully visible. Preserve crisp silhouette with genuine alpha=0 outside, no shadow, halo, text, hands, border or background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-762-carbine-gas-tube-handguard.png",
+    "previous": [
+      {
+        "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-04268aaa-da5f-4428-a473-9d75c5d1a68d.png",
+        "prompt": "Use case: stylized-concept. Asset type: transparent inventory sprite for Mouse Frontier. Produce ONE isolated Gas Tube Handguard for frontier-762-carbine (SKS-45 / Type 56 SKS). The input is the approved full weapon: reference for correct metal/wood color and crisp richly shaded pixel-art style only. Produce only the specified loose component, do not reproduce full weapon. Subject: One SKS upper gas-tube and handguard unit: short steel tube mostly enclosed by a warm reddish-orange wood handguard, narrow black metal ferrules at both ends and short bare steel neck. Match source red wood grain and dark barrel hardware. Side/top oblique inventory view. No full stock, barrel, receiver or detachable magazine. Clean dark pixel outlines, restrained blocky highlights, clean pixel clusters with no grain or speckle. Center it, fill 84% canvas width or longest dimension with balanced transparent padding. Consistent high legibility at 64px size. Physically coherent simple perspective, far front end turned away with no circular muzzle opening visible. NO hands, fingers, gloves, arms, text, label, numbers, logos, ammunition, border, cast shadow, checkerboard, colored background or opaque halo. Genuine transparent alpha background. Visual game sprite only."
+      }
+    ],
+    "dimensions": [
+      512,
+      213
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 26,
+    "partId": "frontier-sr22-pistol-silver-rimfire-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-0d5cce02-0499-454c-a17e-6bd08a46c215.png",
+    "reference": "assets/sprites/weapons/frontier-sr22-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Silver Rimfire Slide matching the approved frontier-sr22-pistol (Ruger SR22P; exact user-confirmed art identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One compact satin-silver SR22 slide with angled front and rear cocking serrations, a large rectangular ejection opening, low dark front sight and wider dark rear sight. Preserve the source's distinctive angular two-tone top silhouette. Side/top view with no visible front bore, frame, grip or exposed hammer. Crisp charcoal underside line, no fantasy brass decoration. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-sr22-pistol-silver-rimfire-slide.png",
+    "dimensions": [
+      512,
+      171
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 27,
+    "partId": "frontier-9mm-service-pistol-open-top-service-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-616963da-531b-4366-822f-e610f7b540de.png",
+    "reference": "assets/sprites/weapons/frontier-9mm-service-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Open-Top Service Slide matching the approved frontier-9mm-service-pistol (Beretta 92FS). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One full-length black Beretta 92FS open-top slide, long open center trough with two narrow parallel side rails, front bridge, rear sight block and side safety. Match source dark blued finish and long service proportions. Side/top oblique view reveals the permanent open roof as transparency. No barrel seated in the trough, no frame, grip or magazine. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-9mm-service-pistol-open-top-service-slide.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 28,
+    "partId": "frontier-compact-9mm-cheetah-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-55d652f9-5c71-4a91-b112-2be78f388cb9.png",
+    "reference": "assets/sprites/weapons/frontier-compact-9mm.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Cheetah Slide matching the approved frontier-compact-9mm (Beretta Model 81 / 81FS; exact user-confirmed art identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One compact blue-black Model 81 Cheetah open-top slide, shorter rounder nose and narrower rear block than a Beretta 92 slide. Top trough remains visibly open, with compact front bridge, rear serrations and small sight. Match the source dark polished blue steel; side/top view. No barrel, frame or grip, and no enlarged full-size service geometry. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-compact-9mm-cheetah-slide.png",
+    "dimensions": [
+      512,
+      205
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 29,
+    "partId": "frontier-32-pocket-pistol-streamlined-pocket-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-5b8b968c-6ff6-4f05-b2ab-8b57b2ac2c68.png",
+    "reference": "assets/sprites/weapons/frontier-32-pocket-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Streamlined Pocket Slide matching the approved frontier-32-pocket-pistol (Mauser HSc .32 ACP; exact user-confirmed art identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One smooth dark blue-grey HSc slide with long sloping streamlined nose, recessed anti-glare top channel, small rear serrations and shallow round side safety boss near rear. Preserve source elegant low profile and muted silver highlight along top. Broad side/top view hiding muzzle face. No wooden grips, frame or exposed hammer assembly. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-32-pocket-pistol-streamlined-pocket-slide.png",
+    "dimensions": [
+      512,
+      205
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 30,
+    "partId": "frontier-22-pocket-pistol-rounded-pocket-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-7a97b792-f9b4-4489-b423-5b827e971ffd.png",
+    "reference": "assets/sprites/weapons/frontier-22-pocket-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Rounded Pocket Slide matching the approved frontier-22-pocket-pistol (Jennings J-22; exact user-confirmed art identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One tiny black rounded Jennings J-22 slide with narrow shallow rear, subtly bulged nose, small oval ejection opening and short diagonal rear serration cluster. Match source glossy charcoal finish and tiny fixed sights. Side/top view with no muzzle hole. Clearly shorter and rounder than Glock or Hi-Point slides; no frame, grip or ammunition. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-22-pocket-pistol-rounded-pocket-slide.png",
+    "dimensions": [
+      512,
+      171
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 31,
+    "partId": "frontier-silver-22-revolver-silver-single-action-cylinder",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-a9b0ea3a-5402-4cf1-82d4-95a85647259a.png",
+    "reference": "assets/sprites/weapons/frontier-silver-22-revolver.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Silver Single-Action Cylinder matching the approved frontier-silver-22-revolver (Ruger Wrangler; exact user-confirmed art identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One silver-grey six-chamber Wrangler cylinder with broad elongated flutes, narrow dark cylinder-stop notches and compact rear axis boss. Preserve source bright silver revolver finish, crisp dark recesses and soft cream highlights. Side/rear oblique view, no cartridges. Moderate narrow single-action proportions, distinct from compact five-shot or massive heavy revolver cylinder. Draw with crisp dark pixel outlines and clean shaded pixel clusters, no grain or speckles, excellent at 64px. Center component with 8% clear padding around longest dimension. CRITICAL TRANSPARENCY: remove all source background, the source's grey aura/glow and all outside shadow. Every pixel outside hard component silhouette must be fully alpha=0. Do not recreate source background appearance. No soft halo, no drop shadow, no matte, no checkerboard. No hands/arms/gloves, no text or lettering, no ammo, no tools, no unrelated mechanical attachments. Accurate far-end perspective: barrel/slide muzzle opening must be edge-on or hidden, not an ellipse. Single item visual asset with genuine transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-silver-22-revolver-silver-single-action-cylinder.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 32,
+    "partId": "frontier-ak-compact-short-gas-tube-handguard",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-9b07e596-40b4-4f72-bac6-28c2c419d0d4.png",
+    "reference": "assets/sprites/weapons/frontier-ak-compact.png",
+    "prompt": "Correct this AKS-74U upper gas-tube handguard sprite. REMOVE the entire large LOWER wooden fore-end and its lower steel stub. Retain ONLY the small upper orange wooden sleeve, its two dark metal end ferrules, and short gas tube through it. Exactly ONE slim upper assembly only. It must be much shorter than a full-size rifle handguard. Preserve the approved pixel-art texture, orange laminated grain, dark steel colors and fully transparent background. Keep remaining upper assembly centered and enlarge within canvas while retaining its proportions. No large bottom wooden rail, no second layer, no barrel, receiver, tools, text or hands. Every pixel outside silhouette alpha=0, no glow/shadow.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-ak-compact-short-gas-tube-handguard.png",
+    "previous": [
+      {
+        "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-e034c0cd-1656-46ed-a3b8-1254c9f6122f.png",
+        "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Short Gas Tube Handguard matching the approved frontier-ak-compact (AKS-74U; exact user-corrected visual identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One very short AKS-74U upper gas-tube handguard: compact reddish-orange laminated wood shell around dark steel tube, small black ferrules and stubby bare front neck. Preserve source bright orange laminated grain and especially short length. Side/top view. Distinctly shorter than the SKS unit; no long rifle gas piston, stock, booster or receiver. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background."
+      }
+    ],
+    "dimensions": [
+      512,
+      256
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 33,
+    "partId": "frontier-9mm-glock-square-hood-barrel",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-c1e2f73c-4c1a-4a69-83e0-c68e615ce958.png",
+    "reference": "assets/sprites/weapons/frontier-9mm-glock.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Square-Hood Barrel matching the approved frontier-9mm-glock (Glock 17 Gen3). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One Glock 17 barrel with a chunky rectangular chamber hood at its rear, short lower locking lug and long round matte black tube extending forward. Match source nearly black modern steel with sparse cool grey highlights. Side/top profile rising right; muzzle face is edge-on and bore invisible. No slide, polymer frame, compensator or text. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-9mm-glock-square-hood-barrel.png",
+    "dimensions": [
+      512,
+      256
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 34,
+    "partId": "frontier-pearl-pocket-pistol-engraved-vest-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-db78ac48-6411-4259-954d-700208c7a793.png",
+    "reference": "assets/sprites/weapons/frontier-pearl-pocket-pistol.png",
+    "prompt": "Correct this Astra engraved vest-pocket SLIDE sprite's orientation to match the original weapon. Keep its dark nickel/silver finish, cream engraved scrollwork, compact proportions, pixel rendering and transparent background. The muzzle/front is the RIGHT end, with the tiny front sight near that right end. Move the vertical rear cocking serrations to the LEFT rear end, not the right. Make the left rear end squared, the right front nose softly rounded with no visible front hole. Keep one small ejection cutout near center-right. Only one loose slide; no frame or barrel, no text or hands. Outside the precise silhouette must be alpha=0 with no aura or shadow.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-pearl-pocket-pistol-engraved-vest-slide.png",
+    "previous": [
+      {
+        "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-ce3dead8-1786-4342-a20e-2953ee0d78d6.png",
+        "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Engraved Vest Slide matching the approved frontier-pearl-pocket-pistol (Astra Model 202 Firecat CE / engraved Model 200 family). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One tiny nickel-silver vest-pocket slide with softly rounded nose and clustered dark engraved scrollwork across its visible side, matching approved Astra Firecat CE weapon. Very low fixed sight ridge and compact rear serrations; restrained fine cream highlights. Side/top view with no muzzle bore. No pearl grip panels, frame, lettering or ornate invented gold parts. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background."
+      }
+    ],
+    "dimensions": [
+      512,
+      285
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 35,
+    "partId": "frontier-silver-compact-pistol-short-target-barrel",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-8a4b00f8-6f7c-44f7-8e3e-874cc78994b7.png",
+    "reference": "assets/sprites/weapons/frontier-silver-compact-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Short Target Barrel matching the approved frontier-silver-compact-pistol (Phoenix Arms HP22 / HP22A, standard short three-inch barrel). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One compact satin-nickel HP22A barrel assembly with short tapered round forward barrel and broader angular rear mounting block, tiny dark front sight on top. Match source short standard silver pistol profile; no five-inch extension or long vent rib. Broad side view, forward end edge-on and bore invisible. No frame, slide, black grip or ammunition. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-silver-compact-pistol-short-target-barrel.png",
+    "dimensions": [
+      512,
+      341
+    ],
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 36,
+    "partId": "frontier-compact-9mm-pistol-micro-slide",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-2fb24b90-0560-462f-b13a-341be2d267ca.png",
+    "reference": "assets/sprites/weapons/frontier-compact-9mm-pistol.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Micro Slide matching the approved frontier-compact-9mm-pistol (Ruger LCP II; exact user-corrected visual identity). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One exceptionally short squared charcoal LCP II slide with beveled front corners, angular rear profile, bold diagonal front and rear serration groups and tiny integral sights. Preserve source dark polymer-pistol scale and angular steel finish. Side/top oblique view hides muzzle face. No frame, barrel, grip or oversized double-stack service-pistol proportions. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-compact-9mm-pistol-micro-slide.png",
+    "dimensions": [
+      512,
+      256
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 37,
+    "partId": "frontier-single-shot-hunter-hinged-barrel",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-229368b9-2ea3-4ca6-a2f2-e830f1481709.png",
+    "reference": "assets/sprites/weapons/frontier-single-shot-hunter.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Hinged Barrel matching the approved frontier-single-shot-hunter (H&R / NEF Sportster / Handi-Rifle break-action family). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One long narrow blue-black barrel with a broad solid breech shoulder and distinct hinge lug hanging below its rear, plus source's small open rear sight and simple front blade. A single barrel only, with no under-barrel tube. Side profile diagonal upward right, muzzle edge-on without visible bore. No fore-end wood, receiver, hammer or lever. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-single-shot-hunter-hinged-barrel.png",
+    "dimensions": [
+      512,
+      256
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  },
+  {
+    "index": 38,
+    "partId": "frontier-lever-carbine-carbine-loop-lever",
+    "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd09-b3d9-7cf2-b94a-45627a48cac7\\exec-ec40dc13-7797-43b9-b2cf-e4f6651c8643.png",
+    "reference": "assets/sprites/weapons/frontier-lever-carbine.png",
+    "prompt": "Use case: stylized-concept. Asset type: ONE isolated transparent pixel-art inventory component. Create Carbine Loop Lever matching the approved frontier-lever-carbine (Winchester Model 1892 / Rossi R92 large-loop family). Input weapon reference is for component identity, colors, crisp pixel-art rendering only. Discard the entire weapon except this specified single loose part. One broad deeply rounded large-loop Model 1892 lever, rounded lower belly, short curved rear wrist section and long slender upper operating arm. Satin dark steel with silver rubbed edges matching source black receiver. Side profile, loop center transparent; proportionally deeper and more circular than the Henry loop. No trigger, stock, receiver or barrel. Clean dark pixel outlines and clean shaded pixel clusters; no grain or speckles; high legibility at 64px. Center component, 8% clear padding around longest dimension. If metal and wood are present, keep exact original weapon material colors. CRITICAL: remove source background and grey aura/glow; every pixel outside hard component silhouette must be fully alpha=0. No shadow, matte or checkerboard. No hands/fingers/gloves/arms, no text or letters, no ammo, no tools, no unrelated parts. Accurate perspective: forward barrel/muzzle end edge-on with NO round or oval opening; never show both breech/rear opening and muzzle/front opening at once. Single item visual game asset with genuinely transparent background.",
+    "tool": "image_gen.imagegen",
+    "output": "assets/sprites/weapon-parts/frontier-lever-carbine-carbine-loop-lever.png",
+    "dimensions": [
+      512,
+      256
+    ],
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "inspection": "Visually reviewed over cream and navy; clean silhouette, no body parts or background patch; component matches weapon materials."
+  }
+]

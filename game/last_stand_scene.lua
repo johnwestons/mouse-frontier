@@ -10,6 +10,8 @@ local function text(value,x,y,w,h,scale,align)
 end
 
 local ROOT="assets/sprites/quests/last-stand/runtime/"
+local TRAVELER_FOOT_PADDING=12
+local APPROACH_SCOUT_FOOT_PADDING=6
 local PATHS={
     backyard=ROOT.."friendly-house-backyard-shell.png",
     interior=ROOT.."friendly-house-interior-shell.png",
@@ -222,7 +224,7 @@ end
 
 local function drawPlayer(player,visual)
     love.graphics.setColor(0,0,0,.30)
-    love.graphics.ellipse("fill",player.x,player.y+2,27,9)
+    love.graphics.ellipse("fill",player.x,player.y+28,27,9)
     local playerImage=visual and visual.image or visual
     if visual and visual.animations and visual.character then
         local action=player.moving and "walk" or "idle"
@@ -348,7 +350,7 @@ function Scene.drawApproach(state)
     WorldView.begin()
     love.graphics.ellipse("fill",scout.x,scout.y+2,28,9)
     local frame=state.arrival and state.arrival>0 and 0 or math.floor((state.walkDistance or 0)/8)%8
-    drawAtlas(PATHS.otterWalk,frame,scout.x,scout.y,.23,320,512,8)
+    drawAtlas(PATHS.otterWalk,frame,scout.x,scout.y+APPROACH_SCOUT_FOOT_PADDING,.23,320,512,8)
     WorldView.finish()
     local hintX,hintY=WorldView.toScreen(scout.x,scout.y)
     if state.arrival and state.arrival>0 then
@@ -365,14 +367,15 @@ end
 local function drawTraveler(visual,file,x,groundY,direction,distance,moving,clock)
     love.graphics.setColor(0,0,0,.28)
     love.graphics.ellipse("fill",x,groundY-6,20,7)
+    local footBaseline=groundY+TRAVELER_FOOT_PADDING
     local animations=visual and visual.animations
     local motion={intentX=direction,intentY=0,facing=direction,
         animationDistance=distance,moving=moving}
     if animations and CharacterAnimation.draw(animations,file,moving and "walk" or "idle",
-        x,groundY,120,150,direction,clock,clock,motion) then return end
+        x,footBaseline,120,150,direction,clock,clock,motion) then return end
     if file=="otter-scout.png" then
         local frame=moving and CharacterMotion.frameForDistance(8,distance,20)-1 or 0
-        drawAtlas(PATHS.otterWalk,frame,x,groundY,.34,320,512,8,direction<0)
+        drawAtlas(PATHS.otterWalk,frame,x,footBaseline,.34,320,512,8,direction<0)
         return
     end
     local fallback=visual and visual.image
@@ -380,7 +383,7 @@ local function drawTraveler(visual,file,x,groundY,direction,distance,moving,cloc
         local iw,ih=fallback:getDimensions()
         local scale=150/math.max(iw,ih)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(fallback,x,groundY,0,-direction*scale,scale,iw/2,ih)
+        love.graphics.draw(fallback,x,footBaseline,0,-direction*scale,scale,iw/2,ih)
     end
 end
 

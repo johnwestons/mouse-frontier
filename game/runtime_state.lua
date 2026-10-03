@@ -25,10 +25,13 @@ local TRANSIENT_DEFAULTS = {
     holdPickupTime = 0,
     inventoryDragActive = false,
     inventoryOpen = false,
+    outfitCraftingOpen = false,
+    inventoryMode = "wearables",
     journeyLogOpen = false,
     journeyLogScroll = 0,
     landscapeOffset = 0,
     lastStand = false,
+    trainAmbush = false,
     mapOpen = false,
     mapScroll = 0,
     nearCarNext = false,
@@ -52,6 +55,13 @@ local TRANSIENT_DEFAULTS = {
     tradeBuyPage = 0,
     tradeSellPage = 0,
     trainUpgradeOpen = false,
+    weaponRepairOpen = false,
+    weaponRepairMessage = false,
+    weaponRepairScroll = 1,
+    weaponRepairSelected = false,
+    weaponRepairStartedAt = false,
+    weaponRepairActiveWeapon = false,
+    weaponRepairDrag = false,
     travelConfirm = false,
     walkingSoundTimer = 0,
 }
@@ -113,6 +123,8 @@ end
 
 function RuntimeState:resetForGameEntry()
     self.inventoryOpen=false
+    self.outfitCraftingOpen=false
+    self.inventoryMode="wearables"
     self.journeyLogOpen=false
     self.journeyLogScroll=0
     self.mapOpen=false
@@ -130,6 +142,14 @@ function RuntimeState:resetForGameEntry()
     self.tradeMessage=nil
     self.tradeBuyPage=0
     self.tradeSellPage=0
+    self.trainUpgradeOpen=false
+    self.weaponRepairOpen=false
+    self.weaponRepairMessage=false
+    self.weaponRepairScroll=1
+    self.weaponRepairSelected=false
+    self.weaponRepairStartedAt=false
+    self.weaponRepairActiveWeapon=false
+    self.weaponRepairDrag=false
     self.pendingConfirmation=false
     self.npcActor=nil
     self.helpDialogue=nil

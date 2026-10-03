@@ -1,7 +1,7 @@
 local Catalog=require("game.catalog")
 local Inventory=require("game.inventory")
 local Model={}
-Model.categories={"All","Weapons","Ammunition","Food & drink","Medicine","Potions","Supplies","Tools","Backpacks","Storage","Furniture","Decorations","Other"}
+Model.categories={"All","Weapons","Ammunition","Food & drink","Medicine","Potions","Crafting supplies","Supplies","Tools","Backpacks","Outfit upgrades","Storage","Furniture","Decorations","Other"}
 Model.directories={"props","items","furniture","weapons","train-decorations","ammo","gear"}
 -- Source sheets and engine effects share asset folders but are not inventory objects.
 local excluded={["backpack-upgrades-v1"]=true,["backpack-upgrades-v1-source"]=true,
@@ -9,11 +9,14 @@ local excluded={["backpack-upgrades-v1"]=true,["backpack-upgrades-v1-source"]=tr
 function Model.title(name) return (name:gsub("%-"," "):gsub("%a[%w']*",function(s) return s:sub(1,1):upper()..s:sub(2) end)) end
 function Model.entry(name,directory)
     local weapon,effect,pack,storage=Catalog.weaponStats[name],Catalog.itemEffects[name],Catalog.backpackUpgrades[name],Catalog.storageCapacities[name]
+    local wearable=Catalog.wearableItems[name]
+    local misc=Catalog.miscItems and Catalog.miscItems[name]
     local category="Other"
-    if weapon then category="Weapons"
+    if Catalog.craftMaterials and Catalog.craftMaterials[name] then category="Crafting supplies"
+    elseif weapon then category="Weapons"
     elseif Catalog.ammoPickupAmounts[name] then category="Ammunition"
     elseif Catalog.rangeTools and Catalog.rangeTools[name] then category="Tools"
-    elseif pack then category="Backpacks"
+    elseif wearable then category=wearable.slot=="backpack" and "Backpacks" or "Outfit upgrades"
     elseif storage then category="Storage"
     elseif effect and effect.potion then category="Potions"
     elseif effect and effect.health then category="Medicine"
@@ -38,13 +41,25 @@ function Model.entry(name,directory)
     end
     local rangeTool=Catalog.rangeTools and Catalog.rangeTools[name]
     if rangeTool and rangeTool.description then detail[#detail+1]=rangeTool.description end
+    if misc and misc.description then detail[#detail+1]=misc.description end
     if name=="coal-chunk" then detail[#detail+1]="Adds coal when used as fuel." end
     if pack then detail[#detail+1]="Backpack capacity: "..pack.capacity.." slots." end
+    if wearable and wearable.slot~="backpack" then
+        local slotLabel=wearable.slot
+        for _,slot in ipairs(Catalog.wearableSlots or {}) do
+            if slot.id==wearable.slot then slotLabel=slot.label; break end
+        end
+        detail[#detail+1]="Upgrade slot: "..slotLabel.."."
+        for _,stat in ipairs({"armor","aim","attack","move","maxHealth"}) do
+            local amount=wearable.bonuses and wearable.bonuses[stat]
+            if amount and amount~=0 then detail[#detail+1]=stat.." bonus: "..(amount>0 and "+" or "")..amount end
+        end
+    end
     if storage then detail[#detail+1]="Storage capacity: "..storage.." items." end
     if Catalog.ammoPickupAmounts[name] then detail[#detail+1]="Added directly to your ammunition counter, in rounds." end
     if category=="Furniture" or category=="Decorations" or category=="Storage" then detail[#detail+1]="Carry in your backpack; place using the inventory." end
     detail[#detail+1]="Trade value: "..Inventory.scrapPrice(name,Catalog).." scrap."
-    local label=(weapon and weapon.name) or (pack and pack.label) or Model.title(name)
+    local label=(weapon and weapon.name) or (wearable and wearable.label) or Model.title(name)
     return {id=name,label=label,category=category,rarity=Catalog.rarityFor(name),detail=table.concat(detail,"\n"),search=(name.." "..label.." "..table.concat(detail," ")):lower()}
 end
 function Model.build(fs,atlases)
@@ -58,7 +73,7 @@ function Model.build(fs,atlases)
         end
     end
     for name in pairs(atlases or {}) do names[name]=names[name] or "items" end
-    for _,field in ipairs({"weaponStats","itemEffects","rangeTools","backpackUpgrades","ammoPickupAmounts","storageCapacities"}) do
+    for _,field in ipairs({"weaponStats","itemEffects","rangeTools","miscItems","backpackUpgrades","wearableItems","ammoPickupAmounts","storageCapacities"}) do
         for name in pairs(Catalog[field]) do if name~="scratch" and not name:match("^mob%-") then names[name]=names[name] or "items" end end
     end
     local entries={}

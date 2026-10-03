@@ -75,7 +75,7 @@ end
 
 function MerchantTrade.sellPrice(data,catalog,source,index)
     local name=data.inventory and data.inventory[index]
-    if not name then return nil end
+    if not name or (catalog.repairParts and catalog.repairParts[name]) then return nil end
     return Relationships.sellPrice(data,merchantFor(source),Inventory.resalePrice(name,catalog,data))
 end
 
@@ -132,6 +132,7 @@ function MerchantTrade.sell(data,catalog,source,index)
     if type(source)~="table" then return {ok=false,reason="source"} end
     local name=data.inventory and data.inventory[index]
     if not name then return {ok=false,reason="item"} end
+    if catalog.repairParts and catalog.repairParts[name] then return {ok=false,reason="protected",name=name} end
     local price=MerchantTrade.sellPrice(data,catalog,source,index)
     if MerchantTrade.availableBudget(data,source)<price then return {ok=false,reason="budget",name=name,price=price} end
     if type(source.spendBudget)=="function" then

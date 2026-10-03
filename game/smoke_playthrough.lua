@@ -74,6 +74,17 @@ local function install(context)
     local characterIdentityAudit=required(context,"characterIdentityAudit","function")
     local accessibilityAudit=required(context,"accessibilityAudit","function")
     local writeSave=persistenceRuntime.schedule
+    function ui.repairSmokeTap(rect)
+        assert(rect,"repair smoke control was not drawn")
+        local x,y=rect.x+rect.w/2,rect.y+rect.h/2
+        if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then
+            love.touchpressed("smoke-repair",x,y)
+            love.touchreleased("smoke-repair",x,y)
+        else
+            love.mousepressed(x,y,1)
+            love.mousereleased(x,y,1)
+        end
+    end
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
 -- LÖVE's mouse-frontier save directory.
@@ -274,6 +285,10 @@ local function install(context)
                     return result.ready and result.valid and result.weaponCount==83 and result.familyCount>=6
                         and result.statusProfiles>=12 and result.damageReady and result.curve=="loot-v3"
                         and result.brokenMultiplier==0 and result.repairCost>0
+                        and result.repair and result.repair.ready and result.repair.compatibleWeapons
+                        and result.repair.missingPartBlocks and result.repair.partConsumed
+                        and result.repair.majorScrapCharged and result.repair.fieldServiceWorks
+                        and result.repair.missIsFree and result.repair.targetedSalvage
                         and result.lateWeaponPrice>result.starterWeaponPrice
                         and result.legendaryPrice>result.commonPrice
                         and result.wornResale<result.soundResale
@@ -379,6 +394,149 @@ local function install(context)
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
             {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="weapon_repair_workbench_render",action=function()
+                local previous={saveData=game.saveData,selectedSlot=game.selectedSlot,
+                    weaponRepairOpen=game.weaponRepairOpen,weaponRepairSelected=game.weaponRepairSelected,
+                    weaponRepairScroll=game.weaponRepairScroll,weaponRepairStartedAt=game.weaponRepairStartedAt,
+                    weaponRepairMessage=game.weaponRepairMessage,trainUpgradeOpen=game.trainUpgradeOpen,
+                    animationClock=game.animationClock}
+                ui.smokeRepairRestore=previous
+                local weapon="frontier-22-lever-rifle"
+                local component=assert(Catalog.weaponRepairParts[weapon])
+                local testSave=newSave(character)
+                testSave.equipment={}
+                testSave.inventory={weapon,component,nil,nil,nil,nil}
+                testSave.inventoryCapacity=6
+                testSave.weaponDurability[weapon]=12
+                testSave.scrap=200
+                enterGame(testSave)
+                game.trainUpgradeOpen=true; game.weaponRepairOpen=false
+                ui.smokeDraw()
+                ui.repairSmokeTap(ui.weaponRepair)
+                assert(game.weaponRepairOpen,"workshop button did not open the repair bench")
+                game.weaponRepairSelected=weapon; game.weaponRepairScroll=1
+                game.weaponRepairStartedAt=nil; game.weaponRepairMessage=nil
+                ui.smokeDraw()
+                ui.smokeRepairCapturePending=true
+                local rows=ui.repairRows or {}
+                local saved=SaveSchema.copy(testSave)
+                return {selected=game.weaponRepairSelected,rowCount=#rows,
+                    rowWeapon=rows[1] and rows[1].name,startButton=ui.repairStart~=nil,
+                    partPreview=ui.repairRail~=nil,scrap=testSave.scrap,
+                    condition=testSave.weaponDurability[weapon],sessionSynchronized=game:isSynchronized(screens),
+                    saveKeepsPart=saved and saved.inventory[2]==component,
+                    saveKeepsWear=saved and saved.weaponDurability[weapon]==12,
+                    saveKeepsScrap=saved and saved.scrap==200}
+            end,check=function(_,_,_,result)
+                return result.selected=="frontier-22-lever-rifle" and result.rowCount==1
+                    and result.rowWeapon==result.selected and result.startButton and result.partPreview
+                    and result.scrap==200 and result.condition==12 and result.sessionSynchronized
+                    and result.saveKeepsPart and result.saveKeepsWear and result.saveKeepsScrap
+            end},
+            {name="weapon_repair_workbench_restore",action=function()
+                local previous=ui.smokeRepairRestore
+                assert(previous,"workbench smoke preview did not keep its temporary state")
+                local weapon="frontier-22-lever-rifle"
+                local testSave=game.saveData
+                local cost=require("game.loot_progression").repairStatus(testSave,Catalog,weapon).cost
+                ui.repairSmokeTap(ui.repairStart)
+                local timingStarted=type(game.weaponRepairStartedAt)=="number"
+                if timingStarted then
+                    game.animationClock=game.weaponRepairStartedAt+(.655/.86)
+                    ui.smokeDraw()
+                    if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then
+                        ui.repairSmokeTap(ui.repairStart)
+                    else
+                        love.keypressed("space")
+                    end
+                end
+                local repairCommitted=testSave.weaponDurability[weapon]==100
+                    and testSave.inventory[2]==nil and testSave.scrap==200-cost
+                enterGame(previous.saveData)
+                game.selectedSlot=previous.selectedSlot
+                game.weaponRepairOpen=previous.weaponRepairOpen
+                game.weaponRepairSelected=previous.weaponRepairSelected
+                game.weaponRepairScroll=previous.weaponRepairScroll
+                game.weaponRepairStartedAt=previous.weaponRepairStartedAt
+                game.weaponRepairMessage=previous.weaponRepairMessage
+                game.trainUpgradeOpen=previous.trainUpgradeOpen
+                game.animationClock=previous.animationClock or game.animationClock
+                ui.smokeRepairRestore=nil
+                ui.smokeDraw()
+                return {restored=game.saveData.character==character and game.state=="game"
+                    and game.scene=="train" and not game.weaponRepairOpen and not game.trainUpgradeOpen,
+                    sessionSynchronized=game:isSynchronized(screens),
+                    capture=ui.smokeRepairCaptureDone==true,timingStarted=timingStarted,
+                    repairCommitted=repairCommitted,repairCost=cost,
+                    inputRoute=os.getenv("MOUSE_FRONTIER_MOBILE")=="1" and "touch callbacks" or "mouse + keyboard callbacks"}
+            end,check=function(_,_,_,result)
+                return result.restored and result.timingStarted and result.repairCommitted and result.repairCost>0
+            end},
+            {name="weapon_repair_all_parts_render",action=function()
+                local previous=game.saveData
+                local testSave=newSave(character)
+                enterGame(testSave)
+                testSave=game.saveData
+                game.trainUpgradeOpen=true; game.weaponRepairOpen=true
+                local rendered=0
+                for _,weapon in ipairs(Catalog.weaponProgression) do
+                    local component=assert(Catalog.weaponRepairParts[weapon])
+                    testSave.equipment={[2]=weapon}; testSave.inventory={[6]=component}
+                    testSave.inventoryCapacity=6; testSave.weaponDurability={[weapon]=0};testSave.scrap=200
+                    game.weaponRepairSelected=weapon;game.weaponRepairScroll=1
+                    ui.smokeDraw()
+                    assert(ui.propImages[component],"repair sprite did not load: "..component)
+                    assert(ui.repairRows[1] and ui.repairRows[1].name==weapon,"sparse equipment missing from workbench")
+                    rendered=rendered+1
+                end
+                testSave.equipment={};testSave.inventory={};ui.smokeDraw()
+                local emptyList=#ui.repairRows==0
+                enterGame(previous);ui.smokeDraw()
+                return {rendered=rendered,emptyList=emptyList}
+            end,check=function(_,_,_,result) return result.rendered==83 and result.emptyList end},
+            {name="weapon_repair_list_controls",action=function()
+                local previous=game.saveData
+                enterGame(newSave(character))
+                local data=game.saveData
+                data.equipment={};data.inventory={};data.inventoryCapacity=#Catalog.weaponProgression
+                for index,weapon in ipairs(Catalog.weaponProgression) do data.inventory[index]=weapon end
+                game.trainUpgradeOpen=true;game.weaponRepairOpen=true;game.weaponRepairScroll=1
+                game.weaponRepairSelected=Catalog.weaponProgression[1]
+                ui.smokeDraw()
+                local row=assert(ui.repairRows[4]).rect
+                local x,y=row.x+row.w/2,row.y+row.h/2
+                if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then
+                    love.touchpressed("smoke-repair-scroll",x,y)
+                    love.touchmoved("smoke-repair-scroll",x,y-100,0,-100)
+                    love.touchreleased("smoke-repair-scroll",x,y-100)
+                else
+                    love.mousepressed(x,y,1)
+                    love.mousemoved(x,y-100,0,-100)
+                    love.mousereleased(x,y-100,1)
+                end
+                local dragScroll=game.weaponRepairScroll
+                local selectedAfterDrag=game.weaponRepairSelected
+                assert(dragScroll>1,"repair list did not scroll after dragging")
+                local previousPointer=love.mouse.getPosition
+                love.mouse.getPosition=function() return x,y-100 end
+                local wheelOK,wheelError=pcall(love.wheelmoved,0,-1)
+                love.mouse.getPosition=previousPointer
+                assert(wheelOK,wheelError)
+                local wheelScroll=game.weaponRepairScroll
+                ui.smokeDraw()
+                local selectedRow=assert(ui.repairRows[2])
+                ui.repairSmokeTap(selectedRow.rect)
+                local selectedAfterTap=game.weaponRepairSelected
+                ui.smokeDraw();ui.repairSmokeTap(ui.repairBack)
+                local returnedToWorkshop=game.trainUpgradeOpen and not game.weaponRepairOpen
+                enterGame(previous);ui.smokeDraw()
+                return {dragScroll=dragScroll,wheelScroll=wheelScroll,
+                    dragKeptSelection=selectedAfterDrag==Catalog.weaponProgression[1],
+                    tapSelected=selectedAfterTap==selectedRow.name,returnedToWorkshop=returnedToWorkshop}
+            end,check=function(_,_,_,result)
+                return result.dragScroll>1 and result.wheelScroll>result.dragScroll
+                    and result.dragKeptSelection and result.tapSelected and result.returnedToWorkshop
+            end},
             {name="accessibility_settings_controls",action=function()
                 game.optionsPage="accessibility"; ui.optionsOpen=true; ui.smokeDraw()
                 local controls={ui.optionsAudioTab,ui.optionsAccessTab,ui.accessTextSize,ui.accessHighContrast,ui.accessReducedMotion,ui.accessControlHints,ui.accessTouchFeedback,ui.accessLargeTouchTargets}
@@ -978,6 +1136,16 @@ local function install(context)
                 end
             end
         end
+        if os.getenv("MOUSE_FRONTIER_SMOKE_REPAIR_ONLY")=="1" then
+            local repairSteps={}
+            local repairStepNames={loot_equipment_balance=true,start_new_game=true,
+                weapon_repair_workbench_render=true,weapon_repair_workbench_restore=true,
+                weapon_repair_all_parts_render=true,weapon_repair_list_controls=true}
+            for _,step in ipairs(steps) do
+                if repairStepNames[step.name] then repairSteps[#repairSteps+1]=step end
+            end
+            steps=repairSteps
+        end
         ui.smokeController=SmokeController.new({name=ui.smokeFull and "mouse-frontier-full-journey" or "mouse-frontier-autoplay",timeout=ui.smokeFull and 10 or 4,steps=steps,hooks={snapshot=smokeSnapshot}})
     end
     function love.update(dt)
@@ -1028,6 +1196,11 @@ local function install(context)
         end
         local ok,message=xpcall(ui.smokeDraw,debug.traceback)
         if not ok then if ui.smokeReport then ui.smokeReport:error("draw: "..tostring(message)); ui.smokeReport:finish("failed") end; io.stderr:write("DRAW_ERROR: "..tostring(message).."\n"); io.stderr:flush(); love.event.quit(1); return end
+        if ui.smokeRepairCapturePending then
+            ui.smokeRepairCapturePending=false
+            love.graphics.captureScreenshot("weapon-repair-workbench-preview.png")
+            ui.smokeRepairCaptureDone=true
+        end
         if ui.smokeTrainCapturePhase then
             love.graphics.captureScreenshot(string.format("train-animation-phase-%02d.png",ui.smokeTrainCapturePhase))
             if ui.smokeTrainCapturePhase>=4 then

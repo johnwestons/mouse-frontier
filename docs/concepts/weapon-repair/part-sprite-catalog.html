@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mouse Frontier · weapon repair parts</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#17100a;color:#ead8ad;font:15px/1.45 Georgia,serif}
+header{position:sticky;top:0;z-index:2;background:#21170ff5;border-bottom:1px solid #906631;padding:18px 24px}
+h1{font-size:23px;margin:0 0 5px}p{margin:4px 0}
+nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+input,button{font:inherit;background:#34261a;color:#f0dfb7;border:1px solid #a67d3b;border-radius:5px;padding:8px 12px}
+input{min-width:260px}button{cursor:pointer}button[aria-pressed=true]{background:#95662b;color:#fff2d2}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #efcb86;outline-offset:3px}
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(294px,1fr));gap:16px;padding:22px}
+article{min-width:0;border:1px solid #715235;border-radius:8px;overflow:hidden;background:#271c12}
+article h2{font-size:17px;margin:13px 14px 3px;color:#efcb86}
+article h3{font-size:15px;margin:0 14px 12px;font-weight:normal}
+.weapon-link{display:flex;align-items:center;gap:12px;margin:0 14px 12px;padding:6px 10px;background:#17110c;border:1px solid #57402b;border-radius:5px;color:#dbc79e;text-decoration:none}
+.weapon-link:hover{border-color:#bc9451;background:#21180f}
+.weapon-thumb{flex:0 0 88px;height:80px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.weapon-thumb img{width:88px;height:80px;object-fit:contain;image-rendering:pixelated}
+.weapon-atlas{display:block;width:80px;height:80px;background-repeat:no-repeat;image-rendering:pixelated}
+.weapon-caption{font-size:12px;line-height:1.4}.weapon-caption strong{display:block;font-weight:normal;color:#efcb86}
+.weapon-caption small{display:block;margin-top:3px;color:#a89573}
+figure{margin:0;display:grid;grid-template-columns:1fr 1fr}
+.swatch{aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.dark{background:#100c08}.light{background:#eadbbd}
+.swatch img{width:94%;height:94%;object-fit:contain;image-rendering:pixelated}
+.swatch small{position:absolute;bottom:4px;left:6px;font:10px monospace;opacity:.6}
+.light small{color:#382719}
+.details{padding:12px 14px;font-size:13px;color:#cbb98f;border-top:1px solid #60462e}
+.details p{margin-bottom:7px}.details a{color:#e7bd72}
+.item-size .swatch img{width:56px;height:56px}
+.pending figure{opacity:.35}.pending h3:after{content:' · art pending';color:#c68462}
+.count{margin-left:auto;color:#c7b28a;font-size:14px}
+.status{font-size:12px;color:#92bc83}
+.filename{font:11px/1.5 monospace;overflow-wrap:anywhere;color:#a9997d}
+.hidden{display:none!important}
+.production{margin:12px 24px 24px;font-size:13px;color:#c7b28a}.production a{color:#e7bd72;margin-right:15px}
+@media(max-width:400px){header{padding:15px}main{padding:15px}input{width:100%;min-width:0}}
+</style>
+<header>
+<h1>Weapon repair parts</h1>
+<p>One component for each player weapon. Each item fits its named weapon only.</p>
+<nav>
+<input id="search" type="search" placeholder="Find a weapon or component" aria-label="Find a weapon or component">
+<button id="scale" aria-pressed="false">Show at inventory size</button>
+<span class="count" id="count" role="status">Loading catalog…</span>
+</nav>
+</header>
+<main id="grid"></main>
+<details class="production"><summary>Artwork sources and generation prompts</summary><p>Created with built-in ImageGen and imported as transparent PNGs. Original outputs are retained.</p><p><a href="hand-weapon-part-specs.json">44 hand-weapon parts and prompts</a><a href="firearm-part-generation-0-19.json">Firearm prompts 1–20</a><a href="firearm-part-generation-20-38.json">Firearm prompts 21–39</a><a href="real-world-maintenance-research.md">Research notes</a></p></details>
+<script src="part-sprite-manifest.js"></script>
+<script>
+const grid=document.querySelector('#grid'),search=document.querySelector('#search'),count=document.querySelector('#count');
+const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text)el.textContent=text;return el};
+const assetPath=path=>'../../../'+path;
+let entries=[];
+function filter(){
+  const q=search.value.toLowerCase();let visible=0;
+  for(const entry of entries){const match=entry.text.includes(q);entry.node.classList.toggle('hidden',!match);if(match)visible++}
+  count.textContent=`${visible} / ${entries.length} weapon parts`;
+}
+function weaponPreview(part){
+  const reference=part.reference||'';
+  const path=reference.split(/\s+\(/)[0].trim();
+  if(!path)return null;
+  const link=make('a','weapon-link');
+  link.href=assetPath(path);link.target='_blank';link.rel='noreferrer';
+  link.setAttribute('aria-label','Open the full weapon reference for '+part.weaponName);
+  const thumb=make('span','weapon-thumb');
+  let columns=0,rows=0,column=0,row=0;
+  const numbered=reference.match(/(\d+) columns,\s*(\d+) rows;\s*row (\d+),\s*column (\d+)/i);
+  const corner=reference.match(/(top|bottom)-(left|right) cell,\s*2x2 atlas/i);
+  if(numbered){columns=+numbered[1];rows=+numbered[2];row=+numbered[3]-1;column=+numbered[4]-1}
+  else if(corner){columns=rows=2;row=corner[1].toLowerCase()==='bottom'?1:0;column=corner[2].toLowerCase()==='right'?1:0}
+  if(columns&&rows){
+    const crop=make('span','weapon-atlas');
+    crop.style.backgroundImage='url("'+assetPath(path)+'")';
+    crop.style.backgroundSize=(columns*100)+'% '+(rows*100)+'%';
+    crop.style.backgroundPosition=(columns>1?column/(columns-1)*100:0)+'% '+(rows>1?row/(rows-1)*100:0)+'%';
+    crop.setAttribute('role','img');crop.setAttribute('aria-label',part.weaponName);
+    thumb.append(crop);
+  }else{
+    const img=make('img');img.src=assetPath(path);img.alt=part.weaponName;img.loading='lazy';thumb.append(img);
+  }
+  const caption=make('span','weapon-caption');
+  caption.append(make('strong','','Matching weapon'),make('small','','Open full reference ↗'));
+  link.append(thumb,caption);return link;
+}
+try{
+  const manifest=typeof repairPartManifest!=='undefined'?repairPartManifest:globalThis.repairPartManifest;
+  if(!manifest||!Array.isArray(manifest.parts))throw Error('Catalog data unavailable. Keep part-sprite-manifest.js beside this page.');
+  for(const part of manifest.parts){
+    const card=make('article'),fig=make('figure');
+    card.append(make('h2','',part.weaponName),make('h3','',part.component));
+    const weapon=weaponPreview(part);if(weapon)card.append(weapon);
+    for(const tone of ['dark','light']){
+      const sw=make('div','swatch '+tone),img=make('img');
+      img.src=assetPath(part.sprite);img.alt=part.component+' for '+part.weaponName;img.loading='lazy';
+      img.onerror=()=>card.classList.add('pending');
+      sw.append(img,make('small','',tone==='dark'?'DARK BACKGROUND':'LIGHT BACKGROUND'));fig.append(sw);
+    }
+    card.append(fig);
+    const detail=make('div','details');
+    detail.append(make('p','status','FITS ONLY: '+part.weaponName),make('p','',part.counterpart));
+    if(part.sourceUrl){const link=make('a','','Real-world reference');link.href=part.sourceUrl;link.target='_blank';link.rel='noreferrer';detail.append(link)}
+    detail.append(make('p','filename',part.partId+'.png'));card.append(detail);grid.append(card);
+    entries.push({node:card,text:(part.weaponName+' '+part.component+' '+part.counterpart+' '+part.partId).toLowerCase()});
+  }
+  filter();
+}catch(err){count.textContent=err.message}
+search.addEventListener('input',filter);
+document.querySelector('#scale').addEventListener('click',function(){
+  const on=this.getAttribute('aria-pressed')!=='true';
+  this.setAttribute('aria-pressed',String(on));this.textContent=on?'Show larger previews':'Show at inventory size';
+  grid.classList.toggle('item-size',on);
+});
+</script>
+</html>

@@ -171,7 +171,8 @@ local function new(context)
       local quest=runtime.lastStand
       local showLastStandMovement=quest and quest.capture==true
           and (quest.mode=="backyard" or quest.mode=="interior")
-      if not (quest and quest.capture==true) or showLastStandMovement then
+      local ambush=runtime.state=="game" and runtime.saveData and runtime.saveData.trainAmbush
+      if not (ambush and ambush.active) and (not (quest and quest.capture==true) or showLastStandMovement) then
           drawMobileControls(offsetX,offsetY,scaleX,scaleY)
       end
       drawTravelFade()

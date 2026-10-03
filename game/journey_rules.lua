@@ -336,6 +336,15 @@ local function new(context)
   local function attemptLeaveTrain()
       local key=tostring(runtime.saveData.location); local encounter=runtime.saveData.encounters[key]
       if beginRequiredEvent(runtime.saveData.location) then return end
+      -- A test save can force one event at the next travel attempt. Once the
+      -- event is recorded, the ordinary stop flow resumes automatically.
+      if not encounter and runtime.saveData.forceEventId and not runtime.saveData.events[key] then
+          encounter={rolled=true,hasMob=false,resolved=true,testEvent=true}
+          runtime.saveData.encounters[key]=encounter
+          writeSave()
+          beginRandomEvent()
+          return
+      end
       if not encounter then
           -- Battles should be the primary stop interruption; trail events remain less common.
           -- Story and mystery chapters are checked above; ordinary stops still

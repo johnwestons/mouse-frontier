@@ -10,6 +10,12 @@ local SHOT_TRAVEL=.26
 local SHOT_DELAY=.045
 local IMPACT_DURATION=.36
 local HIT_FLASH_DURATION=.45
+local HIT_ANIMATION_DURATION=.20
+local DEATH_ANIMATION_DURATION=.72
+local DAMAGE_NUMBER_DURATION=.72
+local HIT_CONFIRM_FRAME=5
+local DEATH_COLLAPSE_FRAME=6
+local DEATH_DOWN_FRAME=7
 
 local function randomRange(low,high)
     local value=love.math and love.math.random and love.math.random() or math.random()
@@ -20,14 +26,35 @@ local function clamp(value,low,high) return math.max(low,math.min(high,value)) e
 
 local stageFor=Tuning.phase
 
+local function initializeTargetHealth(target)
+    local defaultHealth=target.heavy and Tuning.heavyEnemyHealth or Tuning.enemyHealth
+    target.maxHealth=math.max(1,tonumber(target.maxHealth) or defaultHealth)
+    target.health=clamp(tonumber(target.health) or target.maxHealth,0,target.maxHealth)
+    if target.hasSpawned==nil then target.hasSpawned=target.status~="hidden" end
+    target.hitTimer=nil
+    target.damageNumber=nil
+    target.damageNumberTimer=nil
+    target.damageNumberElapsed=nil
+end
+
+local function firearmDamage(state,data)
+    data.weaponProficiency=data.weaponProficiency or {}
+    local uses=math.max(0,math.floor(tonumber(data.weaponProficiency.firearms) or 0))+1
+    data.weaponProficiency.firearms=uses
+    local rank=math.min(Tuning.maxFirearmProficiencyRank,math.floor(uses/10))
+    local base=Tuning.caliberDamage[state.gun.ammoType] or Tuning.caliberDamage["22lr"]
+    return base+rank*Tuning.firearmProficiencyDamagePerRank
+end
+
 local function targetFrame(target)
+    if target.status=="dying" then
+        local progress=1-clamp(target.timer/DEATH_ANIMATION_DURATION,0,1)
+        return progress<.38 and DEATH_COLLAPSE_FRAME or DEATH_DOWN_FRAME
+    end
+    if (target.hitTimer or 0)>0 then return HIT_CONFIRM_FRAME end
     if target.status=="appearing" or target.status=="hiding" then return 1 end
     if target.status=="exposed" then return 2 end
     if target.status=="firing" then return 3 end
-    if target.status=="dying" then
-        local progress=1-clamp(target.timer/.72,0,1)
-        return math.min(7,4+math.floor(progress*4))
-    end
     return 0
 end
 
@@ -80,6 +107,13 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
         }
     end
     if type(quest.targets)=="table" and #quest.targets==#WindowScene.slots then state.targets=quest.targets end
+    for index,target in ipairs(state.targets) do
+        if type(target)~="table" then
+            target={slot=index,atlas=WindowScene.targetAtlases[((index-1)%#WindowScene.targetAtlases)+1],status="hidden",timer=.5}
+            state.targets[index]=target
+        end
+        initializeTargetHealth(target)
+    end
     quest.targets=state.targets
     state.impacts=type(quest.impacts)=="table" and quest.impacts or {}
     quest.impacts=state.impacts
@@ -168,9 +202,15 @@ local function updateTargets(state,dt,data)
         local x,y=WindowScene.slotPosition(layout,index)
         if target.status=="hidden" and target.timer<=0
             and WindowScene.pointOpen(state.windowId,state.width,state.height,x,y) then
-            local heavy=state.stage>=2 and randomRange(0,1)<(state.stage>=3 and .40 or .20)
-            target.atlas=WindowScene.targetAtlases[heavy and 3 or (randomRange(0,1)<.5 and 1 or 2)]
-            target.heavy=heavy
+            -- Survivors keep their health and identity between peeks and retries.
+            if not target.hasSpawned or (target.health or 0)<=0 then
+                local heavy=state.stage>=2 and randomRange(0,1)<(state.stage>=3 and .40 or .20)
+                target.atlas=WindowScene.targetAtlases[heavy and 3 or (randomRange(0,1)<.5 and 1 or 2)]
+                target.heavy=heavy
+                target.maxHealth=heavy and Tuning.heavyEnemyHealth or Tuning.enemyHealth
+                target.health=target.maxHealth
+                target.hasSpawned=true
+            end
             target.status="appearing"
             target.timer=.24
             target.withdrawal=nil
@@ -182,6 +222,21 @@ local function updateTargets(state,dt,data)
 end
 
 local function updateEffects(state,dt)
+    for _,target in ipairs(state.targets) do
+        if target.hitTimer then
+            target.hitTimer=target.hitTimer-dt
+            if target.hitTimer<=0 then target.hitTimer=nil end
+        end
+        if target.damageNumberTimer then
+            target.damageNumberTimer=target.damageNumberTimer-dt
+            target.damageNumberElapsed=(target.damageNumberElapsed or 0)+dt
+            if target.damageNumberTimer<=0 then
+                target.damageNumber=nil
+                target.damageNumberTimer=nil
+                target.damageNumberElapsed=nil
+            end
+        end
+    end
     for index=#state.effects,1,-1 do
         local effect=state.effects[index]
         effect.ttl=effect.ttl-dt
@@ -382,6 +437,7 @@ function Shootout.fire(state,data,width,height,Catalog)
         state.notice={text=message,timer=1.5}
         return false
     end
+    local shotDamage=firearmDamage(state,data)
     local layout=WindowScene.layout(state.windowId,width,height)
     local aimX,aimY=WorldView.toWorld(state.gun.aimX,state.gun.aimY)
     FirstPerson.playReport(state.gun.weapon,Catalog,data,false)
@@ -398,10 +454,21 @@ function Shootout.fire(state,data,width,height,Catalog)
         end
     end
     if best then
-        best.status="dying"
-        best.timer=.72
-        state.quest.kills=state.quest.kills+1
-        state.quest.enemyMorale=clamp(state.quest.enemyMorale-(best.heavy and 7 or 4),0,100)
+        local previousHealth=math.max(0,tonumber(best.health) or best.maxHealth or Tuning.enemyHealth)
+        local dealtDamage=math.min(previousHealth,shotDamage)
+        best.health=math.max(0,previousHealth-dealtDamage)
+        best.damageNumber=string.format("%.2f",dealtDamage):gsub("0+$",""):gsub("%.$","")
+        best.damageNumberTimer=DAMAGE_NUMBER_DURATION
+        best.damageNumberElapsed=0
+        if best.health<=0 then
+            best.status="dying"
+            best.timer=DEATH_ANIMATION_DURATION
+            best.hitTimer=nil
+            state.quest.kills=state.quest.kills+1
+            state.quest.enemyMorale=clamp(state.quest.enemyMorale-(best.heavy and 7 or 4),0,100)
+        else
+            best.hitTimer=HIT_ANIMATION_DURATION
+        end
         local x,y=WindowScene.slotPosition(layout,best.slot)
         addEffect(state,1,x,y,.13,.20)
     elseif WindowScene.buildingSolid(layout,aimX,aimY) then
@@ -446,6 +513,24 @@ local function drawTargets(state,layout)
             WindowScene.clipSlot(layout,target.slot,function()
                 WindowScene.drawActor(target.atlas,targetFrame(target),rx+rw/2,ry+rh*1.45+rise,rh*1.5/512,alpha)
             end)
+        end
+    end
+end
+
+local function drawDamageNumbers(state,layout)
+    for _,target in ipairs(state.targets) do
+        if target.status~="hidden" and target.damageNumber and (target.damageNumberTimer or 0)>0 then
+            local rx,ry,rw,rh=WindowScene.slotRect(layout,target.slot)
+            local rise=(target.status=="appearing" or target.status=="hiding") and rh*.15 or 0
+            rise=rise+(target.withdrawal or 0)*rh*1.5
+            local progress=clamp((target.damageNumberElapsed or 0)/DAMAGE_NUMBER_DURATION,0,1)
+            local alpha=clamp((target.damageNumberTimer or 0)/DAMAGE_NUMBER_DURATION,0,1)
+            local x=rx+rw/2
+            local y=ry+rh*.09+rise-progress*math.max(10,rh*.24)
+            love.graphics.setColor(0,0,0,alpha*.9)
+            love.graphics.printf(target.damageNumber,x-25+1,y+1,50,"center")
+            love.graphics.setColor(.96,.12,.10,alpha)
+            love.graphics.printf(target.damageNumber,x-25,y,50,"center")
         end
     end
 end
@@ -590,6 +675,7 @@ function Shootout.draw(state,data,width,height)
     WindowScene.drawWindow(state.windowId,width,height)
     WindowScene.drawDamage(state.impacts,width,height,state.windowId)
     drawIncomingFire(state,layout,width,height)
+    drawDamageNumbers(state,layout)
     love.graphics.pop()
     WorldView.finish()
     if cover<1 then

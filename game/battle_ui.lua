@@ -279,7 +279,7 @@ function BattleUI.draw(ctx)
         ui.drawInventory()
         ui.battleInventoryClose=button(mobile and "CLOSE BACKPACK" or "CLOSE [I]",mobile and 300 or 425,35,mobile and 210 or 105,mobile and 66 or 38,true)
         love.graphics.setColor(colors.cream)
-        text("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots.",35,mobile and 112 or 88,480,96,mobile and 1 or .85,.78,"center")
+        text("BATTLE BACKPACK\nUse medicine or potions, or drag weapons into the equipped slots. Backpacks and outfit upgrades can be changed outside battle.",35,mobile and 112 or 88,480,96,mobile and 1 or .85,.78,"center")
     else ui.battleInventoryClose=nil end
     love.graphics.setLineWidth(1)
     end)

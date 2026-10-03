@@ -43,7 +43,7 @@ local function new(context)
   local function balanceAudit() return EventBalance.audit(Events.definitions) end
 
   local function canChoose(choice)
-      return runtime.saveData and Events.canChoose(runtime.saveData,choice) or false
+      return runtime.saveData and Events.canChoose(runtime.saveData,choice,Catalog) or false
   end
 
   local function choose(index)
@@ -54,6 +54,10 @@ local function new(context)
       if result.blocked then return result end
       runtime.randomEvent=nil
       writeSave()
+      if result.trainAmbush then
+          runtime.state="game"
+          return result
+      end
       if result.encounter then
           beginEncounter(result.encounter)
           return result

@@ -100,8 +100,9 @@ local function run()
                 expect(WeaponActions.frameIndex(actionState)==5,
                     "reload work did not select authored frame 5: "..name)
                 WeaponActions.update(actionState,profile.duration*.46)
-                expect(WeaponActions.frameIndex(actionState)==6,
-                    "reload finish did not select authored frame 6: "..name)
+                local expectedReloadFinish=name=="frontier-9mm-smg" and 1 or 6
+                expect(WeaponActions.frameIndex(actionState)==expectedReloadFinish,
+                    "reload finish did not show the weapon's authored seated pose: "..name)
             end
             WeaponActions.finish(actionState)
             expect(WeaponActions.frameIndex(actionState)==1,
@@ -260,7 +261,8 @@ local function run()
     local context={runtime=runtime,catalog=Catalog,width=960,height=720,ui=ui,
         characterImages={[data.character]=love.graphics.newImage("assets/sprites/MainCharacters/"..data.character)},
         getCharacterAnimations=function() return animations end,
-        writeSave=function() saves=saves+1; return true end}
+        writeSave=function() saves=saves+1; return true end,
+        controlBindings=require("game.control_bindings").new(love.filesystem)}
     context.npcImages={["guard-fox.png"]=love.graphics.newImage("assets/sprites/NPCS/guard-fox.png")}
     local aidRoot="assets/sprites/props/first-aid/"
     local aid={}
@@ -544,8 +546,10 @@ local function run()
     draw("04-wide-ads")
     quest:mousereleased(x,y,2)
     quest:mousepressed(x,y,1)
-    expect(data.lastStand.kills==1 and data.lastStand.loanAmmo==47,"target hit or loan ammunition debit failed")
-    expect(battle.targets[1].status=="dying","target skipped its death animation")
+    expect(data.lastStand.kills==0 and data.lastStand.loanAmmo==47
+        and battle.targets[1].health==2 and battle.targets[1].maxHealth==3,
+        "first .22 hit did not reduce the regular bandit's health")
+    expect(battle.targets[1].status=="exposed","surviving bandit did not stay in the firing line")
     quest:update(.1)
     local hipPlacement=require("game.mobile_weapon_aim").placement(
         battle.gun.weapon,"hip","hip",battle.gun.aimX,battle.gun.aimY,960,720)
@@ -554,6 +558,49 @@ local function run()
     expect(math.abs(hipPlacement.gripX-hipGripX)<.001 and math.abs(hipPlacement.gripY-hipGripY)<.001,
         "hip-fire sprite pivot is not anchored to the calibrated muzzle ray")
     draw("05-wide-hipfire")
+    for expectedHealth=1,0,-1 do
+        battle.gun.cooldown=0
+        expect(Shootout.fire(battle,data,960,720,Catalog),"follow-up .22 shot was rejected")
+        expect(battle.targets[1].health==expectedHealth,".22 damage did not persist across hits")
+    end
+    expect(data.lastStand.kills==1 and battle.targets[1].status=="dying",
+        "regular bandit did not die after its third .22 hit")
+    local function firstHitHealth(weapon,proficiency,heavy)
+        local ammoType=Catalog.weaponCombat[weapon].ammo
+        local shotData={health=20,maxHealth=20,equipment={weapon},inventory={},
+            weaponDurability={},weaponProficiency={firearms=proficiency or 0},
+            ammo={[ammoType]=10},audio={sfxVolume=0}}
+        local shotQuest={holdElapsed=0,kills=0,enemyMorale=100,positionIntegrity=100,loanAmmo=0,loanActive=false}
+        local shotBattle=Shootout.new(shotQuest,shotData,Catalog,"wide",960,720)
+        local target=shotBattle.targets[1]
+        target.status="exposed"; target.timer=4; target.hasSpawned=true
+        if heavy then target.heavy=true; target.maxHealth=6; target.health=6 end
+        local shotX,shotY=View.slotPosition(View.layout("wide",960,720),1)
+        shotBattle.gun.aimX,shotBattle.gun.aimY=shotX,shotY
+        expect(Shootout.fire(shotBattle,shotData,960,720,Catalog),"caliber damage shot was rejected")
+        return target.health,shotQuest.kills,shotData.weaponProficiency.firearms
+    end
+    local smallHealth,smallKills,smallUses=firstHitHealth("frontier-22-lever-rifle",0)
+    local largeHealth=firstHitHealth("frontier-45-1911",0)
+    local skilledHealth,_,skilledUses=firstHitHealth("frontier-22-lever-rifle",49)
+    local heavyHealth=firstHitHealth("frontier-22-lever-rifle",0,true)
+    expect(smallHealth==2 and smallKills==0 and smallUses==1,
+        "a regular bandit did not keep two health after its first .22 hit")
+    expect(largeHealth<smallHealth,"larger caliber did not deal more damage than .22")
+    expect(skilledHealth<smallHealth and skilledUses==50,
+        "firearms proficiency did not increase Last Stand damage")
+    expect(heavyHealth==5,"heavy bandit did not begin with its larger health pool")
+    local survivorData={health=20,maxHealth=20,equipment={},inventory={},ammo={},audio={sfxVolume=0}}
+    local survivorQuest={holdElapsed=0,kills=0,enemyMorale=100,positionIntegrity=100,loanAmmo=48,loanActive=true}
+    local survivorBattle=Shootout.new(survivorQuest,survivorData,Catalog,"wide",960,720)
+    local survivor=survivorBattle.targets[1]
+    survivor.hasSpawned=true; survivor.heavy=false; survivor.maxHealth=3; survivor.health=2
+    survivorBattle.spawnCooldown=0
+    Shootout.retry(survivorBattle)
+    survivor.timer=0
+    Shootout.update(survivorBattle,.01,survivorData,Catalog,960,720)
+    expect(survivor.status=="appearing" and survivor.health==2 and survivor.hasSpawned,
+        "a surviving bandit lost health or identity when it reappeared after regrouping")
     local magazine=battle.gun.magazine
     local texturesAtWindow=love.graphics.getStats().texturememory
     quest:keypressed("escape")
@@ -661,6 +708,9 @@ local function run()
     quest:touchpressed("ads",320,646); quest:touchreleased("ads",320,646)
 
     -- Loading an active battle safely restores the interior and its progress.
+    local persistedBandit=battle.targets[2]
+    persistedBandit.status="hidden"; persistedBandit.timer=.5; persistedBandit.heavy=false
+    persistedBandit.hasSpawned=true; persistedBandit.maxHealth=3; persistedBandit.health=2
     local savedHold=data.lastStand.holdElapsed
     local savedMagazine=battle.gun.magazine
     local savedLoanAmmo=data.lastStand.loanAmmo
@@ -670,6 +720,8 @@ local function run()
     expect(loaded and loaded.lastStand.weaponSession.magazine==savedMagazine
         and loaded.lastStand.loanAmmo==savedLoanAmmo,"serialized save lost magazine or borrowed ammunition")
     expect(loaded.health==data.health,"serialized save lost enemy hit damage")
+    expect(loaded.lastStand.targets[2].health==2 and loaded.lastStand.targets[2].hasSpawned,
+        "serialized save lost the surviving bandit's health or identity")
     Save.remove(99)
     data=loaded; runtime.saveData=data
     runtime.lastStand=nil

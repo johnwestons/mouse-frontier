@@ -92,6 +92,28 @@ function House.rollLoot(data,catalog,location)
         end
         data.lootRolls[householdKey]=true
     end
+    -- Add the repair-component salvage layer once per visited house. It is
+    -- uncommon overall, but when a critically damaged weapon needs a part,
+    -- successful finds are strongly biased toward a compatible assembly.
+    local repairKey="repair-parts:1:"..key
+    if not data.lootRolls[repairKey] then
+        if love.math.random()<.14 then
+            local part=LootProgression.rollRepairPart(data,catalog,location)
+            if part then House.storeLoot(data,catalog,part,location) end
+        end
+        data.lootRolls[repairKey]=true
+    end
+    -- Each house, including a house visited in an older save, receives one
+    -- sewing cache. Existing loot and furniture stay in place.
+    local outfitKey="outfit-materials:1:"..key
+    if not data.lootRolls[outfitKey] then
+        for _,name in ipairs({"thread-spool","fabric-scraps"}) do
+            if catalog.craftMaterials and catalog.craftMaterials[name] then House.storeLoot(data,catalog,name,location) end
+        end
+        local material=LootProgression.rollCraftMaterial(catalog,location)
+        if material then House.storeLoot(data,catalog,material,location) end
+        data.lootRolls[outfitKey]=true
+    end
 end
 
 function House.ensure(data,catalog,isFurniture)

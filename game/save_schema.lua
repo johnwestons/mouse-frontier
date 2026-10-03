@@ -3,7 +3,7 @@ local Accessibility = require("game.accessibility")
 local HelpQuestSession = require("game.help_quest_session")
 
 local SaveSchema = {
-    CURRENT_VERSION = 35,
+    CURRENT_VERSION = 37,
     LEGACY_VERSION = 1,
 }
 
@@ -16,7 +16,7 @@ local STRUCTURAL_TABLES = {
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
     "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions", "expeditions", "crowCaravans", "lastStand", "conversations",
-    "supplyDeliveryCycle",
+    "supplyDeliveryCycle", "trainAmbush", "wearables", "outfitCrafting",
 }
 
 local SUPPLY_DELIVERY_KINDS={food=true,water=true,medicine=true,repair=true,ammunition=true,recovery=true}
@@ -235,6 +235,10 @@ end
 local function ensureRootTables(data)
     local hadDeliveryCycle=type(data.supplyDeliveryCycle)=="table"
     for _,field in ipairs(STRUCTURAL_TABLES) do data[field]=data[field] or {} end
+    if data.wearables.backpack==nil and type(data.backpack)=="string" then
+        data.wearables.backpack=data.backpack
+    end
+    data.backpack=data.wearables.backpack
     if not hadDeliveryCycle then
         data.supplyDeliveryCycle={seen={}}
         data.supplyDeliveryCycle.last=latestAssignedDelivery(data)

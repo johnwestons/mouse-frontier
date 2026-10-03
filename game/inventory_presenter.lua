@@ -36,6 +36,7 @@ local function new(context)
       giftOpen=function(nextValue) runtime.giftOpen=nextValue end,
       giftSlot=function(nextValue) runtime.giftSlot=nextValue end,
       inventoryOpen=function(nextValue) runtime.inventoryOpen=nextValue end,
+      inventoryMode=function(nextValue) runtime.inventoryMode=nextValue end,
       lastClick=function(nextValue) lastClick=nextValue end,
       lastClickTime=function(nextValue) lastClickTime=nextValue end,
   }
@@ -53,6 +54,7 @@ local function new(context)
           activeChest=runtime.activeChest,
           chestOpen=runtime.chestOpen,
           inventoryOpen=runtime.inventoryOpen,
+          inventoryMode=runtime.inventoryMode or "wearables",
           draggedSlot=runtime.draggedSlot,
           inventoryDragActive=runtime.inventoryDragActive,
           giftOpen=runtime.giftOpen,

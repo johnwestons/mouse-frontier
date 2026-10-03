@@ -5,6 +5,7 @@ local Host={}
 function Host.wrap(application,context)
     local original={}; for key,value in pairs(application) do original[key]=value end
     local function cancelInput()
+        if context.ui.suspendOutfitWorkbench then context.ui.suspendOutfitWorkbench() end
         local controls=context.mobile.get(); if controls then controls:cancelAll() end
         context.presentation.endPan()
         for _,key in ipairs({"w","a","s","d","up","down","left","right","e","space","lshift","rshift"}) do original.keyreleased(key) end

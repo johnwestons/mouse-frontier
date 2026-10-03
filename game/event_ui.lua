@@ -6,6 +6,7 @@ function EventUI.load(loadImage)
     local result={}
     local available={}
     for _,name in ipairs({"battle-a","help-a","fortune-a","mishap-a","defense-a","mystery-a","story-a","story-b"}) do available[name]=true end
+    available["train-ambush"]=true
     local active
     function result:release()
         if not active then return end
@@ -17,7 +18,7 @@ function EventUI.load(loadImage)
     return setmetatable(result,{__index=function(images,name)
         if not available[name] then return nil end
         if active and active~=name then images:release() end
-        local image=loadImage("assets/sprites/events/"..name..".png")
+        local image=loadImage(name=="train-ambush" and "assets/sprites/events/train-ambush/pickup-damage.png" or "assets/sprites/events/"..name..".png")
         if image then rawset(images,name,image); active=name end
         return image
     end})
@@ -29,6 +30,14 @@ end
 
 function EventUI.drawArt(event,images,x,y,w,h)
     local image=images and images[event.artSheet]; if not image then return end
+    if event.artSheet=="train-ambush" then
+        local quads=quadCache[image]
+        if not quads then quads={love.graphics.newQuad(0,200,543,340,image:getDimensions())}; quadCache[image]=quads end
+        local scale=math.min(w/543,h/340)
+        love.graphics.setColor(.10,.065,.035,1); love.graphics.rectangle("fill",x,y,w,h)
+        love.graphics.setColor(1,1,1); love.graphics.draw(image,quads[1],x+(w-543*scale)/2,y+(h-340*scale)/2,0,scale,scale)
+        return
+    end
     local frameW=image:getWidth()/5; local index=math.max(1,math.min(5,event.artIndex or 1))
     local quads=quadCache[image]
     if not quads then quads={}; for frame=1,5 do quads[frame]=love.graphics.newQuad((frame-1)*frameW,0,frameW,image:getHeight(),image:getDimensions()) end; quadCache[image]=quads end
@@ -60,7 +69,7 @@ function EventUI.draw(event,images,drawFrame,button,colors,progress,canChoose)
     local rects=EventUI.choiceRects()
     for index,choice in ipairs(event.choices) do
         local r=rects[index]; local enabled=not canChoose or canChoose(choice); button("",r.x,r.y,r.w,r.h,enabled); r.enabled=enabled
-        love.graphics.setColor(colors.cream); text(enabled and choice.label or "CAN'T AFFORD",r.x+10,r.y+8,r.w-20,44,.95)
+        love.graphics.setColor(colors.cream); text(enabled and choice.label or choice.unavailableLabel or "CAN'T AFFORD",r.x+10,r.y+8,r.w-20,44,.95)
         text(choice.hint or "",r.x+10,r.y+58,r.w-20,72,.82)
     end
     return rects

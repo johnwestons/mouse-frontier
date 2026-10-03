@@ -3,6 +3,10 @@ local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
 local WideLayout=require("game.wide_layout")
 local UIStyle=require("game.ui_layout")
+local LootProgression=require("game.loot_progression")
+local RepairArt=require("game.repair_workbench_art")
+local RepairLayout=require("game.repair_workbench_layout")
+local OutfitArt=require("game.outfit_sprite_art")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -258,8 +262,7 @@ local function new(context)
       if request.kind=="deleteSave" then title="DELETE SAVE DATA?"
       elseif request.kind=="overwriteSave" then title="START A NEW JOURNEY?"
       elseif request.kind=="eventChoice" then title="CONFIRM RESPONSE?"
-      elseif request.kind=="trainCar" then title="PURCHASE TRAIN CAR?"
-      elseif request.kind=="weaponRepair" then title="REPAIR WEAPON?" end
+      elseif request.kind=="trainCar" then title="PURCHASE TRAIN CAR?" end
       love.graphics.setColor(colors.cream)
       textBox(title,x+30,y+25,w-60,44,mobile and 1.3 or 1.1,"center")
       love.graphics.setColor(colors.brass)
@@ -565,7 +568,10 @@ local function new(context)
           local stockIndices,occupied={},{}
           for index in pairs(source.stock or {}) do if type(index)=="number" and MerchantTrade.stockItem(source,index) then stockIndices[#stockIndices+1]=index end end
           table.sort(stockIndices)
-          for index=1,(runtime.saveData.inventoryCapacity or 6) do if runtime.saveData.inventory[index] then occupied[#occupied+1]=index end end
+          for index=1,(runtime.saveData.inventoryCapacity or 6) do
+              local item=runtime.saveData.inventory[index]
+              if item and not (Catalog.repairParts and Catalog.repairParts[item]) then occupied[#occupied+1]=index end
+          end
           local buyPages=math.max(0,math.ceil(#stockIndices/3)-1)
           local sellPages=math.max(0,math.ceil(#occupied/3)-1)
           runtime.tradeBuyPage=math.max(0,math.min(buyPages,runtime.tradeBuyPage or 0))
@@ -621,6 +627,11 @@ local function new(context)
       for y=95,625,20 do for x=90+(y%37),870,43 do love.graphics.rectangle("fill",x,y,3,2) end end
       love.graphics.setColor(0.49,0.31,0.18); love.graphics.setLineWidth(8); love.graphics.rectangle("line",70,75,820,570,18,18)
       love.graphics.setColor(0.22,0.13,0.065); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
+      if mobileEnabled() then
+          -- The mobile HUD is hidden while an overlay is open, so keep the map
+          -- dismiss control on the map itself where it remains reachable.
+          ui.map=button("CLOSE MAP",746,82,128,50,true,.72)
+      end
       local visited=math.max(1,runtime.saveData.location); local points={}; local biomes={"Desert","Wetland","Canyon","Ruins","Badlands","Forest","Old City","River","Deep Woods","Pale City","Autumn Wood","Wastes"}
       local maxScroll=math.max(0,math.floor((visited-1)/6)-2); runtime.mapScroll=math.max(0,math.min(maxScroll,runtime.mapScroll))
       for i=1,visited do
@@ -741,9 +752,125 @@ local function new(context)
   end
 
   local function ownsTrainCar(id) return TrainUpgradeBalance.owns(runtime.saveData,id) end
+
+  local repairPanelBounds={x=150,y=70,w=660,h=580}
+
+  local function ownedRepairWeapons()
+      return LootProgression.ownedWeapons(runtime.saveData,Catalog)
+  end
+
+  local repairColors={ink={.20,.12,.07},muted={.40,.30,.20},brass={.46,.26,.10},green={.17,.34,.18},red={.61,.18,.12}}
+
+  local function repairButton(label,rect,enabled,selected)
+      OutfitArt.draw(not enabled and "button-disabled" or selected and "button-selected" or "button",rect,{stretch=true})
+      love.graphics.setColor(colors.cream)
+      textBox(label,rect.x+9,rect.y+5,rect.w-18,rect.h-10,.78,"center")
+      local result=UIStyle.transformRect({x=rect.x,y=rect.y,w=rect.w,h=rect.h})
+      result.enabled=enabled
+      return result
+  end
+
+  local function drawWeaponRepairWorkbench()
+      local data=runtime.saveData
+      local names=ownedRepairWeapons()
+      local selected=runtime.weaponRepairSelected
+      local previousSelected=selected
+      local selectedIndex
+      for index,name in ipairs(names) do if name==selected then selectedIndex=index; break end end
+      if not selectedIndex and #names>0 then
+          selectedIndex=1; selected=names[1]; runtime.weaponRepairSelected=selected
+      elseif not selectedIndex then
+          selected=nil; runtime.weaponRepairSelected=false
+      end
+      if selected~=previousSelected or (runtime.weaponRepairStartedAt and runtime.weaponRepairActiveWeapon~=selected) then
+          runtime.weaponRepairStartedAt=nil; runtime.weaponRepairActiveWeapon=nil; runtime.weaponRepairMessage=nil
+          runtime.weaponRepairDrag=nil
+      end
+      runtime.weaponRepairScroll=math.max(1,math.min(math.max(1,#names-RepairLayout.visibleRows+1),math.floor(runtime.weaponRepairScroll or 1)))
+      local status=selected and repairStatus(selected) or nil
+      ui.repairRows={}; ui.repairRail=nil
+      RepairArt.surface(0,0,960,720)
+      OutfitArt.draw("paper",{x=276,y=498,w=418,h=145},{stretch=true})
+      OutfitArt.draw("paper",{x=711,y=143,w=218,h=494},{stretch=true})
+      OutfitArt.draw("paper",{x=286,y=126,w=389,h=72},{stretch=true})
+      love.graphics.setColor(colors.cream); textBox("WEAPON WORKBENCH",90,27,665,32,1.27)
+      textBox("SCRAP "..tostring(data.scrap or 0).."     FIELD SERVICE 26–99%     MAJOR REPAIR 0–25% + PART",92,60,812,25,.69)
+      love.graphics.setColor(repairColors.ink); textBox("OWNED WEAPONS",34,130,213,28,.95,"center")
+      if #names==0 then
+          textBox("NO WEAPONS\nIN BACKPACK OR\nEQUIPMENT",40,280,204,78,.82,"center")
+      end
+      for row=1,RepairLayout.visibleRows do
+          local index=(runtime.weaponRepairScroll or 1)+row-1
+          local name=names[index]
+          if name then
+              local r=RepairLayout.row(row); ui.repairRows[#ui.repairRows+1]={rect=r,name=name,index=index}
+              local active=name==selected
+              OutfitArt.draw(active and "card-selected" or "card",r,{stretch=true})
+              local profile=Catalog.weaponStats[name]
+              love.graphics.setColor(repairColors.ink); textBox(profile.name or Util.titleFromFile(name),r.x+9,r.y+9,r.w-54,35,.65,nil,.60)
+              local condition=repairStatus(name).durability
+              love.graphics.setColor(condition<=25 and repairColors.red or repairColors.green); textBox(tostring(condition).."%",r.x+r.w-43,r.y+10,37,19,.68,"right")
+              RepairArt.condition(r.x+10,r.y+48,r.w-20,5,condition)
+          end
+      end
+      ui.repairListUp=repairButton("^",RepairLayout.listUp,runtime.weaponRepairScroll>1)
+      ui.repairListDown=repairButton("v",RepairLayout.listDown,runtime.weaponRepairScroll+RepairLayout.visibleRows<=#names)
+      OutfitArt.draw("paper",{x=91,y=537,w=99,h=30},{stretch=true})
+      love.graphics.setColor(repairColors.ink); textBox((#names==0 and "0" or tostring(runtime.weaponRepairScroll or 1)).." / "..tostring(#names),84,533,109,39,.79,"center")
+
+      if selected then
+          local profile=Catalog.weaponStats[selected]
+          love.graphics.setColor(repairColors.ink); textBox(profile.name or Util.titleFromFile(selected),299,136,363,49,.98,"center")
+          love.graphics.setColor(repairColors.brass); textBox("CONDITION",729,170,182,24,.83,"center")
+          local condition=status.durability or 100
+          local conditionLabel=condition==0 and "BROKEN" or (condition<=25 and "CRITICAL" or (condition<50 and "WORN" or (condition<75 and "USED" or "SOUND")))
+          RepairArt.condition(729,202,182,10,condition)
+          love.graphics.setColor(repairColors.ink); textBox(tostring(condition).."%  /  "..conditionLabel,729,222,182,26,.77,"center")
+          RepairArt.item(selected,RepairLayout.weapon,ui,Catalog)
+          if status.part then
+              RepairArt.item(status.part,RepairLayout.part,ui,Catalog)
+              local part=Catalog.repairParts[status.part]
+              love.graphics.setColor(repairColors.brass); textBox(status.major and "CRITICAL PART" or "PART IF NEEDED",729,272,182,24,.77,"center")
+              love.graphics.setColor(repairColors.ink); textBox(part and (part.component or part.name) or Util.titleFromFile(status.part),729,306,182,64,.81,"center")
+              if not status.major then love.graphics.setColor(repairColors.muted)
+              else love.graphics.setColor(status.hasPart and repairColors.green or repairColors.red) end
+              local partState=not status.major and "ONLY REQUIRED BELOW 26%" or (status.hasPart and ("BACKPACK  x"..tostring(status.partCount)) or "NOT IN BACKPACK")
+              textBox(partState,729,373,182,46,.73,"center")
+          end
+          local costLabel=status.major and "MAJOR REPAIR" or "FIELD SERVICE"
+          love.graphics.setColor(repairColors.brass); textBox(costLabel,729,438,182,27,.83,"center")
+          love.graphics.setColor(repairColors.ink); textBox(status.needed and (tostring(status.cost).." SCRAP") or "NO REPAIR NEEDED",729,471,182,40,.84,"center")
+          love.graphics.setColor(colors.cream); textBox("TIMING CHECK",315,435,330,22,.74,"center")
+          local rail=RepairLayout.rail; ui.repairRail=rail
+          local phase=runtime.weaponRepairStartedAt and ((runtime.animationClock-runtime.weaponRepairStartedAt)*.86)%1 or nil
+          RepairArt.timing(rail,phase)
+          love.graphics.setColor(repairColors.green); textBox("GOOD",315,485,150,17,.65,"center")
+          love.graphics.setColor(repairColors.brass); textBox("PERFECT",495,485,150,17,.65,"center")
+          local requiredPart=status.part and Catalog.repairParts[status.part]
+          local blockedInstruction=not status.needed and "This weapon is ready."
+              or (not status.hasPart and (requiredPart and "Find this part in chests; carry it in your backpack." or "No compatible component is available for this weapon.")
+              or ((data.scrap or 0)<status.cost and "Not enough scrap for this repair." or nil))
+          local instruction=runtime.weaponRepairMessage or blockedInstruction
+              or (runtime.weaponRepairStartedAt and "Tap or press confirm on the brass mark." or "Start repair, then tap or press confirm.")
+          love.graphics.setColor(repairColors.ink); textBox(instruction,294,510,382,64,.77,"center")
+          local canStart=status.needed and status.affordable and true or false
+          local actionLabel=runtime.weaponRepairStartedAt and "TAP / SPACE"
+              or (not status.needed and "READY" or (not status.hasPart and "FIND PART" or ((data.scrap or 0)<status.cost and "LOW SCRAP" or "BEGIN REPAIR")))
+          ui.repairStart=repairButton(actionLabel,RepairLayout.start,canStart,runtime.weaponRepairStartedAt and true or false)
+      else
+          love.graphics.setColor(repairColors.ink); textBox("Collect a weapon to begin repair.",299,136,363,49,.84,"center")
+          ui.repairStart=repairButton("BEGIN REPAIR",RepairLayout.start,false)
+      end
+      ui.repairBack=repairButton("BACK TO WORKSHOP",RepairLayout.back,true)
+      ui.repairClose=repairButton("CLOSE",RepairLayout.close,true)
+  end
+
   function ui.drawTrainUpgrades()
+      if runtime.weaponRepairOpen then
+          return UIStyle.scope("trainUpgrades",RepairLayout.bounds,drawWeaponRepairWorkbench)
+      end
       love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
-      return UIStyle.scope("trainUpgrades",{x=150,y=70,w=660,h=580},function()
+      return UIStyle.scope("trainUpgrades",repairPanelBounds,function()
       local mobile=mobileEnabled()
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
       love.graphics.setColor(colors.brass); textBox("TRAIN WORKSHOP",170,88,620,40,1.35,"center")
@@ -765,11 +892,12 @@ local function new(context)
           ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable)
           ui.trainCars[i].enabled=status.affordable==true
       end
-      local repair=repairStatus()
-      local repairLabel=repair.needed and ("REPAIR EQUIPPED  "..repair.cost.." SCRAP") or "EQUIPPED WEAPONS READY"
-      ui.weaponRepair=button(repairLabel,185,mobile and 578 or 594,mobile and 285 or 280,mobile and 64 or 38,repair.affordable==true)
-      ui.weaponRepair.enabled=repair.affordable==true
-      ui.upgradeClose=button("CLOSE",mobile and 490 or 495,mobile and 578 or 594,mobile and 285 or 280,mobile and 64 or 38,true)
+      ui.weaponRepair=button("WEAPON BENCH",185,mobile and 578 or 594,185,mobile and 64 or 38,true,.78)
+      ui.weaponRepair.enabled=true
+      local canSew=ui.canOpenOutfitWorkbench and ui.canOpenOutfitWorkbench() or false
+      ui.sewingBench=button("SEWING BENCH",387,mobile and 578 or 594,185,mobile and 64 or 38,canSew,.78)
+      ui.sewingBench.enabled=canSew
+      ui.upgradeClose=button("CLOSE",590,mobile and 578 or 594,185,mobile and 64 or 38,true)
       end)
   end
 

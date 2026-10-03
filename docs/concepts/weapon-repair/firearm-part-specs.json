@@ -1,0 +1,392 @@
+[
+  {
+    "weapon": "scrap-pistol",
+    "partId": "scrap-pistol-rolling-breechblock",
+    "component": "Rolling Breechblock",
+    "icon": "bolt",
+    "counterpart": "Improvised Remington 1867/1871 Rolling Block pistol",
+    "reference": "assets/sprites/weapons/scrap-pistol.png",
+    "visualBrief": "A squat dark steel rolling breechblock, rounded upper shoulder and flat lower pivot body, circular pivot boss on visible side and short thumb spur at the rear. Match the source pistol's weathered charcoal iron with warm bronze edge wear. One detached component, no barrel, grip, hammer or red cloth. Three-quarter side view clearly exposes the block outline.",
+    "sourceUrl": "https://americanhistory.si.edu/collections/object/nmah_438555"
+  },
+  {
+    "weapon": "sawed-off-shotgun",
+    "partId": "sawed-off-shotgun-stacked-barrel-set",
+    "component": "Stacked Barrel Set",
+    "icon": "barrel",
+    "counterpart": "Shortened Marble's Game Getter over-under combination gun",
+    "reference": "assets/sprites/weapons/sawed-off-shotgun.png",
+    "visualBrief": "One joined pair of short stacked steel barrels with a narrow joining rib, original brass retaining band and small rear hinge lug; preserve the source's true over-under arrangement. Dark grey metal, brass band, slight rusty warm edge wear. Side profile rising gently to the right; the forward ends are edge-on and show no circular bores. No receiver or stock.",
+    "sourceUrl": "https://marblearms.com/game-getter-gun.html"
+  },
+  {
+    "weapon": "frontier-lever-rifle",
+    "partId": "frontier-lever-rifle-brass-action-lever",
+    "component": "Brass Action Lever",
+    "icon": "lever",
+    "counterpart": "Henry H004 Golden Boy",
+    "reference": "assets/sprites/weapons/frontier-lever-rifle.png",
+    "visualBrief": "A detached small oval finger lever with its short upward pivot arm, shaped to the straight-stock Henry Golden Boy in the weapon reference. Dark blued steel lever with restrained gold-brass wear reflected from the weapon's receiver, not an all-gold fantasy gear. Keep its loop and arm silhouette simple and coherent. Side profile, fully separated from the receiver; lever belongs underneath the rifle.",
+    "sourceUrl": "https://www.henryusa.com/wp-content/uploads/2021/04/Henry-H001-Series-User-Manual.pdf"
+  },
+  {
+    "weapon": "compact-scrap-pistol",
+    "partId": "compact-scrap-pistol-heavy-slide",
+    "component": "Heavy Slide",
+    "icon": "slide",
+    "counterpart": "Scrap-dressed Hi-Point C9",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 1, column 1; existing crop: .tmp-imagegen/firearm-references/compact-scrap-pistol.png)",
+    "visualBrief": "Short, notably tall rectangular reciprocating slide with heavy blunt rounded nose, low sights and small rear serrations. Preserve the grey iron body and single tan repair wrap seen around the front of the source C9-like weapon; wrap sits only on this slide. Three-quarter side/top view with recessed underside edge, muzzle face hidden. No frame, grip, barrel, ammunition or text.",
+    "sourceUrl": "https://www.hi-pointfirearms.com/hi-point-resources/C9_CF380-Instruction-Manual-V3.pdf"
+  },
+  {
+    "weapon": "long-barrel-22-pistol",
+    "partId": "long-barrel-22-pistol-buntline-barrel",
+    "component": "Buntline Barrel",
+    "icon": "barrel",
+    "counterpart": "Heritage Rough Rider 16-inch Buntline-style revolver",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 1, column 2; existing crop: .tmp-imagegen/firearm-references/long-barrel-22-pistol.png)",
+    "visualBrief": "An unusually long slender blued-steel revolver barrel, with the small raised front blade at its tip and short warm brass-brown collar at its breech end from the reference. Keep the long thin proportions; it must not become a pistol slide. Side view diagonal rising right, forward face edge-on with no visible bore, only detached barrel and its small mounting shoulder.",
+    "sourceUrl": "https://heritagemfg.com/wp-content/uploads/2025/10/heritage-rough-rider-small-bore-revolver-instruction-manual.pdf"
+  },
+  {
+    "weapon": "heavy-frontier-pistol",
+    "partId": "heavy-frontier-pistol-heavy-cylinder",
+    "component": "Heavy Cylinder",
+    "icon": "cylinder",
+    "counterpart": "Ruger Redhawk Model 5050 visual family",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 1, column 3; existing crop: .tmp-imagegen/firearm-references/heavy-frontier-pistol.png)",
+    "visualBrief": "A broad, massive six-chamber revolver cylinder, deep squared flutes and broad rear rim, dark gunmetal with cool grey worn edges matching the source heavy Redhawk. Slight three-quarter view exposes the fluted outer wall and a modest rear face, enough to read as a cylinder. No yoke, barrel, trigger or grip; no brass cartridges.",
+    "sourceUrl": "https://ruger.com/products/redhawk/specSheets/5050.html"
+  },
+  {
+    "weapon": "machine-pistol",
+    "partId": "machine-pistol-perforated-shroud",
+    "component": "Perforated Shroud",
+    "icon": "barrel",
+    "counterpart": "Intratec TEC-9 / TEC-DC9",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 1, column 4; existing crop: .tmp-imagegen/firearm-references/machine-pistol.png)",
+    "visualBrief": "One stubby cylindrical barrel shroud with the TEC-9's distinctive rows of large round ventilation holes, short front lip and rear mounting collar. Matte grey-black steel, faint warm edge wear matching the source machine pistol. Broad side view with a little top visible; front opening edge-on, no barrel bore or modern muzzle device. No receiver, grip or magazine.",
+    "sourceUrl": "https://www.survivorlibrary.com/library/intratec_tec9_sub_machinegun.pdf"
+  },
+  {
+    "weapon": "weathered-lever-rifle",
+    "partId": "weathered-lever-rifle-large-loop-lever",
+    "component": "Large Loop Lever",
+    "icon": "lever",
+    "counterpart": "Henry H001L Classic Large Loop",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 2, column 1; existing crop: .tmp-imagegen/firearm-references/weathered-lever-rifle.png)",
+    "visualBrief": "One deep elongated oval large-loop lever with a long gently curved lower arc and narrow upper pivot arm, shaped to the source Henry's straight-stock wrist. Worn black-brown steel with sparse light grey nicks; retain a restrained pale worn patch at the lowest loop edge. Broad side view; do not show a receiver, stock or trigger, and keep the opening fully transparent.",
+    "sourceUrl": "https://www.henryusa.com/wp-content/uploads/2021/04/Henry-H001-Series-User-Manual.pdf"
+  },
+  {
+    "weapon": "improvised-service-rifle",
+    "partId": "improvised-service-rifle-piston-carrier",
+    "component": "Piston Carrier",
+    "icon": "bolt",
+    "counterpart": "Fictional 5.56 AK using AK-101 / Zastava M90 mechanism family",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 2, column 2; existing crop: .tmp-imagegen/firearm-references/improvised-service-rifle.png)",
+    "visualBrief": "One AK-pattern carrier and attached long slender gas piston: an irregular blocky dark carrier at left, integral side charging handle projecting visibly, steel piston rod extending right with a small widened piston head. Oiled dark grey and worn silver edges matching the source AK, subtle rust flecks. Avoid an AR gas key or straight AR cylinder silhouette.",
+    "sourceUrl": "https://zastavaarmsusa.com/wp-content/uploads/2021/09/PAPM90PS-User-Manual.pdf"
+  },
+  {
+    "weapon": "compact-carbine",
+    "partId": "compact-carbine-charging-handle",
+    "component": "Charging Handle",
+    "icon": "bolt",
+    "counterpart": "Colt Model 733 / Commando AR family",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 2, column 3; existing crop: .tmp-imagegen/firearm-references/compact-carbine.png)",
+    "visualBrief": "A detached T-shaped rear charging handle, long narrow black channel ending in the broad shallow crossbar and small side latch. Compact retro AR finish in worn charcoal-grey with a silver edge line, matching the source carbine. Top-side oblique view to show T silhouette and thin depth. No wooden stock wrap added to this metal component; no receiver or bolt.",
+    "sourceUrl": "https://www.colt.com/wp-content/uploads/2023/02/ar-15_semiautomatic_rifle__carbine.pdf"
+  },
+  {
+    "weapon": "rugged-submachine-gun",
+    "partId": "rugged-submachine-gun-top-cocking-bolt",
+    "component": "Top-Cocking Bolt",
+    "icon": "bolt",
+    "counterpart": "Stockless Thompson M1927A5 / M1928 mechanical family",
+    "reference": "assets/sprites/atlases/firearms-v1.png (4 columns, 2 rows; row 2, column 4; existing crop: .tmp-imagegen/firearm-references/rugged-submachine-gun.png)",
+    "visualBrief": "A chunky rectangular Thompson-pattern steel bolt with cylindrical forward nose and a distinctive short top-mounted cocking knob. Match the source gun's black-brown iron, flat side planes and copper-brown worn highlights. One compact coherent assembly in side/top oblique view; no AK gas piston, no wooden receiver, no magazine or grip.",
+    "sourceUrl": "https://www.auto-ordnance.com/PDF/lg_manual.pdf"
+  },
+  {
+    "weapon": "patched-22-survival-rifle",
+    "partId": "patched-22-survival-rifle-rotary-magazine",
+    "component": "Rotary Magazine",
+    "icon": "bolt",
+    "counterpart": "Ruger 10/22 Carbine / BX-1 rotary magazine",
+    "reference": "assets/sprites/weapons/patched-22-survival-rifle.png",
+    "visualBrief": "A short squat rounded black rotary magazine block sized to sit flush in a 10/22 stock, subtly rounded lower face, small steel feed-lip cap and dark circular side hub. Match the source's worn practical finish. Three-quarter side/top inventory view; no long projecting stick or tube shape and no exposed ammunition. Wear is sparse warm brown at the bottom corners.",
+    "sourceUrl": "https://ruger-docs.s3.amazonaws.com/_manuals/Ruger_1022.pdf"
+  },
+  {
+    "weapon": "improvised-556-rifle",
+    "partId": "improvised-556-rifle-patched-handguard",
+    "component": "Patched Handguard",
+    "icon": "barrel",
+    "counterpart": "Patched M4 / AR-15 carbine",
+    "reference": "assets/sprites/weapons/improvised-556-rifle.png",
+    "visualBrief": "One compact ribbed cylindrical M4 handguard unit, dark steel-black polymer shell with visible longitudinal seam, short front retaining lip, and the source rifle's brown timber splint plus narrow tan repair bands. Preserve chunky front-handguard proportions, not a full rifle. Broad side view tilted slightly upward; no barrel, receiver, magazine, hands or extra parts.",
+    "sourceUrl": "https://www.colt.com/wp-content/uploads/2023/02/ar-15_semiautomatic_rifle__carbine.pdf"
+  },
+  {
+    "weapon": "frontier-long-barrel-revolver",
+    "partId": "frontier-long-barrel-revolver-blued-cylinder",
+    "component": "Blued Cylinder",
+    "icon": "cylinder",
+    "counterpart": "Ruger New Model Single-Six long-barrel family",
+    "reference": "assets/sprites/weapons/frontier-long-barrel-revolver.png",
+    "visualBrief": "A medium narrow six-chamber single-action revolver cylinder with long curved flutes and a compact rear ratchet boss, polished deep blue-black steel. Match source dark revolver finish with clean grey rim highlights, not the heavy Redhawk's wide mass. Oblique rear-side view, empty dark chambers and no ammunition. A single detached cylinder.",
+    "sourceUrl": "https://ruger.com/products/newModelSingleSix/overview.html"
+  },
+  {
+    "weapon": "frontier-22-lever-rifle",
+    "partId": "frontier-22-lever-rifle-takedown-lever",
+    "component": "Takedown Lever",
+    "icon": "lever",
+    "counterpart": "Marlin Model 39A takedown; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-22-lever-rifle.png",
+    "visualBrief": "One Marlin 39A-style curved finger lever following a pistol-grip wrist: asymmetrical rounded loop with visibly curved rear/top edge and short front pivot extension. Dark charcoal steel with bright silver edge highlights from the source rifle. Side profile, loop center transparent. Distinct from the straight-stock Henry loops; no stock, receiver, barrel or trigger.",
+    "sourceUrl": "https://www.acp-waffen.de/downloads/Produktinformationen/Marlin/Marlin_Kataloge/Marlin_Catalog_2006_englisch.pdf"
+  },
+  {
+    "weapon": "frontier-45-1911",
+    "partId": "frontier-45-1911-government-slide",
+    "component": "Government Slide",
+    "icon": "slide",
+    "counterpart": "M1911 Government / 1911A1",
+    "reference": "assets/sprites/weapons/frontier-45-1911.png",
+    "visualBrief": "One long straight satin-silver Government 1911 slide with rounded top, square rear, diagonal rear cocking serrations, tiny black rear notch and front blade. Broad side/top oblique view matching source two-tone pistol, with dark underside rail edge. Keep long Government proportions and barrel-bushing nose profile, but muzzle face hidden. No frame, hammer, barrel or grip.",
+    "sourceUrl": "https://support.springfield-armory.com/manuals/1911-manual"
+  },
+  {
+    "weapon": "frontier-380-revolver",
+    "partId": "frontier-380-revolver-five-shot-cylinder",
+    "component": "Five-Shot Cylinder",
+    "icon": "cylinder",
+    "counterpart": "Taurus Model 380 Ultra-Lite",
+    "reference": "assets/sprites/weapons/frontier-380-revolver.png",
+    "visualBrief": "One short compact silver five-chamber cylinder, broad shallow flutes, narrow rear rim and small center axis boss. Bright satin stainless matching source snub revolver. Oblique side/rear view with exactly five empty chamber positions if rear face is shown. Smaller and shorter than the heavy revolver cylinders; no yoke or ejector rod bundle.",
+    "sourceUrl": "https://www.taurususa.com/images/downloads/manuals/Taurus_Manual_Revolvers.pdf"
+  },
+  {
+    "weapon": "frontier-long-22-target-pistol",
+    "partId": "frontier-long-22-target-pistol-slender-target-barrel",
+    "component": "Slender Target Barrel",
+    "icon": "barrel",
+    "counterpart": "Colt Woodsman long-barrel Target family",
+    "reference": "assets/sprites/weapons/frontier-long-22-target-pistol.png",
+    "visualBrief": "One long slender silver target barrel, a smooth thin round tube that tapers slightly toward its raised front sight, with a short wider breech shoulder. Preserve Woodsman thinness and source silver finish; no bull barrel, rail or vent rib. Side profile rising right and muzzle edge-on so bore is invisible. No slide, frame or wood grip.",
+    "sourceUrl": "https://www.colt.com/wp-content/uploads/2023/02/woodsmanautomaticpistoltargetsportmodel.pdf"
+  },
+  {
+    "weapon": "wood-stock-survival-carbine",
+    "partId": "wood-stock-survival-carbine-operating-slide",
+    "component": "Operating Slide",
+    "icon": "bolt",
+    "counterpart": "U.S. M1 Carbine",
+    "reference": "assets/sprites/weapons/wood-stock-survival-carbine.png",
+    "visualBrief": "One M1-carbine operating slide: long thin offset steel action arm with a blocky shallow cup at the front and compact knob near the rear. Dark blue-grey steel with sparse silver rubbed edges matching the source military carbine. Broad side/top oblique view clarifies distinctive bent arm silhouette. No wood, magazine, barrel or AR-style charging crossbar.",
+    "sourceUrl": "https://www.auto-ordnance.com/PDF/aom1_manual.pdf"
+  },
+  {
+    "weapon": "vintage-bolt-action-rifle",
+    "partId": "vintage-bolt-action-rifle-turned-down-bolt",
+    "component": "Turned-Down Bolt",
+    "icon": "bolt",
+    "counterpart": "Mauser Kar98k",
+    "reference": "assets/sprites/weapons/vintage-bolt-action-rifle.png",
+    "visualBrief": "A long cylindrical silver-grey Mauser bolt body with dark front locking-lug head, stepped rear shroud, small flag safety and the distinctive turned-down side handle ending in a round knob. Match the source's aged steel and warm wear. Three-quarter side view; handle bends below the body, not a straight sporting handle. One grouped bolt, no stock.",
+    "sourceUrl": "https://www.mauser.com/Services/Downloads/Bedienungsanleitungen/"
+  },
+  {
+    "weapon": "frontier-556-carbine",
+    "partId": "frontier-556-carbine-bolt-carrier-group",
+    "component": "Bolt Carrier Group",
+    "icon": "bolt",
+    "counterpart": "Colt M4 / M4A1",
+    "reference": "assets/sprites/weapons/frontier-556-carbine.png",
+    "visualBrief": "One clean dark phosphated M4/AR carrier group: long cylindrical carrier with squared lower cutout, small raised gas key along the top and short toothed bolt head at the front. Match source clean black finish with cool grey clustered highlights. Oblique side view shows key and cutout. No long AK piston, charging handle, barrel or ammunition.",
+    "sourceUrl": "https://www.colt.com/wp-content/uploads/2023/02/ar-15_semiautomatic_rifle__carbine.pdf"
+  },
+  {
+    "weapon": "frontier-9mm-smg",
+    "partId": "frontier-9mm-smg-roller-bolt-group",
+    "component": "Roller Bolt Group",
+    "icon": "bolt",
+    "counterpart": "Full-size Heckler & Koch MP5",
+    "reference": "assets/sprites/weapons/frontier-9mm-smg.png",
+    "visualBrief": "One compact MP5 carrier and bolt-head group, dark rectangular stepped rear carrier joined to a short rounded front head, small side roller details at the forward head. Black steel with clean cool grey highlights like the approved MP5. Side/top oblique silhouette, wider and shorter than an AR carrier, with no gas key or long piston.",
+    "sourceUrl": "https://s3.amazonaws.com/hk-manuals/files/Armorer/MP5/USMC_MP5_Technical_Manual.pdf"
+  },
+  {
+    "weapon": "frontier-22-target-pistol",
+    "partId": "frontier-22-target-pistol-cylindrical-target-bolt",
+    "component": "Cylindrical Target Bolt",
+    "icon": "bolt",
+    "counterpart": "Ruger Mark IV Target / Standard family",
+    "reference": "assets/sprites/weapons/frontier-22-target-pistol.png",
+    "visualBrief": "A narrow silver-grey cylindrical internal bolt with a flat broad pair of rounded cocking ears at the rear and small dark extractor detail near its front. Match the source black tubular target pistol with contrasting steel bolt highlights. Side/top view exposes rear ear silhouette. No conventional pistol slide, barrel or frame; one compact grouped bolt.",
+    "sourceUrl": "https://www.ruger.com/dataProcess/manual/fetch.php/ms/43956/manual_43956.pdf"
+  },
+  {
+    "weapon": "frontier-380-pocket-pistol",
+    "partId": "frontier-380-pocket-pistol-stainless-pocket-slide",
+    "component": "Stainless Pocket Slide",
+    "icon": "slide",
+    "counterpart": "Walther PPK stainless, short six-round visual family",
+    "reference": "assets/sprites/weapons/frontier-380-pocket-pistol.png",
+    "visualBrief": "One short curved-nose satin-silver PPK slide, narrow rounded top, wave-like nose contour, rear vertical serrations and tiny sights. A restrained ejection opening on its correct visible right side. Match source's compact polished silver shape. Three-quarter side/top view hides the muzzle face. No wood grip, frame, barrel, magazine or PPK/S extension.",
+    "sourceUrl": "https://waltherarms.com/wp-content/uploads/2024/02/Walther-Product-Catalog-2024.pdf"
+  },
+  {
+    "weapon": "frontier-12g-pump-shotgun",
+    "partId": "frontier-12g-pump-shotgun-sighted-pump-barrel",
+    "component": "Sighted Pump Barrel",
+    "icon": "barrel",
+    "counterpart": "Remington 870 Fieldmaster Fully Rifled Deer configuration",
+    "reference": "assets/sprites/weapons/frontier-12g-pump-shotgun.png",
+    "visualBrief": "One long slender blued-steel shotgun barrel with adjustable open rear sight near breech, small ramped front blade and one short barrel ring beneath near its rear half. Preserve source deer/slug sight pair rather than a bead-only tube. Dark grey steel, soft warm highlights. Pure side profile with forward end edge-on: no visible muzzle hole or oval end face.",
+    "sourceUrl": "https://www.remarms.com/shotguns/pump-action/model-870/model-870-fieldmaster-fully-rifled-deer"
+  },
+  {
+    "weapon": "frontier-762-carbine",
+    "partId": "frontier-762-carbine-gas-tube-handguard",
+    "component": "Gas Tube Handguard",
+    "icon": "barrel",
+    "counterpart": "SKS-45 / Type 56 SKS",
+    "reference": "assets/sprites/weapons/frontier-762-carbine.png",
+    "visualBrief": "One SKS upper gas-tube and handguard unit: short steel tube mostly enclosed by a warm reddish-orange wood handguard, narrow black metal ferrules at both ends and short bare steel neck. Match source red wood grain and dark barrel hardware. Side/top oblique inventory view. No full stock, barrel, receiver or detachable magazine.",
+    "sourceUrl": "https://www.awm.gov.au/collection/C153487"
+  },
+  {
+    "weapon": "frontier-sr22-pistol",
+    "partId": "frontier-sr22-pistol-silver-rimfire-slide",
+    "component": "Silver Rimfire Slide",
+    "icon": "slide",
+    "counterpart": "Ruger SR22P; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-sr22-pistol.png",
+    "visualBrief": "One compact satin-silver SR22 slide with angled front and rear cocking serrations, a large rectangular ejection opening, low dark front sight and wider dark rear sight. Preserve the source's distinctive angular two-tone top silhouette. Side/top view with no visible front bore, frame, grip or exposed hammer. Crisp charcoal underside line, no fantasy brass decoration.",
+    "sourceUrl": "https://ruger.com/products/sr22Pistol/overview.html"
+  },
+  {
+    "weapon": "frontier-9mm-service-pistol",
+    "partId": "frontier-9mm-service-pistol-open-top-service-slide",
+    "component": "Open-Top Service Slide",
+    "icon": "slide",
+    "counterpart": "Beretta 92FS",
+    "reference": "assets/sprites/weapons/frontier-9mm-service-pistol.png",
+    "visualBrief": "One full-length black Beretta 92FS open-top slide, long open center trough with two narrow parallel side rails, front bridge, rear sight block and side safety. Match source dark blued finish and long service proportions. Side/top oblique view reveals the permanent open roof as transparency. No barrel seated in the trough, no frame, grip or magazine.",
+    "sourceUrl": "https://www.beretta.com/content/dam/beretta-usa/user-manuals/90_Series_Manual.pdf"
+  },
+  {
+    "weapon": "frontier-compact-9mm",
+    "partId": "frontier-compact-9mm-cheetah-slide",
+    "component": "Cheetah Slide",
+    "icon": "slide",
+    "counterpart": "Beretta Model 81 / 81FS; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-compact-9mm.png",
+    "visualBrief": "One compact blue-black Model 81 Cheetah open-top slide, shorter rounder nose and narrower rear block than a Beretta 92 slide. Top trough remains visibly open, with compact front bridge, rear serrations and small sight. Match the source dark polished blue steel; side/top view. No barrel, frame or grip, and no enlarged full-size service geometry.",
+    "sourceUrl": "https://estore.beretta.com/en-se/product/beretta-s81-owner-manual-it-eng-fr-sp-C60370"
+  },
+  {
+    "weapon": "frontier-32-pocket-pistol",
+    "partId": "frontier-32-pocket-pistol-streamlined-pocket-slide",
+    "component": "Streamlined Pocket Slide",
+    "icon": "slide",
+    "counterpart": "Mauser HSc .32 ACP; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-32-pocket-pistol.png",
+    "visualBrief": "One smooth dark blue-grey HSc slide with long sloping streamlined nose, recessed anti-glare top channel, small rear serrations and shallow round side safety boss near rear. Preserve source elegant low profile and muted silver highlight along top. Broad side/top view hiding muzzle face. No wooden grips, frame or exposed hammer assembly.",
+    "sourceUrl": "https://americanhistory.si.edu/collections/object/nmah_418637"
+  },
+  {
+    "weapon": "frontier-22-pocket-pistol",
+    "partId": "frontier-22-pocket-pistol-rounded-pocket-slide",
+    "component": "Rounded Pocket Slide",
+    "icon": "slide",
+    "counterpart": "Jennings J-22; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-22-pocket-pistol.png",
+    "visualBrief": "One tiny black rounded Jennings J-22 slide with narrow shallow rear, subtly bulged nose, small oval ejection opening and short diagonal rear serration cluster. Match source glossy charcoal finish and tiny fixed sights. Side/top view with no muzzle hole. Clearly shorter and rounder than Glock or Hi-Point slides; no frame, grip or ammunition.",
+    "sourceUrl": "https://www.ojp.gov/pdffiles1/Digitization/185889NCJRS.pdf"
+  },
+  {
+    "weapon": "frontier-silver-22-revolver",
+    "partId": "frontier-silver-22-revolver-silver-single-action-cylinder",
+    "component": "Silver Single-Action Cylinder",
+    "icon": "cylinder",
+    "counterpart": "Ruger Wrangler; exact user-confirmed art identity",
+    "reference": "assets/sprites/weapons/frontier-silver-22-revolver.png",
+    "visualBrief": "One silver-grey six-chamber Wrangler cylinder with broad elongated flutes, narrow dark cylinder-stop notches and compact rear axis boss. Preserve source bright silver revolver finish, crisp dark recesses and soft cream highlights. Side/rear oblique view, no cartridges. Moderate narrow single-action proportions, distinct from compact five-shot or massive heavy revolver cylinder.",
+    "sourceUrl": "https://ruger.com/products/wrangler/models.html"
+  },
+  {
+    "weapon": "frontier-ak-compact",
+    "partId": "frontier-ak-compact-short-gas-tube-handguard",
+    "component": "Short Gas Tube Handguard",
+    "icon": "barrel",
+    "counterpart": "AKS-74U; exact user-corrected visual identity",
+    "reference": "assets/sprites/weapons/frontier-ak-compact.png",
+    "visualBrief": "One very short AKS-74U upper gas-tube handguard: compact reddish-orange laminated wood shell around dark steel tube, small black ferrules and stubby bare front neck. Preserve source bright orange laminated grain and especially short length. Side/top view. Distinctly shorter than the SKS unit; no long rifle gas piston, stock, booster or receiver.",
+    "sourceUrl": "https://heroes.museum-arms.ru/en/aks.html"
+  },
+  {
+    "weapon": "frontier-9mm-glock",
+    "partId": "frontier-9mm-glock-square-hood-barrel",
+    "component": "Square-Hood Barrel",
+    "icon": "barrel",
+    "counterpart": "Glock 17 Gen3",
+    "reference": "assets/sprites/weapons/frontier-9mm-glock.png",
+    "visualBrief": "One Glock 17 barrel with a chunky rectangular chamber hood at its rear, short lower locking lug and long round matte black tube extending forward. Match source nearly black modern steel with sparse cool grey highlights. Side/top profile rising right; muzzle face is edge-on and bore invisible. No slide, polymer frame, compensator or text.",
+    "sourceUrl": "https://us.glock.com/en/owners-resources/downloadable-materials"
+  },
+  {
+    "weapon": "frontier-pearl-pocket-pistol",
+    "partId": "frontier-pearl-pocket-pistol-engraved-vest-slide",
+    "component": "Engraved Vest Slide",
+    "icon": "slide",
+    "counterpart": "Astra Model 202 Firecat CE / engraved Model 200 family",
+    "reference": "assets/sprites/weapons/frontier-pearl-pocket-pistol.png",
+    "visualBrief": "One tiny nickel-silver vest-pocket slide with softly rounded nose and clustered dark engraved scrollwork across its visible side, matching approved Astra Firecat CE weapon. Very low fixed sight ridge and compact rear serrations; restrained fine cream highlights. Side/top view with no muzzle bore. No pearl grip panels, frame, lettering or ornate invented gold parts.",
+    "sourceUrl": "https://www.deutsches-spionagemuseum.de/sammlung/pistole-astra-modell-200"
+  },
+  {
+    "weapon": "frontier-silver-compact-pistol",
+    "partId": "frontier-silver-compact-pistol-short-target-barrel",
+    "component": "Short Target Barrel",
+    "icon": "barrel",
+    "counterpart": "Phoenix Arms HP22 / HP22A, standard short three-inch barrel",
+    "reference": "assets/sprites/weapons/frontier-silver-compact-pistol.png",
+    "visualBrief": "One compact satin-nickel HP22A barrel assembly with short tapered round forward barrel and broader angular rear mounting block, tiny dark front sight on top. Match source short standard silver pistol profile; no five-inch extension or long vent rib. Broad side view, forward end edge-on and bore invisible. No frame, slide, black grip or ammunition.",
+    "sourceUrl": "https://www.mcarbo.com/.Owners%20Manuals/Phoenix_Arms-Manual_2018.pdf"
+  },
+  {
+    "weapon": "frontier-compact-9mm-pistol",
+    "partId": "frontier-compact-9mm-pistol-micro-slide",
+    "component": "Micro Slide",
+    "icon": "slide",
+    "counterpart": "Ruger LCP II; exact user-corrected visual identity",
+    "reference": "assets/sprites/weapons/frontier-compact-9mm-pistol.png",
+    "visualBrief": "One exceptionally short squared charcoal LCP II slide with beveled front corners, angular rear profile, bold diagonal front and rear serration groups and tiny integral sights. Preserve source dark polymer-pistol scale and angular steel finish. Side/top oblique view hides muzzle face. No frame, barrel, grip or oversized double-stack service-pistol proportions.",
+    "sourceUrl": "https://ruger.com/dataProcess/manual/fetch.php/dl/44/manual.pdf"
+  },
+  {
+    "weapon": "frontier-single-shot-hunter",
+    "partId": "frontier-single-shot-hunter-hinged-barrel",
+    "component": "Hinged Barrel",
+    "icon": "barrel",
+    "counterpart": "H&R / NEF Sportster / Handi-Rifle break-action family",
+    "reference": "assets/sprites/weapons/frontier-single-shot-hunter.png",
+    "visualBrief": "One long narrow blue-black barrel with a broad solid breech shoulder and distinct hinge lug hanging below its rear, plus source's small open rear sight and simple front blade. A single barrel only, with no under-barrel tube. Side profile diagonal upward right, muzzle edge-on without visible bore. No fore-end wood, receiver, hammer or lever.",
+    "sourceUrl": "https://www.manualshelf.com/manual/harrington-richardson/handi-rifle/manual-english.html"
+  },
+  {
+    "weapon": "frontier-lever-carbine",
+    "partId": "frontier-lever-carbine-carbine-loop-lever",
+    "component": "Carbine Loop Lever",
+    "icon": "lever",
+    "counterpart": "Winchester Model 1892 / Rossi R92 large-loop family",
+    "reference": "assets/sprites/weapons/frontier-lever-carbine.png",
+    "visualBrief": "One broad deeply rounded large-loop Model 1892 lever, rounded lower belly, short curved rear wrist section and long slender upper operating arm. Satin dark steel with silver rubbed edges matching source black receiver. Side profile, loop center transparent; proportionally deeper and more circular than the Henry loop. No trigger, stock, receiver or barrel.",
+    "sourceUrl": "https://www.winchesterguns.com/products/rifles/model-1892/model-1892-large-loop-carbine.html"
+  }
+]

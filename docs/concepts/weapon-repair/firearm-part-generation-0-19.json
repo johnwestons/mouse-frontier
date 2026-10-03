@@ -1,0 +1,422 @@
+[
+  {
+    "weapon": "scrap-pistol",
+    "partId": "scrap-pistol-rolling-breechblock",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-71a02d37-1435-4c09-ac46-7a08f35fc40c.png",
+    "sprite": "assets/sprites/weapon-parts/scrap-pistol-rolling-breechblock.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: A SINGLE DETACHED solid steel rolling breechblock inspired by a Remington Rolling Block pistol, approximately a squat rounded fan/half-cylinder shape with flat breech face on one edge and a short little thumb tab on the upper rear. One small circular pivot opening through the broad rounded lower side. This is only the compact block that pivots, NOT the receiver around it, NOT the separate hammer: NO gun-shaped action housing, side plates, large screws, long hammer spur, gold internal rods or multiple assemblies. Charcoal steel with warm worn silver top edge, broad side-oblique view. CRISP CLEAN ALPHA EDGE, absolutely no glow or soft shadow outside shape. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "sawed-off-shotgun",
+    "partId": "sawed-off-shotgun-stacked-barrel-set",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-fd775761-e944-4950-845e-e49bcaf3fae5.png",
+    "sprite": "assets/sprites/weapon-parts/sawed-off-shotgun-stacked-barrel-set.png",
+    "prompt": "Use case: stylized-concept. Asset type: a single transparent game inventory weapon-repair part sprite for Mouse Frontier. Input image is the approved parent weapon: it is an identity/material/color reference only, do not reproduce the whole weapon. Subject: One joined pair of short vertically stacked steel barrels for the reference Marble Game Getter-inspired Sawed-Off Shotgun, narrow joining rib, original brass retaining band and small rear hinge lug. Exact over-under vertical stacked arrangement, not side by side. Dark grey metal and brass band, sparse warm edge wear. SIDE PROFILE tilted gently upward right: front tips are strictly edge-on, NO VISIBLE BORES, no circular or oval forward end faces. No receiver, stock or wood fore-end. Style: warm detailed pixel art with deliberately stepped crisp contours and grouped pixel shading, matching the reference's game art. Readable chunky silhouette at inventory size; no fine grain, noise, photorealism or smooth 3D render. Center one complete part at generous 80% frame size with clear transparent padding. Genuine transparent alpha everywhere outside part, no shadow puddle, background, baked checkerboard, text, labels, hands or body parts. This is decorative fictional-game loot art, no instructions or assembly diagram.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-lever-rifle",
+    "partId": "frontier-lever-rifle-brass-action-lever",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-5f1f77bc-c120-4dd0-8210-36b32e26401a.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-lever-rifle-brass-action-lever.png",
+    "prompt": "Use case: stylized-concept. Asset type: a single transparent game inventory weapon-repair part sprite for Mouse Frontier. Input image is the approved parent weapon: it is an identity/material/color reference only, do not reproduce the whole weapon. Subject: One detached Henry Golden Boy-inspired finger lever taken from beneath the reference Frontier Lever Rifle. Its closed elongated rounded finger loop and short upper operating arm/pivot extension match the source silhouette. Charcoal blued steel with silver and subtle warm brass reflected highlights, not solid gold. Side profile as a single solid lever piece, loop center fully transparent. No receiver, stock, barrel, trigger or other objects. Style: warm detailed pixel art with deliberately stepped crisp contours and grouped pixel shading, matching the reference's game art. Readable chunky silhouette at inventory size; no fine grain, noise, photorealism or smooth 3D render. Center one complete part at generous 80% frame size with clear transparent padding. Genuine transparent alpha everywhere outside part, no shadow puddle, background, baked checkerboard, text, labels, hands or body parts. This is decorative fictional-game loot art, no instructions or assembly diagram.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "compact-scrap-pistol",
+    "partId": "compact-scrap-pistol-heavy-slide",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-05c3fc26-2f43-407b-bd81-052dda9c18f8.png",
+    "sprite": "assets/sprites/weapon-parts/compact-scrap-pistol-heavy-slide.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: One detached tall rectangular Hi-Point C9-inspired heavy slide from the supplied compact scrap pistol, only the top slide. Exact 90-degree SIDE PROFILE, left rear and right front: camera sees only long side and a narrow top bevel. Front face is completely edge-on and invisible; NO capped front plate, muzzle hole or oval end surface. Preserve tall grey steel slide, six rear vertical serrations, small side ejection opening, single tan cloth repair wrap around its front third, low front/rear sights. No frame, barrel, hammer or grip. Chunky coherent pixel clusters matching reference. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      256
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "long-barrel-22-pistol",
+    "partId": "long-barrel-22-pistol-buntline-barrel",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-3e7bce95-5e5c-4435-859a-105ff11e6f7f.png",
+    "sprite": "assets/sprites/weapon-parts/long-barrel-22-pistol-buntline-barrel.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: An unusually long slender blued-steel revolver barrel, with the small raised front blade at its tip and short warm brass-brown collar at its breech end from the reference. Keep the long thin proportions; it must not become a pistol slide. Side view diagonal rising right, forward face edge-on with no visible bore, only detached barrel and its small mounting shoulder. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "heavy-frontier-pistol",
+    "partId": "heavy-frontier-pistol-heavy-cylinder",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-e36d2793-627f-4289-b585-4e0f7161db55.png",
+    "sprite": "assets/sprites/weapon-parts/heavy-frontier-pistol-heavy-cylinder.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: A broad, massive six-chamber revolver cylinder, deep squared flutes and broad rear rim, dark gunmetal with cool grey worn edges matching the source heavy Redhawk. Slight three-quarter view exposes the fluted outer wall and a modest rear face, enough to read as a cylinder. No yoke, barrel, trigger or grip; no brass cartridges. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "machine-pistol",
+    "partId": "machine-pistol-perforated-shroud",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-7433ce97-7a77-4e1e-88a1-5215e7d2390d.png",
+    "sprite": "assets/sprites/weapon-parts/machine-pistol-perforated-shroud.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: One stubby cylindrical barrel shroud with the TEC-9's distinctive rows of large round ventilation holes, short front lip and rear mounting collar. Matte grey-black steel, faint warm edge wear matching the source machine pistol. Broad side view with a little top visible; front opening edge-on, no barrel bore or modern muzzle device. No receiver, grip or magazine. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "weathered-lever-rifle",
+    "partId": "weathered-lever-rifle-large-loop-lever",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-a57a1dba-9b49-49e4-9ba8-c15f4879ebe7.png",
+    "sprite": "assets/sprites/weapon-parts/weathered-lever-rifle-large-loop-lever.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: One deep elongated oval large-loop lever with a long gently curved lower arc and narrow upper pivot arm, shaped to the source Henry's straight-stock wrist. Worn black-brown steel with sparse light grey nicks; retain a restrained pale worn patch at the lowest loop edge. Broad side view; do not show a receiver, stock or trigger, and keep the opening fully transparent. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "improvised-service-rifle",
+    "partId": "improvised-service-rifle-piston-carrier",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-d16b6246-44b3-41f1-bf34-a619541c79d9.png",
+    "sprite": "assets/sprites/weapon-parts/improvised-service-rifle-piston-carrier.png",
+    "prompt": "Use case: precise-object-edit. Correct this fictional game's isolated AK-pattern carrier-and-gas-piston sprite. Retain the same overall side composition, long rod ending in a piston head to the right, grey pixel-art steel and transparency. Correct only the left carrier: remove the impossible long downward hinged lever and all receiver-like plates, screws and sight bumps. A real AK carrier is a compact solid elongated metal slider with a rounded top and small straight integral charging nub sticking sideways, not a miniature receiver or hinge mechanism. Render a plain stepped dark grey carrier body at left with ONE SHORT horizontal charging nub, attached continuously to the long piston rod. No sights, screws, receiver walls, lever or separate linkage. No glow or shadow outside object. Crisp pixel art, genuine transparent background.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      256
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "compact-carbine",
+    "partId": "compact-carbine-charging-handle",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-2b54f046-19cd-4bc6-91e0-7bba444d1ed8.png",
+    "sprite": "assets/sprites/weapon-parts/compact-carbine-charging-handle.png",
+    "prompt": "Use case: stylized-concept. Asset type: unique transparent pixel-art game repair part. Approved weapon reference supplies style, exact physical identity and materials; create ONLY the specified separate component, not the weapon. Subject: A detached T-shaped rear charging handle, long narrow black channel ending in the broad shallow crossbar and small side latch. Compact retro AR finish in worn charcoal-grey with a silver edge line, matching the source carbine. Top-side oblique view to show T silhouette and thin depth. No wooden stock wrap added to this metal component; no receiver or bolt. Match Mouse Frontier warm detailed pixel-art inventory style, clean stepped silhouette, grouped purposeful shading, restrained wear; no fine grain, noise, gloss bloom or photorealism. One whole part centered, 80% canvas occupancy, transparent padding. Genuine transparent alpha, including all holes; NO cast shadow, haze, glow, background, checkerboard, text, logos, hands or body parts.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "rugged-submachine-gun",
+    "partId": "rugged-submachine-gun-top-cocking-bolt",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-322f9624-564c-4b2d-ab76-8f4618ad6c18.png",
+    "sprite": "assets/sprites/weapon-parts/rugged-submachine-gun-top-cocking-bolt.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Stockless Thompson M1927A5 / M1928 mechanical family. Create: A chunky rectangular Thompson-pattern steel bolt with cylindrical forward nose and a distinctive short top-mounted cocking knob. Match the source gun's black-brown iron, flat side planes and copper-brown worn highlights. One compact coherent assembly in side/top oblique view; no AK gas piston, no wooden receiver, no magazine or grip. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      512
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "patched-22-survival-rifle",
+    "partId": "patched-22-survival-rifle-rotary-magazine",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-eb6b24be-9a24-40b1-88aa-69ee7487812a.png",
+    "sprite": "assets/sprites/weapon-parts/patched-22-survival-rifle-rotary-magazine.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Ruger 10/22 Carbine / BX-1 rotary magazine. Create: A short squat rounded black rotary magazine block sized to sit flush in a 10/22 stock, subtly rounded lower face, small steel feed-lip cap and dark circular side hub. Match the source's worn practical finish. Three-quarter side/top inventory view; no long projecting stick or tube shape and no exposed ammunition. Wear is sparse warm brown at the bottom corners. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "improvised-556-rifle",
+    "partId": "improvised-556-rifle-patched-handguard",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-5ee2b7a9-0569-4de0-8dab-c4851a1aa552.png",
+    "sprite": "assets/sprites/weapon-parts/improvised-556-rifle-patched-handguard.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Patched M4 / AR-15 carbine. Create: One compact ribbed cylindrical M4 handguard unit, dark steel-black polymer shell with visible longitudinal seam, short front retaining lip, and the source rifle's brown timber splint plus narrow tan repair bands. Preserve chunky front-handguard proportions, not a full rifle. Broad side view tilted slightly upward; no barrel, receiver, magazine, hands or extra parts. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-long-barrel-revolver",
+    "partId": "frontier-long-barrel-revolver-blued-cylinder",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-b5b6232a-716f-46ae-8de5-9028ae6863ab.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-long-barrel-revolver-blued-cylinder.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Ruger New Model Single-Six long-barrel family. Create: A medium narrow six-chamber single-action revolver cylinder with long curved flutes and a compact rear ratchet boss, polished deep blue-black steel. Match source dark revolver finish with clean grey rim highlights, not the heavy Redhawk's wide mass. Oblique rear-side view, empty dark chambers and no ammunition. A single detached cylinder. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-22-lever-rifle",
+    "partId": "frontier-22-lever-rifle-takedown-lever",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-c4c1d480-45e0-48a9-b040-ffe63f9fc633.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-22-lever-rifle-takedown-lever.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Marlin Model 39A takedown; exact user-confirmed art identity. Create: One Marlin 39A-style curved finger lever following a pistol-grip wrist: asymmetrical rounded loop with visibly curved rear/top edge and short front pivot extension. Dark charcoal steel with bright silver edge highlights from the source rifle. Side profile, loop center transparent. Distinct from the straight-stock Henry loops; no stock, receiver, barrel or trigger. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-45-1911",
+    "partId": "frontier-45-1911-government-slide",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-057dd567-5ff8-4ca1-8507-3543121c70ca.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-45-1911-government-slide.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: M1911 Government / 1911A1. Create: One long straight satin-silver Government 1911 slide with rounded top, square rear, diagonal rear cocking serrations, tiny black rear notch and front blade. Broad side/top oblique view matching source two-tone pistol, with dark underside rail edge. Keep long Government proportions and barrel-bushing nose profile, but muzzle face hidden. No frame, hammer, barrel or grip. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      256
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-380-revolver",
+    "partId": "frontier-380-revolver-five-shot-cylinder",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-774eb028-5410-4228-ab6e-2133f04a7457.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-380-revolver-five-shot-cylinder.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Taurus Model 380 Ultra-Lite. Create: One short compact silver five-chamber cylinder, broad shallow flutes, narrow rear rim and small center axis boss. Bright satin stainless matching source snub revolver. Oblique side/rear view with exactly five empty chamber positions if rear face is shown. Smaller and shorter than the heavy revolver cylinders; no yoke or ejector rod bundle. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "frontier-long-22-target-pistol",
+    "partId": "frontier-long-22-target-pistol-slender-target-barrel",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-cfaedaa2-6922-4e1d-ad0c-dbd44d1a5cc8.png",
+    "sprite": "assets/sprites/weapon-parts/frontier-long-22-target-pistol-slender-target-barrel.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Colt Woodsman long-barrel Target family. Create: One long slender silver target barrel, a smooth thin round tube that tapers slightly toward its raised front sight, with a short wider breech shoulder. Preserve Woodsman thinness and source silver finish; no bull barrel, rail or vent rib. Side profile rising right and muzzle edge-on so bore is invisible. No slide, frame or wood grip. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      256
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "wood-stock-survival-carbine",
+    "partId": "wood-stock-survival-carbine-operating-slide",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-56950398-b64d-4beb-be00-dc36910f1585.png",
+    "sprite": "assets/sprites/weapon-parts/wood-stock-survival-carbine-operating-slide.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: U.S. M1 Carbine. Create: One M1-carbine operating slide: long thin offset steel action arm with a blocky shallow cup at the front and compact knob near the rear. Dark blue-grey steel with sparse silver rubbed edges matching the source military carbine. Broad side/top oblique view clarifies distinctive bent arm silhouette. No wood, magazine, barrel or AR-style charging crossbar. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      288
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      255
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  },
+  {
+    "weapon": "vintage-bolt-action-rifle",
+    "partId": "vintage-bolt-action-rifle-turned-down-bolt",
+    "generator": "built-in image_gen",
+    "generatedSource": "C:\\Users\\johnw\\.codex\\generated_images\\01a0fd06-93c9-74c1-a425-2f5790b95f21\\exec-ac291d07-301d-4ddc-beed-76e0f712a491.png",
+    "sprite": "assets/sprites/weapon-parts/vintage-bolt-action-rifle-turned-down-bolt.png",
+    "prompt": "Use case: stylized-concept. Asset type: a UNIQUE transparent game-inventory repair-part sprite, not a full weapon. The input image is the approved parent weapon, an identity/finish/style reference ONLY; ignore any checkerboard behind it. Weapon identity: Mauser Kar98k. Create: A long cylindrical silver-grey Mauser bolt body with dark front locking-lug head, stepped rear shroud, small flag safety and the distinctive turned-down side handle ending in a round knob. Match the source's aged steel and warm wear. Three-quarter side view; handle bends below the body, not a straight sporting handle. One grouped bolt, no stock. Pixel style must match the warm detailed inventory artwork: purposeful crisp stepped edges, clustered metallic shading with warm light, dark brown-black outlines, no photorealism, grain/noise or smooth rendered gradients. Exactly one complete part centered at 80% frame occupancy, clear padding, no cropping. In side views barrel front ends must be hidden/edge-on, no impossible visible muzzle opening. True transparent alpha everywhere outside the component, no grey checkerboard, cast shadow, haze or glow. No hands, body parts, text, logos, labels, bullets or extra props.",
+    "status": "accepted-after-visual-composite-review",
+    "importSize": [
+      512,
+      341
+    ],
+    "importMethod": "Proportional maximum 512px nearest-neighbor downscale; original alpha preserved.",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "transparentCorners": true,
+    "review": ".stabilization/firearm-parts-0-19-final-review.png",
+    "qualityNotes": "Complete unique component; inspected on cream and dark teal backgrounds; no visible halo, background patch, body parts or text. Parent weapon identity/material cues preserved."
+  }
+]

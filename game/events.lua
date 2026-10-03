@@ -1,5 +1,6 @@
 local Events = {}
 local LootProgression = require("game.loot_progression")
+local TrainAmbush = require("game.train_ambush_rules")
 
 local function C(label,hint,data)
     data=data or {}; data.label=label; data.hint=hint; return data
@@ -13,10 +14,10 @@ Events.storyStops={3,7,12,17,22,27,32,37,43,48}
 
 local definitions={
     battle={
-        E("battle","rail-bandits","RAIL BANDITS","Masked scavengers have chained scrap across the rails and demand your provisions.","battle-a",1,{
-            C("BREAK THE BLOCKADE","Fight for valuable gear; risk health and ammunition.",{battle=true,rewardQuality=2}),
-            C("PAY THE TOLL","Lose supplies, but avoid wounds.",{cost={food=2,coal=2}}),
-            C("CUT A SIDE PATH","Spend coal and arrive safely with a little salvage.",{cost={coal=3},reward={scrap=2}})}),
+        E("battle","rail-bandits","RAIL BANDITS","On the approach to the stop, an armored bandit pickup matches the train's speed beside the tracks.","train-ambush",1,{
+            C("FIGHT","Defend the carriage through its window. Requires a firearm and ammunition.",{trainAmbush="fight",unavailableLabel="NEED LOADED FIREARM"}),
+            C("HIDE","Spend 2 food and 2 water. Missing supplies cause train damage.",{trainAmbush="hide",fallback=true}),
+            C("PAY SCRAP","Pay 5 scrap to pass without combat.",{trainAmbush="pay",cost={scrap=TrainAmbush.bribe}})}),
         E("battle","tunnel-nest","NEST IN THE TUNNEL","Mutated creatures have nested between the sleepers inside a dark tunnel.","battle-a",2,{
             C("CLEAR THE NEST","Hard fight; strong weapon and ammunition rewards.",{battle=true,count=3,rewardQuality=3}),
             C("SMOKE THEM OUT","Spend coal and lose some health, but collect scrap.",{cost={coal=3,health=2},reward={scrap=5}}),
@@ -202,6 +203,15 @@ end
 
 function Events.random(data,EventBalance)
     Events.ensure(data)
+    -- Test saves may request one deterministic event without changing normal
+    -- journey odds. The flag is consumed by the event receipt at that stop.
+    if type(data.forceEventId)=="string" then
+        for _,pool in pairs(definitions) do
+            for _,event in ipairs(pool) do
+                if event.id==data.forceEventId then return event end
+            end
+        end
+    end
     local category=EventBalance.pickCategory(data.location,data.eventCategoryHistory,love.math.random())
     local pool=definitions[category]; local recent=data.eventHistory or {}; local event
     for _=1,8 do
@@ -234,7 +244,10 @@ local function applyValues(data,values,sign,TrainUpgradeBalance)
     end
 end
 
-function Events.canChoose(data,choice)
+function Events.canChoose(data,choice,catalog)
+    if choice and choice.trainAmbush=="fight" then
+        return TrainAmbush.canFight(data,catalog or require("game.catalog"))
+    end
     if choice and choice.fallback then return true end
     for name,amount in pairs((choice and choice.cost) or {}) do
         local available=name=="health" and data.health or (name=="scrap" and (data.scrap or 0) or data.resources[name])
@@ -290,7 +303,26 @@ end
 
 function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgradeBalance)
     local choice=event and event.choices[choiceIndex]; if not choice then return {} end
-    if not Events.canChoose(data,choice) then return {blocked=true} end
+    if not Events.canChoose(data,choice,catalog) then return {blocked=true} end
+    if event.id=="rail-bandits" and choice.trainAmbush then
+        Events.ensure(data)
+        if data.events[tostring(data.location)] then return {blocked=true} end
+        local summary
+        if choice.trainAmbush=="fight" then
+            TrainAmbush.start(data)
+        elseif choice.trainAmbush=="hide" then
+            summary=TrainAmbush.hide(data)
+        elseif choice.trainAmbush=="pay" then
+            data.scrap=data.scrap-TrainAmbush.bribe
+            summary="Paid "..TrainAmbush.bribe.." scrap. The pickup falls behind."
+        end
+        Events.record(data,event,choiceIndex)
+        local receipt=data.events[tostring(data.location)]
+        receipt.resolved=choice.trainAmbush~="fight"
+        receipt.outcome=choice.trainAmbush~="fight" and choice.trainAmbush or nil
+        data.forceEventId=nil
+        return {trainAmbush=choice.trainAmbush=="fight",notes={},summary=summary}
+    end
     applyValues(data,choice.cost,-1,TrainUpgradeBalance); applyValues(data,choice.reward,1,TrainUpgradeBalance)
     local notes={}
     if choice.loseItem then for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then notes[#notes+1]="lost "..data.inventory[i]; data.inventory[i]=nil; break end end end
