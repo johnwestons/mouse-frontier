@@ -14,6 +14,8 @@ local function new(context)
   local Catalog=required(context,"catalog","table")
   local Audio=required(context,"audio","table")
   local AudioCatalog=required(context,"audioCatalog","table")
+  local keepAudioOnFocusLoss=love and love.system and love.system.getOS
+      and love.system.getOS()=="Android" or false
   local audio
   local departSource
   ui.menuSettings=ui.menuSettings or {}
@@ -131,6 +133,9 @@ local function new(context)
       local current=settings()
       if not audio or not current then return true end
       if not focused then departSource=nil; ui.departSource=nil end
+      -- Android can report focus loss when screen-recorder controls open.
+      -- Keep sources playing so the recorder can capture the game's audio.
+      if not focused and keepAudioOnFocusLoss then return true end
       return focused and audio:resume(current) or audio:suspend(current)
   end
 
