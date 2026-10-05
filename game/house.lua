@@ -67,51 +67,56 @@ end
 
 function House.rollLoot(data,catalog,location)
     data.lootRolls=data.lootRolls or {}; local key=tostring(location)..":"..tostring(data.activeHouseDoor or 1)
+    local houseDoor=data.activeHouseDoor or 1
+    local newHouse=not data.lootRolls[key]
     if not data.lootRolls[key] then
         House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"food",location),location)
         House.storeLoot(data,catalog,LootProgression.rollSupply(catalog,"water",location),location)
-        local rolls=love.math.random(2,4)+(location%10==0 and 1 or 0)
-        for _=1,rolls do
-            local item=LootProgression.rollItem(catalog,location,{weaponChance=.12})
-            if item then House.storeLoot(data,catalog,item,location) end
-        end
-        if location%5==0 and (data.activeHouseDoor or 1)==1 then
+        local item=LootProgression.rollItem(catalog,location,{allowWeapon=false})
+        if item then House.storeLoot(data,catalog,item,location) end
+        -- A weapon marks a new route tier, rather than appearing in ordinary
+        -- container rolls throughout every stop.
+        if location>1 and (location-1)%6==0 and houseDoor==1 then
             local milestone=LootProgression.rollWeapon(catalog,location,"uncommon")
             if milestone then House.storeLoot(data,catalog,milestone,location) end
         end
         data.lootRolls[key]=true
     end
-    -- A separate version marker lets already-visited houses gain this added
-    -- curiosity layer once, without rerolling their existing supplies/weapons.
+    -- One household find adds variety without filling every container with
+    -- several low-value curiosities.
     local householdKey="household:2:"..key
     if not data.lootRolls[householdKey] then
-        for _=1,2 do
-            local rarity=LootProgression.rollRarity(location)
-            local item=HouseholdItems.roll(rarity,catalog.householdItemPools)
-            if item then House.storeLoot(data,catalog,item,location) end
-        end
+        local rarity=LootProgression.itemRarityAt(location,LootProgression.rollRarity(location))
+        local item=HouseholdItems.roll(rarity,catalog.householdItemPools)
+        if item then House.storeLoot(data,catalog,item,location) end
         data.lootRolls[householdKey]=true
     end
-    -- Add the repair-component salvage layer once per visited house. It is
-    -- uncommon overall, but when a critically damaged weapon needs a part,
-    -- successful finds are strongly biased toward a compatible assembly.
+    -- Only the first home at a stop can hold a repair part, and only when the
+    -- player owns a critically damaged weapon that is missing its exact part.
     local repairKey="repair-parts:1:"..key
     if not data.lootRolls[repairKey] then
-        if love.math.random()<.14 then
-            local part=LootProgression.rollRepairPart(data,catalog,location)
+        if houseDoor==1 and love.math.random()<.30 then
+            local part=LootProgression.rollRepairPart(data,catalog,location,nil,{targetedOnly=true})
             if part then House.storeLoot(data,catalog,part,location) end
         end
         data.lootRolls[repairKey]=true
     end
-    -- Each house, including a house visited in an older save, receives one
-    -- sewing cache. Existing loot and furniture stay in place.
+    -- New homes add one route-tier crafting material at the first house of a
+    -- stop. Older visited homes keep the original one-time cache migration.
     local outfitKey="outfit-materials:1:"..key
     if not data.lootRolls[outfitKey] then
-        for _,name in ipairs({"thread-spool","fabric-scraps"}) do
-            if catalog.craftMaterials and catalog.craftMaterials[name] then House.storeLoot(data,catalog,name,location) end
+        if newHouse then
+            if houseDoor==1 then
+                local material=LootProgression.rollCraftMaterial(catalog,location)
+                if material then House.storeLoot(data,catalog,material,location) end
+            end
+        else
+            for _,name in ipairs({"thread-spool","fabric-scraps"}) do
+                if catalog.craftMaterials and catalog.craftMaterials[name] then House.storeLoot(data,catalog,name,location) end
+            end
+            local material=LootProgression.rollCraftMaterial(catalog,location)
+            if material then House.storeLoot(data,catalog,material,location) end
         end
-        local material=LootProgression.rollCraftMaterial(catalog,location)
-        if material then House.storeLoot(data,catalog,material,location) end
         data.lootRolls[outfitKey]=true
     end
 end

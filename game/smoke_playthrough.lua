@@ -283,7 +283,8 @@ local function install(context)
             {name="loot_equipment_balance",action=lootBalanceAudit,
                 check=function(_,_,_,result)
                     return result.ready and result.valid and result.weaponCount==83 and result.familyCount>=6
-                        and result.statusProfiles>=12 and result.damageReady and result.curve=="loot-v3"
+                        and result.statusProfiles>=12 and result.damageReady and result.curve=="loot-v4"
+                        and result.itemTimingReady
                         and result.brokenMultiplier==0 and result.repairCost>0
                         and result.repair and result.repair.ready and result.repair.compatibleWeapons
                         and result.repair.missingPartBlocks and result.repair.partConsumed

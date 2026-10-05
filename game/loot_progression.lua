@@ -3,6 +3,14 @@ local LootProgression = {}
 LootProgression.rarityOrder={"common","uncommon","rare","legendary"}
 LootProgression.rarityRank={common=1,uncommon=2,rare=3,legendary=4}
 LootProgression.ammoUnlockTier={rocks=1,arrows=1,["ball-bearings"]=1,["22lr"]=3,["32-acp"]=3,["380-acp"]=4,["9mm"]=4,["45-cal"]=5,["30-carbine"]=5,["12-gauge"]=6,["556"]=7,["762x39"]=8,["8mm"]=8}
+LootProgression.itemRarityUnlockTier={common=1,uncommon=1,rare=3,legendary=6}
+LootProgression.itemUnlockTier={
+    ["patched-canvas-pack"]=2,["compact-sling-pack"]=2,["black-sling-pack"]=3,
+    ["bedroll-hiking-pack"]=4,["red-leather-pack"]=5,["weathered-leather-pack"]=6,
+    ["frontier-leather-pack"]=7,["scavenger-frame-pack"]=9,
+    ["medium-oil-canister"]=3,["large-oil-canister"]=6,
+    ["emergency-syringe-case"]=9,
+}
 LootProgression.materialUnlockTier={
     ["thread-spool"]=1,["fabric-scraps"]=1,["wool-batting"]=1,
     ["canvas-bundle"]=2,["leather-pieces"]=2,["waxed-thread"]=2,["metal-sheet"]=3,
@@ -51,6 +59,18 @@ function LootProgression.rollRarity(location,minimum,rng)
     return LootProgression.rarityOrder[math.max(LootProgression.rarityRank[rolled],math.max(1,math.min(4,minimumRank)))]
 end
 
+function LootProgression.itemRarityAt(location,rarity)
+    local tier=LootProgression.locationTier(location)
+    local rank=LootProgression.rarityRank[rarity] or 1
+    local maximum=1
+    for _,candidate in ipairs(LootProgression.rarityOrder) do
+        if tier>=(LootProgression.itemRarityUnlockTier[candidate] or 1) then
+            maximum=LootProgression.rarityRank[candidate]
+        end
+    end
+    return LootProgression.rarityOrder[math.min(rank,maximum)]
+end
+
 local function weaponCandidates(catalog,tier)
     local result={}
     for name,stats in pairs(catalog.weaponStats or {}) do
@@ -77,9 +97,41 @@ function LootProgression.rollWeapon(catalog,location,minimum,rng)
     return choice(candidates,rng),rarity,target
 end
 
+local function supplyMaximum(kind,tier)
+    return kind=="food" and math.min(5,2+math.floor((tier-1)/2)) or math.min(7,3+math.floor((tier-1)/2))
+end
+
+local function medicalMaximum(tier)
+    return ({5,8,8,12,12,12,12,14,99})[tier] or 99
+end
+
+local function itemAvailable(catalog,name,location)
+    local tier=LootProgression.locationTier(location)
+    local unlockTier=LootProgression.itemUnlockTier[name]
+    if catalog.ammoPickupAmounts and catalog.ammoPickupAmounts[name] then
+        unlockTier=LootProgression.ammoUnlockTier[name] or 9
+    elseif catalog.craftMaterials and catalog.craftMaterials[name] then
+        local definition=catalog.craftMaterials[name]
+        unlockTier=definition.unlockTier or LootProgression.materialUnlockTier[name] or 1
+    end
+    if unlockTier and tier<unlockTier then return false end
+
+    local rarity=catalog.rarityFor and catalog.rarityFor(name) or (catalog.itemRarity or {})[name]
+    if tier<(LootProgression.itemRarityUnlockTier[rarity] or 1) then return false end
+
+    local effect=(catalog.itemEffects or {})[name]
+    if effect then
+        for _,kind in ipairs({"food","water"}) do
+            if effect[kind] and effect[kind]>supplyMaximum(kind,tier) then return false end
+        end
+        if effect.health and effect.health>medicalMaximum(tier) then return false end
+    end
+    return true
+end
+
 local function supplyCandidates(catalog,kind,location)
     local result={}; local tier=LootProgression.locationTier(location)
-    local maximum=kind=="food" and math.min(5,2+math.floor((tier-1)/2)) or math.min(7,3+math.floor((tier-1)/2))
+    local maximum=supplyMaximum(kind,tier)
     for name,effect in pairs(catalog.itemEffects or {}) do
         local value=effect[kind]
         if value and not effect.potion and value<=maximum then result[#result+1]=name end
@@ -107,16 +159,24 @@ function LootProgression.rollItem(catalog,location,options)
         local weapon=LootProgression.rollWeapon(catalog,location,rarity,rng)
         if weapon then return weapon,rarity,"weapon" end
     end
-    local pool=catalog.lootPools[rarity]
-    return choice(pool,rng),rarity,"item"
+    local firstRank=LootProgression.rarityRank[LootProgression.itemRarityAt(location,rarity)] or 1
+    for rank=firstRank,1,-1 do
+        local candidateRarity=LootProgression.rarityOrder[rank]
+        local candidates={}
+        for _,name in ipairs(catalog.lootPools[candidateRarity] or {}) do
+            if itemAvailable(catalog,name,location) then candidates[#candidates+1]=name end
+        end
+        if #candidates>0 then return choice(candidates,rng),candidateRarity,"item" end
+    end
+    return nil,rarity,"item"
 end
 
 function LootProgression.rollMedical(catalog,location,minimum,rng)
-    local rarity=LootProgression.rollRarity(location,minimum,rng)
-    local maximum=({common=5,uncommon=8,rare=12,legendary=99})[rarity]
+    local rarity=LootProgression.itemRarityAt(location,LootProgression.rollRarity(location,minimum,rng))
+    local maximum=math.min(({common=5,uncommon=8,rare=12,legendary=99})[rarity],medicalMaximum(LootProgression.locationTier(location)))
     local candidates={}
     for name,effect in pairs(catalog.itemEffects or {}) do
-        if effect.health and not effect.potion and effect.health<=maximum then candidates[#candidates+1]=name end
+        if effect.health and not effect.potion and effect.health<=maximum and itemAvailable(catalog,name,location) then candidates[#candidates+1]=name end
     end
     table.sort(candidates); return choice(candidates,rng),rarity
 end
@@ -319,7 +379,8 @@ function LootProgression.repairEquipped(data,catalog)
     return {ok=false,reason="workbench",status=LootProgression.repairStatus(data,catalog)}
 end
 
-function LootProgression.rollRepairPart(data,catalog,location,rng)
+function LootProgression.rollRepairPart(data,catalog,location,rng,options)
+    options=options or {}
     local all={}
     for name,part in pairs(catalog.repairParts or {}) do
         if LootProgression.repairPartFor(catalog,part.weapon)==name then all[#all+1]=name end
@@ -338,7 +399,11 @@ function LootProgression.rollRepairPart(data,catalog,location,rng)
             if part and not hasParts[part] then targeted[#targeted+1]=part end
         end
     end
-    if #targeted>0 and randomFloat(rng)<.72 then return choice(targeted,rng),"targeted" end
+    if #targeted>0 then
+        if options.targetedOnly then return choice(targeted,rng),"targeted" end
+        if randomFloat(rng)<.72 then return choice(targeted,rng),"targeted" end
+    end
+    if options.targetedOnly then return nil end
     local tier=LootProgression.locationTier(location)
     -- Component rarities rise at weapon tiers 3, 6 and 9. The final tier
     -- must also unlock legendary parts before the player owns that weapon.
@@ -427,12 +492,19 @@ function LootProgression.validate(catalog)
         if not catalog.miscItems[name] then errors[#errors+1]="craft material missing inventory definition: "..name end
         if not material.label or not material.description or not material.icon then errors[#errors+1]="craft material has incomplete metadata: "..name end
     end
+    for name,tier in pairs(LootProgression.itemUnlockTier) do
+        if not catalog.itemRarity[name] then errors[#errors+1]="item unlock has no rarity profile: "..name end
+        if type(tier)~="number" or tier<1 or tier>9 then errors[#errors+1]="item unlock tier out of range: "..name end
+    end
     for _,pool in pairs(catalog.lootPools or {}) do
         for _,name in ipairs(pool) do
             if catalog.outfitUpgrades and catalog.outfitUpgrades[name] then errors[#errors+1]="crafted upgrade in random loot pool: "..name end
         end
     end
-    for name in pairs(catalog.ammoPickupAmounts or {}) do if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end end
+    for name in pairs(catalog.ammoPickupAmounts or {}) do
+        if not catalog.itemRarity[name] then errors[#errors+1]="ammunition missing rarity: "..name end
+        if not LootProgression.ammoUnlockTier[name] then errors[#errors+1]="ammunition missing route unlock: "..name end
+    end
     for name,combat in pairs(catalog.weaponCombat or {}) do
         if combat.ammo and not catalog.ammoPickupAmounts[combat.ammo] then errors[#errors+1]="weapon ammunition has no pickup: "..name.." -> "..combat.ammo end
         local stats=catalog.weaponStats[name]
@@ -461,6 +533,12 @@ function LootProgression.audit(catalog)
         previous=average
     end
     local early,late=LootProgression.rarityWeights(1),LootProgression.rarityWeights(50)
+    local itemTimingReady=LootProgression.itemRarityAt(1,"legendary")=="uncommon"
+        and LootProgression.itemRarityAt(13,"legendary")=="rare"
+        and LootProgression.itemRarityAt(31,"legendary")=="legendary"
+        and not itemAvailable(catalog,"9mm",1) and itemAvailable(catalog,"9mm",19)
+        and not itemAvailable(catalog,"food-ration",1) and itemAvailable(catalog,"food-ration",13)
+        and not itemAvailable(catalog,"scavenger-frame-pack",48) and itemAvailable(catalog,"scavenger-frame-pack",49)
     local repairData={equipment={"frontier-short-sword"},weaponDurability={["frontier-short-sword"]=40},scrap=20}
     local repair=LootProgression.completeRepair(repairData,catalog,"frontier-short-sword","perfect")
     local repairFlow=LootProgression.repairAudit(catalog)
@@ -468,14 +546,14 @@ function LootProgression.audit(catalog)
     local ready=valid and weaponCount==83 and familyCount>=6 and statusProfiles>=12 and damageReady and early.common>late.common and late.rare>early.rare
         and LootProgression.itemPrice(catalog,"frontier-longsword")>LootProgression.itemPrice(catalog,"trail-slingshot")
         and LootProgression.itemPrice(catalog,"rose-heart-arrow")>LootProgression.itemPrice(catalog,"food-ration")
-        and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100 and repairFlow.ready
+        and broken.multiplier==0 and repair.ok and repairData.weaponDurability["frontier-short-sword"]==100 and repairFlow.ready and itemTimingReady
         and LootProgression.resalePrice(catalog,"frontier-short-sword",25)<LootProgression.resalePrice(catalog,"frontier-short-sword",100)
     return {ready=ready,valid=valid,errors=errors,weaponCount=weaponCount,tierCounts=tierCounts,damageReady=damageReady,familyCount=familyCount,statusProfiles=statusProfiles,
         earlyWeights=early,lateWeights=late,brokenMultiplier=broken.multiplier,repairCost=repair.cost,
-        repair=repairFlow,
+        repair=repairFlow,itemTimingReady=itemTimingReady,
         commonPrice=LootProgression.itemPrice(catalog,"food-ration"),legendaryPrice=LootProgression.itemPrice(catalog,"rose-heart-arrow"),
         starterWeaponPrice=LootProgression.itemPrice(catalog,"trail-slingshot"),lateWeaponPrice=LootProgression.itemPrice(catalog,"frontier-longsword"),
-        wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v3"}
+        wornResale=LootProgression.resalePrice(catalog,"frontier-short-sword",25),soundResale=LootProgression.resalePrice(catalog,"frontier-short-sword",100),curve="loot-v4"}
 end
 
 function LootProgression.repairAudit(catalog)

@@ -4,7 +4,7 @@ Mouse Frontier uses `game/loot_progression.lua` as the shared desktop and Androi
 
 ## Route progression
 
-The 50-stop route is divided into nine equipment tiers, advancing every six stops. The catalog contains 65 playable weapons across all nine tiers. Automated validation requires every tier to be populated and each tier's average base damage to exceed the previous tier.
+The 50-stop route is divided into nine equipment tiers, advancing every six stops. The catalog contains 83 playable weapons across all nine tiers. Automated validation requires every tier to be populated and each tier's average base damage to exceed the previous tier.
 
 | Route point | Common | Uncommon | Rare | Legendary |
 | --- | ---: | ---: | ---: | ---: |
@@ -12,6 +12,14 @@ The 50-stop route is divided into nine equipment tiers, advancing every six stop
 | Stop 50 | 35.0% | 40.0% | 23.8% | 1.2% |
 
 Rare rolls can reach weapons above the current route tier, while common rolls stay near it. Trade stock always includes supplies, ordinary loot, improved loot, and at least an uncommon weapon roll.
+
+Standard item rarity unlocks by route tier: common and uncommon items are available from tier 1, rare items from tier 3, and legendary items from tier 6. Item-specific unlocks can delay an item further. Ammunition uses its own unlock tier; food, water, and healing items are also limited by their effect size. Weapon rolls retain their separate tier-based progression and can still reach above the current route tier on rare rolls.
+
+## Home containers
+
+Each newly visited home receives four ordinary finds: one food item, one water item, one route-eligible general item, and one household curiosity. Only the first home at a stop receives one crafting material. A weapon appears in that first home only at a route-tier transition (stops 7, 13, 19, 25, 31, 37, 43, and 49). The first home has a 30% repair-part chance only when the player owns a critically damaged weapon and lacks its matching part. Repair finds never target an unowned weapon.
+
+This caps normal homes at four items and the first home at five, with the occasional weapon or needed repair part as a bonus. Homes already marked as looted keep their contents. Older saves missing the one-time sewing-cache marker still receive the existing cache migration; the new schedule applies to unvisited homes and new saves.
 
 ## Purchase and resale value
 
@@ -39,4 +47,4 @@ The train workshop repairs the most damaged equipped weapon to 100%. Repair cost
 
 ## Ammunition safety
 
-Every ranged weapon's ammunition type must exist as a pickup, and each ammunition type must unlock no later than the first weapon that needs it. The deterministic loot audit rejects catalog changes that violate either rule.
+Every ranged weapon's ammunition type must exist as a pickup, and each ammunition type must unlock no later than the first weapon that needs it. The deterministic loot audit rejects missing ammo unlocks and checks that high-rarity gear, advanced ammo, and large supplies stay within their route unlocks.
