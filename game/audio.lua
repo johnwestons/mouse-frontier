@@ -65,6 +65,7 @@ function Audio.new(dependencies)
         lastError=nil,nowPlaying=nil,history={},historyPosition={},shuffleBags={},rainFiles={},
         failedMusic={},failedRain={},unavailableCategories={},rainUnavailable=false,
         sfxCache={},activeSfx={},suspended=false,resumeMusic=false,resumeRain=false,
+        androidOutputNeedsRecovery=false,androidResumeMusic=false,androidResumeRain=false,
     },Audio)
     for _,category in ipairs(catalog.musicCategories) do
         self.musicFiles[category]=catalog.canonicalMusicFiles(filesIn(filesystem,"sounds/music/"..category))
@@ -310,6 +311,61 @@ function Audio:suspend(_settings)
     return true
 end
 
+function Audio:markAndroidOutputInterrupted()
+    if self.androidOutputNeedsRecovery then return true end
+    self.androidOutputNeedsRecovery=true
+    local musicOk,musicPlaying=safeCall(self.music,"isPlaying")
+    local rainOk,rainPlaying=safeCall(self.rain,"isPlaying")
+    self.androidResumeMusic=musicOk and musicPlaying==true or false
+    self.androidResumeRain=rainOk and rainPlaying==true or false
+    return true
+end
+
+local function recreateStream(self,old,path,settings,volume,looping,shouldPlay)
+    if not old or not path then return old,true end
+    local tellOk,position=safeCall(old,"tell")
+    local source=loadSource(self,path,"stream")
+    if not source then return old,false end
+    local ok,message=pcall(function()
+        source:setLooping(looping)
+        source:setVolume(volume(settings))
+        if tellOk and type(position)=="number" and position>0 then source:seek(position) end
+        if shouldPlay then source:play() end
+    end)
+    if not ok then
+        stopAndRelease(source)
+        report(self,"Could not recover "..path.." after Android audio interruption: "..tostring(message))
+        return old,false
+    end
+    stopAndRelease(old)
+    return source,true
+end
+
+function Audio:recoverAndroidOutput(settings)
+    if not self.androidOutputNeedsRecovery then return true end
+    self:cleanupSfx(true)
+    for _,source in pairs(self.sfxCache) do stopAndRelease(source) end
+    self.sfxCache={}
+    local musicOk,rainOk=true,true
+    if self.androidResumeMusic and self.music and self.nowPlaying then
+        local recovered
+        recovered,musicOk=recreateStream(self,self.music,self.nowPlaying,settings,
+            function(current) return self:musicVolume(current) end,
+            self.catalog.shouldLoopMusic(self.category),not settings.musicPaused)
+        if musicOk then self.music=recovered end
+    end
+    if self.androidResumeRain and self.rain and self.rainPath then
+        local recovered
+        recovered,rainOk=recreateStream(self,self.rain,self.rainPath,settings,
+            function(current) return self:rainVolume(current) end,true,settings.rainEnabled)
+        if rainOk then self.rain=recovered end
+    end
+    self.androidOutputNeedsRecovery=not (musicOk and rainOk)
+    if musicOk then self.androidResumeMusic=false end
+    if rainOk then self.androidResumeRain=false end
+    return musicOk and rainOk
+end
+
 function Audio:resume(settings)
     if not self.suspended then return true end
     self.suspended=false
@@ -324,6 +380,7 @@ function Audio:shutdown()
     for _,source in pairs(self.sfxCache) do stopAndRelease(source) end
     self.music,self.rain,self.rainPath,self.arrivalSource=nil,nil,nil,nil
     self.sfxCache={}; self.suspended=false
+    self.androidOutputNeedsRecovery=false; self.androidResumeMusic,self.androidResumeRain=false,false
 end
 
 return Audio

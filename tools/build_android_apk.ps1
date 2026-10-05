@@ -206,6 +206,25 @@ public class GameActivity extends SDLActivity {
     }
     [System.IO.File]::WriteAllText($gameActivityPath,$gameActivity,[System.Text.UTF8Encoding]::new($false))
 
+    # Oboe 1.4.3 closes a disconnected AAudio stream but the bundled OpenAL
+    # backend does not reopen it. Samsung's screen recorder can disconnect the
+    # stream while the game activity stays foregrounded, leaving all game audio
+    # silent until restart. Reconnect the stream in Oboe's post-close callback.
+    $oboeBackendPath = Join-Path $loveAndroidRoot 'love\src\jni\openal-soft\alc\backends\oboe.cpp'
+    $oboeRecoveryMarker = 'MOUSE_FRONTIER_OBOE_DISCONNECT_RECOVERY'
+    $oboeBackend = [System.IO.File]::ReadAllText($oboeBackendPath,[System.Text.Encoding]::UTF8)
+    if ($oboeBackend -notmatch $oboeRecoveryMarker) {
+        $oboeRecoveryPatch = Join-Path $projectRoot 'mobile\android\openal-oboe-recovery.patch'
+        if (-not (Test-Path -LiteralPath $oboeRecoveryPatch)) { throw 'Missing Android Oboe recovery patch' }
+        $gitExecutable = (Get-Command git -ErrorAction Stop).Source
+        & $gitExecutable -C $loveAndroidRoot apply --check --ignore-whitespace $oboeRecoveryPatch
+        if ($LASTEXITCODE -ne 0) { throw 'Android Oboe recovery patch no longer applies to the pinned LÖVE checkout' }
+        & $gitExecutable -C $loveAndroidRoot apply --ignore-whitespace $oboeRecoveryPatch
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to apply Android Oboe stream recovery patch' }
+        $oboeBackend = [System.IO.File]::ReadAllText($oboeBackendPath,[System.Text.Encoding]::UTF8)
+    }
+    if ($oboeBackend -notmatch $oboeRecoveryMarker) { throw 'Android Oboe stream recovery patch marker is missing' }
+
     $embedAssets = Join-Path $loveAndroidRoot 'app\src\embed\assets'
     New-Item -ItemType Directory -Force -Path $embedAssets | Out-Null
     Copy-Item -LiteralPath $resolvedPackage -Destination (Join-Path $embedAssets 'game.love') -Force

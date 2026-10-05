@@ -9,4 +9,5 @@
         android:name="android.hardware.touchscreen"
         android:required="true"
         tools:replace="android:required" />
+    <application android:allowAudioPlaybackCapture="true" />
 </manifest>

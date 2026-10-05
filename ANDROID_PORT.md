@@ -4,14 +4,15 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.27` (`versionCode` 27) was packaged October 5, 2026 from clean source commit `4e9498a` and installed on the connected Android phone.
+Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 from source commit `8c2c195` plus the audio recovery changes in this working tree.
 
-- APK: `output/mobile/MouseFrontier-0.7.0-mobile.27-debug.apk`
-- Android focus loss no longer pauses game audio, allowing audio to continue when screen-recorder controls take focus. Desktop focus loss still suspends playback.
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.29-debug.apk`
+- Device logs from a live Samsung screen recording showed Android disconnecting the game's Oboe/AAudio output stream at recording start without changing focus. The Android Oboe backend now reopens that stream after disconnection, preserving the active OpenAL device and its sources. Lua also rebuilds music/rain sources on Android focus return, and the manifest explicitly allows playback capture. Desktop focus loss still suspends playback.
 - Outfit-crafting frames derive their bounds from the decoded sheet, so phone-sized art stays within the image. The title screen shuffles all 25 sprite scenes into a no-repeat round; its side bays begin with different scenes and alternate new scenes every 18 seconds.
-- Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 107 save operations, 15 kills, and 180 seconds of simulated defense. Four focused audio tests passed, including Android playback-through-focus-loss and desktop suspend/resume behavior.
-- The APK's application ID, version, debug signature, three processor architectures, and embedded `.love` archive hash were verified. Device acceptance confirmed version 27 and the Mouse Frontier first-frame startup marker, then kept the game running for more than 20 seconds.
-- The user-authorized wipe removed the existing slot 1 save. Control-layout and UI-layout settings were retained; no backup was made.
+- Focused audio tests: 7 passed, covering Android playback through focus loss, source recreation at saved track positions, native recovery patch wiring, capture permission, and desktop suspend/resume.
+- Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 108 save operations, 15 kills, and 180 seconds of simulated defense.
+- The APK's application ID, version, debug signature, three processor architectures, embedded `.love` archive hash, and `allowAudioPlaybackCapture` manifest value were verified. Native Android compilation and package checks passed.
+- Installation and patched screen-recorder verification are pending: the phone disconnected from ADB during the build. Build 28 remains installed; its live recording failure was reproduced in the Android logs.
 - Manual touch-comfort, visual, and performance review remain open beyond the automated startup check.
 
 ## Build 15 backpack button

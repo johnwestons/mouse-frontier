@@ -25,11 +25,13 @@ class AudioFocusRuntimeTests(unittest.TestCase):
 
             local function checkPlatform(osName,shouldKeepAudio)
                 love={system={getOS=function() return osName end}}
-                local engine={suspended=false,playCount=0,updateCount=0}
+                local engine={suspended=false,playCount=0,updateCount=0,recoveryCount=0,interruptionCount=0}
                 function engine:installGunPools() end
                 function engine:shutdown() end
                 function engine:suspend() self.suspended=true; return true end
                 function engine:resume() self.suspended=false; return true end
+                function engine:markAndroidOutputInterrupted() self.interruptionCount=self.interruptionCount+1; return true end
+                function engine:recoverAndroidOutput() self.recoveryCount=self.recoveryCount+1; return true end
                 function engine:update() if not self.suspended then self.updateCount=self.updateCount+1 end end
                 function engine:playSfx() if not self.suspended then self.playCount=self.playCount+1 end end
                 local Audio={new=function() return engine end}
@@ -42,12 +44,14 @@ class AudioFocusRuntimeTests(unittest.TestCase):
                 audioRuntime.initialize()
                 audioRuntime.focus(false)
                 assert(engine.suspended~=shouldKeepAudio,"unexpected focus-loss audio policy on "..osName)
+                assert(engine.interruptionCount==(shouldKeepAudio and 1 or 0),"unexpected interruption tracking on "..osName)
                 audioRuntime.update()
                 audioRuntime.playSfx("menu")
                 local expected=shouldKeepAudio and 1 or 0
                 assert(engine.updateCount==expected and engine.playCount==expected,"unexpected playback on "..osName)
                 audioRuntime.focus(true)
                 assert(not engine.suspended,"focus gain left audio suspended on "..osName)
+                assert(engine.recoveryCount==(shouldKeepAudio and 1 or 0),"unexpected output recovery on "..osName)
                 audioRuntime.shutdown()
             end
 

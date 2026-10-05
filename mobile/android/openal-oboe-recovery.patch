@@ -1,0 +1,88 @@
+diff --git a/love/src/jni/openal-soft/alc/backends/oboe.cpp b/love/src/jni/openal-soft/alc/backends/oboe.cpp
+index f4a9877..556b19b 100644
+--- a/love/src/jni/openal-soft/alc/backends/oboe.cpp
++++ b/love/src/jni/openal-soft/alc/backends/oboe.cpp
+@@ -5,6 +5,8 @@
+ 
+ #include <cassert>
+ #include <cstring>
++#include <exception>
++#include <mutex>
+ 
+ #include "alu.h"
+ #include "logging.h"
+@@ -21,6 +23,9 @@ struct OboePlayback final : public BackendBase, public oboe::AudioStreamCallback
+     OboePlayback(ALCdevice *device) : BackendBase{device} { }
+ 
+     oboe::ManagedStream mStream;
++    std::mutex mStreamMutex;
++    bool mStreamStarted{false};
++    bool mShuttingDown{false};
+ 
+     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *oboeStream, void *audioData,
+         int32_t numFrames) override;
+@@ -29,6 +34,7 @@ struct OboePlayback final : public BackendBase, public oboe::AudioStreamCallback
+     bool reset() override;
+     void start() override;
+     void stop() override;
++    void onErrorAfterClose(oboe::AudioStream *oboeStream, oboe::Result error) override;
+ };
+ 
+ 
+@@ -201,20 +207,56 @@ bool OboePlayback::reset()
+ 
+ void OboePlayback::start()
+ {
++    std::lock_guard<std::mutex> lock{mStreamMutex};
++    mShuttingDown = false;
+     const oboe::Result result{mStream->start()};
+     if(result != oboe::Result::OK)
+         throw al::backend_exception{ALC_INVALID_DEVICE, "Failed to start stream: %s",
+             oboe::convertToText(result)};
++    mStreamStarted = true;
+ }
+ 
+ void OboePlayback::stop()
+ {
++    std::lock_guard<std::mutex> lock{mStreamMutex};
++    mShuttingDown = true;
++    mStreamStarted = false;
++    if(!mStream)
++        return;
+     oboe::Result result{mStream->stop()};
++    if(result == oboe::Result::ErrorDisconnected || result == oboe::Result::ErrorClosed)
++        return;
+     if(result != oboe::Result::OK)
+         throw al::backend_exception{ALC_INVALID_DEVICE, "Failed to stop stream: %s",
+             oboe::convertToText(result)};
+ }
+ 
++// MOUSE_FRONTIER_OBOE_DISCONNECT_RECOVERY
++void OboePlayback::onErrorAfterClose(oboe::AudioStream *, oboe::Result error)
++{
++    std::lock_guard<std::mutex> lock{mStreamMutex};
++    if(error != oboe::Result::ErrorDisconnected || mShuttingDown || !mStreamStarted)
++        return;
++
++    /* Oboe closed the disconnected stream. Reopen it without rebuilding the
++     * OpenAL device so active sources keep their playback state. */
++    mStream.reset();
++    try
++    {
++        reset();
++        const oboe::Result result{mStream->start()};
++        if(result != oboe::Result::OK)
++            throw al::backend_exception{ALC_INVALID_DEVICE, "Failed to restart stream after disconnect: %s",
++                oboe::convertToText(result)};
++        TRACE("Recovered Oboe output stream after disconnect");
++    }
++    catch(const std::exception &exception)
++    {
++        mStreamStarted = false;
++        WARN("Could not recover Oboe output stream after disconnect: %s", exception.what());
++    }
++}
++
+ } // namespace
+ 
+ bool OboeBackendFactory::init() { return true; }
