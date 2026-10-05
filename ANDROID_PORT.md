@@ -4,7 +4,7 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 from source commit `8c2c195` plus the audio recovery changes in this working tree.
+Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 with the audio recovery changes committed in `2de25cb`.
 
 - APK: `output/mobile/MouseFrontier-0.7.0-mobile.29-debug.apk`
 - Device logs from a live Samsung screen recording showed Android disconnecting the game's Oboe/AAudio output stream at recording start without changing focus. The Android Oboe backend now reopens that stream after disconnection, preserving the active OpenAL device and its sources. Lua also rebuilds music/rain sources on Android focus return, and the manifest explicitly allows playback capture. Desktop focus loss still suspends playback.
@@ -12,7 +12,7 @@ Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 from sou
 - Focused audio tests: 7 passed, covering Android playback through focus loss, source recreation at saved track positions, native recovery patch wiring, capture permission, and desktop suspend/resume.
 - Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 108 save operations, 15 kills, and 180 seconds of simulated defense.
 - The APK's application ID, version, debug signature, three processor architectures, embedded `.love` archive hash, and `allowAudioPlaybackCapture` manifest value were verified. Native Android compilation and package checks passed.
-- Installation and patched screen-recorder verification are pending: the phone disconnected from ADB during the build. Build 28 remains installed; its live recording failure was reproduced in the Android logs.
+- Installed in place on the Galaxy S25 Ultra (`SM-S938U`) on October 5, 2026. The installed version and cold startup were verified. During a live Samsung screen recording, Android disconnected the game's original output stream; the patched backend opened a new one within 0.14 seconds. Android reported the new player as started, and the user confirmed the game audio played during recording and after it stopped without restarting the game. The app process and audio stream remained active, with no Lua error in the device log.
 - Manual touch-comfort, visual, and performance review remain open beyond the automated startup check.
 
 ## Build 15 backpack button
