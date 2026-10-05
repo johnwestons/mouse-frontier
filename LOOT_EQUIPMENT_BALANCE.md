@@ -19,7 +19,9 @@ Standard item rarity unlocks by route tier: common and uncommon items are availa
 
 Each newly visited home receives four ordinary finds: one food item, one water item, one route-eligible general item, and one household curiosity. Only the first home at a stop receives one crafting material. A weapon appears in that first home only at a route-tier transition (stops 7, 13, 19, 25, 31, 37, 43, and 49). The first home has a 30% repair-part chance only when the player owns a critically damaged weapon and lacks its matching part. Repair finds never target an unowned weapon.
 
-This caps normal homes at four items and the first home at five, with the occasional weapon or needed repair part as a bonus. Homes already marked as looted keep their contents. Older saves missing the one-time sewing-cache marker still receive the existing cache migration; the new schedule applies to unvisited homes and new saves.
+This caps random finds in normal homes at four items and the first home at five, with the occasional weapon or needed repair part as a bonus. New saves also seed one introductory item in the first home at each of stops 1–5: a coal bucket, pickaxe, potted sprout, flower pot, and potted flowers respectively. Those scripted items are additional to the random-find budget. Homes already marked as looted keep their contents. Older saves missing the one-time sewing-cache marker still receive the existing cache migration; the new schedule applies to unvisited homes and new saves.
+
+Food and water supply rolls apply the complete item eligibility check, including rarity, individual unlocks, and all food/water/healing effects. A water item with a large food effect cannot enter an early home merely because its water effect is small. The regression suite checks seeded home budgets, unlock boundaries, targeted repair finds, persistence, and container overflow; the engine smoke additionally transfers actual chest loot into the backpack and reloads it from disk.
 
 ## Purchase and resale value
 

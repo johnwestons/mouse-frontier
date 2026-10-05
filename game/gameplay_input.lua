@@ -591,7 +591,7 @@ local function new(context)
               returnFromWeaponRepair(); ui.playSfx("menu"); return true
           end
           if ui.repairClose and Util.pointIn(x,y,ui.repairClose) then
-              returnFromWeaponRepair(); ui.playSfx("menu"); return true
+              returnFromWeaponRepair(); runtime.trainUpgradeOpen=false; ui.playSfx("menu"); return true
           end
           if ui.repairStart and Util.pointIn(x,y,ui.repairStart) then
               activateWeaponRepair()

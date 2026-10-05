@@ -41,7 +41,7 @@ local function new(context)
               and (state.mode=="backyard" or state.mode=="interior")
               and not ui.mobileMenuOpen and not ui.optionsOpen
       end
-      return gameplayActive()
+      return not WorldPause.isPaused(runtime,ui,maintenanceSession)
   end
 
   local function shootingRangeActive()

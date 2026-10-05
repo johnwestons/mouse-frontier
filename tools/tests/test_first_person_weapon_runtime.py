@@ -423,7 +423,11 @@ class FirstPersonWeaponRuntimeTests(unittest.TestCase):
         shooting_range = (ROOT / "game" / "shooting_range.lua").read_text(encoding="utf-8")
         self.assertIn("offsetX=pelletX-best.x,offsetY=pelletY-best.y", shooting_range)
         self.assertIn("target.x+impact.offsetX,target.y+impact.offsetY", shooting_range)
-        self.assertNotIn("impact.x,impact.y", shooting_range)
+        target_impacts = shooting_range.split("for _,impact in ipairs(target.impacts) do", 1)[1].split("\n            end", 1)[0]
+        self.assertNotIn("impact.x,impact.y", target_impacts)
+        # Miss impacts are intentionally fixed in the ground scene; only hits
+        # must move with their associated target.
+        self.assertIn("for _,impact in ipairs(session.dirtImpacts or {}) do", shooting_range)
 
         self.assertIn("function Range.weaponViewPlacement", shooting_range)
         self.assertIn('if placement=="sights" then', shooting_range)

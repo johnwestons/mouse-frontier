@@ -1,9 +1,11 @@
 local checks=0
+local HudChecks=require("hud_checks")
 local function expect(value,message)
     assert(value,message); checks=checks+1
 end
 local function close(a,b) expect(math.abs(a-b)<.001,tostring(a).." differs from "..tostring(b)) end
 local function run()
+    love.math.setRandomSeed(6102026)
     local context
     require("game.smoke_playthrough").install=function(value) context=value end
     local app=require("game.application_composition").new({engine=love})
@@ -21,18 +23,20 @@ local function run()
     local canvas=love.graphics.newCanvas(1560,720,{format="rgba8"})
     local records={}
     local originalPrint,originalPrintf=love.graphics.print,love.graphics.printf
-    local function record(value,x,y)
+    local function record(value,x,y,textScaleX,textScaleY)
         if type(value)~="string" then return end
-        if value:match("FOOD") or value:match("WATER") or value:match("TIME  ")
-            or value:match("AMMO  ") or value:match("TACTICAL ENCOUNTER")
-            or value:match("OBJECTIVE") or value:match("JOURNEY MENU") then
+        if HudChecks.captures(value) then
             local px,py=love.graphics.transformPoint(x or 0,y or 0)
             local sx,sy=love.graphics.transformPoint((x or 0)+1,(y or 0)+1)
-            records[value]={px,py,sx-px,sy-py}
+            records[value]={px,py,(sx-px)*(textScaleX or 1),(sy-py)*(textScaleY or textScaleX or 1)}
         end
     end
-    love.graphics.print=function(value,x,y,...) record(value,x,y); return originalPrint(value,x,y,...) end
-    love.graphics.printf=function(value,x,y,...) record(value,x,y); return originalPrintf(value,x,y,...) end
+    love.graphics.print=function(value,x,y,r,sx,sy,...)
+        record(value,x,y,sx,sy); return originalPrint(value,x,y,r,sx,sy,...)
+    end
+    love.graphics.printf=function(value,x,y,width,align,r,sx,sy,...)
+        record(value,x,y,sx,sy); return originalPrintf(value,x,y,width,align,r,sx,sy,...)
+    end
     local function draw(name,zoom)
         p.setZoom(zoom); records={}
         love.graphics.setCanvas({canvas,stencil=true}); love.graphics.origin()
@@ -45,13 +49,7 @@ local function run()
         p.resetCamera(true)
         local before=draw(name.."-1",1)
         local after=draw(name.."-2",2)
-        local count=0
-        for text,a in pairs(before) do
-            if after[text] then
-                for i=1,4 do close(a[i],after[text][i]) end
-                count=count+1
-            end
-        end
+        local count=HudChecks.compare(name,before,after,expect)
         print("HUD_TRANSFORMS "..name.."="..count)
     end
     pair("train")
@@ -107,12 +105,17 @@ local function run()
     expect(g.shootingRange.shots==shots,"second touch fired before distinguishing a pinch")
     app.touchreleased("b",920,360); app.touchreleased("a",760,360)
     expect(g.shootingRange.shots==shots+1,"second touch tap did not fire")
+    -- The preceding tap fired a real pistol shot. Let its firing cadence and
+    -- authored action sequence complete before checking another target shot.
+    for _=1,20 do app.update(.05) end
+    expect(g.shootingRange.cooldown==0,"range weapon did not recover from its shot")
     local target=g.shootingRange.targets[1]
     p.resetCamera(true); p.setZoom(2)
     target.x,target.y=480,330
     local ax,ay=world.toScreen(target.x,target.y)
     local sx,sy=range.sway(g.shootingRange,c.catalog)
-    range.mousepressed(g.shootingRange,ax-sx,ay-sy,data,c.catalog,1)
+    local shotResult=range.mousepressed(g.shootingRange,ax-sx,ay-sy,data,c.catalog,1)
+    expect(shotResult=="shot","zoomed target check did not fire: "..tostring(shotResult))
     expect(target.hit,"range shot missed zoomed target")
     g.shootingRange=nil
     local quest={state="interior",loanAmmo=48,loanedRifle=true,loanMag=12}

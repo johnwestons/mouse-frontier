@@ -1,0 +1,37 @@
+{
+  "common": [
+    "start_new_game",
+    "walk_right",
+    "complete_travel",
+    "shared_shooting_range_playable",
+    "enter_house_key",
+    "home_loot_transfer_persists",
+    "return_to_train_button",
+    "combat_movement_and_blocked_spaces",
+    "combat_ranged_costs_and_enemy_turn",
+    "combat_invalid_attacks_are_free",
+    "combat_victory_rewards_and_continue",
+    "combat_defeat_health_and_return",
+    "combat_retreat_preserves_encounter",
+    "first_aid_keyboard_treatment",
+    "first_aid_physical_treatment",
+    "first_aid_pause_resume_is_free",
+    "save_round_trip",
+    "save_recovers_corrupt_primary",
+    "asset_contract"
+  ],
+  "mobile": [
+    "mobile_joystick_move_and_run",
+    "mobile_action_press_release",
+    "mobile_menu_touch",
+    "mobile_exit_home_touch",
+    "mobile_return_to_train_touch",
+    "mobile_shooting_range_aim_then_fire",
+    "mobile_pinch_zoom"
+  ],
+  "full": [
+    "full_run_initialize",
+    "full_journey_to_stop_50",
+    "full_finale_persists"
+  ]
+}

@@ -3,6 +3,7 @@
 -- supplies hooks, which makes this module safe to use with local game values.
 local SmokeController = {}
 SmokeController.__index = SmokeController
+local unpackArgs = table.unpack or unpack
 
 local function now()
     if love and love.timer and love.timer.getTime then return love.timer.getTime() end
@@ -36,7 +37,39 @@ end
 local function safeCall(fn, ...)
     if type(fn) ~= "function" then return true, fn end
     local args = {...}
-    return xpcall(function() return fn(unpack(args)) end, debug.traceback)
+    return xpcall(function() return fn(unpackArgs(args)) end, debug.traceback)
+end
+
+local function positiveNumber(value)
+    return type(value) == "number" and value > 0 and value < math.huge
+end
+
+local function validateSteps(steps, hooks)
+    assert(type(steps) == "table", "smoke steps must be a table")
+    local count = 0
+    for key in pairs(steps) do
+        assert(type(key) == "number" and key >= 1 and key % 1 == 0, "smoke steps must be a dense array")
+        count = count + 1
+    end
+    assert(count > 0 and count == #steps, "smoke steps must be a non-empty dense array")
+    for index = 1, count do
+        local step = steps[index]
+        assert(type(step) == "table", "smoke step " .. index .. " must be a table")
+        for _, field in ipairs({"before", "onStart", "action", "run", "check", "assert", "validate", "after", "onComplete"}) do
+            assert(step[field] == nil or type(step[field]) == "function", "smoke step " .. index .. "." .. field .. " must be a function")
+        end
+        local expected = step.expect or step.expected
+        assert(expected == nil or type(expected) == "table", "smoke step " .. index .. " expectations must be a table")
+        assert(step.check or step.assert or step.validate or (expected and next(expected) ~= nil),
+            "smoke step " .. index .. " requires a check or non-empty expectations")
+        assert(step.timeout == nil or positiveNumber(step.timeout), "smoke step " .. index .. " timeout must be positive and finite")
+        assert(step.snapshot == nil or type(step.snapshot) == "function" or type(step.snapshot) == "table",
+            "smoke step " .. index .. " snapshot must be a function or table")
+    end
+    assert(type(hooks) == "table", "smoke hooks must be a table")
+    assert(hooks.action == nil or type(hooks.action) == "function", "smoke action hook must be a function")
+    assert(hooks.snapshot == nil or type(hooks.snapshot) == "function" or type(hooks.snapshot) == "table",
+        "smoke snapshot hook must be a function or table")
 end
 
 function SmokeController.new(options)
@@ -45,6 +78,8 @@ function SmokeController.new(options)
     self.hooks = options.hooks or {}
     self.steps = options.steps or {}
     self.timeout = options.timeout or options.stepTimeout or 5
+    assert(positiveNumber(self.timeout), "smoke timeout must be positive and finite")
+    validateSteps(self.steps, self.hooks)
     self.name = options.name or "mouse-frontier-smoke"
     self.reportPath = options.reportPath or "smoke.rpt"
     self.clock = options.clock or now
@@ -57,6 +92,7 @@ function SmokeController.new(options)
 end
 
 function SmokeController:start()
+    validateSteps(self.steps, self.hooks)
     self.running, self.finished, self.failed = true, false, false
     self.index, self.elapsed, self.startedAt = 0, 0, self.clock()
     self.results, self.errors, self.events = {}, {}, {}
@@ -109,16 +145,24 @@ end
 function SmokeController:_check(step, snapshot)
     local check = step.check or step.assert or step.validate
     if check then
-        local ok, result = safeCall(check, self, step, snapshot, self.current.result)
-        if not ok then return false, "check " .. tostring(step.name) .. ": " .. tostring(result) end
-        if result == false then return false end
+        local ok, result, detail = safeCall(check, self, step, snapshot, self.current.result)
+        if not ok then return false, "check " .. tostring(step.name) .. ": " .. tostring(result), true end
+        if not result then return false, detail or "check returned " .. tostring(result) end
         if type(result) == "string" then return false, result end
     end
     local expected = step.expect or step.expected
-    if expected and type(snapshot) == "table" then
+    if expected then
+        if type(snapshot) ~= "table" then return false, "expected a snapshot table, got " .. type(snapshot) end
         for key, want in pairs(expected) do
             local got = path(snapshot, key)
-            local pass = type(want) == "function" and want(got, snapshot) or equal(got, want, step.epsilon)
+            local pass
+            if type(want) == "function" then
+                local ok, result = safeCall(want, got, snapshot)
+                if not ok then return false, "expectation " .. tostring(key) .. ": " .. tostring(result), true end
+                pass = result and type(result) ~= "string"
+            else
+                pass = equal(got, want, step.epsilon)
+            end
             if not pass then return false, "expected " .. tostring(key) .. "=" .. tostring(want) .. ", got " .. tostring(got) end
         end
     end
@@ -128,10 +172,10 @@ end
 function SmokeController:_complete(step, snapshot)
     local record = {name = step.name or ("step-" .. self.index), ok = true,
         elapsed = self.elapsed, value = copy(self.current.result), state = copy(snapshot)}
-    self.results[#self.results + 1] = record
-    self:_log("step_ok", record.name, record)
     local ok, err = safeCall(step.after or step.onComplete, self, step, record)
     if not ok then self:_fail("after " .. record.name .. ": " .. tostring(err)); return end
+    self.results[#self.results + 1] = record
+    self:_log("step_ok", record.name, record)
     self.current = nil
     if self.index >= #self.steps then
         self.running, self.finished = false, true
@@ -148,6 +192,7 @@ function SmokeController:update(dt)
     self.elapsed = self.elapsed + math.max(0, dt)
     if not current.actionDone then
         local action = step.action or step.run
+        if not action and self.hooks.action then action = function(ctx) return self.hooks.action(ctx, step) end end
         local ok, result = safeCall(action, self, step)
         if not ok then self:_fail("action " .. tostring(step.name) .. ": " .. tostring(result)); return self:getStatus() end
         current.result = result
@@ -155,16 +200,18 @@ function SmokeController:update(dt)
     end
     local snapshot, ok, err = self:_snapshot(step)
     if not ok then self:_fail("snapshot " .. tostring(step.name) .. ": " .. tostring(err)); return self:getStatus() end
-    local pass, message = self:_check(step, snapshot)
+    local pass, message, fatal = self:_check(step, snapshot)
+    if fatal then self:_fail(message); return self:getStatus() end
     if pass and current.actionDone then self:_complete(step, snapshot)
-    elseif message then self:_log("check_wait", message)
+    elseif message then current.lastCheck = tostring(message); self:_log("check_wait", message)
     end
     local limit = step.timeout or self.timeout
     if self.running and self.current == nil then
         self.index = self.index + 1
         if self.index <= #self.steps then self:_begin(self.steps[self.index]) end
     elseif self.running and self.elapsed > limit then
-        self:_fail("timeout in " .. tostring(step.name) .. " after " .. tostring(self.elapsed) .. "s")
+        self:_fail("timeout in " .. tostring(step.name) .. " after " .. tostring(self.elapsed) .. "s" ..
+            (current.lastCheck and ": " .. current.lastCheck or ""))
     end
     return self:getStatus()
 end
@@ -192,9 +239,26 @@ end
 function SmokeController:writeReport(filename)
     filename = filename or self.reportPath
     local data = self:report()
-    if love and love.filesystem and love.filesystem.write then return love.filesystem.write(filename, data) end
-    local file, err = io.open(filename, "w"); if not file then return false, err end
-    file:write(data); file:close(); return true
+    local absolute = filename:match("^%a:[/\\]") or filename:match("^[/\\][/\\]") or filename:sub(1, 1) == "/"
+    if love and love.filesystem and love.filesystem.write and not absolute then
+        local ok, result, err = pcall(love.filesystem.write, filename, data)
+        if not ok then return false, result end
+        return result, err
+    end
+    local opened, file, err = pcall(io.open, filename, "w")
+    if not opened then return false, file end
+    if not file then return false, err end
+    local wrote, result, writeError = pcall(file.write, file, data)
+    local flushed, flushResult, flushError = true, true, nil
+    if wrote and result and file.flush then flushed, flushResult, flushError = pcall(file.flush, file) end
+    local closed, closeResult, closeError = pcall(file.close, file)
+    if not wrote then return false, result end
+    if not result then return false, writeError or "report write failed" end
+    if not flushed then return false, flushResult end
+    if not flushResult then return false, flushError or "report flush failed" end
+    if not closed then return false, closeResult end
+    if not closeResult then return false, closeError or "report close failed" end
+    return true
 end
 
 return SmokeController

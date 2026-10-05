@@ -232,11 +232,14 @@ function MobileControls:isHeld(key)
     return false
 end
 
-function MobileControls:movementTouchPressed(id,x,y)
+function MobileControls:movementTouchPressed(id,x,y,controlX,controlY)
     if not self.enabled or not self:isMovementActive() then return false end
     self.lastPointerX,self.lastPointerY=x,y
     self:_updateCornerLayout()
-    local gx,gy=self:_controlPoint(x,y)
+    -- The shared touch dispatcher already mapped this point. Direct movement
+    -- callbacks still supply viewport coordinates and require one conversion.
+    local gx,gy=controlX,controlY
+    if gx==nil or gy==nil then gx,gy=self:_controlPoint(x,y) end
     local stick=self.joystick
     local onStick=self.controlLayout and distance(gx,gy,stick.x,stick.y)<=stick.radius*1.2
         or not self.controlLayout and gx<stick.x+stick.radius*1.7 and gy>stick.y-stick.radius*1.7
@@ -319,7 +322,7 @@ function MobileControls:touchpressed(id,x,y)
         return true
     end
     if self:isGameplayActive() or self:isMovementActive() then
-        if self:movementTouchPressed(id,x,y) then return true end
+        if self:movementTouchPressed(id,x,y,gx,gy) then return true end
         if self:isGameplayActive() and distance(gx,gy,self.primary.x,self.primary.y)<=self.primary.radius*1.2 then
             local key=self.primaryAction()
             if key then self:_feedback(gx,gy); self.touches[id]={kind="key",key=key}; self.pressKey(key); return true end
@@ -369,7 +372,7 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
                 self.moveCameraPan(midX,midY)
                 self.pinch.midX,self.pinch.midY=midX,midY
             end
-        elseif not touch.pinching and not touch.suppressClick and distance(touch.startX,touch.startY,x,y)>14 then
+        elseif not touch.pinching and not touch.suppressClick and (touch.pressed or distance(touch.startX,touch.startY,x,y)>14) then
             if not touch.pressed then self.pressPointer(touch.startX,touch.startY,1); touch.pressed=true end
             self.movePointer(x,y,dx or 0,dy or 0)
         end

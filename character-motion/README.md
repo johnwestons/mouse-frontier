@@ -41,3 +41,31 @@ sector for idle, advances frames from post-collision distance, freezes the gait
 when blocked, preserves wall sliding, and samples synchronized speed and
 acceleration curves. Existing characters remain on their original movement and
 rendering behavior until their complete directional set is installed.
+
+## Canonical pixel fingerprints
+
+`canonical_sheet_pixels.json` records the exact dimensions and SHA256 of decoded
+RGBA bytes for every walk, idle and run reference used by the calibrated motion
+profiles. The regression test binds each entry to its motion spec action and
+source filename, then compares the installed sheet to this tracked fingerprint.
+A clean checkout can run that contract without the ignored `output/` PNGs.
+Transparent pixels and their RGB bytes are included in the fingerprint.
+
+Canonical reference updates require review. Changing a spec path, action,
+dimension or installed sprite does not automatically update this baseline.
+With the reviewed reference PNGs present, compare the current baseline using:
+
+```powershell
+python tools/update_canonical_sheet_pixels.py
+```
+
+After the reference artwork changes have been explicitly approved, record their
+fingerprints and review the manifest diff:
+
+```powershell
+python tools/update_canonical_sheet_pixels.py --write-reviewed-references
+```
+
+The tool reads the canonical PNG paths declared by the specs. Do not regenerate
+the baseline merely to clear an installed asset mismatch. The regression suite
+never regenerates it.

@@ -107,10 +107,16 @@ class IOSMobileCompatibilityTests(unittest.TestCase):
             local keysPressed,keysReleased={},{}
             local pointerEvents=0
             local mappedControlTouches=0
+            love.graphics.getDimensions=function() return 1960,1460 end
             local function viewportToGame(x,y)
-                if x==252 and y==542 then mappedControlTouches=mappedControlTouches+1 end
-                return x,y
+                -- Layout refreshes map viewport corners too. Count the actual
+                -- event point independently, so a duplicate touch conversion fails.
+                if not (x==0 and y==0) and not (x==1960 and y==1460) then
+                    mappedControlTouches=mappedControlTouches+1
+                end
+                return (x-40)/2,(y-20)/2
             end
+            local function toViewport(x,y) return x*2+40,y*2+20 end
             local input={
                 keypressed=function(key) keysPressed[#keysPressed+1]=key end,
                 keyreleased=function(key) keysReleased[#keysReleased+1]=key end,
@@ -126,21 +132,41 @@ class IOSMobileCompatibilityTests(unittest.TestCase):
                 endCameraPan=function() end,getGameplayInput=function() return input end})
             app.initialize()
             local controls=app.get()
-            app.touchpressed("opaque-touch-id",252,542)
+            controls:_updateCornerLayout()
+            local stick=controls.joystick
+            local touchX,touchY=toViewport(stick.x+stick.radius*.6,stick.y)
+            app.touchpressed("opaque-touch-id",touchX,touchY)
             assert(controls.touches["opaque-touch-id"].kind=="joystick")
             assert(mappedControlTouches==1,"control touch must pass through viewport mapping once")
-            local axisX=app.movement()
-            assert(axisX>0,"iOS touch activates mobile movement")
+            local axisX,axisY=app.movement()
+            assert(math.abs(axisX-.6)<.0001 and math.abs(axisY)<.0001,
+                "iOS movement uses mapped joystick coordinates")
+            touchX,touchY=toViewport(stick.x-stick.radius*.4,stick.y+stick.radius*.3)
+            app.touchmoved("opaque-touch-id",touchX,touchY,0,0)
+            axisX,axisY=app.movement()
+            assert(mappedControlTouches==2 and math.abs(axisX+.4)<.0001 and math.abs(axisY-.3)<.0001,
+                "directional touch movement maps once and preserves both axes")
             app.mousepressed(300,300,1,true)
             assert(pointerEvents==0,"synthetic touch mouse event is filtered")
             app.mousepressed(300,300,1,false)
             assert(pointerEvents==1,"real mouse event still reaches desktop input")
-            app.touchpressed("action-id",controls.primary.x,controls.primary.y)
+            touchX,touchY=toViewport(controls.primary.x,controls.primary.y)
+            app.touchpressed("action-id",touchX,touchY)
             assert(#keysPressed==1 and keysPressed[1]=="e","context action is held through the existing adapter")
             app.focus(false)
             axisX=app.movement()
             assert(axisX==0 and next(controls.touches)==nil,"focus loss clears held touch and movement state")
             assert(#keysReleased==1 and keysReleased[1]=="e","focus loss releases held action")
+
+            local before=mappedControlTouches
+            touchX,touchY=toViewport(stick.x,stick.y-stick.radius*.5)
+            assert(app.movementTouchPressed('direct-movement',touchX,touchY))
+            axisX,axisY=app.movement()
+            assert(mappedControlTouches==before+1 and math.abs(axisX)<.0001 and math.abs(axisY+.5)<.0001,
+                'dedicated movement callback also converts viewport coordinates once')
+            assert(app.movementTouchReleased('direct-movement'))
+            axisX,axisY=app.movement()
+            assert(axisX==0 and axisY==0)
         ''')
 
     def test_focus_loss_keeps_the_existing_pending_save_flush(self) -> None:
@@ -163,7 +189,21 @@ class IOSMobileCompatibilityTests(unittest.TestCase):
             assert(runtime.syncCount==1,"save state is synchronized before flushing")
         ''')
 
-    def test_save_identity_and_schema_version_are_unchanged(self) -> None:
+    def test_mobile_platforms_share_save_identity_and_sequential_migrations(self) -> None:
         self.lua.execute("Config=require('game.config'); Schema=require('game.save_schema')")
         self.assertEqual("mouse-frontier", self.lua.globals().Config.identity)
-        self.assertEqual(35, self.lua.globals().Schema.CURRENT_VERSION)
+        self.lua.execute(r'''
+            for _,osName in ipairs({'Windows','Android','iOS'}) do
+                platform=osName
+                for version=Schema.LEGACY_VERSION,Schema.CURRENT_VERSION do
+                    local old={version=version,character='scout-frog.png',location=14,
+                        inventory={[3]='food-ration'},inventoryCapacity=6,resources={food=7}}
+                    local data,report=Schema.migrate(old)
+                    assert(data and Schema.validate(data))
+                    assert(data.version==Schema.CURRENT_VERSION and report.steps==Schema.CURRENT_VERSION-version)
+                    assert(data.inventory[3]=='food-ration' and data.resources.food==7 and data.location==14)
+                    assert(old.version==version,'migration must preserve its input')
+                end
+                assert(not Schema.migrate({version=Schema.CURRENT_VERSION+1,character='scout-frog.png'}))
+            end
+        ''')

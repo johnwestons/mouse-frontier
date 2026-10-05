@@ -1,0 +1,1027 @@
+{
+  "version": 1,
+  "pixel_mode": "RGBA",
+  "hash_algorithm": "sha256",
+  "characters": {
+    "botanist-frog": {
+      "idle_east": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "c035d94ec7d5c9f26c8189040276d166be0cd6ae88a73cbdfe4e765414f518b6"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "33b29e4c22e24d681d67ecda016518dfaf6b304e43566d9b7a6179c69692b555"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "4043578a39e81768409f5725701a55b8d96e9a45e5421ae2508af43814e17017"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "b8df32d355a1c4e0b4b26d593e25713f77105a9b78e06a92bfe2893b62dd487e"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "d31f17117b8ce4d3838c92617126f498e6b5139b2a5316652e005392219e9c2c"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "11254f087cea459de2ea61b020970eefc88a5c07520d538e41b0c1caf86a13ab"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "babb8e778dcebc2099e9f15b119377de606332f6d0565261d8a5a398467f9277"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "d6610052a666f5efda26d0c3612095d47a325a6ad272a3bd708adfe48b956d93"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "dd4dd0b7e45a6900bf9e0cbe9cf6c3f2d1039c8d0862a93de25f18fcc080ecfa"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b236d6d6c31125ce523fd26f40817ad145e5eb60ab5649c7b8218eea7c6d7f45"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "c7f876be4359cf0dd5b768000d0c3444b8a319e775b6e613b900de858664a44b"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "51e734e93b88fef619bdf0fa597d65a1ddecd931dea516a04a72285d9a4d6d26"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "3b5735f568528ea7113b0ae970b4ca64b895106169230c1ce42b55f460c0f149"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "0ea9ad42d5f6cdbf65bdca0cd5f16044911b01d49ca758aac05fde542e560445"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "cb228fd808fd2aa45bd7a62a4280f989bab7677a188a6f1871abf14349c113e7"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "cb3be008fb7b74d5b4863155de01a8829e32891be9551c8c38f19f55e5b26ed3"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "cc746656e68e3accf0e4d3c6a2a0ee0d024d2a3e5c021a44943effaeeb7d8100"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b898f41a21a9e028f1de9dc1497cb516d2b4a0e583704bf5dec7a63437be1b81"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "631db0b2ad6ff962e89b2dbca31e4830bb1a4c0fcd74b74bef343f6d96ad0636"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "c4479dc26d7efd816afbeb1c285721ec867671f0fe9e2b5aa76f0a2f962f38ce"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "74619f09c8f00467b92951e163ab8323be2db9802dcb4c3ce1665c864c9705c5"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "94e1b5b6cc581fa763d3f57411a3b75874a1e5cd8986c0e5639c099ddbc83203"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "220af580f2e906a5ce68d9ca18b393648d3447591bc4c02bbe42b4eb1ac80fba"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/botanist-frog/normalized-v2/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "1dcb00b08f45da97705e08976dc506f21b89bd73c5f677e8800380cb807d0dcc"
+      }
+    },
+    "conductor-cat": {
+      "idle_east": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "fb421391f31e46a654a8b05d0bebb25806196efb8f12e5b2f8a2c751a73bca3f"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "dbd9c9f5f773580909be77e30bbbee56ffa5d721524ee5a2a02e7e4e7d70c827"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "4c3024e93e1b766d9683a871b64f43a2038c5908cc601dedf5203b2b9f0c16b5"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "924ee0ed1ce946dde70bf0c8e31a64845fbece1c0767ffb59f745c7551b1300e"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "6df07771b81dbd24a1e8b5f9ccf8a787f45b83b465e5068580a292bfee515e62"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "d0108c50d370a56abfd55f8baf60679ecb28244b8f6f4d45a2c8894740272884"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "ec317611a6e3c77c864323b574db280e4630de36068eb1744703eb9fb132e465"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "d8c821c0d9ee1d679c06b91cdbc172968fabc828a9ed40ccfbbfaf9f7a113f7a"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d124f34421945a420e43f059a96557c4c97ca13154607b1d622fd2251f24d4cb"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "e690189e2b453267b44c72ae07c41ee3700e5fd74c40673b087c0f0b8cbfa9d1"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "de4978fb39c86798884d44611f226a39b3fbab321d6c723ca1f92bdb6f31072d"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "763601d2c481ed890ffc13ec034bcea25d989e3dc5554440a762d88465c6daf9"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "60e05f7a1e4703678f5797445cdb3d276b3b5e5dbe60ef77edcb012b7872c4b1"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "2ced689d51412d4e702e10158af44bb267a0e05f1e10b130e22e9cedbb1ea081"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b23699688c7366a5a3aae7f775b391217fe3a8755411e2a5bc1863ebb658d953"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d52b921d2f633f8ac6ead519bb59cf2e3dafd3e3a342cdde62cc141f3105fac5"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "08046af60fa30d2948133b261b48b147d924b2d0620f62498a69c6d9e71ad621"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "557d9d89cdfb36736ac622b3946b7a8b783f2ac85652130f6fbb237e8a9356ec"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "0ed10d859c23dda1b67bf4bdb34786e6f16af9712ca8327b2690a2c1171e879b"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "3f8d14c95ea5676cda27198cface18c0ecf0973635df7eb637a660ce572e8f4c"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "bf6fd12a427d976831d575b1d65d5f6676fa5f27eee3abddac061025b1e53ce9"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "4a9a72de1e8109b8b580f761b5fe52daa567e4ccf123f3391e8f7eb11262910d"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "93012567b593ff6eb39f0b610e3b2d769476a56f9c3bb4e2188c771a5fc0ec69"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/conductor-cat/normalized-v2/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "1c85d4f7ea0baa942da22beef7fcc88030ea17d6d1ce09c3a81429dc0f9d18df"
+      }
+    },
+    "cook-frog": {
+      "idle_east": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "3608b03a44690427053067f29435873d86cd171617a4d7fbeac7cf5cda1cf418"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "b8f5ac111e1eece7f8842aa6d5222f6d1e29ba5ccbc1726ea31fa2eb289d1bcb"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "b28d522f102ac69e95d7683373bc50854ed97b48e40a52b73d1da5265cebadb4"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "ea218e301e4d42a0a2f5912b0e9b32233a198698602d342a3d42a2e500fd864f"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "051c515cd7b73bb22fa14b9b1bab8308d757abb5f374a47452255ba1909cd8b3"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "7fd00b20c382d151fcb3463910a8ab7e14f26120fe3f16361f4fc9c4505ea3d5"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "8e74abbf829e0df314d9bff20e7919cb55510810f06e7f14999328e95ee2c342"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "3fb58090d2441309458347f98b4f7d2aa5bade506fb968e32176e87ecb35b80e"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "4de1ffb1341d615d7ed5a166f5a034fd75ec2da75fae6bc8b437f11f81245789"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "f37eb71712a6f2f46cfc9b7a6aff3ffc8c9974cb106bd4bbd7762536af19a9e4"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "38d96c2547d8b2d4f9ee72949d67bac569220fbaa4ca20c8cc3a78eb75f20a36"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b68d9b8e4ed2946be79eecb095d8eec81fd3b7a46f002e400e959c766eb9e98d"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "472086a671bbea652992493c1038b15c898af1314a65511787e74eba704f01f9"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b988bcd9167d4d8801774c4b26ee67ad0aaeff6e787c10efbaf1d680dbaa7643"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "5a0ef76400e0e09b5e130f02981a044576cae2cc629af31124edb756a17d4c51"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "dd93fa698c47e6772f2f4de1d433aa99a7f92384d6dc5c3146d903b66c368f55"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "920e94bfdd6d6be3e3933ac78a473f010d9a5887756ddfcdf4b14acc9ab7b14d"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "940fc410a73e2aa04653ab1e91714961daef14e285f8a05b468e9d93f3621ff4"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "df7dabc9ee93d49b3ae7d83d4563fb191b4240b728c04b0ffc00d825521bb193"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "4392620eb61f5b7e08fa9af318251759db7337c6035b46d579638e132ad2e69e"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "4345430fd05d6ce483ccfeb19d442712084c8a70487a5e5a0ec375207daf953f"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "a852bfd2277e549c1a696b443bf52d58247b72c8da01b5daec03c451c2b156d7"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "fab5f9063125fe02a695563333117bf202ea5c842ff5f60139d88e82ff164f8c"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/cook-frog/normalized-v2/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "e40020cdd36b60c2f0d272e7bc83ced952a9def44ef204e2a7781b71c43efed3"
+      }
+    },
+    "cook-mouse": {
+      "idle_east": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "6bdee8011ea46085d5cea2c79c7a03432bc1605121ce4990c362e764e58af63d"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "79e40ced99d01c693ac0ce061f8e87049d60c9ca2c15d9d602142b5cc3d7e7b0"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "9d4d12f2ce23a42afb34e9df63c938b5f2cc00b486ac5f0c5619781e6f1d91d2"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "f876fad8c87168ed524317fc409c45b13c862d764a3e7a82c04b13446f1a4c58"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "2c38d2abf8676d854f0b71daaa5031f0f8775a036625130a44b49c034886e926"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "996d750d3203edc31828fc105b291e2f0a174f4f42bce314a9c7af736d5efeed"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "200a31fd237f522a7c5548d7e4348e8bbbdc12ee2804644f57559ebd80862a39"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "1bc02c7458ccd9daa1cea8b295ff611d0163bf170499a59c97a368caa0098334"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "f4787c717f95cda8c079445bcaced1614f4647593f2ce76713ebc1fa39532b12"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "3d1eb8b89414ff18843bc53777e408055df12a618215691f6a5f8a6b6d779a43"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "1602d2700a003499439a77914c9ca51f5bb8c8550d379186079a0acc2f2bd965"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "cc6b0381ed046aa55a55aacb798d9e6670a4fc2b041a34171998a500c2bc7a87"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "6f4c14f69d69bb7668424a10760705859d570ed82e26179ba1c6ef1f3ccb2550"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d79271b0ffa445ed9c11e06b8b2b8edba2647a359647186dd68f56ed48bccbd9"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "c3c17972fc68a977791340c905bb4222c1d833754ee473014f24df110e335871"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "658fd03eb5e0909db7f0356b567920f03937a18dfac2ad67e1aefc8b8b27643f"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "bffa00d4100f5ea8947437e2f9ce2342b2f589ee4766d1fd19d327a3e0834d0d"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "7cf1f12b7eae026316b2ea6d723eef2270bcb425c8281b77a52c94369cdac1ab"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "785c2cbb763e7967da54842354e99899cf724778a5f62b5380a38ae26fc3f800"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "db2e14f74f1d1b0bea4cbc64d76e8936666324339f6acf6bb681a67da7c8aa3d"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "af0163d22ffdc30752b71522e4571eff5545c9325e56f633e538ad0b3106080b"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b3a8042e549729eeca82e15dd661859bacba4be7f3cb3e7f2f5f4b03dc79b4bd"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d5cc060ccc9deb55b731eccff00a0eb3e801b515b371102215f90c099bfc4265"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/cook-mouse/normalized-v1/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "3d80163d2e12783b64bc0f95eb23dfa49ed372798ac2b525cf9f33c1f8dc6952"
+      }
+    },
+    "trail-fox": {
+      "idle_east": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "62301b17476ed8ed6bf7640be56865312bf6ee2f27232e8284194de472325ad0"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "5f5ca9c9a787e6d75af65bc7f0f1fdd5b4d3821c177735246cc6edb3b9a16b82"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "600946db51e8245e32c7c28c28f55b4a83e346d5b9dc512e3110b5a3c1ad4e62"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "c5c1afd1fe93a2839b01d6c4f48968d1ec47552b65b72fae2e7bcda9ae29f1cd"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "ff510986b8a115a9b0dbe4e1e4dcd2a17f2b78f9f8e58ec39b37e2efe3011515"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "9bc8ab481166e04913bfedf86b54243a58f55ef69419f6f645ad31a511b40ce8"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "43b060eac6ca692d49fb8c5a24bcedbb1c157a57bd1ecf49bbe5ae6fc388ea59"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "bf89ff812d6ad2de617d7f66ab77dca5c96a33d4941be0aa46aeb7f927e4912b"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b661aaaf4c0b5e75b9b7660f5e18d80bed07af598f2df9b2ba58f0f8470f99d2"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "f378c4d008e47a3ba12e684cf000fe1f1159102d6bb7652a292a7a6f099438a1"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b06e3b7e942b38c9e6338ae05dcc0dc3d0c19bd97cce03d6177026e95facc8d1"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "a965ec08d05231252201c6529f4b2dbe150d521e9f4f54f858df853fa47d2fd1"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "1f62f991c19a31b963fb1e05719eb809c9afdf34d2752bd9a793ed16a53dc7c4"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "38b092a877edd7fd75e53d2df7d4f60090314830841110cce1b91fe437855ddc"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "762506bd52c1ef2a2635e3edacb2a1cf5aff81165cc848a697172dd70f778cd8"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "69f1e4cc3a2aeb53ab60c8dc44a1321877277c1bfa6ac681c8d55018e4f00ba0"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "0c513f23883d1bef214746c025907c611225b80a1bc00f2dde7cd1c3638774eb"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "1b37ec648bc252f63c5839ebe7e917951a06b6c676a627b68f640ee0cf303276"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "bd8e9678cac6831cd8c317ce94ebb86b0d8fd9e7380a9ac70dc23faf6891f21d"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "23062d47168865d7cae2d83991f94715f48a7fa272e3cc8cc5d49f78509d8a0b"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "8ecac3acc858f2ef6d2459a847667f3a322b69cbb1e9a563fb5669910f1b657c"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "55f48814f7cda1bf6bcf8f276c674306d3c22579486a94060cb7430debbff284"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "9721dcbbda4df03ce95a7f202adc89f2c7d13b2b2db3629e5495dd005164d7c7"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/trail-fox/normalized-v2/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "7071130c2f55ddb79bcd06a928142da1d8b4001e879bead3920552253ec9c885"
+      }
+    },
+    "watch-raccoon": {
+      "idle_east": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle.png",
+        "source_filename": "idle.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "1422d502cd05d06c76a9134e52fe289cc19db6db075ef87f9c50e9dc9dd3f4f1"
+      },
+      "idle_north": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_north.png",
+        "source_filename": "idle_north.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "a96079e36b3b7c5aa71f50d88599fa68259cc067a3432c33e82d423c3fe7cc53"
+      },
+      "idle_northeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_northeast.png",
+        "source_filename": "idle_northeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "70c37408af8441f43711b6c539ba661640888fc1cb44ee23549fb40805d74a13"
+      },
+      "idle_northwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_northwest.png",
+        "source_filename": "idle_northwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "88c69d0ab7b8a28f70fdd5850df627ad7eccd512b2b388bd9a300d3607803740"
+      },
+      "idle_south": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_south.png",
+        "source_filename": "idle_south.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "8567e85abb9db8ad12524a01e6373e0a20ac9e888d3cc00e3fa2432cf2416f05"
+      },
+      "idle_southeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_southeast.png",
+        "source_filename": "idle_southeast.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "faea3f9e46676c5d3fd4c593ac1fbe99ff7d29a79cfd740a0d3c3e14e5222523"
+      },
+      "idle_southwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_southwest.png",
+        "source_filename": "idle_southwest.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "66d9e169d71293bf35d951430a392c518ed689236aa9810d04811a57f2900622"
+      },
+      "idle_west": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/idle_west.png",
+        "source_filename": "idle_west.png",
+        "width": 1024,
+        "height": 512,
+        "rgba_sha256": "2c4f0082d6526c5a8648ce9cdb4d6e3e9e7b4b935506e66ec96295270419dc7b"
+      },
+      "run_east": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run.png",
+        "source_filename": "run.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "556557780d94ecf0b202a3002ad9c0f3e8783d76f9574cc1a287bc78afa74050"
+      },
+      "run_north": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_north.png",
+        "source_filename": "run_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d3b10ea523d5c5415bf1c6c993bb6fd8434f27bfe2a584920be951fd603eca66"
+      },
+      "run_northeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_northeast.png",
+        "source_filename": "run_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "68f92603eb874b200aa3c1a6bf2d8e0b3f2b07f3782e2d3f960fd324281566dd"
+      },
+      "run_northwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_northwest.png",
+        "source_filename": "run_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "ee9a8450ed39680320e79679c58163e39eae338724d71a94fe836a9dfcae9ce2"
+      },
+      "run_south": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_south.png",
+        "source_filename": "run_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "7057f6c35010f4518b0eaf7bb681d6f60e1490e5ee64a26109833566e9cfa2f8"
+      },
+      "run_southeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_southeast.png",
+        "source_filename": "run_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "d0c13f816576c1775d70bce00bb7b0502afe632cf001ea19760cfc824e8f602b"
+      },
+      "run_southwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_southwest.png",
+        "source_filename": "run_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "7fda4100da39652350e453e5fa303f885177a64bc511678b235805537787d3f6"
+      },
+      "run_west": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/run_west.png",
+        "source_filename": "run_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "02cbe5f6204afdf61395fd994a01e3551fa02679c55dd0ac83472d06f94488ce"
+      },
+      "walk_east": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk.png",
+        "source_filename": "walk.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "2333e5ebae82595afd6bdb73d1d64959b2f37470b514a7e0c8bd762e3e339030"
+      },
+      "walk_north": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_north.png",
+        "source_filename": "walk_north.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "a5de4c3644dbbf78df0f84545d7baee809196bed09af04d51397323240bfde5e"
+      },
+      "walk_northeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_northeast.png",
+        "source_filename": "walk_northeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "b91d7e07185f280c38f4d8b58f896dbd7540055f60a57645b6e00b81ccc7103b"
+      },
+      "walk_northwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_northwest.png",
+        "source_filename": "walk_northwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "ea855f9b4b1957c8527d1532bdf119000a5dbd17ee8bf677456e0d7ec82df821"
+      },
+      "walk_south": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_south.png",
+        "source_filename": "walk_south.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "6575dbb4fa69a99b2cb13e13274f19ff9244ff1e70e90815c690e7e9bb1370fa"
+      },
+      "walk_southeast": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_southeast.png",
+        "source_filename": "walk_southeast.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "7bdc4effd2a145004f0f2308d0df7078958d36234403010b329d35dd6c24df8a"
+      },
+      "walk_southwest": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_southwest.png",
+        "source_filename": "walk_southwest.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "78f27099a623d75201e9bc871dd3409c55265b4cdbaf0d980c6d3dd03f92ee63"
+      },
+      "walk_west": {
+        "source_path": "output/character-motion/watch-raccoon/normalized-v2/walk_west.png",
+        "source_filename": "walk_west.png",
+        "width": 4096,
+        "height": 512,
+        "rgba_sha256": "a0f0b8f8988f1b2d4ad1668ba538640d183c52f83c371c094ae0ccbd515853f6"
+      }
+    }
+  }
+}

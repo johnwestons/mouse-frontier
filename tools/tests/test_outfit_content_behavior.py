@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, os.environ.get("LUA_RUNTIME_PYTHONPATH", str(ROOT / ".stabilization/python-deps")))
@@ -120,18 +121,52 @@ class OutfitContentBehaviorTests(unittest.TestCase):
         ''')
 
     def test_all_material_and_upgrade_icons_draw(self) -> None:
+        sprite_pixels = self.lua.table()
+        for filename in ('supplies-tools-v1.png', 'upgrades-v1.png', 'bench-controls-v1.png'):
+            path = ROOT / 'assets/sprites/outfit-crafting' / filename
+            with Image.open(path) as source:
+                sprite_pixels[path.relative_to(ROOT).as_posix()] = self.lua.table_from({
+                    'width': source.width, 'height': source.height,
+                    'rgba': source.convert('RGBA').tobytes(),
+                })
+        self.lua.globals().spritePixels = sprite_pixels
         self.lua.execute(r'''
-            local draws=0
+            local draws={}
             local noop=function() end
-            love.graphics={push=noop,pop=noop,setColor=noop,rectangle=function() draws=draws+1 end}
+            love.image={newImageData=function(path)
+                local pixels=assert(spritePixels[path],'unregistered production outfit art: '..path)
+                return {path=path,getDimensions=function() return pixels.width,pixels.height end,
+                    getPixel=function(_,x,y)
+                        local offset=(y*pixels.width+x)*4+4
+                        return 1,1,1,pixels.rgba:byte(offset)/255
+                    end,release=noop}
+            end}
+            love.graphics={push=noop,pop=noop,setColor=noop,
+                newImage=function(pixels)
+                    return {path=pixels.path,setFilter=noop,getDimensions=pixels.getDimensions}
+                end,
+                newQuad=function(x,y,w,h,sw,sh)
+                    assert(x>=0 and y>=0 and w>0 and h>0 and x+w<=sw and y+h<=sh)
+                    return {x=x,y=y,w=w,h=h}
+                end,
+                draw=function(image,quad,x,y,rotation,sx,sy)
+                    assert(sx>0 and sy>0,'outfit icon must have a visible positive scale')
+                    draws[#draws+1]={path=image.path,quad=quad}
+                end}
             local Art=require('game.outfit_item_art')
+            local function check(name,rect)
+                local before=#draws
+                assert(Art.has(name) and Art.draw(name,rect))
+                assert(#draws>before,name..' did not render its production sprite')
+                assert(draws[before+1].path:find('assets/sprites/outfit%-crafting/'))
+            end
             for name in pairs(Catalog.craftMaterials) do
-                assert(Art.has(name) and Art.draw(name,{x=0,y=0,w=20,h=20}))
+                check(name,{x=0,y=0,w=20,h=20})
             end
             for name in pairs(Catalog.outfitUpgrades) do
-                assert(Art.has(name) and Art.draw(name,{x=0,y=0,w=48,h=36}))
+                check(name,{x=0,y=0,w=48,h=36})
             end
-            assert(draws>0 and not Art.has('food-ration'))
+            assert(#draws>0 and not Art.has('food-ration'))
             assert(not Art.draw('food-ration',{x=0,y=0,w=32,h=32}))
         ''')
 

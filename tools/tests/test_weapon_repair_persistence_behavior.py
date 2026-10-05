@@ -109,7 +109,7 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
             assert(data.inventory[1]==names[1],'restored state has no references into the original')
         ''')
 
-    def test_house_salvage_is_once_per_door_and_survives_collection_and_reload(self) -> None:
+    def test_first_home_salvage_survives_collection_and_reload_without_other_door_restock(self) -> None:
         self.lua.execute(r'''
             local weapon='scrap-hatchet'
             local part=Catalog.weaponRepairParts[weapon]
@@ -125,9 +125,10 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
             assert(repairCount(data,1)==0,'collected salvage never replenishes after load')
             visitedHouse(data,7,2)
             House.rollLoot(data,Catalog,7)
-            assert(repairCount(data,2)==1,'another house door gets its independent roll')
+            assert(repairCount(data,2)==0,'other house doors cannot add repair salvage')
+            assert(data.lootRolls['repair-parts:1:7:2'],'other door persists its completed salvage opportunity')
             House.rollLoot(data,Catalog,7)
-            assert(repairCount(data,2)==1,'reopening the second door never duplicates loot')
+            assert(repairCount(data,2)==0,'reopening the second door never adds a component')
         ''')
 
     def test_failed_salvage_roll_is_saved_without_rerolling(self) -> None:

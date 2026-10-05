@@ -134,7 +134,7 @@ local function supplyCandidates(catalog,kind,location)
     local maximum=supplyMaximum(kind,tier)
     for name,effect in pairs(catalog.itemEffects or {}) do
         local value=effect[kind]
-        if value and not effect.potion and value<=maximum then result[#result+1]=name end
+        if value and not effect.potion and value<=maximum and itemAvailable(catalog,name,location) then result[#result+1]=name end
     end
     table.sort(result); return result
 end

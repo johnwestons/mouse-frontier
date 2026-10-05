@@ -177,7 +177,7 @@ class ConversationTests(unittest.TestCase):
             data.stopLayouts={['1']={dialogueHelpRequests={resident={accepted=true}},npcOffers={resident='dialogue'}}}
             data.helpQuestSessions={old={kind='dialogue-help',state='active'}}; data.activeHelpQuestId='old'
             data=assert(Schema.migrate(data))
-            assert(data.version==35 and data.goodwill==12 and data.stats.xp==9)
+            assert(data.version==Schema.CURRENT_VERSION and data.goodwill==12 and data.stats.xp==9)
             assert(not data.stopLayouts['1'].dialogueHelpRequests and not data.helpQuestSessions.old)
             assert(data.stopLayouts['1'].npcOffers.resident=='none')
             assert(not data.activeHelpQuestId)
@@ -340,6 +340,7 @@ class ConversationTests(unittest.TestCase):
             input_context.talkToNPC=journey.talkToNPC
             input_context.chooseHelpDialogue=journey.chooseHelpDialogue
             input_context.interactionKeyAction=require('game.interaction_router').keyAction
+            input_context.controlBindings=require('game.control_bindings').new({getInfo=function() return nil end})
             local input=require('game.gameplay_input').new(input_context)
             mobile_context.mobileControls=require('game.mobile_controls')
             mobile_context.width=960; mobile_context.height=720
@@ -366,7 +367,7 @@ class ConversationTests(unittest.TestCase):
             assert(secondIsRegular and second~=first); tap()
             force('travel-time'); tap(); assert(runtime.helpDialogue.authored)
             input.keypressed('1'); assert(xp==5 and not runtime.helpDialogue)
-            input.keypressed('q'); tap()
+            tap(); assert(not runtime.dialogue); tap()
             local third=runtime.dialogue.text
             local thirdIsRegular=false
             for _,line in ipairs(Catalog.dialogueLines) do if line==third then thirdIsRegular=true end end
@@ -382,6 +383,10 @@ class ConversationTests(unittest.TestCase):
             assert(runtime.dialogue.choice and runtime.questOffer.kind=='mail')
             assert(not data.questAsked['1:resident'])
             input.keypressed('escape')
+            assert(ui.escMenuOpen and runtime.questOffer.kind=='mail' and not data.questAsked['1:resident'],
+                'pause must preserve an unanswered quest offer')
+            input.keypressed('escape'); assert(not ui.escMenuOpen)
+            input.keypressed('n')
             assert(data.questAsked['1:resident'] and runtime.dialogue.text=='Task declined.')
             runtime.dialogue=nil
             journey.talkToNPC()

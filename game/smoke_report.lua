@@ -71,7 +71,7 @@ function Report.new(options)
         lines = {},
         startedAt = clock(),
         runId = options.runId or os.date("!%Y%m%dT%H%M%SZ"),
-        counts = {steps = 0, checkpoints = 0, values = 0, warnings = 0, errors = 0},
+        counts = {steps = 0, checkpoints = 0, values = 0, warnings = 0, errors = 0, failedCheckpoints = 0, failedSteps = 0},
         closed = false,
         _writes = 0,
         _initialized = options.append == true
@@ -94,6 +94,7 @@ end
 
 function Report:step(name, status, details)
     self.counts.steps = self.counts.steps + 1
+    if status == "failed" then self.counts.failedSteps = self.counts.failedSteps + 1 end
     self:_line("STEP " .. oneLine(name) .. " status=" .. oneLine(status or "started") .. (details and " details=" .. describe(details) or ""))
     return self
 end
@@ -101,6 +102,10 @@ end
 function Report:checkpoint(name, passed, details)
     self.counts.checkpoints = self.counts.checkpoints + 1
     self:_line("CHECKPOINT " .. oneLine(name) .. " result=" .. (passed and "PASS" or "FAIL") .. (details and " details=" .. describe(details) or ""))
+    if not passed then
+        self.counts.failedCheckpoints = self.counts.failedCheckpoints + 1
+        self:error("checkpoint failed: " .. oneLine(name), details)
+    end
     return self
 end
 
@@ -146,26 +151,48 @@ end
 function Report:flush()
     if self.closed or #self.lines == 0 then return true end
     local payload = table.concat(self.lines, "\n") .. "\n"
-    local ok, result
+    local ok, result, writeError
     local absolute = self.path:match("^%a:[/\\]") or self.path:match("^[/\\][/\\]") or self.path:sub(1, 1) == "/"
     if love and love.filesystem and love.filesystem.write and not absolute then
         if self._initialized and love.filesystem.append then
-            ok, result = pcall(love.filesystem.append, self.path, payload)
+            ok, result, writeError = pcall(love.filesystem.append, self.path, payload)
         else
-            ok, result = pcall(love.filesystem.write, self.path, payload)
+            ok, result, writeError = pcall(love.filesystem.write, self.path, payload)
         end
     else
-        local file
-        ok, file = pcall(io.open, self.path, self._initialized and "a" or "w")
-        if ok and file then file:write(payload); file:close(); result = true else ok, result = false, file end
+        local file, openError
+        ok, file, openError = pcall(io.open, self.path, self._initialized and "a" or "w")
+        if ok and file then
+            local wrote, writeResult, writeDetail = pcall(file.write, file, payload)
+            local flushed, flushResult, flushDetail = true, true, nil
+            if wrote and writeResult and file.flush then
+                flushed, flushResult, flushDetail = pcall(file.flush, file)
+            end
+            local closed, closeResult, closeDetail = pcall(file.close, file)
+            ok = wrote and writeResult and flushed and flushResult and closed and closeResult
+            result = ok and true or false
+            if not wrote then writeError = writeResult
+            elseif not writeResult then writeError = writeDetail or "report write failed"
+            elseif not flushed then writeError = flushResult
+            elseif not flushResult then writeError = flushDetail or "report flush failed"
+            elseif not closed then writeError = closeResult
+            elseif not closeResult then writeError = closeDetail or "report close failed" end
+        else
+            result, writeError = false, ok and openError or file
+            ok = false
+        end
     end
     if ok and result then self.lines = {}; self._writes = self._writes + 1; self._initialized = true; return true end
-    return false, text(result)
+    return false, text(writeError or result)
 end
 
 function Report:finish(status)
     if self.closed then return true end
-    self:_line("SUMMARY status=" .. oneLine(status or (self.counts.errors > 0 and "failed" or "passed")) .. " " .. self:summary() .. " duration=" .. string.format("%.3f", clock() - self.startedAt))
+    if not self._finishQueued then
+        local failed = self.counts.errors > 0 or self.counts.failedCheckpoints > 0 or self.counts.failedSteps > 0
+        self:_line("SUMMARY status=" .. oneLine(failed and "failed" or (status or "passed")) .. " " .. self:summary() .. " duration=" .. string.format("%.3f", clock() - self.startedAt))
+        self._finishQueued = true
+    end
     local ok, err = self:flush()
     if ok then self.closed = true end
     return ok, err

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 import unittest
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, os.environ.get("LUA_RUNTIME_PYTHONPATH", str(ROOT / ".stabilization/python-deps")))
@@ -19,10 +20,22 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
     def setUp(self) -> None:
         self.lua = LuaRuntime(unpack_returned_tuples=True)
         self.lua.globals().root = ROOT.as_posix()
+        image_sizes = self.lua.table()
+        image_pixels = self.lua.table()
+        for path in (ROOT / 'assets/sprites/ui/repair').glob('*.png'):
+            with Image.open(path) as source:
+                image_sizes[path.relative_to(ROOT).as_posix()] = self.lua.table_from(source.size)
+        controls_path = ROOT / 'assets/sprites/outfit-crafting/bench-controls-v1.png'
+        with Image.open(controls_path) as source:
+            key = controls_path.relative_to(ROOT).as_posix()
+            image_sizes[key] = self.lua.table_from(source.size)
+            image_pixels[key] = source.convert('RGBA').tobytes()
+        self.lua.globals().imageSizes = image_sizes
+        self.lua.globals().imagePixels = image_pixels
         self.lua.execute(r'''
             package.path=root..'/?.lua;'..package.path
             noop=function() end
-            textDraws={}; rectangles={}; color={}; mobile=false
+            textDraws={}; rectangles={}; spriteDraws={}; color={1,1,1,1}; mobile=false
             local font={}
             function font:getWidth(text) return #text*12 end
             function font:getHeight() return 22 end
@@ -43,11 +56,39 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
             end
             local gfx=setmetatable({getFont=function() return font end,getDimensions=function() return 960,720 end,
                 setColor=function(r,g,b,a) color=type(r)=='table' and r or {r,g,b,a} end,
+                getColor=function() return unpack(color) end,
+                newImage=function(path)
+                    local key=type(path)=='table' and path.path or path
+                    local size=assert(imageSizes[key],'unexpected or missing repair art: '..tostring(key))
+                    return {path=key,setFilter=noop,getDimensions=function() return size[1],size[2] end}
+                end,
+                newQuad=function(x,y,w,h,sw,sh)
+                    local quad={x=x,y=y,w=w,h=h,sourceW=sw,sourceH=sh}
+                    function quad:setViewport(left,top,width,height,imageW,imageH)
+                        assert(left>=0 and top>=0 and width>0 and height>0)
+                        assert(left+width<=imageW and top+height<=imageH)
+                        self.x,self.y,self.w,self.h=left,top,width,height
+                    end
+                    return quad
+                end,
+                draw=function(image,quad,x,y,rotation,sx,sy)
+                    if type(quad)=='table' then
+                        spriteDraws[#spriteDraws+1]={path=image.path,x=x,y=y,w=quad.w*sx,h=quad.h*sy,
+                            sourceX=quad.x,sourceY=quad.y,sourceW=quad.w,sourceH=quad.h}
+                    end
+                end,
                 rectangle=function(mode,x,y,w,h) rectangles[#rectangles+1]={mode=mode,x=x,y=y,w=w,h=h,color=color} end},
                 {__index=function() return noop end})
-            love={graphics=gfx,keyboard={isDown=function() return false end},timer={getTime=function() return 0 end}}
+            love={graphics=gfx,keyboard={isDown=function() return false end},timer={getTime=function() return 0 end},
+                image={newImageData=function(path)
+                    local size=assert(imageSizes[path]); local pixels=assert(imagePixels[path])
+                    return {path=path,getDimensions=function() return size[1],size[2] end,
+                        getPixel=function(_,x,y) return 1,1,1,pixels:byte((y*size[1]+x)*4+4)/255 end,
+                        release=noop}
+                end}}
             Catalog=require('game.catalog'); Loot=require('game.loot_progression'); Util=require('game.util')
             Inventory=require('game.inventory'); Style=require('game.ui_layout')
+            RepairLayout=require('game.repair_workbench_layout')
             local Typography=require('game.typography'); local drawText=Typography.drawText
             Typography.drawText=function(graphics,text,x,y,w,h,options)
                 local scale,height,lines,fits=drawText(graphics,text,x,y,w,h,options)
@@ -82,7 +123,7 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
                 repairStatus=function(name) return Loot.repairStatus(data,Catalog,name) end}
             setmetatable(screenContext,{__index=function() return noop end})
             require('game.screen_ui').new(screenContext)
-            function drawRepair() textDraws={}; rectangles={}; ui.drawTrainUpgrades() end
+            function drawRepair() textDraws={}; rectangles={}; spriteDraws={}; ui.drawTrainUpgrades() end
             function click(rect)
                 local x,y=rect.x+rect.w/2,rect.y+rect.h/2
                 input.mousepressed(x,y,1); input.mousereleased(x,y,1)
@@ -97,7 +138,7 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
                 drawRepair()
             end
             function transformedRow(row)
-                return Style.transformRectFor('trainUpgrades',{x=150,y=70,w=660,h=580},ui.repairRows[row].rect)
+                return Style.transformRectFor('trainUpgrades',RepairLayout.bounds,ui.repairRows[row].rect)
             end
             function styleWorkbench()
                 local manager=Style.new({filesystem={getInfo=function() return nil end,read=function() return nil end},screen=function() return 'game' end})
@@ -185,7 +226,10 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
             populate(12)
             local original=runtime.weaponRepairSelected
             click(ui.repairStart)
-            input.mousepressed(210,410,1); input.mousemoved(210,210,0,-200); input.mousereleased(210,210,1)
+            local row=ui.repairRows[4].rect
+            local x,y=row.x+row.w/2,row.y+row.h/2
+            local drag=4*RepairLayout.rowStep
+            input.mousepressed(x,y,1); input.mousemoved(x,y-drag,0,-drag); input.mousereleased(x,y-drag,1)
             assert(runtime.weaponRepairScroll==5 and runtime.weaponRepairSelected==original)
             assert(runtime.weaponRepairStartedAt and #repairs==0 and saves==0)
             drawRepair()
@@ -202,9 +246,9 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
             local rect=transformedRow(2); pointerX,pointerY=rect.x+rect.w/2,rect.y+rect.h/2
             input.wheelmoved(0,-1); assert(runtime.weaponRepairScroll==2)
             for _=1,20 do input.wheelmoved(0,-1) end
-            assert(runtime.weaponRepairScroll==7 and cameraZooms==0)
+            assert(runtime.weaponRepairScroll==12-RepairLayout.visibleRows+1 and cameraZooms==0)
             pointerX,pointerY=900,680; input.wheelmoved(0,1)
-            assert(runtime.weaponRepairScroll==7 and cameraZooms==0)
+            assert(runtime.weaponRepairScroll==12-RepairLayout.visibleRows+1 and cameraZooms==0)
         ''')
 
     def test_mobile_drag_and_tap_reach_workbench(self) -> None:
@@ -214,18 +258,23 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
                 pressKey=input.keypressed,releaseKey=input.keyreleased,pressPointer=input.mousepressed,
                 movePointer=input.mousemoved,releasePointer=input.mousereleased,cameraGesturesActive=function() return false end})
             local original=runtime.weaponRepairSelected
-            touch:touchpressed('finger',210,410)
-            touch:touchmoved('finger',210,210,0,-200)
-            touch:touchreleased('finger',210,210)
+            local row=ui.repairRows[4].rect
+            local x,y=row.x+row.w/2,row.y+row.h/2
+            local drag=4*RepairLayout.rowStep
+            touch:touchpressed('finger',x,y)
+            touch:touchmoved('finger',x,y-drag,0,-drag)
+            touch:touchreleased('finger',x,y-drag)
             assert(runtime.weaponRepairScroll==5 and runtime.weaponRepairSelected==original)
             drawRepair()
             local expected=ui.repairRows[2].name
-            touch:touchpressed('finger',210,250); touch:touchreleased('finger',210,250)
+            row=ui.repairRows[2].rect; x,y=row.x+row.w/2,row.y+row.h/2
+            touch:touchpressed('finger',x,y); touch:touchreleased('finger',x,y)
             assert(runtime.weaponRepairSelected==expected)
-            touch:touchpressed('finger',580,549); touch:touchreleased('finger',580,549)
+            x,y=ui.repairStart.x+ui.repairStart.w/2,ui.repairStart.y+ui.repairStart.h/2
+            touch:touchpressed('finger',x,y); touch:touchreleased('finger',x,y)
             assert(runtime.weaponRepairStartedAt)
             runtime.animationClock=10+.655/.86
-            touch:touchpressed('finger',580,549); touch:touchreleased('finger',580,549)
+            touch:touchpressed('finger',x,y); touch:touchreleased('finger',x,y)
             assert(saves==1 and repairs[1].name==expected)
         ''')
 
@@ -249,9 +298,9 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
             ui.keyboardFocusScreen='weapon-repair'; ui.keyboardFocusId='weapon-repair.start'
             input.keypressed('return'); assert(not runtime.weaponRepairStartedAt)
             populate(12)
-            input.keypressed('pagedown'); assert(runtime.weaponRepairScroll==7)
-            input.keypressed('pagedown'); assert(runtime.weaponRepairScroll==7)
-            input.keypressed('pageup'); assert(runtime.weaponRepairScroll==1)
+            input.keypressed('pagedown'); assert(runtime.weaponRepairScroll==1+RepairLayout.visibleRows)
+            input.keypressed('pagedown'); assert(runtime.weaponRepairScroll==12-RepairLayout.visibleRows+1)
+            input.keypressed('pageup'); assert(runtime.weaponRepairScroll==12-2*RepairLayout.visibleRows+1)
             input.keypressed('pageup'); assert(runtime.weaponRepairScroll==1)
         ''')
 
@@ -297,7 +346,9 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
                             found=true; assert(text.text:find('chests',1,true) and text.text:find('backpack',1,true))
                             assert(text.fits,'missing-part guidance clips for '..name)
                         end
-                        if text.x==494 and text.y==318 then assert(text.fits,'component label clips for '..name..': '..text.text) end
+                        if text.text==Catalog.repairParts[partId].component then
+                            assert(text.fits,'component label clips for '..name..': '..text.text)
+                        end
                     end
                     assert(found,name)
                 end
@@ -307,7 +358,12 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
     def test_visual_good_zone_matches_scored_zone_and_miss_is_free(self) -> None:
         self.lua.execute(r'''
             local good
-            for _,rect in ipairs(rectangles) do if rect.y==444 and rect.color==colors.green then good=rect end end
+            for _,sprite in ipairs(spriteDraws) do
+                if sprite.path=='assets/sprites/ui/repair/workbench-controls-v1.png'
+                    and sprite.sourceX==679 and sprite.sourceY==475 and sprite.y==ui.repairRail.y+4 then
+                    good=sprite
+                end
+            end
             assert(good and math.abs((good.x-ui.repairRail.x)/ui.repairRail.w-.53)<.0001)
             assert(math.abs((good.x+good.w-ui.repairRail.x)/ui.repairRail.w-.78)<.0001)
             for _,case in ipairs({{.52,'miss'},{.531,'good'},{.655,'perfect'},{.779,'good'},{.781,'miss'}}) do

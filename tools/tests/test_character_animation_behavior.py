@@ -1,9 +1,11 @@
 """Exercise the production sprite renderer rather than a copied preview timer."""
 from pathlib import Path
+import hashlib
 import json
 import os
 import sys
 import unittest
+from PIL import Image
 if os.environ.get('LUA_RUNTIME_PYTHONPATH'):
     sys.path.insert(0, os.environ['LUA_RUNTIME_PYTHONPATH'])
 try:
@@ -48,20 +50,57 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
         self.lua.execute(HARNESS)
 
     def test_installed_calibrated_profiles_match_canonical_motion_specs(self):
+        manifest = json.loads((ROOT / 'character-motion/canonical_sheet_pixels.json').read_text(encoding='utf-8'))
+        self.assertEqual(set(manifest), {'version', 'pixel_mode', 'hash_algorithm', 'characters'})
+        self.assertEqual(manifest['version'], 1)
+        self.assertEqual(manifest['pixel_mode'], 'RGBA')
+        self.assertEqual(manifest['hash_algorithm'], 'sha256')
+        calibrated = {Path(filename).stem for filename, tuning in self.lua.globals().Motion.profiles.items()
+                      if tuning['runPixelsPerFrame'] is not None}
+        self.assertEqual(set(manifest['characters']), calibrated, 'canonical manifest must cover exactly the calibrated profiles')
         for filename, tuning in self.lua.globals().Motion.profiles.items():
             if tuning['runPixelsPerFrame'] is None:
                 continue
             with self.subTest(character=filename):
                 character = Path(filename).stem
                 spec = json.loads((ROOT / 'character-motion' / (character + '.json')).read_text())
+                self.assertEqual(spec['character'], character)
                 self.assertAlmostEqual(tuning['pixelsPerFrame'], spec['gait']['pixels_per_frame'])
                 self.assertAlmostEqual(tuning['runPixelsPerFrame'], spec['run_gait']['pixels_per_frame'])
+                self.assertEqual(set(spec['directions']), {'east', 'northeast', 'north', 'northwest',
+                                                          'west', 'southwest', 'south', 'southeast'})
+                actions = {direction[field] for direction in spec['directions'].values()
+                           for field in ('walk_animation', 'idle_animation', 'run_animation')}
+                self.assertEqual(len(actions), 24, f'{character}: eight directions need three distinct locomotion strips each')
+                self.assertEqual(set(spec['animations']), actions)
+                sheets = manifest['characters'][character]
+                self.assertEqual(set(sheets), actions, f'{character}: canonical action coverage')
+                mismatches = []
                 for direction in spec['directions'].values():
                     self.assertFalse(direction['mirror_x'])
                     for action in ('walk_animation', 'idle_animation', 'run_animation'):
-                        staged = ROOT / spec['animations'][direction[action]]['path']
+                        name = direction[action]
+                        animation = spec['animations'][name]
+                        staged = ROOT / animation['path']
+                        expected = sheets[name]
+                        self.assertEqual(set(expected), {'source_path', 'source_filename', 'width', 'height', 'rgba_sha256'})
+                        self.assertEqual(expected['source_path'], animation['path'])
+                        self.assertEqual(expected['source_filename'], staged.name)
+                        expected_size = (animation['frame_width'] * animation['frame_count'], animation['frame_height'])
+                        self.assertEqual((expected['width'], expected['height']), expected_size, f'{character}/{name}: spec dimensions')
+                        self.assertRegex(expected['rgba_sha256'], r'^[0-9a-f]{64}$')
                         installed = ROOT / 'assets/sprites/character-animations' / character / staged.name
-                        self.assertEqual(installed.read_bytes(), staged.read_bytes())
+                        with Image.open(installed) as installed_image:
+                            actual = installed_image.convert('RGBA')
+                            self.assertEqual(actual.size, expected_size, str(installed))
+                            # PNG metadata/compression can vary without changing
+                            # any renderer-visible pixel. Alpha remains part of
+                            # the contract, including removed opaque fragments.
+                            # The tracked digest makes ignored reference PNGs optional.
+                            if hashlib.sha256(actual.tobytes()).hexdigest() != expected['rgba_sha256']:
+                                mismatches.append(name)
+                self.assertFalse(mismatches, f'{character}: {len(mismatches)} canonical sheet pixel mismatches: '
+                                 + ', '.join(mismatches))
 
     def test_every_installed_directional_walk_suite_is_loaded_and_used(self):
         root = ROOT / 'assets' / 'sprites' / 'character-animations'

@@ -139,19 +139,27 @@ Text sizing, contrast, reduced motion, guidance, battle readability, and the sha
 
 ## Automated smoke playthrough
 
-Run `tools/run_last_stand_smoke.ps1 -CaptureScreenshots` for the Last Stand rescue quest. This checks navigation, reversible dialogue, treatment and pause controls, transparent target apertures, personal and borrowed ammunition, touch/gamepad input, packaged audio, save/resume, a full 180-second simulated defense, withdrawal, rewards, and released scene resources after returning. Its report is `.stabilization/last-stand-smoke.rpt` and scene captures are in the LÖVE save folder `mouse-frontier-last-stand-smoke`.
-
-Run `tools/run_smoke.ps1` from PowerShell to launch the hidden watchdog test. The tester starts a fresh character, walks, opens and scrolls menus, spends supplies to travel, enters and exits a house, exercises an encounter and retreat, renders every major screen, and validates the asset contract.
-
-Each run writes `.stabilization/smoke-report.rpt`. The report contains pass/fail checkpoints plus typed action return values and snapshots of important game variables. A callback error, failed expectation, stalled step, missing report, or watchdog timeout produces a nonzero exit code.
-
-To test route reachability all the way to stop 50, use:
+Run the complete source validation matrix from PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ".\\tools\\run_smoke.ps1" -Full -Visible
+.\tools\run_validation.ps1
 ```
 
-Full-route reports identify whether the run reached the ending, exhausted supplies, stalled, or hit a code error. Full-route mode provisions supplies and auto-resolves encounters so route/ending reachability can be separated from combat difficulty; the normal smoke run continues to exercise battle controls.
+This runs seven gates: the Python/Lua regression suite, desktop smoke, mobile smoke, the full route, Last Stand, zoom/HUD coverage, and mobile item pickup. It continues after an individual gate fails, writes separate reports and an aggregate result to `.stabilization/validation/`, and returns a nonzero exit code if any gate fails. The regression group has a 600-second time limit (`-RegressionTimeoutSeconds`); engine groups have their own watchdogs. Install `tools/requirements-test.txt` into a Python 3 environment; use `-PythonPath` and `-LovePath` to select runtimes when needed. Missing dependencies and skipped regression tests fail validation. These gates check the current source; packaged builds and real devices still require their release checks.
+
+For a focused run, use `tools/run_smoke.ps1`, adding `-Mobile` for touch controls or `-Full` for the route through stop 50. The normal scenarios cover movement, menus, maintenance and repairs, travel, house loot transfer and disk reload, range firing/reload/timeout/reward, tactical combat costs and outcomes, first-aid gestures and pause/resume, save recovery, screen rendering, and asset loading.
+
+```powershell
+.\tools\run_smoke.ps1 -Full -Visible -Seed 1337 -StepSeconds 0.05
+```
+
+Each main run uses fresh isolated saves and records its seed, character, update step, run identifier, planned checkpoints, action results, and state snapshots. The default report is `.stabilization/smoke-report.rpt`; `-ReportPath` selects another destination. `-Character` selects another character; `-StepSeconds` accepts 0.01–0.05 seconds. The watchdog rejects incomplete reports, wrong run settings, duplicate or missing checkpoints, omitted required gameplay checks, callback errors, failed expectations, crashes, and timeouts. Main-run saves remain beside the report for diagnosis; the test does not use active player saves.
+
+Full mode includes the normal scenarios, then performs 49 charged departures and arrivals, reloads a disk save at stop 25, reaches the natural ending, and persists the final choice. That route segment supplies resources and suppresses random encounters/events. It proves route and save reachability; economy and combat difficulty need separate playthroughs.
+
+Run `tools/run_last_stand_smoke.ps1 -CaptureScreenshots` for the focused rescue quest: navigation, treatment and pause, target apertures, ammunition, touch/gamepad input, audio loading, save/resume, a 180-second simulated defense, withdrawal, rewards, and released scene resources. `tools/run_zoom_smoke.ps1` checks required HUD controls at both zoom settings; `tools/run_mobile_pickup_smoke.ps1` checks touch inventory and item conservation. Specialist runs also isolate their saves and preserve requested captures outside their temporary folders.
+
+See [the smoke-test capability audit](docs/SMOKE_TEST_AUDIT.md) for evidence, known failures, and the remaining coverage gaps. A successful render does not establish visual quality, and desktop touch simulation does not replace device testing.
 
 ## Character sprite processing
 

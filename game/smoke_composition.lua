@@ -264,6 +264,7 @@ local function new(context)
       battleGridAudit=battleRuntime.gridAudit,
       playerBalanceAudit=battleRuntime.playerBalanceAudit,
       lootBalanceAudit=inventoryActions.balanceAudit,
+      travelStatus=journeyRules.travelStatus,
       questBalanceAudit=journeyRules.questBalanceAudit,
       helpBalanceAudit=journeyRules.helpBalanceAudit,
       beginRandomEvent=eventRuntime.beginRandom,eventBalanceAudit=eventRuntime.balanceAudit,

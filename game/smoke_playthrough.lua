@@ -1,5 +1,6 @@
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
+local SmokeSupport={inventory=require("game.inventory"),style=require("game.ui_layout"),viewport=require("game.viewport")}
 
 local function required(context,name,expected)
     local value=context[name]
@@ -62,6 +63,7 @@ local function install(context)
     local eventBalanceAudit=required(context,"eventBalanceAudit","function")
     local upgradeBalanceAudit=required(context,"upgradeBalanceAudit","function")
     local lootBalanceAudit=required(context,"lootBalanceAudit","function")
+    SmokeSupport.travelStatus=required(context,"travelStatus","function")
     required(context,"caravanAudit","function")
     local questBalanceAudit=required(context,"questBalanceAudit","function")
     local audioAudit=required(context,"audioAudit","function")
@@ -87,10 +89,29 @@ local function install(context)
     end
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
--- LÖVE's mouse-frontier save directory.
+-- the isolated test save directory.
     ui.smokeLoad,ui.smokeUpdate,ui.smokeDraw=love.load,love.update,love.draw
     ui.smokeReport=nil; ui.smokeController=nil; ui.smokeFinalized=false
     ui.smokeFull=os.getenv("MOUSE_FRONTIER_SMOKE_FULL")=="1"
+    SmokeSupport.seed=tonumber(os.getenv("MOUSE_FRONTIER_SMOKE_SEED")) or 810
+    SmokeSupport.updateStep=tonumber(os.getenv("MOUSE_FRONTIER_SMOKE_STEP")) or .05
+    assert(SmokeSupport.updateStep>=.01 and SmokeSupport.updateStep<=.05,"smoke update step must be between .01 and .05 seconds")
+    function SmokeSupport.advanceSimulation(seconds)
+        while seconds>.000001 do
+            local dt=math.min(SmokeSupport.updateStep,seconds)
+            ui.smokeUpdate(dt)
+            seconds=seconds-dt
+        end
+    end
+    function SmokeSupport.houseLootCount(data)
+        local count=0
+        for _,item in ipairs(data.droppedItems or {}) do
+            if item.scene=="house" and item.location==data.location and (item.houseDoor or 1)==(data.activeHouseDoor or 1) then
+                for _,name in pairs(item.storage or {}) do if name then count=count+1 end end
+            end
+        end
+        return count
+    end
     local function smokeSnapshot()
         return {state=game.state,scene=game.scene,location=game.saveData and game.saveData.location,
             food=game.saveData and game.saveData.resources.food,water=game.saveData and game.saveData.resources.water,
@@ -127,6 +148,8 @@ local function install(context)
             check=function(_,_,snapshot) ui.smokeDraw(); return snapshot.state~=nil end}
     end
     function love.load(...)
+        local Inventory,UIStyle,Viewport=SmokeSupport.inventory,SmokeSupport.style,SmokeSupport.viewport
+        love.math.setRandomSeed(SmokeSupport.seed); math.randomseed(SmokeSupport.seed)
         local ok,message=xpcall(ui.smokeLoad,debug.traceback,...)
         if not ok then io.stderr:write("LOAD_ERROR: "..tostring(message).."\n"); io.stderr:flush(); os.exit(1) end
         local character=characters[1]
@@ -146,7 +169,11 @@ local function install(context)
         game.saveData=newSave(character); game.selectedSlot=nil; enterGame(game.saveData)
         local mobileControls=getMobileControls()
         local reportPath=os.getenv("MOUSE_FRONTIER_SMOKE_REPORT") or os.getenv("MOUSE_FRONTIER_SMOKE_RPT") or "smoke-test.rpt"
-        ui.smokeReport=SmokeReport.new({path=reportPath,metadata={mode=ui.smokeFull and "full-journey" or "autoplay",saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,encounterPolicy=ui.smokeFull and "auto-resolve-for-route" or "normal"}})
+        ui.smokeReport=SmokeReport.new({path=reportPath,runId=os.getenv("MOUSE_FRONTIER_SMOKE_RUN_ID"),metadata={
+            mode=ui.smokeFull and "full-journey" or "autoplay",mobile=mobileControls and mobileControls:isEnabled() or false,
+            scope=os.getenv("MOUSE_FRONTIER_SMOKE_REPAIR_ONLY")=="1" and "repair-only" or "complete",
+            seed=SmokeSupport.seed,updateStep=SmokeSupport.updateStep,saveVersion=CURRENT_SAVE_VERSION,character=character,reportPath=reportPath,
+            saveDirectory=love.filesystem.getSaveDirectory(),encounterPolicy=ui.smokeFull and "normal-scenarios-plus-provisioned-route" or "normal"}})
         local startX=game.player.x
         local steps={fixtureStep("intro"),fixtureStep("slots"),fixtureStep("characters"),
             {name="character_identity_profile",action=function()
@@ -600,7 +627,7 @@ local function install(context)
             end,check=function(_,_,_,result) return result.complete and result.count==9 end},
             {name="walk_right",action=function()
                 local old=love.keyboard.isDown; love.keyboard.isDown=function(key) return key=="d" end
-                local callOk,err=xpcall(function() ui.smokeUpdate(.25) end,debug.traceback); love.keyboard.isDown=old
+                local callOk,err=xpcall(function() SmokeSupport.advanceSimulation(.25) end,debug.traceback); love.keyboard.isDown=old
                 if not callOk then error(err) end; return game.player.x
             end,check=function(_,_,snapshot,result) return result>startX and snapshot.playerX>startX end},
             {name="presentation_coordinate_modes",action=function()
@@ -745,7 +772,7 @@ local function install(context)
             fixtureStep("stop"),
             {name="settlement_without_water_pump",action=function()
                 local layout=ensureStopLayout()
-                ui.smokeUpdate(.05); ui.smokeDraw()
+                SmokeSupport.advanceSimulation(.05); ui.smokeDraw()
                 local retiredSession=false
                 for _,quest in pairs(game.saveData.helpQuestSessions or {}) do
                     retiredSession=retiredSession or quest.kind=="settlement-activity" or quest.source=="community-water-pump"
@@ -761,32 +788,98 @@ local function install(context)
                 game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
                 local beforeAmmo,beforeGoodwill=game.saveData.ammo.rocks,game.saveData.goodwill
                 game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
-                ui.smokeUpdate(.05); ui.interaction={kind="shootingRange",label="TARGET RANGE"}; love.keypressed("e")
+                SmokeSupport.advanceSimulation(.05); ui.interaction={kind="shootingRange",label="TARGET RANGE"}; love.keypressed("e")
                 local opened=game.shootingRange and game.shootingRange.phase=="lobby"
                 assert(opened,"range did not open; dialogue="..tostring(game.dialogue and game.dialogue.text))
-                ui.smokeDraw(); love.keypressed("return"); ui.smokeUpdate(.2); ui.smokeUpdate(.2); ui.smokeDraw()
+                ui.smokeDraw(); love.keypressed("return"); SmokeSupport.advanceSimulation(.4); ui.smokeDraw()
                 local target=game.shootingRange and game.shootingRange.targets[1]
                 assert(target,"range did not spawn a target; phase="..tostring(game.shootingRange and game.shootingRange.phase))
                 if target then love.mousepressed(target.x,target.y,1) end
                 local impacts=target and #target.impacts or 0
                 assert(impacts==1,"range shot impact count="..tostring(impacts))
-                worldSessionComposition.worldScene.handleShootingRange("complete"); ui.smokeDraw()
+                local range=game.shootingRange
+                assert(range.loaded==0 and range.needsReload,"one-shot range weapon did not require a reload")
+                love.keypressed("r")
+                SmokeSupport.advanceSimulation(math.max(.1,(range.reloadTimer or 0)+.1))
+                assert(range.loaded==1 and not range.needsReload,"range reload input did not restore its loaded round")
+                local stageSeconds=range.time
+                SmokeSupport.advanceSimulation(stageSeconds+.1);ui.smokeDraw()
+                assert(range.time==0 and range.phase=="results","range did not naturally finish its stage")
                 local result=game.shootingRange and game.shootingRange.result
                 love.keypressed("e")
                 return {opened=opened,impactCount=impacts,ammoUsed=beforeAmmo-game.saveData.ammo.rocks,
                     goodwill=(result and result.gained or 0),goodwillDelta=game.saveData.goodwill-beforeGoodwill,
-                    closed=game.shootingRange==nil,rewarded=spot.rewarded==true}
+                    closed=game.shootingRange==nil,rewarded=spot.rewarded==true,reloaded=true,naturalCompletion=true,stageSeconds=stageSeconds}
             end,check=function(_,_,snapshot,result)
                 local ready=result and result.opened and result.impactCount==1 and result.ammoUsed==1
-                    and result.goodwill==1 and result.goodwillDelta==1 and result.closed and result.rewarded
+                    and result.goodwill==1 and result.goodwillDelta==1 and result.closed and result.rewarded and result.reloaded and result.naturalCompletion
                     and snapshot.scene=="stop"
                 if ready then return true end
                 return "range state opened="..tostring(result and result.opened).." impacts="..tostring(result and result.impactCount)
                     .." ammo="..tostring(result and result.ammoUsed).." goodwill="..tostring(result and result.goodwill)
                     .." delta="..tostring(result and result.goodwillDelta).." closed="..tostring(result and result.closed)
             end},
-            {name="enter_house_key",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return "e" end,expect={state="game",scene="house"}},
+            {name="enter_house_key",action=function()
+                ui.smokeHomeSeededCount=SmokeSupport.houseLootCount(game.saveData)
+                assert(ui.smokeHomeSeededCount==1,"new game should seed one tutorial tool at stop 2")
+                ui.interaction={kind="house",index=1};love.keypressed("e");return "e"
+            end,expect={state="game",scene="house"}},
             fixtureStep("house"),
+            {name="home_loot_transfer_persists",action=function()
+                local data=game.saveData
+                local before=SmokeSupport.houseLootCount(data)
+                local repairs,contents=0,{}
+                for _,item in ipairs(data.droppedItems) do
+                    if item.scene=="house" and item.location==data.location and (item.houseDoor or 1)==1 then
+                        for _,name in pairs(item.storage or {}) do
+                            contents[#contents+1]=name
+                            local part=Catalog.repairParts[name]
+                            if part then
+                                repairs=repairs+1
+                                local owned=false
+                                for _,list in ipairs({data.equipment,data.inventory}) do for _,weapon in pairs(list) do if weapon==part.weapon then owned=true end end end
+                                assert(owned and (data.weaponDurability[part.weapon] or 100)<=25,"home repair bonus did not target an owned critical weapon")
+                            end
+                        end
+                    end
+                end
+                assert(data.location==2 and (data.activeHouseDoor or 1)==1 and before-repairs-ui.smokeHomeSeededCount==5 and repairs<=1,"first visited home budget failed: "..table.concat(contents,", "))
+                local chestIndex,slot,name
+                for index,item in ipairs(data.droppedItems) do
+                    if item.scene=="house" and item.location==data.location and (item.houseDoor or 1)==1 then
+                        for candidate,value in pairs(item.storage or {}) do
+                            if not Catalog.ammoPickupAmounts[value] then chestIndex,slot,name=index,candidate,value;break end
+                        end
+                    end
+                    if chestIndex then break end
+                end
+                local target=Inventory.firstEmptySlot(data)
+                assert(chestIndex and target,"home loot fixture needs a stocked chest and empty backpack slot")
+                Save.remove(99); game.selectedSlot=99; game.dialogue=nil
+                ui.interaction={kind="chest",index=chestIndex};love.mousepressed(400,500,2)
+                assert(game.chestOpen and game.activeChest==data.droppedItems[chestIndex],"interact did not open the home container")
+                ui.smokeDraw()
+                local function point(rect)
+                    rect=UIStyle.transformRectFor("inventory",{x=25,y=35,w=910,h=660},rect)
+                    local ox,oy,sx,sy=Viewport.transform(960,720)
+                    return ox+(rect.x+rect.w/2)*sx,oy+(rect.y+rect.h/2)*sy
+                end
+                local sx,sy=point(Inventory.chestSlotRect(slot))
+                local rect=mobileControls and mobileControls:isEnabled() and Inventory.mobileInventorySlotRect(target) or Inventory.inventorySlotRect(target)
+                local tx,ty=point(rect)
+                love.mousepressed(sx,sy,1); love.mousemoved(tx,ty,tx-sx,ty-sy); love.mousereleased(tx,ty,1)
+                assert(data.inventory[target]==name and data.droppedItems[chestIndex].storage[slot]==nil,"container drag must transfer exactly one item")
+                love.keypressed("e")
+                assert(not game.inventoryOpen and not game.chestOpen,"container close input did not close both panels")
+                assert(Save.flush(99),"collected home loot could not be flushed to disk")
+                local loaded=assert(Save.read(99),"collected home loot could not be read from disk")
+                assert(loaded.inventory[target]==name and loaded.droppedItems[chestIndex].storage[slot]==nil,"save/reload lost the container transfer")
+                enterGame(loaded); game.selectedSlot=nil; Save.remove(99)
+                assert(game.scene=="house" and SmokeSupport.houseLootCount(game.saveData)==before-1,"reloading a home regenerated its collected loot")
+                return {opened=true,transferred=name,before=before,after=SmokeSupport.houseLootCount(game.saveData),base=before-repairs-ui.smokeHomeSeededCount,seeded=ui.smokeHomeSeededCount,repairBonuses=repairs,diskReload=true}
+            end,check=function(_,_,snapshot,result)
+                return result.opened==true and result.diskReload==true and result.base==5 and result.after==result.before-1 and snapshot.scene=="house"
+            end},
             {name="exit_home_button",action=function()
                 ui.smokeDraw()
                 local control=ui.exitHome
@@ -940,8 +1033,19 @@ local function install(context)
             end,check=function(_,_,_,result)
                 return result.wrote and result.location==23 and result.nested=="known-good" and result.primaryGood and result.backupGood
             end},
-            {name="asset_contract",action=function() return Assets.assetFailureSummary() end,expect={assetFailures=0}}
         }
+        local scenarioContext={runtime=game,ui=ui,catalog=Catalog,character=character,newSave=newSave,enterGame=enterGame,
+            beginEncounter=beginEncounter,ensureStopLayout=ensureStopLayout,update=SmokeSupport.advanceSimulation,draw=ui.smokeDraw,
+            presentationRuntime=presentationRuntime,getMobileControls=getMobileControls,
+            mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end}
+        local scenarios=require("game.smoke_combat").steps(scenarioContext)
+        for _,step in ipairs(require("game.smoke_first_aid").steps(scenarioContext)) do scenarios[#scenarios+1]=step end
+        for index,step in ipairs(steps) do
+            if step.name=="return_to_train_button" then
+                for offset,scenario in ipairs(scenarios) do table.insert(steps,index+offset,scenario) end
+                break
+            end
+        end
         if mobileControls and mobileControls:isEnabled() then
             local mobileSteps={
                 {name="mobile_joystick_move_and_run",action=function()
@@ -952,7 +1056,7 @@ local function install(context)
                     love.touchpressed("smoke-stick",stick.x,stick.y)
                     love.touchmoved("smoke-stick",targetX,stick.y,stick.radius,0)
                     local sprinting=mobileControls:isSprinting()
-                    ui.smokeUpdate(.25)
+                    SmokeSupport.advanceSimulation(.25)
                     love.touchreleased("smoke-stick",targetX,stick.y)
                     local axisX,axisY=mobileControls:movement()
                     return {before=before,after=game.player.x,sprinting=sprinting,axisX=axisX,axisY=axisY,stickX=stick.x,
@@ -1034,12 +1138,12 @@ local function install(context)
                     game.saveData.equipment[1]="trail-slingshot"
                     game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
                     game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
-                    ui.smokeUpdate(.05); ui.smokeDraw(); ui.interaction={kind="shootingRange",label="TARGET RANGE"}
+                    SmokeSupport.advanceSimulation(.05); ui.smokeDraw(); ui.interaction={kind="shootingRange",label="TARGET RANGE"}
                     love.touchpressed("smoke-range-open",mobileControls.primary.x,mobileControls.primary.y)
                     love.touchreleased("smoke-range-open",mobileControls.primary.x,mobileControls.primary.y)
                     ui.smokeDraw()
                     love.touchpressed("smoke-range-start",637,569); love.touchreleased("smoke-range-start",637,569)
-                    ui.smokeUpdate(.2); ui.smokeUpdate(.2); ui.smokeDraw()
+                    SmokeSupport.advanceSimulation(.4); ui.smokeDraw()
                     local range=game.shootingRange; local target=range and range.targets[1]
                     if not target then return false end
                     local ammoBefore=game.saveData.ammo.rocks
@@ -1098,40 +1202,33 @@ local function install(context)
             }
             for _,step in ipairs(mobileSteps) do steps[#steps+1]=step end
         end
-        for _,step in ipairs(steps) do
-            local originalAfter=step.after
-            step.after=function(controller,current,record)
-                ui.smokeReport:step(record.name,"passed",{elapsed=record.elapsed})
-                ui.smokeReport:value(record.name..".return",record.value)
-                ui.smokeReport:value(record.name..".variables",record.state)
-                ui.smokeReport:checkpoint(record.name,true,record.state); ui.smokeReport:flush()
-                if originalAfter then originalAfter(controller,current,record) end
-            end
-        end
         if ui.smokeFull then
             local fullSteps={
                 {name="full_run_initialize",action=function()
                     game.saveData=newSave(character)
-                    -- Full-route mode tests progression to stop 50. The tester
-                    -- provisions supplies so ordinary scarcity does not mask
-                    -- route, encounter, or ending defects.
+                    -- Route assistance is explicit: the normal scenarios run
+                    -- first; this segment checks every charged departure,
+                    -- arrival, a disk resume, and the game's ending trigger.
                     game.saveData.resources.food=1000; game.saveData.resources.water=1000; game.saveData.resources.coal=1000
+                    Save.remove(99);game.selectedSlot=99
+                    ui.smokeRoute={departures=0,arrivals=0,lastLocation=1,reloaded=false,costs={food=0,water=0,coal=0}}
                     enterGame(game.saveData); return true
                 end,expect={state="game",scene="train",location=1}},
                 {name="full_journey_to_stop_50",timeout=500,before=function() ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end,action=function()
+                    local route=ui.smokeRoute
+                    if game.saveData.location~=route.lastLocation then
+                        assert(game.saveData.location==route.lastLocation+1,"route skipped or revisited a stop")
+                        route.lastLocation=game.saveData.location;route.arrivals=route.arrivals+1
+                        ui.smokeReport:value("route.arrival."..route.lastLocation,{departures=route.departures,arrivals=route.arrivals,resources=game.saveData.resources})
+                        assert(ui.smokeReport:flush(),"could not write route arrival evidence")
+                    end
                     if game.saveData.location==ui.smokeFullLastLocation then ui.smokeFullStall=(ui.smokeFullStall or 0)+1 else ui.smokeFullLastLocation=game.saveData.location; ui.smokeFullStall=0 end
                     if ui.smokeFullStall>30 then error("GAMEPLAY_BLOCKED: no progress at stop "..tostring(game.saveData.location).." state="..tostring(game.state).." scene="..tostring(game.scene).." battle="..tostring(game.battle~=nil).." event="..tostring(game.randomEvent~=nil)) end
-                    if game.saveData.location>=50 then game.state="ending"; return true end
+                    if game.saveData.location>=50 then return game.state=="ending" and game.travelTransition==nil end
                     if game.state=="battle" then
                         if game.battle and game.battle.finished then love.keypressed("return")
                         elseif ui.smokeFull and game.battle then
-                            -- Full-route mode is a progression reachability
-                            -- test. Encounters are still created/rendered, but
-                            -- are auto-resolved so combat RNG cannot hide a
-                            -- route/ending defect. Normal smoke mode exercises
-                            -- the actual battle controls separately.
-                            for _,unit in ipairs(game.battle.units or {}) do if unit.team=="enemy" then unit.hp=0 end end
-                            advanceBattleTurn()
+                            error("unexpected encounter in provisioned route segment")
                         elseif game.battle and game.battle.intro then
                             -- The real update callback advances the intro.
                         elseif game.battle and game.battle.phase=="select" then
@@ -1144,38 +1241,63 @@ local function install(context)
                             if active and target then resolveBattleAttack(active,target,game.battle.chosenWeapon or "frontier-short-sword") end
                         end
                     elseif game.state=="event" then
-                        resolveEventChoice(1)
+                        ui.smokeDraw();love.keypressed("1")
                     elseif game.state=="game" and game.scene=="stop" then
-                        game.dialogue=nil; game.scene="train"; game.saveData.scene=game.scene; game.player.x,game.player.y=car.x+300,car.y+285; writeSave()
+                        game.dialogue=nil;ui.smokeDraw()
+                        local control=assert(ui.returnTrain,"route return-to-train control was not drawn")
+                        love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                        assert(game.scene=="train","route return-to-train control did not return")
                     elseif game.state=="game" and game.scene=="train" and not game.travelTransition then
-                        if game.saveData.resources.food<1 or game.saveData.resources.water<1 or game.saveData.resources.coal<1 then
+                        if game.saveData.location==25 and not route.reloaded then
+                            writeSave();assert(Save.flush(99),"mid-route save flush failed")
+                            local resumed=assert(Save.read(99),"mid-route disk save failed to load")
+                            assert(resumed.location==25 and resumed.visitedStops[24] and resumed.visitedStops[25],"mid-route disk save lost progression")
+                            enterGame(resumed);route.reloaded=true
+                        end
+                        local status=SmokeSupport.travelStatus()
+                        if not status.affordable then
                             error("GAMEPLAY_BLOCKED: resources exhausted before stop "..tostring(game.saveData.location+1))
                         end
                         -- Route mode focuses on reachability. Mark the current
                         -- stop's interruption as handled, then use the real
                         -- travel confirmation/input path.
                         local key=tostring(game.saveData.location); game.saveData.encounters[key]={resolved=true,hasMob=false}; game.saveData.events[key]=true
-                        game.travelConfirm=true; love.keypressed("return")
+                        local resources=game.saveData.resources
+                        local before={food=resources.food,water=resources.water,coal=resources.coal}
+                        game.dialogue=nil;ui.smokeDraw()
+                        local control=assert(ui.travel,"route travel control was not drawn")
+                        love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                        assert(game.travelConfirm,"route travel input did not open confirmation")
+                        love.keypressed("return")
+                        assert(game.travelTransition,"route confirmation did not start travel")
+                        for _,kind in ipairs({"food","water","coal"}) do
+                            assert(before[kind]-resources[kind]==status.cost[kind],"route charged incorrect "..kind.." travel cost")
+                            route.costs[kind]=route.costs[kind]+status.cost[kind]
+                        end
+                        route.departures=route.departures+1
                     elseif game.state~="game" or game.scene~="train" or game.travelTransition then
                         -- Let the real update callback advance transitions.
                     else error("GAMEPLAY_BLOCKED: unexpected state at stop "..tostring(game.saveData.location)) end
-                    return game.saveData.location>=50
+                    return game.state=="ending" and game.saveData.location==50 and game.travelTransition==nil
                 end,check=function(_,_,snapshot)
-                    if snapshot.state=="ending" and snapshot.location>=50 then return true end
+                    if snapshot.state=="ending" and snapshot.location==50 and not snapshot.traveling then
+                        assert(ui.smokeRoute.departures==49 and ui.smokeRoute.arrivals==49 and ui.smokeRoute.reloaded,"route did not validate all legs and disk resume")
+                        for location=1,50 do assert(game.saveData.visitedStops[location],"route visit marker missing at "..location) end
+                        return true
+                    end
                     return false,"still progressing: stop "..tostring(snapshot.location)
-                end,expect={state="ending",location=50,sessionSynchronized=true,screenManagerSynchronized=true,runtimeSynchronized=true}}
+                end,expect={state="ending",location=50,sessionSynchronized=true,screenManagerSynchronized=true,runtimeSynchronized=true}},
+                {name="full_finale_persists",action=function()
+                    ui.smokeDraw();love.keypressed("3")
+                    assert(game.saveData.finale and game.saveData.finale.choice=="lifeline","natural ending did not accept a finale choice")
+                    assert(Save.flush(99),"finale save flush failed")
+                    local loaded=assert(Save.read(99),"finale disk save failed to load")
+                    assert(loaded.location==50 and loaded.finale.choice=="lifeline","finale choice did not persist")
+                    enterGame(loaded);game.selectedSlot=nil;Save.remove(99)
+                    return {choice=game.saveData.finale.choice,route=ui.smokeRoute,diskReload=true}
+                end,check=function(_,_,snapshot,result) return result.diskReload==true and result.choice=="lifeline" and snapshot.state=="ending" and snapshot.location==50 end}
             }
-            steps=fullSteps
-            for _,step in ipairs(steps) do
-                local originalAfter=step.after
-                step.after=function(controller,current,record)
-                    ui.smokeReport:step(record.name,"passed",{elapsed=record.elapsed})
-                    ui.smokeReport:value(record.name..".return",record.value)
-                    ui.smokeReport:value(record.name..".variables",record.state)
-                    ui.smokeReport:checkpoint(record.name,true,record.state); ui.smokeReport:flush()
-                    if originalAfter then originalAfter(controller,current,record) end
-                end
-            end
+            for _,step in ipairs(fullSteps) do steps[#steps+1]=step end
         end
         if os.getenv("MOUSE_FRONTIER_SMOKE_REPAIR_ONLY")=="1" then
             local repairSteps={}
@@ -1187,6 +1309,21 @@ local function install(context)
             end
             steps=repairSteps
         end
+        steps[#steps+1]={name="asset_contract",action=function() return Assets.assetFailureSummary() end,expect={assetFailures=0}}
+        ui.smokeReport:metadata({plannedCheckpoints=#steps})
+        for index,step in ipairs(steps) do
+            ui.smokeReport:metadata({["planned_step_"..index]=step.name})
+            local originalAfter=step.after
+            step.after=function(controller,current,record)
+                if originalAfter then originalAfter(controller,current,record) end
+                ui.smokeReport:step(record.name,"passed",{elapsed=record.elapsed})
+                ui.smokeReport:value(record.name..".return",record.value)
+                ui.smokeReport:value(record.name..".variables",record.state)
+                ui.smokeReport:checkpoint(record.name,true,record.state)
+                local flushed,message=ui.smokeReport:flush();assert(flushed,message)
+            end
+        end
+        assert(ui.smokeReport:flush(),"could not write smoke checkpoint plan")
         ui.smokeController=SmokeController.new({name=ui.smokeFull and "mouse-frontier-full-journey" or "mouse-frontier-autoplay",timeout=ui.smokeFull and 10 or 4,steps=steps,hooks={snapshot=smokeSnapshot}})
     end
     function love.update(dt)
@@ -1206,13 +1343,16 @@ local function install(context)
         local status=ui.smokeController:getStatus()
         -- Fixed simulation time keeps the playthrough deterministic and lets
         -- transitions finish quickly even when the hidden window is throttled.
-        if status.current~="walk_right" then ui.smokeUpdate(ui.smokeFull and 5 or .25) end
-        status=ui.smokeController:update(ui.smokeFull and 5 or .25)
+        local elapsed=ui.smokeFull and status.current and status.current:match("^full_") and 1 or .25
+        if status.current~="walk_right" then SmokeSupport.advanceSimulation(elapsed) end
+        status=ui.smokeController:update(elapsed)
         if status.finished then
             ui.smokeFinalized=true
             local summary=ui.smokeController:getSummary()
             if status.failed then for _,message in ipairs(summary.errors) do ui.smokeReport:error(message) end end
-            ui.smokeReport:value("controller.summary",summary); ui.smokeReport:finish(status.failed and "failed" or "passed")
+            ui.smokeReport:value("controller.summary",summary)
+            local written,message=ui.smokeReport:finish(status.failed and "failed" or "passed")
+            if not written then io.stderr:write("REPORT_ERROR: "..tostring(message).."\n");love.event.quit(1);return end
             if status.failed then io.stderr:write("SMOKE_ERROR: "..table.concat(summary.errors," | ").."\n"); io.stderr:flush(); love.event.quit(1); return end
             print("SMOKE_OK: autonomous playthrough completed "..status.passed.." checkpoints"); io.flush(); love.event.quit(0); return
         end

@@ -53,6 +53,7 @@ function fixture(scale,offsetX,offsetY)
             end,
         }},worldScene=service(),sessionBootstrap=service(),util=require('game.util'),
         resolveFirstAid=noop,chooseHelpDialogue=noop,
+        controlBindings=require('game.control_bindings').new({getInfo=function() return nil end}),
     }
     for _,name in ipairs({'inventory','catalog','npcRelationships','merchantTrade','engineUpgrades',
         'trainUpgradeBalance','maintenance','battleRules','stops','settlements','interiorDoors','intro',
@@ -115,10 +116,10 @@ class TrainEditorInputTests(unittest.TestCase):
         self.lua.execute(r'''
             local f=fixture(1.7,-540,-330)
             f.runtime.editMode=false; f.runtime.inventoryOpen=true
-            local x,y=f.uiToScreen(360,240)
+            local x,y=f.uiToScreen(720,240)
             f.input.mousepressed(x,y,1); f.input.mousereleased(x,y,1)
-            close(f.calls.inventory.x,360); close(f.calls.inventory.y,240)
-            close(f.calls.release.x,360); close(f.calls.release.y,240)
+            close(f.calls.inventory.x,720); close(f.calls.inventory.y,240)
+            close(f.calls.release.x,720); close(f.calls.release.y,240)
             assert(f.calls.world==0)
         ''')
 
