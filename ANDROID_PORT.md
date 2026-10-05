@@ -4,11 +4,14 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.16` (`versionCode` 16), rebuilt September 25, 2026, includes the current gameplay fixes. Last Stand's backyard and house use the regular character movement controller and the selected character's directional walking animations. Keyboard, controller and mobile joystick movement share collision handling and actual-distance animation timing; sprinting also works. The mobile joystick appears during these walkaround sections and stays hidden during the first-person shooting phase.
+Build `0.7.0-mobile.24` (`versionCode` 24) was packaged October 5, 2026 from clean source commit `1bb06d1`. The `.23` artifact had been built from an older source revision. The new package was rebuilt from the committed shared game and installed on the connected Android phone.
 
-- APK: `output/mobile/MouseFrontier-0.7.0-mobile.16-debug.apk`
-- Last Stand movement and animation checks: 163. Mobile pickup and movement-control checks: 48. Packaged mobile smoke: 95 checkpoints. The moving selected character was visually checked in the rendered minigame.
-- Build, APK signature, clean-commit parity, installation, and game startup marker verification passed on a connected phone. Hands-on touch, save, and visual acceptance of this exact build remains open.
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.24-debug.apk`
+- Packaged mobile smoke: 109 checkpoints. Packaged full route: 105 checkpoints, including all 49 legs, a disk resume at stop 25, and the ending. Both used seed 1337.
+- Staged mobile Last Stand: 1,591 checks, 108 save operations, 15 kills, and 180 seconds of simulated defense.
+- The APK's application ID, version, debug signature, three processor architectures, and embedded `.love` archive hash were verified. Device acceptance confirmed version 24 and the Mouse Frontier first-frame startup marker, then kept the game running for more than 20 seconds.
+- The requested test-save wipe removed slot 1 and slot 2 plus their `.bak` recovery files; no backup was made. Control layout settings were retained.
+- Manual touch-comfort, visual, and performance review remain open beyond the automated startup check.
 
 ## Build 15 backpack button
 
