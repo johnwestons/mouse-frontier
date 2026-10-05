@@ -4,7 +4,7 @@ local Art={}
 local root="assets/sprites/outfit-crafting/"
 local sheets={
     controls={file="bench-controls-v1.png",columns=4,rows=5,tight=true},
-    supplies={file="supplies-tools-v1.png",columns=4,rows=5,cell=280,tight=true},
+    supplies={file="supplies-tools-v1.png",columns=4,rows=5,tight=true},
     upgrades={file="upgrades-v1.png",columns=3,rows=3,tight=true},
     soft={file="soft-workpieces-v2.png",columns=4,rows=3,tight=true},
     hard={file="hard-workpieces-v3.png",columns=4,rows=3,tight=true},
@@ -34,13 +34,16 @@ local function loadSheet(name)
     if sheet.image then return sheet end
     local pixels=love.image.newImageData(root..sheet.file)
     local width,height=pixels:getDimensions()
+    assert(width>=sheet.columns and height>=sheet.rows,
+        "Outfit sprite sheet is smaller than its frame grid: "..sheet.file)
     sheet.image=love.graphics.newImage(pixels); sheet.image:setFilter("nearest","nearest")
     sheet.frames={}
     for index=1,sheet.columns*sheet.rows do
         local col,row=(index-1)%sheet.columns,math.floor((index-1)/sheet.columns)
-        local cellW,cellH=sheet.cell or width/sheet.columns,sheet.cell or height/sheet.rows
-        local x,y=math.floor(col*cellW),math.floor(row*cellH)
-        local right,bottom=math.floor((col+1)*cellW)-1,math.floor((row+1)*cellH)-1
+        -- Mobile image packing resizes the complete sheet, so derive each
+        -- frame from the decoded bounds instead of assuming authored pixels.
+        local x,y=math.floor(col*width/sheet.columns),math.floor(row*height/sheet.rows)
+        local right,bottom=math.floor((col+1)*width/sheet.columns)-1,math.floor((row+1)*height/sheet.rows)-1
         local left,top=x,y
         if sheet.tight then
             -- Measure alpha bounds as metadata; never alter authored pixels.

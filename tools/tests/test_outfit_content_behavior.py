@@ -1,6 +1,7 @@
 """Crafting supplies, merchant migration, and save retention through real Lua modules."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import sys
@@ -122,13 +123,19 @@ class OutfitContentBehaviorTests(unittest.TestCase):
 
     def test_all_material_and_upgrade_icons_draw(self) -> None:
         sprite_pixels = self.lua.table()
+        mobile_config = json.loads((ROOT / 'mobile' / 'config.json').read_text(encoding='utf-8'))
         for filename in ('supplies-tools-v1.png', 'upgrades-v1.png', 'bench-controls-v1.png'):
             path = ROOT / 'assets/sprites/outfit-crafting' / filename
             with Image.open(path) as source:
+                image = source.convert('RGBA')
+                if filename == 'supplies-tools-v1.png':
+                    image.thumbnail((mobile_config['generalImageWidth'], mobile_config['generalImageHeight']),
+                                    Image.Resampling.LANCZOS)
                 sprite_pixels[path.relative_to(ROOT).as_posix()] = self.lua.table_from({
-                    'width': source.width, 'height': source.height,
-                    'rgba': source.convert('RGBA').tobytes(),
+                    'width': image.width, 'height': image.height,
+                    'rgba': image.tobytes(),
                 })
+                image.close()
         self.lua.globals().spritePixels = sprite_pixels
         self.lua.execute(r'''
             local draws={}

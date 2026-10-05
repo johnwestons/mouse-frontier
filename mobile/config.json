@@ -1,8 +1,8 @@
 {
   "applicationId": "com.mousefrontier.game",
   "applicationName": "Mouse Frontier",
-  "versionName": "0.7.0-mobile.24",
-  "versionCode": 24,
+  "versionName": "0.7.0-mobile.25",
+  "versionCode": 25,
   "loveVersion": "11.5",
   "imagePaletteColors": 256,
   "fullscreenImageWidth": 960,
