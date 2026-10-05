@@ -102,6 +102,10 @@ local function distanceScale(distance)
     return 1-.4*progress
 end
 
+local function distanceProgress(distance)
+    return (validDistance(distance)-25)/275
+end
+
 local function weaponDurability(data,name)
     local value=data and data.weaponDurability and data.weaponDurability[name]
     return math.max(0,math.min(100,math.floor(tonumber(value) or 100)))
@@ -296,10 +300,14 @@ local function spawnTarget(session)
     local direction=session.spawnIndex%2==0 and 1 or -1
     local material=session.material
     local sprite=material=="paper" and ((session.spawnIndex-1)%4+1) or material=="steel" and ((session.spawnIndex-1)%4+5) or 10
+    local depth=distanceProgress(session.distance)
     local sizeScale=distanceScale(session.distance)
     local positionScale=.55+.45*sizeScale
     local x=480+(lane.x-480)*positionScale
-    local y=278+(lane.y-278)*positionScale
+    -- The practice lanes recede toward the horizon: near targets sit low on
+    -- the berm, while far targets rise toward the smaller backstop silhouettes.
+    local laneSpread=.50-.15*depth
+    local y=465+(300-465)*depth+(lane.y-320)*laneSpread
     local points=math.floor(100*Range.scoreMultiplier(session)+.5)
     session.targets[#session.targets+1]={
         x=x,y=y,baseX=x,scale=lane.scale*sizeScale,material=material,sprite=sprite,
@@ -624,8 +632,8 @@ shoot=function(session,data,catalog,x,y)
         local miss=missedPellets[math.random(1,#missedPellets)]
         local rangeScale=distanceScale(session.distance)
         session.dirtImpacts=session.dirtImpacts or {}
-        session.dirtImpacts[#session.dirtImpacts+1]={x=miss.x,y=miss.y,variant=math.random(1,5),
-            age=0,duration=.55,size=48*rangeScale,lift=14*rangeScale}
+        session.dirtImpacts[#session.dirtImpacts+1]={x=miss.x,y=miss.y,variant=5,
+            age=0,duration=.85,size=72*rangeScale,lift=19*rangeScale}
     end
     if hitTarget then
         session.message=session.needsReload and "RELOAD REQUIRED" or "HIT"; return "shot"
@@ -1012,12 +1020,12 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             if dirtImage and quad then
                 local progress=math.max(0,math.min(1,impact.age/impact.duration))
                 local expansion=math.min(1,progress*3.2)
-                local scale=impact.size/quad.cellH*(.62+.52*expansion)
+                local scale=impact.size/dirtQuads.cellH*(.85+.60*expansion)
                 local rise=impact.lift*progress
                 local alpha=(1-progress)^1.4
                 love.graphics.setColor(1,1,1,alpha)
                 love.graphics.draw(dirtImage,quad,impact.x,impact.y-rise,0,scale,scale,
-                    quad.cellW/2,quad.cellH-12)
+                    dirtQuads.cellW/2,dirtQuads.cellH-12)
             end
         end
         for _,target in ipairs(session.targets) do
@@ -1068,9 +1076,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         local sx,sy=Range.sway(session,catalog); local x,y=session.aimX+sx,session.aimY+sy
         local placement=Range.weaponViewPlacement(session)
         drawFirstPersonWeapon(assets,ui,session,x,y,sx,sy,placement)
-        if placement=="sights" then
-            love.graphics.setColor(1,.25,.16,.78); love.graphics.circle("fill",x,y,3); love.graphics.circle("line",x,y,7)
-        else
+        if placement~="sights" then
             love.graphics.setColor(1,.25,.16,.95); love.graphics.circle("line",x,y,13); love.graphics.line(x-20,y,x-5,y); love.graphics.line(x+5,y,x+20,y); love.graphics.line(x,y-20,x,y-5); love.graphics.line(x,y+5,x,y+20)
         end
         if session.needsReload then

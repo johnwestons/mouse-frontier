@@ -294,7 +294,11 @@ local function install(context)
                         and result.legendaryPrice>result.commonPrice
                         and result.wornResale<result.soundResale
                 end},
-            {name="crow_caravan_camps",action=smokeComposition.caravanAudit,
+            {name="crow_caravan_camps",action=function()
+                    local result=smokeComposition.caravanAudit()
+                    ui.smokeReport:value("crow_caravan.audit",result)
+                    return result
+                end,
                 check=function(_,_,_,result)
                     return result.ready and result.economy.merchants==9 and result.economy.listings==36
                         and result.economy.minimumGap>=8 and result.economy.curve=="crow-caravans-v1"
@@ -351,13 +355,17 @@ local function install(context)
                 local dialogue=result.dialogue
                 return result.ready and dialogue.ready and dialogue.definitions==13 and dialogue.completed==13 and dialogue.rewardOnce
             end},
-            {name="shooting_range_audit",action=shootingRangeAudit,check=function(_,_,_,range)
+            {name="shooting_range_audit",action=function()
+                    local result=shootingRangeAudit()
+                    ui.smokeReport:value("shooting_range.audit",result)
+                    return result
+                end,check=function(_,_,_,range)
                 return range.ready and range.hostCount==9 and range.ownedWeapons==3
-                    and range.goodwill==2 and range.replayGoodwill==0 and range.version==3
+                    and range.goodwill==2 and range.replayGoodwill==0 and range.version==4
                     and range.sparseOwned==2 and range.brokenRejected and range.zeroGoodwill==0
                     and range.movingMultiplier==1.30 and range.targetPattern=="pop-up" and range.stageLength==60
                     and range.ammoPurchased and range.scrapAfterAmmo==4 and range.calibratedViews==45 and range.provisionalViews==0
-                    and range.modes==3 and range.targetTypes==3 and range.assignedSounds>=40
+                    and range.modes==3 and range.targetTypes==4 and range.assignedSounds>=40
             end},
             {name="npc_relationship_progression",action=relationshipAudit,check=function(_,_,_,result)
                 return result.ready and result.persistent and result.points>=7 and result.buyPrice<20 and result.sellPrice>10
@@ -563,6 +571,7 @@ local function install(context)
             end},
             {name="audio_priority_and_menu_ambience",action=function()
                 local settings=game.saveData.audio
+                local oldStation,oldRain=settings.station,settings.rainEnabled
                 settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()
                 local stationCategory=audioRuntime.status().category
                 local oldState,oldBattle=game.state,game.battle
@@ -570,11 +579,16 @@ local function install(context)
                 local battleCategory=audioRuntime.status().category
                 game.state="slots"; audioRuntime.update()
                 local titleStatus=audioRuntime.status()
-                game.state,game.battle=oldState,oldBattle; settings.station="8bit"; audioRuntime.resetMusic(); audioRuntime.update()
-                return {station=stationCategory,battle=battleCategory,menuMusic=titleStatus.category,menuRain=titleStatus.rainPath~=nil,
+                settings.rainEnabled=true; audioRuntime.update()
+                local rainStatus=audioRuntime.status()
+                game.state,game.battle=oldState,oldBattle
+                settings.station,settings.rainEnabled=oldStation,oldRain; audioRuntime.resetMusic(); audioRuntime.update()
+                return {station=stationCategory,battle=battleCategory,menuMusic=titleStatus.category,
+                    menuRainDisabled=titleStatus.rainPath==nil,menuRain=rainStatus.rainPath~=nil,
                     menuPlaying=titleStatus.nowPlaying~=nil}
             end,check=function(_,_,_,result)
-                return result.station=="chill" and result.battle=="bossFight" and result.menuMusic=="chill" and result.menuRain and result.menuPlaying
+                return result.station=="chill" and result.battle=="bossFight" and result.menuMusic=="chill"
+                    and result.menuRainDisabled and result.menuRain and result.menuPlaying
             end},
             {name="radio_transport_render",action=function()
                 ui.radioOpen=true; ui.smokeDraw()
@@ -618,8 +632,21 @@ local function install(context)
             {name="open_inventory_key",action=function() love.keypressed("i"); return game.inventoryOpen end,expect={inventoryOpen=true}},
             {name="close_inventory_key",action=function() love.keypressed("i"); return "closed" end,expect={inventoryOpen=false}},
             {name="open_map_key",action=function() love.keypressed("m"); return game.mapOpen end,expect={mapOpen=true}},
-            {name="scroll_map_key",action=function() local before=game.mapScroll; love.keypressed("down"); return {before=before,after=game.mapScroll} end,
-                check=function(_,_,_,result) return result.after==result.before+1 end},
+            {name="scroll_map_key",action=function()
+                local location,scroll=game.saveData.location,game.mapScroll
+                game.saveData.location=25; game.mapScroll=1
+                ui.keyboardFocusScreen=nil; ui.smokeDraw()
+                local before=game.mapScroll
+                love.keypressed("down")
+                local focused=ui.keyboardFocusId
+                local afterFocus=game.mapScroll
+                love.keypressed("return")
+                local after=game.mapScroll
+                game.saveData.location,game.mapScroll=location,scroll
+                return {before=before,afterFocus=afterFocus,after=after,focused=focused}
+            end,check=function(_,_,_,result)
+                return result.focused=="map.down" and result.afterFocus==result.before and result.after==result.before+1
+            end},
             {name="close_map_key",action=function() love.keypressed("m"); return "closed" end,expect={mapOpen=false}},
             {name="begin_train_car_transition",action=function()
                 game.state="game"; game.scene="train"; game.saveData.scene=game.scene
@@ -647,7 +674,9 @@ local function install(context)
                 local x,y=Maintenance.targetPosition(1); love.mousepressed(x,y,1); love.mousepressed(x,y,1)
                 local afterDrop=game.saveData.resources.oil
                 local limitedProgress=Maintenance.progressCount(maintenanceSession)
-                love.keypressed("escape")
+                -- Escape opens the global pause menu; Q is the workshop's
+                -- cancel control and must discard uncommitted maintenance.
+                love.keypressed("q")
                 local afterCancel=game.saveData.resources.oil
                 game.saveData.resources.oil=10
                 Maintenance.open(maintenanceSession,game.saveData)
@@ -685,7 +714,7 @@ local function install(context)
                 return result.wheelFrame==1 and result.doneFrame==5 and result.conditionFrame==5 and result.smokePuffs==0 and
                     snapshot.maintenanceCondition==100 and snapshot.maintenanceCompleted==true
             end},
-            {name="close_maintenance",action=function() love.keypressed("escape"); return true end,expect={maintenanceOpen=false}},
+            {name="close_maintenance",action=function() love.keypressed("q"); return true end,expect={maintenanceOpen=false}},
             {name="maintenance_persists_at_stop",action=function()
                 Maintenance.open(maintenanceSession,game.saveData)
                 local before=game.saveData.maintenance.totalServices
@@ -962,8 +991,19 @@ local function install(context)
                     ui.smokeDraw()
                     local backX=mobileControls.back.x+mobileControls.back.w/2; local backY=mobileControls.back.y+mobileControls.back.h/2
                     love.touchpressed("smoke-back",backX,backY); love.touchreleased("smoke-back",backX,backY)
-                    return {menuOpened=menuOpened,opened=opened,closed=not game.inventoryOpen}
-                end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.closed end},
+                    local paused=ui.escMenuOpen and game.inventoryOpen
+                    ui.smokeDraw()
+                    local resume=assert(ui.escChoiceContinue,"mobile pause menu has no Continue control")
+                    local resumeX,resumeY=resume.x+resume.w/2,resume.y+resume.h/2
+                    love.touchpressed("smoke-pack-resume",resumeX,resumeY); love.touchreleased("smoke-pack-resume",resumeX,resumeY)
+                    local resumed=not ui.escMenuOpen and game.inventoryOpen
+                    ui.smokeDraw()
+                    -- Personal inventory closes when the player taps the
+                    -- uncovered scene beside its panel.
+                    local closeX,closeY=480,100
+                    love.touchpressed("smoke-pack-close",closeX,closeY); love.touchreleased("smoke-pack-close",closeX,closeY)
+                    return {menuOpened=menuOpened,opened=opened,paused=paused,resumed=resumed,closed=not game.inventoryOpen}
+                end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.paused and result.resumed and result.closed end},
                 {name="mobile_exit_home_touch",action=function()
                     game.saveData=newSave(character); enterGame(game.saveData)
                     game.scene="stop"; game.saveData.scene="stop"; ui.interaction={kind="house",index=1}; love.keypressed("e")

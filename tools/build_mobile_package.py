@@ -52,6 +52,12 @@ CARAVAN_ANIMATION_GRIDS = {
     "assets/sprites/caravans/rookery/animations/merchant-stall-breeze-4-v1.png": (2, 2, 384, 256),
     "assets/sprites/caravans/rookery/animations/campfire-idle-4-v1.png": (4, 1, 192, 256),
 }
+TITLE_SNAPSHOT_GRIDS = {
+    # Four authored poses per strip. Keep enough detail for the enlarged menu
+    # memories, and never let thumbnail filtering blend adjacent poses.
+    f"assets/sprites/ui/title/snapshots/{name}.png": (4, 1, 512, 512)
+    for name in ("share-water", "share-food", "bandage", "laugh", "help-walk", "handshake")
+}
 CARAVAN_PACKED_REGIONS = {
     # The third canopy extends beyond its nominal cell; the following canopy
     # starts at x=816. Preserve these authored regions without cross-pose sampling.
@@ -134,14 +140,23 @@ def image_bounds(relative: str, config: dict, source_size: tuple[int, int] | Non
         if source_size != authored_size:
             raise ValueError(f"Fixed runtime atlas dimensions changed: {relative} (expected {authored_size}, found {source_size})")
         return authored_size
-    caravan_grid = CARAVAN_ANIMATION_GRIDS.get(relative)
-    if caravan_grid:
+    if re.fullmatch(r"assets/sprites/weapons/first-person/actions/[^/]+-ads-fire\.png", relative):
+        # The ADS renderer requires a 2x2 atlas with cells at least 512px in
+        # both dimensions. Generic thumbnails can create odd-width sheets.
         if source_size is None:
-            raise ValueError("Caravan animation bounds require the source dimensions")
-        columns, rows, max_frame_width, max_frame_height = caravan_grid
+            raise ValueError("ADS firing atlas bounds require the source dimensions")
+        width, height = source_size
+        if width < 1024 or height < 1024 or width % 2 or height % 2:
+            raise ValueError(f"ADS firing atlas requires a 2x2 grid with cells at least 512x512: {relative} ({width}x{height})")
+        return source_size
+    animation_grid = CARAVAN_ANIMATION_GRIDS.get(relative) or TITLE_SNAPSHOT_GRIDS.get(relative)
+    if animation_grid:
+        if source_size is None:
+            raise ValueError("Animation bounds require the source dimensions")
+        columns, rows, max_frame_width, max_frame_height = animation_grid
         width, height = source_size
         if width <= 0 or height <= 0 or width % columns or height % rows:
-            raise ValueError(f"Caravan animation sheet does not match its {columns}x{rows} grid: {relative} ({width}x{height})")
+            raise ValueError(f"Animation sheet does not match its {columns}x{rows} grid: {relative} ({width}x{height})")
         if relative in CARAVAN_PACKED_REGIONS:
             atlas_region_rectangles(relative, source_size)
         frame_width, frame_height = width // columns, height // rows
@@ -219,13 +234,13 @@ def optimize_image(source: Path, destination: Path, relative: str, config: dict)
         source_size = opened.size
     max_width, max_height = image_bounds(relative, config, source_size)
     operation = f"png-v3-{max_width}x{max_height}-p{config['imagePaletteColors']}"
-    caravan_grid = CARAVAN_ANIMATION_GRIDS.get(relative)
+    animation_grid = CARAVAN_ANIMATION_GRIDS.get(relative) or TITLE_SNAPSHOT_GRIDS.get(relative)
     packed_regions = CARAVAN_PACKED_REGIONS.get(relative)
     if packed_regions:
         layout_key = hashlib.sha256(json.dumps(packed_regions).encode()).hexdigest()[:12]
         operation += f"-isolated-regions-v1-{layout_key}"
-    elif caravan_grid:
-        operation += f"-isolated-cells-v1-{caravan_grid[0]}x{caravan_grid[1]}"
+    elif animation_grid:
+        operation += f"-isolated-cells-v1-{animation_grid[0]}x{animation_grid[1]}"
     cached = CACHE_ROOT / "images" / (cache_key(source, operation) + ".png")
     if not cached.exists():
         cached.parent.mkdir(parents=True, exist_ok=True)
@@ -234,8 +249,8 @@ def optimize_image(source: Path, destination: Path, relative: str, config: dict)
             image = opened.convert("RGBA")
             if packed_regions:
                 image = resize_atlas_regions(image, (max_width, max_height), relative)
-            elif caravan_grid:
-                image = resize_atlas_frames(image, (max_width, max_height), *caravan_grid[:2])
+            elif animation_grid:
+                image = resize_atlas_frames(image, (max_width, max_height), *animation_grid[:2])
             else:
                 image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
             image = image.quantize(

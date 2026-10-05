@@ -538,6 +538,37 @@ local function new(context)
       end
   end
 
+  local function returnFromWeaponRepair()
+      local fromInventory=runtime.weaponRepairOrigin=="inventory"
+      runtime.weaponRepairOpen=false
+      if fromInventory then
+          runtime.trainUpgradeOpen=false
+          runtime.inventoryOpen=true
+          runtime.inventoryMode="wearables"
+      end
+      runtime.weaponRepairOrigin=nil
+      cancelWeaponRepair()
+  end
+
+  ui.canOpenWeaponRepairWorkbench=function()
+      if not ui.canOpenOutfitWorkbench then return false,"Return to the stopped train." end
+      return ui.canOpenOutfitWorkbench()
+  end
+  ui.openWeaponRepairWorkbench=function()
+      local allowed=ui.canOpenWeaponRepairWorkbench()
+      if not allowed then return false end
+      local owned=LootProgression.ownedWeapons(runtime.saveData,Catalog)
+      cancelWeaponRepair()
+      runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil
+      runtime.mapOpen=false; runtime.journeyLogOpen=false; runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+      runtime.weaponRepairOpen=true; runtime.weaponRepairOrigin="inventory"
+      runtime.weaponRepairScroll=1; runtime.weaponRepairSelected=owned[1]
+      runtime.trainUpgradeOpen=true
+      ui.keyboardFocusVisible=false; ui.keyboardFocusScreen="weapon-repair"; ui.keyboardFocusId="weapon-repair.select."..tostring(owned[1] or "")
+      ui.playSfx("menu")
+      return true
+  end
+
   function ui.handleUpgradeMousePressed(x,y)
       if not runtime.trainUpgradeOpen then return false end
       if runtime.weaponRepairOpen then
@@ -557,10 +588,10 @@ local function new(context)
               scrollRepairWeapons((runtime.weaponRepairScroll or 1)+1); return true
           end
           if ui.repairBack and Util.pointIn(x,y,ui.repairBack) then
-              runtime.weaponRepairOpen=false; cancelWeaponRepair(); ui.playSfx("menu"); return true
+              returnFromWeaponRepair(); ui.playSfx("menu"); return true
           end
           if ui.repairClose and Util.pointIn(x,y,ui.repairClose) then
-              runtime.weaponRepairOpen=false; runtime.trainUpgradeOpen=false; cancelWeaponRepair(); ui.playSfx("menu"); return true
+              returnFromWeaponRepair(); ui.playSfx("menu"); return true
           end
           if ui.repairStart and Util.pointIn(x,y,ui.repairStart) then
               activateWeaponRepair()
@@ -575,6 +606,7 @@ local function new(context)
       if Util.pointIn(x,y,ui.upgradeClose) then runtime.trainUpgradeOpen=false; runtime.weaponRepairOpen=false; cancelWeaponRepair(); return true end
       if ui.weaponRepair and Util.pointIn(x,y,ui.weaponRepair) then
           runtime.weaponRepairOpen=true
+          runtime.weaponRepairOrigin=nil
           cancelWeaponRepair(); runtime.weaponRepairScroll=1
           local owned=LootProgression.ownedWeapons(runtime.saveData,Catalog)
           runtime.weaponRepairSelected=runtime.weaponRepairSelected or owned[1]
@@ -630,7 +662,7 @@ local function new(context)
       runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0
       runtime.editMode=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil
       runtime.trainUpgradeOpen=false; runtime.poseMenu=false; runtime.firstAid=nil; runtime.shootingRange=nil
-      runtime.weaponRepairOpen=false; cancelWeaponRepair()
+      runtime.weaponRepairOpen=false; runtime.weaponRepairOrigin=nil; cancelWeaponRepair()
       runtime.travelConfirm=false; runtime.exitPrompt=nil
       ui.optionsOpen=false; ui.radioOpen=false; ui.mobileMenuOpen=false
   end
@@ -1360,8 +1392,8 @@ local function new(context)
           add("weapon-repair.list-up",ui.repairListUp,function() scrollRepairWeapons((runtime.weaponRepairScroll or 1)-1) end)
           add("weapon-repair.list-down",ui.repairListDown,function() scrollRepairWeapons((runtime.weaponRepairScroll or 1)+1) end)
           add("weapon-repair.start",ui.repairStart,activateWeaponRepair)
-          add("weapon-repair.back",ui.repairBack,function() runtime.weaponRepairOpen=false; cancelWeaponRepair() end)
-          add("weapon-repair.close",ui.repairClose,function() runtime.weaponRepairOpen=false; runtime.trainUpgradeOpen=false; cancelWeaponRepair() end)
+          add("weapon-repair.back",ui.repairBack,returnFromWeaponRepair)
+          add("weapon-repair.close",ui.repairClose,returnFromWeaponRepair)
       elseif runtime.trainUpgradeOpen then
           screenKey="train-upgrades"
           local function upgrade(id,rect,enabled) clickHandler("upgrade."..id,rect,ui.handleUpgradeMousePressed,enabled) end
@@ -1427,6 +1459,11 @@ local function new(context)
               add("inventory.giftOffer",ui.giftConfirm,function() if runtime.giftSlot then ui.offerGift(runtime.giftSlot) end end)
               add("inventory.giftCancel",ui.giftCancel,function() runtime.giftOpen=false; runtime.giftSlot=nil end)
           else
+              if ui.inventoryWeaponRepair then
+                  add("inventory.weaponRepair",UIStyle.transformRectFor("inventory",panel,ui.inventoryWeaponRepair),function()
+                      if ui.openWeaponRepairWorkbench then ui.openWeaponRepairWorkbench() end
+                  end,ui.inventoryWeaponRepair.enabled)
+              end
               if ui.inventorySewingBench then
                   add("inventory.sewing",UIStyle.transformRectFor("inventory",panel,ui.inventorySewingBench),function()
                       if ui.openOutfitWorkbench then ui.openOutfitWorkbench() end
@@ -1509,8 +1546,9 @@ local function new(context)
       if runtime.state=="game" and runtime.trainUpgradeOpen and not runtime.exitPrompt and not ui.escMenuOpen and not ui.optionsOpen then
           if isrepeat and (key=="space" or key=="return" or key=="kpenter") then return true end
           if key=="escape" or key=="q" then
-              if runtime.weaponRepairOpen then runtime.weaponRepairOpen=false else runtime.trainUpgradeOpen=false end
-              cancelWeaponRepair(); return true
+              if runtime.weaponRepairOpen then returnFromWeaponRepair()
+              else runtime.trainUpgradeOpen=false; cancelWeaponRepair() end
+              return true
           end
           if runtime.weaponRepairOpen then
               if runtime.weaponRepairStartedAt and (key=="space" or key=="return" or key=="kpenter") then

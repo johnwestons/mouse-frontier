@@ -392,6 +392,18 @@ function Assets.load(targets)
     ui.objectTintShader = loadShader()
     scenery.titleImage = loadImage("assets/sprites/ui/title/title-option-3.png", "UI")
     prepareLazyImages(scenery)
+    registerLazyImage(scenery,"titleHeaderBackdrop","assets/sprites/ui/title/title-header-backdrop-v1.png","title UI")
+    registerLazyImage(scenery,"titleFooterBackdrop","assets/sprites/ui/title/title-footer-backdrop-v1.png","title UI")
+    local titleSnapshotNames={"share-water","share-food","bandage","laugh","help-walk","handshake","seedling-care","share-shelter","radio-repair","warm-kettle","shared-haul","lantern-melody","route-map","herbal-delivery","roadside-repair","quiet-garden","camp-supper","lantern-repair","shared-bandages","fair-trade","boiler-repair","river-route","trailmarkers","signal-lesson","station-map"}
+    scenery.titleSnapshotSprites=setmetatable({}, {__index=function(_,id)
+        for _,name in ipairs(titleSnapshotNames) do
+            if name==id then return scenery["titleSnapshot_"..name] end
+        end
+        return nil
+    end})
+    for _,name in ipairs(titleSnapshotNames) do
+        registerLazyImage(scenery,"titleSnapshot_"..name,"assets/sprites/ui/title/snapshots/"..name..".png","title UI")
+    end
     for name,path in pairs({introBackground="assets/backgrounds/intro/train-journey-sunrise.png",
         introLocomotive="assets/sprites/train/cinematic-locomotive.png",
         introLocomotiveSheet="assets/sprites/train/cinematic-locomotive-run-10-v2.png",

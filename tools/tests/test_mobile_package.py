@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 from tools.build_mobile_package import (
     CARAVAN_PACKED_REGIONS,
     OUTPUT_ROOT,
+    TITLE_SNAPSHOT_GRIDS,
     image_bounds,
     include_android_build_manifest,
     optimize_image,
@@ -112,6 +113,31 @@ class MobilePackageTests(unittest.TestCase):
             self.config, (4096, 512))
         self.assertEqual((frame_size * 8, frame_size), run_bounds)
 
+    def test_ads_fire_atlases_retain_renderer_compatible_authored_dimensions(self) -> None:
+        sources = sorted((ROOT / "assets/sprites/weapons/first-person/actions").glob("*-ads-fire.png"))
+        self.assertGreaterEqual(len(sources), 39, "all existing ADS firing sheets must be covered")
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            with patch("tools.build_mobile_package.CACHE_ROOT", directory / "cache"):
+                for source in sources:
+                    relative = source.relative_to(ROOT).as_posix()
+                    with self.subTest(relative=relative):
+                        with Image.open(source) as original:
+                            source_size = original.size
+                        self.assertEqual(source_size, image_bounds(relative, self.config, source_size))
+                        destination = directory / source.name
+                        optimize_image(source, destination, relative, self.config)
+                        with Image.open(destination) as packed:
+                            self.assertEqual(source_size, packed.size)
+                            self.assertEqual(0, packed.width % 2)
+                            self.assertEqual(0, packed.height % 2)
+                            self.assertGreaterEqual(packed.width // 2, 512)
+                            self.assertGreaterEqual(packed.height // 2, 512)
+        relative = sources[0].relative_to(ROOT).as_posix()
+        for malformed in ((683, 1024), (1024, 1535), (1022, 1536), (0, 0)):
+            with self.assertRaisesRegex(ValueError, "2x2 grid with cells at least 512x512"):
+                image_bounds(relative, self.config, malformed)
+
     def test_caravan_animation_mobile_bounds_preserve_both_grids(self) -> None:
         root = "assets/sprites/caravans/rookery/animations/"
         self.assertEqual((768, 512), image_bounds(root + "merchant-stall-breeze-4-v1.png", self.config, (1536, 1024)))
@@ -121,6 +147,49 @@ class MobilePackageTests(unittest.TestCase):
             image_bounds(root + "merchant-stall-breeze-4-v1.png", self.config, (1535, 1024))
         with self.assertRaisesRegex(ValueError, "aspect ratio"):
             image_bounds(root + "merchant-stall-breeze-4-v1.png", self.config, (1540, 1028))
+
+    def test_title_snapshot_mobile_strips_keep_all_four_poses(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for relative in TITLE_SNAPSHOT_GRIDS:
+                with self.subTest(relative=relative):
+                    source = ROOT / relative
+                    destination = directory / source.name
+                    with Image.open(source) as original:
+                        expected = image_bounds(relative, self.config, original.size)
+                    with patch("tools.build_mobile_package.CACHE_ROOT", directory / "cache"):
+                        optimize_image(source, destination, relative, self.config)
+                    with Image.open(destination) as packed:
+                        self.assertEqual(expected, packed.size)
+                        self.assertEqual(0, packed.width % 4)
+                        self.assertLessEqual(packed.width // 4, 512)
+                        self.assertLessEqual(packed.height, 512)
+                        for frame in range(4):
+                            with packed.convert("RGBA").crop((frame * packed.width // 4, 0, (frame + 1) * packed.width // 4, packed.height)) as pose:
+                                self.assertIsNotNone(pose.getbbox(), "authored pose must survive mobile packaging")
+            for malformed in ((3071, 512), (0, 512), (3072, 0)):
+                with self.assertRaisesRegex(ValueError, "4x1 grid"):
+                    image_bounds(next(iter(TITLE_SNAPSHOT_GRIDS)), self.config, malformed)
+
+    def test_title_snapshot_optimizer_keeps_frame_edges_isolated(self) -> None:
+        relative = "assets/sprites/ui/title/snapshots/share-water.png"
+        colors = ((255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255), (0, 0, 0, 0))
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            source, destination = directory / "source.png", directory / "mobile.png"
+            with Image.new("RGBA", (3072, 512)) as image:
+                for index, color in enumerate(colors):
+                    image.paste(color, (index * 768, 0, (index + 1) * 768, 512))
+                image.save(source)
+            with patch("tools.build_mobile_package.CACHE_ROOT", directory / "cache"):
+                optimize_image(source, destination, relative, self.config)
+            with Image.open(destination) as packed:
+                image = packed.convert("RGBA")
+            self.assertEqual((2048, 341), image.size)
+            for index, color in enumerate(colors):
+                with image.crop((index * 512, 0, (index + 1) * 512, 341)) as cell:
+                    self.assertEqual([(512 * 341, color)], cell.getcolors(), "title frame edge sampled the adjacent pose")
+            image.close()
 
     def test_caravan_optimizer_never_samples_neighbouring_frames(self) -> None:
         relative = "assets/sprites/caravans/rookery/animations/campfire-idle-4-v1.png"

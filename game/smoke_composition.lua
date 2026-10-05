@@ -78,9 +78,9 @@ local function new(context)
     local art=CrowCaravanArea.validateAssets(content.scenery.crowCaravanAssets)
     local trade=MerchantTrade.audit(Catalog)
     local flow={entered=false,traderSelected=false,tradeOpened=false,reloadIsolated=false,purchased=false,
-      resaleStocked=false,resalePaged=false,resalePurchased=false,resalePersisted=false,
+      resaleStocked=false,resalePaged=false,resaleConfirmation=false,resalePurchased=false,resalePersisted=false,
       returnVisibleDuringGreeting=false,returnVisibleDuringTrade=false,returnVisibleAcrossOverlays=false,
-      returnControlLarge=false,overlaysCleared=false,returned=false,returnedDuringTrade=false,positionRestored=false}
+      returnControlLarge=false,settingsClosed=false,overlaysCleared=false,returned=false,returnedDuringTrade=false,positionRestored=false}
     local original={
       state=runtime.state,saveData=runtime.saveData,player=runtime.player,scene=runtime.scene,npcActor=runtime.npcActor,
       dialogue=runtime.dialogue,tradeOpen=runtime.tradeOpen,tradeNPC=runtime.tradeNPC,
@@ -90,8 +90,9 @@ local function new(context)
       editMode=runtime.editMode,editedItem=runtime.editedItem,editDragging=runtime.editDragging,
       trainUpgradeOpen=runtime.trainUpgradeOpen,poseMenu=runtime.poseMenu,helpDialogue=runtime.helpDialogue,
       questOffer=runtime.questOffer,firstAid=runtime.firstAid,shootingRange=runtime.shootingRange,
-      travelConfirm=runtime.travelConfirm,exitPrompt=runtime.exitPrompt,
-      optionsOpen=ui.optionsOpen,radioOpen=ui.radioOpen,mobileMenuOpen=ui.mobileMenuOpen,editSliderDrag=ui.editSliderDrag,
+      travelConfirm=runtime.travelConfirm,exitPrompt=runtime.exitPrompt,pendingConfirmation=runtime.pendingConfirmation,
+      optionsOpen=ui.optionsOpen,escMenuOpen=ui.escMenuOpen,escMenuSelection=ui.escMenuSelection,
+      radioOpen=ui.radioOpen,mobileMenuOpen=ui.mobileMenuOpen,editSliderDrag=ui.editSliderDrag,
     }
     local ok,errorMessage=xpcall(function()
       local data=sessionBootstrap.newSave(characters[1])
@@ -99,6 +100,8 @@ local function new(context)
       local player={x=480,y=600,facing=1,velocityX=0,velocityY=0,intentX=1,intentY=0}
       data.location=stop; data.scene="stop"; data.scrap=999
       runtime.state="game"; runtime.saveData=data; runtime.player=player; runtime.scene="stop"
+      runtime.pendingConfirmation=nil
+      ui.escMenuOpen=false
       worldScene.setupNPC()
       local entrance=worldScene.currentCaravanInteraction()
       assert(entrance and entrance.action=="enterCaravan","scheduled stop has no caravan entrance")
@@ -147,10 +150,21 @@ local function new(context)
       local resaleControl=ui.tradeBuy and ui.tradeBuy[5]
       flow.resalePaged=runtime.tradeBuyPage==1 and resaleControl~=nil
       if resaleControl then
+        local scrapBefore=data.scrap
         local buyX,buyY=resaleControl.x+resaleControl.w/2,resaleControl.y+resaleControl.h/2
         if mobileRuntime.isEnabled() then
           love.touchpressed("smoke-caravan-buyback",buyX,buyY); love.touchreleased("smoke-caravan-buyback",buyX,buyY)
         else input.gameplayInput.mousepressed(buyX,buyY,1,false,1) end
+        local request=runtime.pendingConfirmation
+        flow.resaleConfirmation=request and request.kind=="buyItem" and request.stockIndex==5
+          and data.scrap==scrapBefore and data.inventory[1]==nil and resale.quantity==1 or false
+        assert(flow.resaleConfirmation,"caravan buyback must wait for purchase confirmation")
+        ui.drawActionConfirmation()
+        local confirm=assert(ui.confirmYes,"caravan purchase confirmation was not drawn")
+        local confirmX,confirmY=confirm.x+confirm.w/2,confirm.y+confirm.h/2
+        if mobileRuntime.isEnabled() then
+          love.touchpressed("smoke-caravan-confirm",confirmX,confirmY); love.touchreleased("smoke-caravan-confirm",confirmX,confirmY)
+        else input.gameplayInput.mousepressed(confirmX,confirmY,1,false,1) end
       end
       flow.resalePurchased=data.inventory[1]=="orange-rose-vase" and resale.quantity==0
       local persistedData=assert(SaveSchema.copy(data))
@@ -161,6 +175,22 @@ local function new(context)
       runtime.dialogue={speaker="Overlay audit",text="The exit must remain available.",timer=5}
       runtime.tradeOpen=true; runtime.trainUpgradeOpen=true; runtime.poseMenu=true
       ui.optionsOpen=true
+      -- Settings is a global modal above the campsite HUD. Exercise its real
+      -- back/continue controls before checking the persistent in-world exit.
+      views.gameplayHUD.drawOptions()
+      local optionsBack=assert(ui.optionsBack,"settings back control was not drawn")
+      local backX,backY=optionsBack.x+optionsBack.w/2,optionsBack.y+optionsBack.h/2
+      if mobileRuntime.isEnabled() then
+        love.touchpressed("smoke-caravan-settings-back",backX,backY); love.touchreleased("smoke-caravan-settings-back",backX,backY)
+      else input.gameplayInput.mousepressed(backX,backY,1,false,1) end
+      assert(not ui.optionsOpen and ui.escMenuOpen,"settings did not return to the pause menu")
+      ui.drawEscapeMenu()
+      local continueControl=assert(ui.escChoiceContinue,"pause continue control was not drawn")
+      local continueX,continueY=continueControl.x+continueControl.w/2,continueControl.y+continueControl.h/2
+      if mobileRuntime.isEnabled() then
+        love.touchpressed("smoke-caravan-continue",continueX,continueY); love.touchreleased("smoke-caravan-continue",continueX,continueY)
+      else input.gameplayInput.mousepressed(continueX,continueY,1,false,1) end
+      flow.settingsClosed=not ui.optionsOpen and not ui.escMenuOpen and runtime.scene=="caravan"
       views.gameplayHUD.draw()
       flow.returnVisibleAcrossOverlays=ui.returnStop~=nil
       local exitControl=assert(ui.returnStop,"caravan return control disappeared behind an overlay")
@@ -192,13 +222,15 @@ local function new(context)
     runtime.trainUpgradeOpen=original.trainUpgradeOpen; runtime.poseMenu=original.poseMenu
     runtime.helpDialogue=original.helpDialogue; runtime.questOffer=original.questOffer; runtime.firstAid=original.firstAid
     runtime.shootingRange=original.shootingRange; runtime.travelConfirm=original.travelConfirm; runtime.exitPrompt=original.exitPrompt
+    runtime.pendingConfirmation=original.pendingConfirmation
     ui.optionsOpen=original.optionsOpen; ui.radioOpen=original.radioOpen; ui.mobileMenuOpen=original.mobileMenuOpen
+    ui.escMenuOpen=original.escMenuOpen; ui.escMenuSelection=original.escMenuSelection
     ui.editSliderDrag=original.editSliderDrag
     flow.error=ok and nil or errorMessage
     flow.ready=ok and flow.entered and flow.traderSelected and flow.tradeOpened and flow.reloadIsolated
-      and flow.purchased and flow.resaleStocked and flow.resalePaged and flow.resalePurchased and flow.resalePersisted
+      and flow.purchased and flow.resaleStocked and flow.resalePaged and flow.resaleConfirmation and flow.resalePurchased and flow.resalePersisted
       and flow.returnVisibleDuringGreeting and flow.returnVisibleDuringTrade
-      and flow.returnVisibleAcrossOverlays and flow.returnControlLarge and flow.overlaysCleared
+      and flow.returnVisibleAcrossOverlays and flow.returnControlLarge and flow.settingsClosed and flow.overlaysCleared
       and flow.returned and flow.returnedDuringTrade and flow.positionRestored
     return {ready=economy.ready and area.ready and art.ready and trade.ready and flow.ready,
       economy=economy,area=area,art=art,trade=trade,flow=flow}

@@ -4,7 +4,7 @@ The sewing bench makes improvements to each character's existing outfit. Finishe
 
 ## Access and supplies
 
-On the stopped train, open the inventory or train workshop and choose **Sewing Bench**. Close other activities first. The bench pauses the world and supplies reusable marking, cutting, sewing, leatherworking, and sheet-metal tools. Carry the required material bundles in the backpack before starting; every bundle occupies one inventory slot.
+On the stopped train, open the inventory and choose **Sewing Bench** or **Weapon Repair**, or enter either station from the train workshop. Close other activities first. The sewing bench pauses the world and supplies reusable marking, cutting, sewing, leatherworking, and sheet-metal tools. Carry the required material bundles in the backpack before starting; every bundle occupies one inventory slot.
 
 | Material | First available | Base merchant price per bundle |
 | --- | --- | ---: |

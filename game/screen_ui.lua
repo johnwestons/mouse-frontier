@@ -7,6 +7,7 @@ local LootProgression=require("game.loot_progression")
 local RepairArt=require("game.repair_workbench_art")
 local RepairLayout=require("game.repair_workbench_layout")
 local OutfitArt=require("game.outfit_sprite_art")
+local TitleSnapshots=require("game.title_snapshots")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -55,6 +56,46 @@ local function new(context)
   local travelCost=required(context,"travelCost","function")
   local repairStatus=required(context,"repairStatus","function")
   local questSummary=required(context,"questSummary","function")
+  local textBox
+
+  local function drawTitleBackdrop(image,x,y,width,alpha)
+      if not image then return end
+      local iw=image:getWidth(); local scale=width/iw
+      love.graphics.setColor(1,1,1,alpha or 1)
+      love.graphics.draw(image,x,y,0,scale,scale)
+  end
+
+  local function drawTitleSnapshots(saveBounds)
+      local windowWidth,windowHeight=love.graphics.getDimensions()
+      -- Include the widescreen gutters outside the authored 960px stage.
+      -- Use the active title transform so moving/scaling the menu also keeps
+      -- the memories beside it. The same local rectangles stay disjoint when
+      -- a custom UI preset rotates the whole title composition.
+      local x1,y1=love.graphics.inverseTransformPoint(0,0)
+      local x2,y2=love.graphics.inverseTransformPoint(windowWidth,0)
+      local x3,y3=love.graphics.inverseTransformPoint(0,windowHeight)
+      local x4,y4=love.graphics.inverseTransformPoint(windowWidth,windowHeight)
+      local left=math.min(x1,x2,x3,x4)+8
+      local right=math.max(x1,x2,x3,x4)-8
+      local top=math.max(216,math.min(y1,y2,y3,y4)+18)
+      -- The footer's visible top rail begins around y=574 on this stage.
+      local bottom=math.min(H-152,math.max(y1,y2,y3,y4)-18)
+      local gap=12
+      local bays={
+          {x=left,y=top,w=saveBounds.x-gap-left,h=bottom-top,side=0},
+          {x=saveBounds.x+saveBounds.w+gap,y=top,
+              w=right-saveBounds.x-saveBounds.w-gap,h=bottom-top,side=1},
+      }
+      ui.titleMemoryBounds={}
+      for _,bay in ipairs(bays) do
+          -- A narrow display can leave too little room for a readable pair.
+          if bay.w>=120 and bay.h>=120 then
+              ui.titleMemoryBounds[#ui.titleMemoryBounds+1]=bay
+              TitleSnapshots.draw({x=bay.x,y=bay.y,width=bay.w,height=bay.h,
+                  clock=runtime.animationClock or 0,side=bay.side,sprites=scenery.titleSnapshotSprites})
+          end
+      end
+  end
 
   local function drawMenuFrame(x,y,w,h,kind,alpha)
       kind=UIStyle.frame(kind or 1)
@@ -71,7 +112,7 @@ local function new(context)
       end
   end
 
-  local function textBox(text,x,y,w,h,scale,align,minimum)
+  textBox=function(text,x,y,w,h,scale,align,minimum)
       return Typography.drawText(love.graphics,text,x,y,w,h,{scale=(scale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1),
           minScale=minimum or (mobileEnabled() and .75 or .65),align=align or "left",valign="center"})
   end
@@ -329,6 +370,14 @@ local function new(context)
   function ui.drawSlots()
       love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
       return UIStyle.scope("slots",{x=0,y=0,w=W,h=H},function()
+      local mobile=mobileEnabled()
+      local cardX,cardW=mobile and 90 or 210,mobile and 780 or 540
+      local cardY,cardH,cardStep=mobile and 215 or 225,mobile and 126 or 96,mobile and 150 or 125
+      -- One source of bounds for both the controls and memory exclusion zone.
+      ui.titleSaveBounds={x=cardX,y=cardY,w=cardW,h=cardStep*2+cardH}
+      drawTitleSnapshots(ui.titleSaveBounds)
+      drawTitleBackdrop(scenery.titleHeaderBackdrop,0,-48,W,mobile and .64 or .82)
+      drawTitleBackdrop(scenery.titleFooterBackdrop,0,455,W,mobile and .48 or .64)
       if scenery.titleImage then
           local scale=math.min(540/scenery.titleImage:getWidth(),185/scenery.titleImage:getHeight())
           love.graphics.setColor(1,1,1)
@@ -339,10 +388,9 @@ local function new(context)
       love.graphics.setColor(colors.cream)
       textBox("CHOOSE A JOURNEY  •  ARROWS / WASD + ENTER",0,182,W,28,.82,"center")
       ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
-      local mobile=mobileEnabled()
       for i=1,3 do
-          local data, y = readSave(i), (mobile and 215+(i-1)*150 or 225+(i-1)*125)
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", mobile and 90 or 210, y, mobile and 780 or 540, mobile and 126 or 96, 12, 12)
+          local data, y = readSave(i), cardY+(i-1)*cardStep
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",cardX,y,cardW,cardH,12,12)
           love.graphics.setColor(colors.cream); textBox("SAVE "..i,mobile and 114 or 232,y+15,mobile and 330 or 250,32,1.15)
           textBox(data and (Util.titleFromFile(data.character).."\nStop "..tostring(data.location or 1)) or "New journey",mobile and 114 or 232,y+52,mobile and 340 or 260,mobile and 60 or 40,mobile and .95 or .8)
           if data and mobile then
@@ -861,7 +909,7 @@ local function new(context)
           love.graphics.setColor(repairColors.ink); textBox("Collect a weapon to begin repair.",299,136,363,49,.84,"center")
           ui.repairStart=repairButton("BEGIN REPAIR",RepairLayout.start,false)
       end
-      ui.repairBack=repairButton("BACK TO WORKSHOP",RepairLayout.back,true)
+      ui.repairBack=repairButton(runtime.weaponRepairOrigin=="inventory" and "BACK TO INVENTORY" or "BACK TO WORKSHOP",RepairLayout.back,true)
       ui.repairClose=repairButton("CLOSE",RepairLayout.close,true)
   end
 

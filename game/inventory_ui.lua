@@ -91,18 +91,23 @@ function InventoryUI.draw(ctx)
     local data,ui,Inventory,Catalog=ctx.data,ctx.ui,ctx.Inventory,ctx.Catalog
     local capacity=data.inventoryCapacity or 6
     local mobile=ctx.mobileEnabled
-    ui.outfitWorkbenchPanel=nil; ui.inventorySewingBench=nil
-    if not ctx.battleMode and not ctx.chestOpen and not ctx.giftOpen and ui.canOpenOutfitWorkbench then
+    ui.outfitWorkbenchPanel=nil; ui.inventorySewingBench=nil; ui.inventoryWeaponRepair=nil
+    if not ctx.battleMode and not ctx.chestOpen and not ctx.giftOpen
+        and ui.canOpenOutfitWorkbench and ui.canOpenWeaponRepairWorkbench then
         local panel={x=35,y=165,w=490,h=290}; ui.outfitWorkbenchPanel=panel
         ctx.drawMenuFrame(panel.x,panel.y,panel.w,panel.h,3,.97)
-        love.graphics.setColor(ctx.colors.brass); text("IMPROVE YOUR OUTFIT",55,185,450,28,1,.82,"center")
+        love.graphics.setColor(ctx.colors.brass); text("WORKSHOP",55,185,450,28,1,.82,"center")
         love.graphics.setColor(ctx.colors.cream)
-        text("Gather thread, cloth, leather, and metal. Prepare, stitch, and finish upgrades at the train's sewing bench.",60,231,440,92,.90,.78)
-        local available,reason=ui.canOpenOutfitWorkbench()
-        ctx.button("SEWING BENCH",65,338,430,58,available,.9)
+        text("Repair owned weapons with parts and scrap, or sew upgrades from gathered materials.",60,224,440,76,.88,.76,"center")
+        local weaponAvailable,weaponReason=ui.canOpenWeaponRepairWorkbench()
+        local outfitAvailable,outfitReason=ui.canOpenOutfitWorkbench()
+        ctx.button("WEAPON REPAIR",52,318,212,60,weaponAvailable,.82)
+        ctx.button("SEWING BENCH",275,318,212,60,outfitAvailable,.82)
         -- Inventory input is converted back into this panel's coordinates.
-        ui.inventorySewingBench={x=65,y=338,w=430,h=58,enabled=available}
-        text(available and "Bench tools are provided. Unfinished work is saved." or reason or "Return to the stopped train.",60,408,440,36,.75,.65,"center")
+        ui.inventoryWeaponRepair={x=52,y=318,w=212,h=60,enabled=weaponAvailable}
+        ui.inventorySewingBench={x=275,y=318,w=212,h=60,enabled=outfitAvailable}
+        local reason=not weaponAvailable and weaponReason or not outfitAvailable and outfitReason
+        text(reason or "Choose a bench while the train is stopped.",60,390,440,38,.74,.64,"center")
     end
     ctx.drawMenuFrame(545,35,390,145,3,.94)
     ui.inventoryModeTabs={}
@@ -290,6 +295,11 @@ end
 
 function InventoryUI.handleClick(ctx,x,y)
     local ui=ctx.ui
+    if not ctx.giftOpen and ui.inventoryWeaponRepair and ui.inventoryWeaponRepair.enabled
+        and ctx.pointIn(x,y,ui.inventoryWeaponRepair) then
+        if ui.openWeaponRepairWorkbench then ui.openWeaponRepairWorkbench() end
+        return true
+    end
     if not ctx.giftOpen and ui.inventorySewingBench and ui.inventorySewingBench.enabled
         and ctx.pointIn(x,y,ui.inventorySewingBench) then
         if ui.openOutfitWorkbench then ui.openOutfitWorkbench() end
