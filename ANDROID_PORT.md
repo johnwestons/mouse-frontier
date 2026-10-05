@@ -13,6 +13,7 @@ Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 with the
 - Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 108 save operations, 15 kills, and 180 seconds of simulated defense.
 - The APK's application ID, version, debug signature, three processor architectures, embedded `.love` archive hash, and `allowAudioPlaybackCapture` manifest value were verified. Native Android compilation and package checks passed.
 - Installed in place on the Galaxy S25 Ultra (`SM-S938U`) on October 5, 2026. The installed version and cold startup were verified. During a live Samsung screen recording, Android disconnected the game's original output stream; the patched backend opened a new one within 0.14 seconds. Android reported the new player as started, and the user confirmed the game audio played during recording and after it stopped without restarting the game. The app process and audio stream remained active, with no Lua error in the device log.
+- Also installed in place on the newly connected `SM-S928U1` on October 5, 2026, replacing build 4. The installed version and first rendered frame were verified. The user chose to wipe test saves; this device's Mouse Frontier save directory was already empty before installation and remained empty afterward.
 - Manual touch-comfort, visual, and performance review remain open beyond the automated startup check.
 
 ## Build 15 backpack button
