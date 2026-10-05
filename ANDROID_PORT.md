@@ -4,13 +4,14 @@ The Android edition uses the same Lua game and save schema as the Windows editio
 
 ## Current build
 
-Build `0.7.0-mobile.26` (`versionCode` 26) was packaged October 5, 2026 from clean source commit `ceb21b0` and installed on the connected Android phone.
+Build `0.7.0-mobile.27` (`versionCode` 27) was packaged October 5, 2026 from clean source commit `4e9498a` and installed on the connected Android phone.
 
-- APK: `output/mobile/MouseFrontier-0.7.0-mobile.26-debug.apk`
-- Outfit-crafting frames now derive their bounds from the decoded sprite sheet, so phone-sized art no longer scans beyond its edges. The regression check draws all outfit material and upgrade icons from the resized supplies sheet.
-- The title screen shuffles all 25 sprite scenes into a no-repeat round. The two side bays start with different scenes and alternate new scenes every 18 seconds.
-- Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 108 save operations, 15 kills, and 180 seconds of simulated defense. The focused outfit, mobile packaging and title scene checks passed 22 tests.
-- The APK's application ID, version, debug signature, three processor architectures, and embedded `.love` archive hash were verified. Device acceptance confirmed version 26 and the Mouse Frontier first-frame startup marker, then kept the game running for more than 20 seconds. Installation preserved existing saves.
+- APK: `output/mobile/MouseFrontier-0.7.0-mobile.27-debug.apk`
+- Android focus loss no longer pauses game audio, allowing audio to continue when screen-recorder controls take focus. Desktop focus loss still suspends playback.
+- Outfit-crafting frames derive their bounds from the decoded sheet, so phone-sized art stays within the image. The title screen shuffles all 25 sprite scenes into a no-repeat round; its side bays begin with different scenes and alternate new scenes every 18 seconds.
+- Packaged mobile smoke: 109 checkpoints. Staged mobile Last Stand: 1,591 checks, 107 save operations, 15 kills, and 180 seconds of simulated defense. Four focused audio tests passed, including Android playback-through-focus-loss and desktop suspend/resume behavior.
+- The APK's application ID, version, debug signature, three processor architectures, and embedded `.love` archive hash were verified. Device acceptance confirmed version 27 and the Mouse Frontier first-frame startup marker, then kept the game running for more than 20 seconds.
+- The user-authorized wipe removed the existing slot 1 save. Control-layout and UI-layout settings were retained; no backup was made.
 - Manual touch-comfort, visual, and performance review remain open beyond the automated startup check.
 
 ## Build 15 backpack button
