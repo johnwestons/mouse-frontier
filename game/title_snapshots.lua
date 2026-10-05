@@ -31,6 +31,18 @@ TitleSnapshots.presets = {
     {id="station-map", label="READ THE ROUTE", crop={41/627,90/627,545/627,446/627}},
 }
 
+local function shuffledScenes()
+    local scenes={}
+    for index,preset in ipairs(TitleSnapshots.presets) do scenes[index]=preset end
+    local random=love and love.math and love.math.random or math.random
+    for index=#scenes,2,-1 do
+        local selected=random(1,index)
+        scenes[index],scenes[selected]=scenes[selected],scenes[index]
+    end
+    return scenes
+end
+
+local sceneOrder=shuffledScenes()
 local SCENE_SECONDS = 36
 local POSE_DISSOLVE_SECONDS = 3
 local POSE_STARTS = {7, 15, 23}
@@ -41,14 +53,21 @@ local function smoothstep(value)
     return value*value*(3-2*value)
 end
 
+local function sequenceIndex(cycle,side)
+    -- The two bays start with distinct scenes. Thereafter they take turns
+    -- every 18 seconds from one shuffled, shared no-repeat sequence.
+    if side==0 then return cycle==0 and 0 or 2*cycle+1 end
+    return cycle==0 and 1 or 2*cycle
+end
+
 -- No 4 -> 1 pose loop: each memory finishes its gesture and rests until it
--- disappears. Distinct scenes never overlap, and the two bays change apart.
+-- disappears. The two bays change apart without repeating a scene early.
 function TitleSnapshots.playback(clock,side)
     side=math.floor(side or 0)
     local elapsed=math.max(0,clock or 0)+side*18
     local cycle=math.floor(elapsed/SCENE_SECONDS)
     local sceneTime=elapsed%SCENE_SECONDS
-    local preset=TitleSnapshots.presets[((cycle+side*3)%#TitleSnapshots.presets)+1]
+    local preset=sceneOrder[(sequenceIndex(cycle,side)%#sceneOrder)+1]
     local opacity=1
     if sceneTime<4 then
         opacity=smoothstep(sceneTime/4)
