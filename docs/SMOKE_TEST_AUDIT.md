@@ -22,7 +22,7 @@ The new system is suitable for repeatable source regression checks. It still nee
 | Home loot checks did not prove transfer and reload behavior or systematically enforce item timing. | Engine scenario drags a chest item into the backpack, flushes to disk, reloads, and checks that it does not regenerate. Nine component tests cover budgets, unlocks, targeted repair parts, overflow, serialization, revisits, consumption, and isolation. | Thousands of seeded rolls and every weapon's matching repair part are checked, alongside a real engine save round trip. |
 | Range smoke could directly complete a stage. | Scenario fires, checks ammunition and reload, advances ordinary updates until the timer reaches results, and checks rewards/closing. | Engine desktop/mobile scenarios exercise the production range lifecycle. |
 | Zoom checks searched obsolete resource text and could compare two empty label collections; mobile pickup expected obsolete Escape behavior. Capture folders could retain old evidence. | Zoom requires specific current HUD controls in every tested scene at both zoom levels. Pickup follows the actual pause/Continue flow and checks item conservation. Zoom/pickup and requested Last Stand captures require fresh nonempty images and copy them to unique folders. | Focused collector tests reject missing HUD controls; specialist engine runs produce new images, including all 17 required Last Stand captures. |
-| Regression mocks lagged behind current APIs; animation checks depended on ignored reference PNGs. | Update mocks to current callback contracts and compare decoded RGBA against 144 tracked canonical fingerprints. Baseline generation is explicit and reads reviewed reference art, never installed mismatches. | Canonical tests run with all ignored `output/` image reads prohibited and retain the same five character failures. |
+| Regression mocks lagged behind current APIs; animation checks depended on ignored reference PNGs. | Update mocks to current callback contracts and compare decoded RGBA against 144 tracked canonical fingerprints. Baseline generation is explicit and reads reviewed reference art, never installed mismatches. | The initial check preserved all five character failures. The reviewed follow-up passes with ignored `output/` image reads prohibited and retains strict pixel mutation checks. |
 | Separate tests were easy to omit; the regression group lacked a time limit. | `tools/run_validation.ps1` runs seven independent gates and aggregates their results without stopping after the first failure. The regression process now has a configurable watchdog and preserves output on timeout. | Separate process logs and reports identify each gate and its exit code; fake child processes check errors and timeouts. |
 
 ## Actual defects exposed
@@ -53,11 +53,13 @@ Combat and first-aid fixtures seed controlled requests, encounters, health and i
 
 First-aid pause/resume currently happens within one engine process. A complete interrupted-treatment disk reload is still a useful additional scenario. The main runner's seed controls startup and ordinary scenarios; combat/first-aid and specialist harnesses also use fixed fixture seeds.
 
-## Known animation failure
+## Sprite reference failure and resolution
 
-Five installed characters differ from their canonical reference pixels: Botanist Frog, Conductor Cat, Cook Frog, Cook Mouse, and Trail Fox. Across 50 sheets, 26,164 pixels have different alpha values; RGB values match. The installed pixels are transparent where the reference is opaque. This might reflect an earlier cleanup whose canonical reference was not updated, but that is not enough evidence to accept it.
+The initial audit found five characters differing from their original normalized reference pixels: Botanist Frog, Conductor Cat, Cook Frog, Cook Mouse, and Trail Fox. Across 50 sheets, 26,164 formerly opaque pixels had been cleared to transparent RGBA. The audit correctly kept the test failed while the cause was uncertain.
 
-The test continues to fail. No artwork or canonical expectation was changed. Review the intended sprites and approve either restoration or a reviewed reference update before clearing this gate. The tracked manifest now makes the same failure reproducible in a clean checkout.
+The October 5 follow-up established the cause: the later, declared magenta-fringe cleanup was missing from the reference contract. Applying the existing cleanup helper to the immutable canonical sources reproduces all 144 installed sheets exactly. All changes follow the connected background-color rule; surviving visible RGB values are unchanged. The 277 affected frames were reviewed over contrasting backgrounds. See the [cleanup review and independent provenance proof](audits/2026-10-05-canonical-sprite-cleanup.md).
+
+The corrected contract retains each original source hash and records a separate, independently derived installed-output hash, removed count, and pinned cleanup policy. Production sprite files remain unchanged. The pixel comparison stays strict; unexpected source/policy changes and altered installed pixels remain failures. Independent review also tightened per-action cleanup validation for runs and bound every walk/idle/run mapping to its actual direction; mutation tests cover both gaps.
 
 ## Validation evidence
 
@@ -65,9 +67,9 @@ The initial desktop run passed 92 checkpoints. The initial strict regression run
 
 After expansion, desktop passed 102 checkpoints, mobile passed 109, and the full route passed 105 at seed 810. An additional desktop run passed all 102 checkpoints with Scout Frog, seed 20261004, and 0.01-second updates.
 
-The final strict regression group ran 472 test methods in 216.982 seconds, with five failing character subtests, no errors, and no skips. The failures are exactly the canonical animation differences described above.
+The audit's strict regression group ran 472 test methods in 216.982 seconds, with five failing character subtests, no errors, and no skips. The failures are exactly the canonical animation differences described above.
 
-| Final gate | Result | Evidence |
+| Audit gate before follow-up | Result | Evidence |
 | --- | --- | --- |
 | Regression | FAIL | 472 methods; five canonical character subtest failures; no errors/skips. |
 | Desktop | PASS | 102 checkpoints, seed 1337, 0.05-second updates. |
@@ -77,9 +79,25 @@ The final strict regression group ran 472 test methods in 216.982 seconds, with 
 | Zoom | PASS | 331 checks and 20 fresh captures; required HUD controls in every tested scene at both zoom settings. |
 | Mobile pickup | PASS | 51 checks and three fresh captures. |
 
-The combined run completed all seven gates: six passed and one failed. It returned exit code 1, preserving the regression failure while allowing the six independent engine gates to execute. Total gate time was about five minutes. The system must remain failed until the sprite reference differences are reviewed and resolved.
+The initial combined run completed all seven gates: six passed and one failed. It returned exit code 1, preserving the regression failure while allowing the six independent engine gates to execute. Total gate time was about five minutes.
 
-Local diagnostic output is ignored by Git under `.stabilization/smoke-audit/`. The aggregate final report is `final-validation/validation-summary.rpt`, with a JSON equivalent and a separate log/report for every gate. Reproduce using:
+### Completed goal follow-up — October 5
+
+The follow-up resolves the remaining sprite reference failures through the reviewed cleanup derivation above, adds 13 focused safeguard tests, and reruns the entire matrix with fresh isolated saves. The strict regression executes every method; there are no failures, errors or skips.
+
+| Follow-up gate | Result | Evidence | Gate seconds |
+| --- | --- | --- | ---: |
+| Regression | PASS | 485 methods in 219.905 seconds; zero failures/errors/skips. | 220.27 |
+| Desktop | PASS | 102 checkpoints, seed 1337, 0.05-second updates. | 19.90 |
+| Mobile | PASS | 109 checkpoints, seed 1337, 0.05-second updates. | 20.99 |
+| Full route | PASS | 105 checkpoints; all 49 legs, stop-25 disk resume, natural ending and finale persistence. | 26.30 |
+| Last Stand | PASS | 1,591 checks, 108 save operations, 15 kills, 180-second simulated defense. | 6.33 |
+| Zoom | PASS | 331 checks and 20 fresh nonempty captures. | 8.18 |
+| Mobile pickup | PASS | 51 checks and three fresh nonempty captures. | 4.28 |
+
+The aggregate reports `passed=7 failed=0 completed=7 planned=7` and returns exit code 0. Summed gate time is 306.25 seconds. A separate independent canonical check also passes with every ignored `output/` PNG read prohibited: all 144 original fingerprints and metadata are preserved, and all 144 derived/installed hashes and removal counts match the provenance proof.
+
+Local diagnostic output is ignored by Git under `.stabilization/smoke-audit/`. The earlier aggregate is `final-validation/validation-summary.rpt`; the completed goal run is `goal-final-validation/validation-summary.rpt`, with a JSON equivalent and a separate log/report for every gate. The independent contract log is `canonical-v2-independent-verified.log`. The tracked cleanup evidence includes all 277 affected frames and enlarged deeper regions. Reproduce using:
 
 ```powershell
 .\tools\run_validation.ps1 -Seed 1337
@@ -87,10 +105,9 @@ Local diagnostic output is ignored by Git under `.stabilization/smoke-audit/`. T
 
 ## Remaining work, in priority order
 
-1. Resolve the five canonical art mismatches through visual review; keep the failure until that decision is made.
-2. Add unassisted campaigns with a defined player policy, multiple seeds and difficulty bands. Assert scarcity, actual looting, food/water/coal use, encounter resolution, health, weapon availability, and sustainable repair/upgrade choices.
-3. Add complete quest journeys for deliveries, passengers, branching conversations and expeditions, including cancellation, overflow rewards, repeated reloads, and interrupted completion. Existing logic tests cover parts of these paths; the default matrix does not drive every journey through UI.
-4. Add longer sessions and measurements for memory/asset churn, frame times, repeated scene transitions, repeated saves, and pause/resume. Current bounded smokes are not soak or performance tests.
-5. Include fresh packaged builds in release validation and run a real Android/iOS device acceptance matrix for screen sizes, touch, suspension, audio and memory pressure.
-6. Add deliberate screenshot review or approved image-region assertions for important screens. Rendering and HUD presence can pass while art, clipping or readability is wrong.
-7. Wire the matrix into CI with installed dependencies and LÖVE/display support. No tracked GitHub workflow currently runs it automatically. Review the expedition and convoy engine harnesses' run contracts and incorporate them into the aggregate gate; they are currently outside its seven groups.
+1. Add unassisted campaigns with a defined player policy, multiple seeds and difficulty bands. Assert scarcity, actual looting, food/water/coal use, encounter resolution, health, weapon availability, and sustainable repair/upgrade choices.
+2. Add complete quest journeys for deliveries, passengers, branching conversations and expeditions, including cancellation, overflow rewards, repeated reloads, and interrupted completion. Existing logic tests cover parts of these paths; the default matrix does not drive every journey through UI.
+3. Add longer sessions and measurements for memory/asset churn, frame times, repeated scene transitions, repeated saves, and pause/resume. Current bounded smokes are not soak or performance tests.
+4. Include fresh packaged builds in release validation and run a real Android/iOS device acceptance matrix for screen sizes, touch, suspension, audio and memory pressure.
+5. Add deliberate screenshot review or approved image-region assertions for important screens. Rendering and HUD presence can pass while art, clipping or readability is wrong.
+6. Wire the matrix into CI with installed dependencies and LÖVE/display support. No tracked GitHub workflow currently runs it automatically. Review the expedition and convoy engine harnesses' run contracts and incorporate them into the aggregate gate; they are currently outside its seven groups.

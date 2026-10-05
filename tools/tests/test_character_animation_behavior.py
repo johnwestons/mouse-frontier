@@ -14,6 +14,9 @@ except ImportError:
     LuaRuntime = None
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.update_canonical_sheet_pixels import normalization_record
 
 HARNESS = r'''
 love = {graphics = {setColor = function() end}}
@@ -51,10 +54,12 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
 
     def test_installed_calibrated_profiles_match_canonical_motion_specs(self):
         manifest = json.loads((ROOT / 'character-motion/canonical_sheet_pixels.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(manifest), {'version', 'pixel_mode', 'hash_algorithm', 'characters'})
-        self.assertEqual(manifest['version'], 1)
+        self.assertEqual(set(manifest), {'version', 'pixel_mode', 'hash_algorithm', 'normalization', 'characters'})
+        self.assertEqual(manifest['version'], 2)
         self.assertEqual(manifest['pixel_mode'], 'RGBA')
         self.assertEqual(manifest['hash_algorithm'], 'sha256')
+        self.assertEqual(manifest['normalization'], normalization_record(), 'reviewed cleanup policy and provenance must match the current tool')
+        self.assertTrue((ROOT / manifest['normalization']['review_evidence']).is_file(), 'tracked cleanup review evidence is required')
         calibrated = {Path(filename).stem for filename, tuning in self.lua.globals().Motion.profiles.items()
                       if tuning['runPixelsPerFrame'] is not None}
         self.assertEqual(set(manifest['characters']), calibrated, 'canonical manifest must cover exactly the calibrated profiles')
@@ -65,10 +70,21 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
                 character = Path(filename).stem
                 spec = json.loads((ROOT / 'character-motion' / (character + '.json')).read_text())
                 self.assertEqual(spec['character'], character)
+                build = json.loads((ROOT / 'character-motion' / (character + '-build.json')).read_text(encoding='utf-8'))
+                self.assertEqual(build['character'], character)
+                self.assertIs(build.get('framing', {}).get('remove_edge_connected_magenta_fringe'), True)
+                overrides = (list(build.get('idle_sets', [])) + list(build.get('walks', {}).values())
+                             + list(build.get('runs', {}).values()))
+                self.assertTrue(all(not isinstance(item, dict) or item.get('remove_edge_connected_magenta_fringe', True) is True
+                                    for item in overrides), 'per-action framing must retain reviewed cleanup')
                 self.assertAlmostEqual(tuning['pixelsPerFrame'], spec['gait']['pixels_per_frame'])
                 self.assertAlmostEqual(tuning['runPixelsPerFrame'], spec['run_gait']['pixels_per_frame'])
                 self.assertEqual(set(spec['directions']), {'east', 'northeast', 'north', 'northwest',
                                                           'west', 'southwest', 'south', 'southeast'})
+                for direction, mapping in spec['directions'].items():
+                    for mode, field in (('walk', 'walk_animation'), ('idle', 'idle_animation'), ('run', 'run_animation')):
+                        self.assertEqual(mapping[field], f'{mode}_{direction}',
+                                         f'{character}/{direction}: {field} must retain its mode and direction')
                 actions = {direction[field] for direction in spec['directions'].values()
                            for field in ('walk_animation', 'idle_animation', 'run_animation')}
                 self.assertEqual(len(actions), 24, f'{character}: eight directions need three distinct locomotion strips each')
@@ -83,12 +99,21 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
                         animation = spec['animations'][name]
                         staged = ROOT / animation['path']
                         expected = sheets[name]
-                        self.assertEqual(set(expected), {'source_path', 'source_filename', 'width', 'height', 'rgba_sha256'})
+                        self.assertEqual(set(expected), {'source_path', 'source_filename', 'width', 'height', 'rgba_sha256',
+                                                         'installed_rgba_sha256', 'removed_pixels'})
                         self.assertEqual(expected['source_path'], animation['path'])
                         self.assertEqual(expected['source_filename'], staged.name)
                         expected_size = (animation['frame_width'] * animation['frame_count'], animation['frame_height'])
                         self.assertEqual((expected['width'], expected['height']), expected_size, f'{character}/{name}: spec dimensions')
                         self.assertRegex(expected['rgba_sha256'], r'^[0-9a-f]{64}$')
+                        self.assertRegex(expected['installed_rgba_sha256'], r'^[0-9a-f]{64}$')
+                        self.assertIs(type(expected['removed_pixels']), int)
+                        self.assertGreaterEqual(expected['removed_pixels'], 0)
+                        self.assertLessEqual(expected['removed_pixels'], expected_size[0] * expected_size[1])
+                        if expected['removed_pixels'] == 0:
+                            self.assertEqual(expected['rgba_sha256'], expected['installed_rgba_sha256'])
+                        else:
+                            self.assertNotEqual(expected['rgba_sha256'], expected['installed_rgba_sha256'])
                         installed = ROOT / 'assets/sprites/character-animations' / character / staged.name
                         with Image.open(installed) as installed_image:
                             actual = installed_image.convert('RGBA')
@@ -96,8 +121,10 @@ class CharacterAnimationBehaviorTests(unittest.TestCase):
                             # PNG metadata/compression can vary without changing
                             # any renderer-visible pixel. Alpha remains part of
                             # the contract, including removed opaque fragments.
-                            # The tracked digest makes ignored reference PNGs optional.
-                            if hashlib.sha256(actual.tobytes()).hexdigest() != expected['rgba_sha256']:
+                            # Original source hashes remain intact; only the
+                            # reviewed cleanup's derived hash is installed.
+                            # Tracked digests make ignored reference PNGs optional.
+                            if hashlib.sha256(actual.tobytes()).hexdigest() != expected['installed_rgba_sha256']:
                                 mismatches.append(name)
                 self.assertFalse(mismatches, f'{character}: {len(mismatches)} canonical sheet pixel mismatches: '
                                  + ', '.join(mismatches))

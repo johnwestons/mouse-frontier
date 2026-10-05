@@ -1,0 +1,5047 @@
+{
+  "status": "visual-review-complete",
+  "scope": "Every reported changed frame reviewed on contrasting backgrounds and highlighted crops; every removed region deeper than2 also enlarged.",
+  "conclusion": "Removed pixels are background-connected magenta matte/fringe. No observed loss of genuine skin, red clothing, carried tools, or main outline structures. All removed pixels were attached to the main source foreground component; none were detached fragments.",
+  "deepest_region": "Botanist Frog run_west frames3 and7: a two-pixel-thick magenta bridge in the transparent gap between the basket bottom and foot.16 pixels across both frames exceed4 pixels background depth; maximum8. The orange basket outline and green foot remain intact.",
+  "method": "Every reported changed frame; decoded RGBA; 8-connected source components; 4-connected candidate color flood from transparent background; exact builder color thresholds; alpha >=16 foreground.",
+  "source_mismatch_report_sha256": "622072bc095694d512bf64bbb76ecc948c9f0458153dd3a1bff877d43769cea4",
+  "summary": {
+    "sheets": 50,
+    "changed_frames": 277,
+    "removed_pixels": 26164,
+    "body_connected_pixels": 26164,
+    "wholly_detached_component_pixels": 0,
+    "new_magenta_rule_pixels": 26145,
+    "new_rule_only_pixels": 26145,
+    "old_magenta_rule_pixels": 0,
+    "dark_fringe_rule_pixels": 19,
+    "four_neighbor_background_boundary_pixels": 25587,
+    "eight_neighbor_background_boundary_pixels": 25702,
+    "new_rule_background_connected_pixels": 26145,
+    "combined_rule_background_connected_pixels": 26164,
+    "background_depth_over2_pixels": 54,
+    "background_depth_over4_pixels": 16
+  },
+  "per_character": {
+    "botanist-frog": {
+      "sheets": 21,
+      "changed_frames": 124,
+      "removed_pixels": 16624,
+      "body_connected_pixels": 16624,
+      "wholly_detached_component_pixels": 0,
+      "new_magenta_rule_pixels": 16607,
+      "new_rule_only_pixels": 16607,
+      "old_magenta_rule_pixels": 0,
+      "dark_fringe_rule_pixels": 17,
+      "four_neighbor_background_boundary_pixels": 16206,
+      "eight_neighbor_background_boundary_pixels": 16293,
+      "new_rule_background_connected_pixels": 16607,
+      "combined_rule_background_connected_pixels": 16624,
+      "background_depth_over2_pixels": 46,
+      "background_depth_over4_pixels": 16
+    },
+    "conductor-cat": {
+      "sheets": 4,
+      "changed_frames": 9,
+      "removed_pixels": 13,
+      "body_connected_pixels": 13,
+      "wholly_detached_component_pixels": 0,
+      "new_magenta_rule_pixels": 13,
+      "new_rule_only_pixels": 13,
+      "old_magenta_rule_pixels": 0,
+      "dark_fringe_rule_pixels": 0,
+      "four_neighbor_background_boundary_pixels": 13,
+      "eight_neighbor_background_boundary_pixels": 13,
+      "new_rule_background_connected_pixels": 13,
+      "combined_rule_background_connected_pixels": 13,
+      "background_depth_over2_pixels": 0,
+      "background_depth_over4_pixels": 0
+    },
+    "cook-frog": {
+      "sheets": 6,
+      "changed_frames": 35,
+      "removed_pixels": 35,
+      "body_connected_pixels": 35,
+      "wholly_detached_component_pixels": 0,
+      "new_magenta_rule_pixels": 35,
+      "new_rule_only_pixels": 35,
+      "old_magenta_rule_pixels": 0,
+      "dark_fringe_rule_pixels": 0,
+      "four_neighbor_background_boundary_pixels": 35,
+      "eight_neighbor_background_boundary_pixels": 35,
+      "new_rule_background_connected_pixels": 35,
+      "combined_rule_background_connected_pixels": 35,
+      "background_depth_over2_pixels": 0,
+      "background_depth_over4_pixels": 0
+    },
+    "cook-mouse": {
+      "sheets": 18,
+      "changed_frames": 108,
+      "removed_pixels": 9491,
+      "body_connected_pixels": 9491,
+      "wholly_detached_component_pixels": 0,
+      "new_magenta_rule_pixels": 9490,
+      "new_rule_only_pixels": 9490,
+      "old_magenta_rule_pixels": 0,
+      "dark_fringe_rule_pixels": 1,
+      "four_neighbor_background_boundary_pixels": 9332,
+      "eight_neighbor_background_boundary_pixels": 9360,
+      "new_rule_background_connected_pixels": 9490,
+      "combined_rule_background_connected_pixels": 9491,
+      "background_depth_over2_pixels": 8,
+      "background_depth_over4_pixels": 0
+    },
+    "trail-fox": {
+      "sheets": 1,
+      "changed_frames": 1,
+      "removed_pixels": 1,
+      "body_connected_pixels": 1,
+      "wholly_detached_component_pixels": 0,
+      "new_magenta_rule_pixels": 0,
+      "new_rule_only_pixels": 0,
+      "old_magenta_rule_pixels": 0,
+      "dark_fringe_rule_pixels": 1,
+      "four_neighbor_background_boundary_pixels": 1,
+      "eight_neighbor_background_boundary_pixels": 1,
+      "new_rule_background_connected_pixels": 0,
+      "combined_rule_background_connected_pixels": 1,
+      "background_depth_over2_pixels": 0,
+      "background_depth_over4_pixels": 0
+    }
+  },
+  "reference_installation_pairs": [
+    {
+      "character": "botanist-frog",
+      "action": "walk_northeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_northeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_northeast.png",
+      "reference_png_sha256": "e4f1e43446290a438153d0509984f14f5d40e1b705bc35ab907f5bc0215e88a8",
+      "installed_png_sha256": "5c3b845e97570d2f9d9bc990de4e724da37c79d36261db356448695cef1ce12a",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            250,
+            375,
+            251
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            261,
+            375,
+            262
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            257,
+            375,
+            258
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            253,
+            375,
+            254
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            253,
+            375,
+            254
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            259,
+            375,
+            260
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            254,
+            375,
+            255
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            374,
+            250,
+            375,
+            251
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_northeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_northeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_northeast.png",
+      "reference_png_sha256": "ee065b8d35e038c4b03c0198d06907e57253507442473c7c8a95042aaf076e49",
+      "installed_png_sha256": "7c7ec624adebe9e2630c139875e95e163185f6060706f32da7e711306c90515a",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            375,
+            255,
+            376,
+            256
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_northeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_northeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_northeast.png",
+      "reference_png_sha256": "5440856ea8db82e3628dbacdfc2fdb8212d8743314e9fb7b25b3be1b445979a9",
+      "installed_png_sha256": "e281d552dec56b7a9fb9ba74a33116240461657005b975cd45d829c84125046e",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            262,
+            378,
+            263
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            261,
+            378,
+            262
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            249,
+            378,
+            250
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            251,
+            378,
+            252
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            259,
+            378,
+            260
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            258,
+            378,
+            259
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            246,
+            378,
+            247
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            377,
+            254,
+            378,
+            255
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_north",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_north.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_north.png",
+      "reference_png_sha256": "ca23caeb997306749c2073a96d6e711d4ee833888b0fa230e23d3dade2f17385",
+      "installed_png_sha256": "4a3dfd50b5f396f698a1712a1bbc8a5737d83f914e3e83ea55306269e1bb1aeb",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 142,
+          "removed_bbox": [
+            76,
+            73,
+            430,
+            446
+          ],
+          "new_hard_magenta_rule_pixels": 142,
+          "combined_rule_background_connected_pixels": 142,
+          "background_depth_histogram": {
+            "1": 135,
+            "2": 6,
+            "3": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 146,
+          "removed_bbox": [
+            77,
+            81,
+            431,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 146,
+          "combined_rule_background_connected_pixels": 146,
+          "background_depth_histogram": {
+            "1": 138,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 142,
+          "removed_bbox": [
+            77,
+            76,
+            431,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 142,
+          "combined_rule_background_connected_pixels": 142,
+          "background_depth_histogram": {
+            "1": 134,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 146,
+          "removed_bbox": [
+            76,
+            71,
+            430,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 146,
+          "combined_rule_background_connected_pixels": 146,
+          "background_depth_histogram": {
+            "1": 138,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 145,
+          "removed_bbox": [
+            76,
+            71,
+            430,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 145,
+          "combined_rule_background_connected_pixels": 145,
+          "background_depth_histogram": {
+            "1": 137,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 145,
+          "removed_bbox": [
+            77,
+            83,
+            431,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 145,
+          "combined_rule_background_connected_pixels": 145,
+          "background_depth_histogram": {
+            "1": 137,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 139,
+          "removed_bbox": [
+            77,
+            78,
+            431,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 139,
+          "combined_rule_background_connected_pixels": 139,
+          "background_depth_histogram": {
+            "1": 131,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 141,
+          "removed_bbox": [
+            76,
+            73,
+            430,
+            437
+          ],
+          "new_hard_magenta_rule_pixels": 141,
+          "combined_rule_background_connected_pixels": 141,
+          "background_depth_histogram": {
+            "1": 134,
+            "2": 6,
+            "3": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_north",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_north.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_north.png",
+      "reference_png_sha256": "0a7e3ff46d3d331ef24c02793059a22122d8863a9750a0335c44c729e5263aac",
+      "installed_png_sha256": "86194051b5a5c36601cf263e9c66c1e47d942b2848875d52e8df31a40d003a26",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 160,
+          "removed_bbox": [
+            74,
+            73,
+            433,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 160,
+          "combined_rule_background_connected_pixels": 160,
+          "background_depth_histogram": {
+            "1": 152,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 226,
+          "removed_bbox": [
+            99,
+            73,
+            435,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 226,
+          "combined_rule_background_connected_pixels": 226,
+          "background_depth_histogram": {
+            "1": 209,
+            "2": 16,
+            "3": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_north",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_north.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_north.png",
+      "reference_png_sha256": "448a7306edb34149d3236a21b8df3a9c5ccb4b8ff54fe03393a291f13d116f14",
+      "installed_png_sha256": "968d6b07f21e82c62efe4dcdb038de048b657f9691e80162806f1279dbb94a2b",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 148,
+          "removed_bbox": [
+            73,
+            74,
+            435,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 148,
+          "combined_rule_background_connected_pixels": 148,
+          "background_depth_histogram": {
+            "1": 140,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 151,
+          "removed_bbox": [
+            73,
+            71,
+            435,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 151,
+          "combined_rule_background_connected_pixels": 151,
+          "background_depth_histogram": {
+            "1": 143,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 152,
+          "removed_bbox": [
+            72,
+            58,
+            434,
+            446
+          ],
+          "new_hard_magenta_rule_pixels": 152,
+          "combined_rule_background_connected_pixels": 152,
+          "background_depth_histogram": {
+            "1": 141,
+            "2": 9,
+            "3": 2
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 146,
+          "removed_bbox": [
+            73,
+            71,
+            435,
+            446
+          ],
+          "new_hard_magenta_rule_pixels": 146,
+          "combined_rule_background_connected_pixels": 146,
+          "background_depth_histogram": {
+            "1": 138,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 144,
+          "removed_bbox": [
+            73,
+            76,
+            435,
+            441
+          ],
+          "new_hard_magenta_rule_pixels": 144,
+          "combined_rule_background_connected_pixels": 144,
+          "background_depth_histogram": {
+            "1": 136,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 144,
+          "removed_bbox": [
+            73,
+            73,
+            435,
+            432
+          ],
+          "new_hard_magenta_rule_pixels": 144,
+          "combined_rule_background_connected_pixels": 144,
+          "background_depth_histogram": {
+            "1": 136,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 147,
+          "removed_bbox": [
+            72,
+            60,
+            434,
+            427
+          ],
+          "new_hard_magenta_rule_pixels": 147,
+          "combined_rule_background_connected_pixels": 147,
+          "background_depth_histogram": {
+            "1": 139,
+            "2": 7,
+            "3": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 148,
+          "removed_bbox": [
+            73,
+            69,
+            435,
+            448
+          ],
+          "new_hard_magenta_rule_pixels": 148,
+          "combined_rule_background_connected_pixels": 148,
+          "background_depth_histogram": {
+            "1": 140,
+            "2": 7,
+            "3": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_northwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_northwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_northwest.png",
+      "reference_png_sha256": "7e3eccad5fbfd39b4075aed53ac96bd3ab04ba80fd4b2f77c0fb0c6efb22e1eb",
+      "installed_png_sha256": "b1626b9c599c1e793b93f38b5c3aafdec01eb0c134ef7490a7b3844a5d59007b",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 185,
+          "removed_bbox": [
+            103,
+            73,
+            417,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 184,
+          "combined_rule_background_connected_pixels": 185,
+          "background_depth_histogram": {
+            "1": 184,
+            "2": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 177,
+          "removed_bbox": [
+            104,
+            80,
+            418,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 176,
+          "combined_rule_background_connected_pixels": 177,
+          "background_depth_histogram": {
+            "1": 176,
+            "2": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 182,
+          "removed_bbox": [
+            103,
+            76,
+            418,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 181,
+          "combined_rule_background_connected_pixels": 182,
+          "background_depth_histogram": {
+            "1": 181,
+            "2": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 181,
+          "removed_bbox": [
+            103,
+            71,
+            418,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 181,
+          "background_depth_histogram": {
+            "1": 180,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 185,
+          "removed_bbox": [
+            103,
+            72,
+            417,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 184,
+          "combined_rule_background_connected_pixels": 185,
+          "background_depth_histogram": {
+            "1": 184,
+            "2": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 183,
+          "removed_bbox": [
+            104,
+            81,
+            418,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 182,
+          "combined_rule_background_connected_pixels": 183,
+          "background_depth_histogram": {
+            "1": 182,
+            "2": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 182,
+          "removed_bbox": [
+            103,
+            77,
+            418,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 181,
+          "combined_rule_background_connected_pixels": 182,
+          "background_depth_histogram": {
+            "1": 181,
+            "2": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 183,
+          "removed_bbox": [
+            103,
+            72,
+            418,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 182,
+          "combined_rule_background_connected_pixels": 183,
+          "background_depth_histogram": {
+            "1": 182,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_northwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_northwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_northwest.png",
+      "reference_png_sha256": "e06ea26c0e845eccc33d4d77a5efa6f41a152929fc0f5aa2e0570faf59dcaf05",
+      "installed_png_sha256": "2050ba5a9f428e04aa1dc0cb99ddccb0a86ec6e68a493e1d45f7a47b193c9329",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 223,
+          "removed_bbox": [
+            102,
+            73,
+            419,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 222,
+          "combined_rule_background_connected_pixels": 223,
+          "background_depth_histogram": {
+            "1": 221,
+            "2": 2
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 222,
+          "removed_bbox": [
+            93,
+            79,
+            419,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 222,
+          "combined_rule_background_connected_pixels": 222,
+          "background_depth_histogram": {
+            "1": 222
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_northwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_northwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_northwest.png",
+      "reference_png_sha256": "e9ec7dd1aad214fa3c2363efdbda19dc8a26042c74a38753e358ddda67ad159a",
+      "installed_png_sha256": "90b66050bb16cc7751c2524611aaf5e42f168585806551ed452e25289207cb09",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 181,
+          "removed_bbox": [
+            102,
+            74,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 181,
+          "background_depth_histogram": {
+            "1": 180,
+            "2": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 184,
+          "removed_bbox": [
+            102,
+            73,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 183,
+          "combined_rule_background_connected_pixels": 184,
+          "background_depth_histogram": {
+            "1": 182,
+            "2": 2
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 185,
+          "removed_bbox": [
+            101,
+            61,
+            420,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 184,
+          "combined_rule_background_connected_pixels": 185,
+          "background_depth_histogram": {
+            "1": 184,
+            "2": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 186,
+          "removed_bbox": [
+            102,
+            67,
+            422,
+            445
+          ],
+          "new_hard_magenta_rule_pixels": 185,
+          "combined_rule_background_connected_pixels": 186,
+          "background_depth_histogram": {
+            "1": 185,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 183,
+          "removed_bbox": [
+            102,
+            75,
+            421,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 182,
+          "combined_rule_background_connected_pixels": 183,
+          "background_depth_histogram": {
+            "1": 182,
+            "2": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 187,
+          "removed_bbox": [
+            103,
+            74,
+            422,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 186,
+          "combined_rule_background_connected_pixels": 187,
+          "background_depth_histogram": {
+            "1": 184,
+            "2": 3
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 183,
+          "removed_bbox": [
+            102,
+            62,
+            421,
+            447
+          ],
+          "new_hard_magenta_rule_pixels": 182,
+          "combined_rule_background_connected_pixels": 183,
+          "background_depth_histogram": {
+            "1": 182,
+            "2": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 182,
+          "removed_bbox": [
+            102,
+            66,
+            422,
+            449
+          ],
+          "new_hard_magenta_rule_pixels": 181,
+          "combined_rule_background_connected_pixels": 182,
+          "background_depth_histogram": {
+            "1": 181,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_west",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_west.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_west.png",
+      "reference_png_sha256": "d7691b7359d4ad8f46f8379aa83464215c9d1a46b93610526e00508b9b130a50",
+      "installed_png_sha256": "cd9f3ea98bd2fa2250bf40e5250661299c877e6508f29e2d81f62a5b98743834",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            108,
+            75,
+            392,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 170,
+            "2": 4
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 179,
+          "removed_bbox": [
+            109,
+            78,
+            393,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 179,
+          "combined_rule_background_connected_pixels": 179,
+          "background_depth_histogram": {
+            "1": 175,
+            "2": 4
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 180,
+          "removed_bbox": [
+            109,
+            75,
+            392,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 180,
+          "background_depth_histogram": {
+            "1": 176,
+            "2": 4
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 177,
+          "removed_bbox": [
+            108,
+            73,
+            391,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 177,
+          "combined_rule_background_connected_pixels": 177,
+          "background_depth_histogram": {
+            "1": 173,
+            "2": 4
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 176,
+          "removed_bbox": [
+            108,
+            75,
+            392,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 176,
+          "combined_rule_background_connected_pixels": 176,
+          "background_depth_histogram": {
+            "1": 172,
+            "2": 4
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 165,
+          "removed_bbox": [
+            109,
+            78,
+            393,
+            412
+          ],
+          "new_hard_magenta_rule_pixels": 165,
+          "combined_rule_background_connected_pixels": 165,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 4
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            109,
+            75,
+            392,
+            426
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 170,
+            "2": 4
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 170,
+          "removed_bbox": [
+            108,
+            73,
+            391,
+            431
+          ],
+          "new_hard_magenta_rule_pixels": 170,
+          "combined_rule_background_connected_pixels": 170,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 4
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_west",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_west.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_west.png",
+      "reference_png_sha256": "0d57632f301164f9a2895e6e4e3884cff63d3bfacf8ba8c858ebd94e8a833817",
+      "installed_png_sha256": "562d48aa6095adf51e4e9f04b8ca6c56da559d892c8ec6128c793bc931b75e5c",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 197,
+          "removed_bbox": [
+            108,
+            75,
+            394,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 197,
+          "combined_rule_background_connected_pixels": 197,
+          "background_depth_histogram": {
+            "1": 193,
+            "2": 4
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 208,
+          "removed_bbox": [
+            105,
+            77,
+            409,
+            454
+          ],
+          "new_hard_magenta_rule_pixels": 208,
+          "combined_rule_background_connected_pixels": 208,
+          "background_depth_histogram": {
+            "1": 206,
+            "2": 2
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_west",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_west.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_west.png",
+      "reference_png_sha256": "336152f585d30a3ba417e62f9c75f0826aed22e030616762acb49d79a74d78ff",
+      "installed_png_sha256": "26f92f73fca63b08cd3c0f7535ce34efda0904b6283df281f68c30587fda605f",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 180,
+          "removed_bbox": [
+            109,
+            72,
+            397,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 180,
+          "background_depth_histogram": {
+            "1": 175,
+            "2": 4,
+            "3": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 179,
+          "removed_bbox": [
+            108,
+            75,
+            397,
+            456
+          ],
+          "new_hard_magenta_rule_pixels": 179,
+          "combined_rule_background_connected_pixels": 179,
+          "background_depth_histogram": {
+            "1": 175,
+            "2": 4
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 180,
+          "removed_bbox": [
+            108,
+            67,
+            396,
+            448
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 180,
+          "background_depth_histogram": {
+            "1": 163,
+            "2": 5,
+            "3": 2,
+            "4": 2,
+            "5": 2,
+            "6": 2,
+            "7": 2,
+            "8": 2
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 171,
+          "removed_bbox": [
+            108,
+            73,
+            395,
+            441
+          ],
+          "new_hard_magenta_rule_pixels": 171,
+          "combined_rule_background_connected_pixels": 171,
+          "background_depth_histogram": {
+            "1": 167,
+            "2": 4
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 171,
+          "removed_bbox": [
+            109,
+            72,
+            397,
+            431
+          ],
+          "new_hard_magenta_rule_pixels": 171,
+          "combined_rule_background_connected_pixels": 171,
+          "background_depth_histogram": {
+            "1": 165,
+            "2": 5,
+            "3": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 177,
+          "removed_bbox": [
+            108,
+            75,
+            397,
+            427
+          ],
+          "new_hard_magenta_rule_pixels": 177,
+          "combined_rule_background_connected_pixels": 177,
+          "background_depth_histogram": {
+            "1": 171,
+            "2": 5,
+            "3": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 178,
+          "removed_bbox": [
+            108,
+            67,
+            396,
+            431
+          ],
+          "new_hard_magenta_rule_pixels": 178,
+          "combined_rule_background_connected_pixels": 178,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 5,
+            "3": 2,
+            "4": 2,
+            "5": 2,
+            "6": 2,
+            "7": 2,
+            "8": 2
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 180,
+          "removed_bbox": [
+            108,
+            73,
+            395,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 180,
+          "combined_rule_background_connected_pixels": 180,
+          "background_depth_histogram": {
+            "1": 176,
+            "2": 4
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_southwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_southwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_southwest.png",
+      "reference_png_sha256": "3da810ac49c2c163977400a24e03ba25dd9bc71f0c46809d409a6cf8fa815ab6",
+      "installed_png_sha256": "62b0fc9a77e7e5b00a630bdfdfc1e5001f0385c91d0083a32d680758ac443840",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 241,
+          "removed_bbox": [
+            86,
+            71,
+            416,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 241,
+          "combined_rule_background_connected_pixels": 241,
+          "background_depth_histogram": {
+            "1": 240,
+            "2": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 240,
+          "removed_bbox": [
+            86,
+            76,
+            416,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 240,
+          "combined_rule_background_connected_pixels": 240,
+          "background_depth_histogram": {
+            "1": 240
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 233,
+          "removed_bbox": [
+            85,
+            74,
+            415,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 233,
+          "combined_rule_background_connected_pixels": 233,
+          "background_depth_histogram": {
+            "1": 233
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 232,
+          "removed_bbox": [
+            86,
+            73,
+            415,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 232,
+          "combined_rule_background_connected_pixels": 232,
+          "background_depth_histogram": {
+            "1": 232
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 232,
+          "removed_bbox": [
+            86,
+            71,
+            416,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 232,
+          "combined_rule_background_connected_pixels": 232,
+          "background_depth_histogram": {
+            "1": 232
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 232,
+          "removed_bbox": [
+            86,
+            76,
+            416,
+            449
+          ],
+          "new_hard_magenta_rule_pixels": 232,
+          "combined_rule_background_connected_pixels": 232,
+          "background_depth_histogram": {
+            "1": 232
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 233,
+          "removed_bbox": [
+            85,
+            74,
+            415,
+            442
+          ],
+          "new_hard_magenta_rule_pixels": 233,
+          "combined_rule_background_connected_pixels": 233,
+          "background_depth_histogram": {
+            "1": 233
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 239,
+          "removed_bbox": [
+            86,
+            73,
+            415,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 239,
+          "combined_rule_background_connected_pixels": 239,
+          "background_depth_histogram": {
+            "1": 239
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_southwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_southwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_southwest.png",
+      "reference_png_sha256": "7e87285dc496890892c588de7afb4bd718354697c2e64e65e75b12042c795b23",
+      "installed_png_sha256": "8e8997be0e208ecbc6969f5f651eef34576be1e378f1681b77cd4711b526ffb8",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 265,
+          "removed_bbox": [
+            86,
+            73,
+            417,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 265,
+          "combined_rule_background_connected_pixels": 265,
+          "background_depth_histogram": {
+            "1": 265
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 227,
+          "removed_bbox": [
+            86,
+            75,
+            421,
+            448
+          ],
+          "new_hard_magenta_rule_pixels": 227,
+          "combined_rule_background_connected_pixels": 227,
+          "background_depth_histogram": {
+            "1": 225,
+            "2": 2
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_southwest",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_southwest.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_southwest.png",
+      "reference_png_sha256": "7e9503489cf31e732ffe8ea155a60537ee56b763ce3bda2100c21db322a16dec",
+      "installed_png_sha256": "0bdd52c38140a92f9dfa68e898c47299ba70a10d659a56da74331c4016e23f75",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 239,
+          "removed_bbox": [
+            87,
+            73,
+            415,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 239,
+          "combined_rule_background_connected_pixels": 239,
+          "background_depth_histogram": {
+            "1": 237,
+            "2": 2
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 233,
+          "removed_bbox": [
+            87,
+            80,
+            415,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 233,
+          "combined_rule_background_connected_pixels": 233,
+          "background_depth_histogram": {
+            "1": 233
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 230,
+          "removed_bbox": [
+            87,
+            74,
+            415,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 230,
+          "combined_rule_background_connected_pixels": 230,
+          "background_depth_histogram": {
+            "1": 230
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 229,
+          "removed_bbox": [
+            87,
+            67,
+            415,
+            429
+          ],
+          "new_hard_magenta_rule_pixels": 229,
+          "combined_rule_background_connected_pixels": 229,
+          "background_depth_histogram": {
+            "1": 229
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 230,
+          "removed_bbox": [
+            87,
+            73,
+            415,
+            428
+          ],
+          "new_hard_magenta_rule_pixels": 230,
+          "combined_rule_background_connected_pixels": 230,
+          "background_depth_histogram": {
+            "1": 229,
+            "2": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 231,
+          "removed_bbox": [
+            87,
+            80,
+            415,
+            435
+          ],
+          "new_hard_magenta_rule_pixels": 231,
+          "combined_rule_background_connected_pixels": 231,
+          "background_depth_histogram": {
+            "1": 230,
+            "2": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 238,
+          "removed_bbox": [
+            87,
+            74,
+            415,
+            445
+          ],
+          "new_hard_magenta_rule_pixels": 238,
+          "combined_rule_background_connected_pixels": 238,
+          "background_depth_histogram": {
+            "1": 238
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 240,
+          "removed_bbox": [
+            87,
+            66,
+            415,
+            452
+          ],
+          "new_hard_magenta_rule_pixels": 240,
+          "combined_rule_background_connected_pixels": 240,
+          "background_depth_histogram": {
+            "1": 237,
+            "2": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_south",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_south.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_south.png",
+      "reference_png_sha256": "0d747106bbae28b18e45f3bd3a7fd5f216094909e2cfd7b78621df3717ad4316",
+      "installed_png_sha256": "02cb87bd63d42f965fe9f7bbd14c64160ac3b68730ba0f25898dae8076336838",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            67,
+            405,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            73,
+            405,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            72,
+            405,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            73,
+            405,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            70,
+            405,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            76,
+            405,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            75,
+            405,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 174,
+          "removed_bbox": [
+            98,
+            76,
+            405,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 174,
+          "combined_rule_background_connected_pixels": 174,
+          "background_depth_histogram": {
+            "1": 166,
+            "2": 8
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_south",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_south.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_south.png",
+      "reference_png_sha256": "451c368f347bd2876339515a804ff796e2841e0e7120300a68aa7176f1d9475a",
+      "installed_png_sha256": "4304f35352dae5bc24b6e874295c3662c6584ff9179b68cb95c44900d2401c21",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 179,
+          "removed_bbox": [
+            97,
+            73,
+            406,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 179,
+          "combined_rule_background_connected_pixels": 179,
+          "background_depth_histogram": {
+            "1": 171,
+            "2": 8
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            97,
+            75,
+            392,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 131,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_south",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_south.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_south.png",
+      "reference_png_sha256": "40bd7180d3a93cbea3ce986946141cd11d4a2e9f325543990806f329744b098d",
+      "installed_png_sha256": "5a7b90b63d7d49a0a9a6782d5be122de420f11282bb43e8ca0b0fac4352a2ee4",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 167,
+          "removed_bbox": [
+            99,
+            69,
+            404,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 167,
+          "combined_rule_background_connected_pixels": 167,
+          "background_depth_histogram": {
+            "1": 159,
+            "2": 8
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 160,
+          "removed_bbox": [
+            99,
+            78,
+            404,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 160,
+          "combined_rule_background_connected_pixels": 160,
+          "background_depth_histogram": {
+            "1": 157,
+            "2": 3
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            75,
+            403,
+            447
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            67,
+            403,
+            447
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            72,
+            403,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            81,
+            403,
+            453
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            78,
+            403,
+            447
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 169,
+          "removed_bbox": [
+            98,
+            64,
+            403,
+            449
+          ],
+          "new_hard_magenta_rule_pixels": 169,
+          "combined_rule_background_connected_pixels": 169,
+          "background_depth_histogram": {
+            "1": 161,
+            "2": 8
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "walk_southeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/walk_southeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/walk_southeast.png",
+      "reference_png_sha256": "10721184be3c5eb3e7f0573e9f7e7b25370aae2b4902c20646f152ec00624b36",
+      "installed_png_sha256": "1c8f972b7e30296131460f9e1576a31dc8f34bb8435112b406df2a9b94cbab21",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            109,
+            352,
+            110
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            114,
+            354,
+            115
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            111,
+            352,
+            112
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            111,
+            351,
+            112
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            110,
+            352,
+            111
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            115,
+            354,
+            116
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            112,
+            352,
+            113
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            112,
+            351,
+            113
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "idle_southeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/idle_southeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/idle_southeast.png",
+      "reference_png_sha256": "f989f26d13609b175e569935253ebc414b4221e5b05f90cd79c09f07859be868",
+      "installed_png_sha256": "0f0f73e44b47d38d1d0de160ec37550df013eea4c715d8d941b9254cba3dc200",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            352,
+            113,
+            353,
+            114
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "botanist-frog",
+      "action": "run_southeast",
+      "canonical_reference": "output/character-motion/botanist-frog/normalized-v2/run_southeast.png",
+      "installed": "assets/sprites/character-animations/botanist-frog/run_southeast.png",
+      "reference_png_sha256": "d66bba1354dae4991a4f694e287de1596e7b926f8e77228a6eac01eec4d77280",
+      "installed_png_sha256": "5da0f506f743cec327d67f94df0a7c1ece49a25486938c8cbaf969b128449a89",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            354,
+            112,
+            355,
+            113
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            354,
+            120,
+            355,
+            121
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            114,
+            354,
+            115
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            106,
+            354,
+            107
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            354,
+            113,
+            355,
+            114
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            354,
+            121,
+            355,
+            122
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            115,
+            354,
+            116
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            107,
+            354,
+            108
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "conductor-cat",
+      "action": "walk_east",
+      "canonical_reference": "output/character-motion/conductor-cat/normalized-v2/walk.png",
+      "installed": "assets/sprites/character-animations/conductor-cat/walk.png",
+      "reference_png_sha256": "df9d323d5353d421eee4670b8f4cc29510f9a91d4715fbf205a3244cc98b1caf",
+      "installed_png_sha256": "dcda9a8640e5b73ac0bda8e11f79ef5175f677fe31c70aec3f9041a5a49a1708",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 2,
+          "removed_bbox": [
+            198,
+            404,
+            199,
+            406
+          ],
+          "new_hard_magenta_rule_pixels": 2,
+          "combined_rule_background_connected_pixels": 2,
+          "background_depth_histogram": {
+            "1": 2
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            222,
+            393,
+            223,
+            394
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            223,
+            411,
+            224,
+            412
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            208,
+            411,
+            209,
+            412
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "conductor-cat",
+      "action": "idle_east",
+      "canonical_reference": "output/character-motion/conductor-cat/normalized-v2/idle.png",
+      "installed": "assets/sprites/character-animations/conductor-cat/idle.png",
+      "reference_png_sha256": "cb477deb89eb2f4c66f3b92f951400110d2cb93e8e1666a1b2cc5c467487e899",
+      "installed_png_sha256": "3ab3ac49bf515ebea23ee71bbfb2f515c08244983b78cd2ffbfc6f72f6d64679",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            219,
+            420,
+            220,
+            421
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "conductor-cat",
+      "action": "run_east",
+      "canonical_reference": "output/character-motion/conductor-cat/normalized-v2/run.png",
+      "installed": "assets/sprites/character-animations/conductor-cat/run.png",
+      "reference_png_sha256": "b6d5a5331477638818156f6d0d1a4bb0de8118a1c006d501b87b6c1ef3910e8b",
+      "installed_png_sha256": "bf0a0159b68c872dcd69a0c182ddfd611168ad19add0c371fb982bd527130b3e",
+      "frames": [
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            254,
+            430,
+            255,
+            431
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            250,
+            437,
+            251,
+            438
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 2,
+          "removed_bbox": [
+            197,
+            397,
+            198,
+            399
+          ],
+          "new_hard_magenta_rule_pixels": 2,
+          "combined_rule_background_connected_pixels": 2,
+          "background_depth_histogram": {
+            "1": 2
+          }
+        }
+      ]
+    },
+    {
+      "character": "conductor-cat",
+      "action": "idle_northwest",
+      "canonical_reference": "output/character-motion/conductor-cat/normalized-v2/idle_northwest.png",
+      "installed": "assets/sprites/character-animations/conductor-cat/idle_northwest.png",
+      "reference_png_sha256": "ddc4bb35ab65bf33a97656b57f96320a2bade1a18886f6ee36eafa816bdf5ff5",
+      "installed_png_sha256": "b8898c79a828c4e8c09754e6ac6e5683200dd2117b5d5077e83af1acf55601d6",
+      "frames": [
+        {
+          "frame": 2,
+          "removed_pixels": 3,
+          "removed_bbox": [
+            172,
+            152,
+            182,
+            195
+          ],
+          "new_hard_magenta_rule_pixels": 3,
+          "combined_rule_background_connected_pixels": 3,
+          "background_depth_histogram": {
+            "1": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "walk_northeast",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/walk_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-frog/walk_northeast.png",
+      "reference_png_sha256": "3058b2833703fd4e5111e455fddeaa9faf6bdc0b7e1ec8b74e0edccde2048f82",
+      "installed_png_sha256": "546d081ee82c2ca347dbd30f8b14bb50f7d10952659d038da90a0c388b3efda2",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            77,
+            351,
+            78
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            87,
+            352,
+            88
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            349,
+            91,
+            350,
+            92
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            349,
+            87,
+            350,
+            88
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            84,
+            351,
+            85
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            85,
+            352,
+            86
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            349,
+            80,
+            350,
+            81
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            349,
+            76,
+            350,
+            77
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "idle_northeast",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/idle_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-frog/idle_northeast.png",
+      "reference_png_sha256": "3fae56359b77ea6df5afd1764f8970812901fc12848deeef2848c8ca89a1578c",
+      "installed_png_sha256": "6be04c816af3053d999536b1d1a03b1af9fd386e824ce4cf4a966b291b8522b1",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            349,
+            84,
+            350,
+            85
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "run_northeast",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/run_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-frog/run_northeast.png",
+      "reference_png_sha256": "92ac5ac46a0dbb5c14a8f9d8b646d8137624e048d9ed0601e93dcf5d08e00c60",
+      "installed_png_sha256": "66a668338b8f25893b0e714fc9d564eaea0eeef484715fb1b06f14f826ee5127",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            352,
+            96,
+            353,
+            97
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            352,
+            96,
+            353,
+            97
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            84,
+            352,
+            85
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            78,
+            351,
+            79
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            352,
+            85,
+            353,
+            86
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            353,
+            85,
+            354,
+            86
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            351,
+            73,
+            352,
+            74
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            350,
+            86,
+            351,
+            87
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "walk_south",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/walk_south.png",
+      "installed": "assets/sprites/character-animations/cook-frog/walk_south.png",
+      "reference_png_sha256": "5fde0ec5897496521f2807ae29a176da48df8dda841882b241abeb3c5c972306",
+      "installed_png_sha256": "0580939086c9ad39470c259c9fdf11b2920302bda7e671029ed17ae3d01dbb44",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            154,
+            140,
+            155
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            159,
+            140,
+            160
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            158,
+            140,
+            159
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            159,
+            140,
+            160
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            154,
+            140,
+            155
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            159,
+            140,
+            160
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            158,
+            140,
+            159
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            159,
+            140,
+            160
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "idle_south",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/idle_south.png",
+      "installed": "assets/sprites/character-animations/cook-frog/idle_south.png",
+      "reference_png_sha256": "71826fa7bacaae75f2dba7a89a84747cf766dad8f770104db1f27c466cd252a1",
+      "installed_png_sha256": "a4e17efdf2155ddc3051514f6de0961bc598de98da5bd3ecf03b525aac259d6a",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            158,
+            140,
+            159
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            352,
+            111,
+            353,
+            112
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-frog",
+      "action": "run_south",
+      "canonical_reference": "output/character-motion/cook-frog/normalized-v2/run_south.png",
+      "installed": "assets/sprites/character-animations/cook-frog/run_south.png",
+      "reference_png_sha256": "be8c9d29d4411386df8fc111eee9a65167a6b09e21e5bc8bac2b8f18a72771c0",
+      "installed_png_sha256": "f3ac3a71682c8bcd20e039c250b45ba8e0e7e50de8348becd2d2a741277d37f4",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            156,
+            140,
+            157
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            140,
+            165,
+            141,
+            166
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            140,
+            162,
+            141,
+            163
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            151,
+            140,
+            152
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            156,
+            140,
+            157
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            140,
+            165,
+            141,
+            166
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            140,
+            162,
+            141,
+            163
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            139,
+            151,
+            140,
+            152
+          ],
+          "new_hard_magenta_rule_pixels": 1,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_northeast",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_northeast.png",
+      "reference_png_sha256": "b2cd44799b148c58837c2eba985b330e452d339139187bf0a8f6e9128a1acda8",
+      "installed_png_sha256": "f4d949d985c20fa0917a3ead4c9f77cf1f0571a9a7cd03155875b774adf2dd27",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 56,
+          "removed_bbox": [
+            126,
+            70,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 56,
+          "combined_rule_background_connected_pixels": 56,
+          "background_depth_histogram": {
+            "1": 56
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            126,
+            80,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 57,
+            "2": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 55,
+          "removed_bbox": [
+            126,
+            82,
+            354,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 55,
+          "combined_rule_background_connected_pixels": 55,
+          "background_depth_histogram": {
+            "1": 55
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            127,
+            78,
+            354,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 57,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            126,
+            77,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            126,
+            78,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            126,
+            74,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            127,
+            70,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 57,
+            "2": 1,
+            "3": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_northeast",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_northeast.png",
+      "reference_png_sha256": "d1f085282782657908ada41fa10d3355311007d100e0e1b5f374654ae96697b8",
+      "installed_png_sha256": "03d62279b0537a20e9a89593c05da4ed9df8905f541078e16852de360b19e2c7",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 72,
+          "removed_bbox": [
+            127,
+            78,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 72,
+          "combined_rule_background_connected_pixels": 72,
+          "background_depth_histogram": {
+            "1": 70,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 70,
+          "removed_bbox": [
+            124,
+            73,
+            353,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 70,
+          "combined_rule_background_connected_pixels": 70,
+          "background_depth_histogram": {
+            "1": 69,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_northeast",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_northeast.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_northeast.png",
+      "reference_png_sha256": "79697765ea33e89cb14972646749bcc8c2b6d1c9cab405e1075fde9b4d31a0c9",
+      "installed_png_sha256": "4bc13efc7e07250f2079e4dfb2f9a202aa43cee08d8464ba6eccfde01512568b",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 49,
+          "removed_bbox": [
+            127,
+            85,
+            355,
+            412
+          ],
+          "new_hard_magenta_rule_pixels": 49,
+          "combined_rule_background_connected_pixels": 49,
+          "background_depth_histogram": {
+            "1": 49
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 55,
+          "removed_bbox": [
+            127,
+            84,
+            356,
+            444
+          ],
+          "new_hard_magenta_rule_pixels": 55,
+          "combined_rule_background_connected_pixels": 55,
+          "background_depth_histogram": {
+            "1": 55
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            126,
+            73,
+            354,
+            442
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 57,
+          "removed_bbox": [
+            127,
+            71,
+            355,
+            452
+          ],
+          "new_hard_magenta_rule_pixels": 57,
+          "combined_rule_background_connected_pixels": 57,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            127,
+            77,
+            355,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            127,
+            76,
+            356,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 1,
+            "3": 1
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 55,
+          "removed_bbox": [
+            127,
+            65,
+            355,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 55,
+          "combined_rule_background_connected_pixels": 55,
+          "background_depth_histogram": {
+            "1": 55
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 55,
+          "removed_bbox": [
+            127,
+            78,
+            355,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 55,
+          "combined_rule_background_connected_pixels": 55,
+          "background_depth_histogram": {
+            "1": 55
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_north",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_north.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_north.png",
+      "reference_png_sha256": "69d0430c966670f825604092412ea842082a255b5ba02e2490b2e9d43b7d6d2b",
+      "installed_png_sha256": "087c1a505a461a1a61b4aa21ae423f053e2fe8fac8fa6aa992b21ced07e0d21f",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            79,
+            355,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            90,
+            355,
+            457
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            85,
+            355,
+            442
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            80,
+            355,
+            440
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            80,
+            355,
+            449
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            129,
+            89,
+            355,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 56,
+          "removed_bbox": [
+            129,
+            84,
+            355,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 56,
+          "combined_rule_background_connected_pixels": 56,
+          "background_depth_histogram": {
+            "1": 53,
+            "2": 3
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 57,
+          "removed_bbox": [
+            129,
+            79,
+            355,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 57,
+          "combined_rule_background_connected_pixels": 57,
+          "background_depth_histogram": {
+            "1": 54,
+            "2": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_north",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_north.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_north.png",
+      "reference_png_sha256": "ec31f0d2354d02a3c150fab7465b1622c894194a2abc42b6d98659abe3bee15c",
+      "installed_png_sha256": "62a9b90c1f6e8713747c654c8301ec6078abcd2b452c45eb07432f97aa652ffa",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 75,
+          "removed_bbox": [
+            127,
+            81,
+            356,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 75,
+          "combined_rule_background_connected_pixels": 75,
+          "background_depth_histogram": {
+            "1": 72,
+            "2": 3
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 71,
+          "removed_bbox": [
+            127,
+            73,
+            354,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 71,
+          "combined_rule_background_connected_pixels": 71,
+          "background_depth_histogram": {
+            "1": 70,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_north",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_north.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_north.png",
+      "reference_png_sha256": "48298841239bf1682b5f522564f7b600c559ab7e871139548de0381245ca5d53",
+      "installed_png_sha256": "f25b53e5ec128e03b4577fb7add50149a645f727207ed54de63e5377a08f8bf8",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            125,
+            83,
+            356,
+            444
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 3
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            125,
+            80,
+            356,
+            435
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 3
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            125,
+            67,
+            356,
+            430
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 3
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            125,
+            77,
+            356,
+            452
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            125,
+            82,
+            356,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 60,
+          "removed_bbox": [
+            125,
+            79,
+            356,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 60,
+          "combined_rule_background_connected_pixels": 60,
+          "background_depth_histogram": {
+            "1": 57,
+            "2": 3
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 58,
+          "removed_bbox": [
+            125,
+            66,
+            356,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 58,
+          "combined_rule_background_connected_pixels": 58,
+          "background_depth_histogram": {
+            "1": 55,
+            "2": 3
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            125,
+            78,
+            356,
+            449
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 56,
+            "2": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_northwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_northwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_northwest.png",
+      "reference_png_sha256": "5463e7af3c75eef7be2ecc0135b1677eea57c3e91a7632d35158004d82d681ee",
+      "installed_png_sha256": "7b4cc3941aef48c6f550f0046bda1ab6d124b7ec1bdba34faf8fa7787f5fa08e",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 87,
+          "removed_bbox": [
+            154,
+            81,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 87,
+          "combined_rule_background_connected_pixels": 87,
+          "background_depth_histogram": {
+            "1": 87
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 86,
+          "removed_bbox": [
+            163,
+            82,
+            405,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 86,
+          "combined_rule_background_connected_pixels": 86,
+          "background_depth_histogram": {
+            "1": 85,
+            "2": 1
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 85,
+          "removed_bbox": [
+            163,
+            78,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 85,
+          "combined_rule_background_connected_pixels": 85,
+          "background_depth_histogram": {
+            "1": 85
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 88,
+          "removed_bbox": [
+            163,
+            74,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 88,
+          "combined_rule_background_connected_pixels": 88,
+          "background_depth_histogram": {
+            "1": 87,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 84,
+          "removed_bbox": [
+            163,
+            74,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 84,
+          "combined_rule_background_connected_pixels": 84,
+          "background_depth_histogram": {
+            "1": 84
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 82,
+          "removed_bbox": [
+            163,
+            83,
+            405,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 82,
+          "combined_rule_background_connected_pixels": 82,
+          "background_depth_histogram": {
+            "1": 82
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 79,
+          "removed_bbox": [
+            163,
+            85,
+            406,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 79,
+          "combined_rule_background_connected_pixels": 79,
+          "background_depth_histogram": {
+            "1": 79
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 79,
+          "removed_bbox": [
+            154,
+            81,
+            406,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 79,
+          "combined_rule_background_connected_pixels": 79,
+          "background_depth_histogram": {
+            "1": 78,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_northwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_northwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_northwest.png",
+      "reference_png_sha256": "d3ccfefa9c41c071b724a7db394c876ec97a0f8d59cbb3d01f54818a73055d62",
+      "installed_png_sha256": "0e4bc8e6c052eb7495dcacb4d72e025dcd4bbe71269108fc6c314a13dbd7d5d2",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 99,
+          "removed_bbox": [
+            164,
+            81,
+            403,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 99,
+          "combined_rule_background_connected_pixels": 99,
+          "background_depth_histogram": {
+            "1": 99
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 116,
+          "removed_bbox": [
+            153,
+            74,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 116,
+          "combined_rule_background_connected_pixels": 116,
+          "background_depth_histogram": {
+            "1": 116
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_northwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_northwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_northwest.png",
+      "reference_png_sha256": "9dcb60709dc49a22443ede1a61684f027eb31d0b2fa6c098269c347210e02b3b",
+      "installed_png_sha256": "543416b9b79f26547b25ddec61a92019a934188e6dedd5804421002b55983e24",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 87,
+          "removed_bbox": [
+            151,
+            81,
+            406,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 87,
+          "combined_rule_background_connected_pixels": 87,
+          "background_depth_histogram": {
+            "1": 87
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 82,
+          "removed_bbox": [
+            164,
+            80,
+            405,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 82,
+          "combined_rule_background_connected_pixels": 82,
+          "background_depth_histogram": {
+            "1": 82
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 85,
+          "removed_bbox": [
+            165,
+            69,
+            406,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 85,
+          "combined_rule_background_connected_pixels": 85,
+          "background_depth_histogram": {
+            "1": 83,
+            "2": 2
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 78,
+          "removed_bbox": [
+            164,
+            82,
+            405,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 78,
+          "combined_rule_background_connected_pixels": 78,
+          "background_depth_histogram": {
+            "1": 78
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 82,
+          "removed_bbox": [
+            164,
+            88,
+            406,
+            446
+          ],
+          "new_hard_magenta_rule_pixels": 82,
+          "combined_rule_background_connected_pixels": 82,
+          "background_depth_histogram": {
+            "1": 82
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 77,
+          "removed_bbox": [
+            164,
+            87,
+            405,
+            443
+          ],
+          "new_hard_magenta_rule_pixels": 77,
+          "combined_rule_background_connected_pixels": 77,
+          "background_depth_histogram": {
+            "1": 77
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 76,
+          "removed_bbox": [
+            155,
+            76,
+            406,
+            433
+          ],
+          "new_hard_magenta_rule_pixels": 76,
+          "combined_rule_background_connected_pixels": 76,
+          "background_depth_histogram": {
+            "1": 76
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 87,
+          "removed_bbox": [
+            146,
+            74,
+            405,
+            452
+          ],
+          "new_hard_magenta_rule_pixels": 87,
+          "combined_rule_background_connected_pixels": 87,
+          "background_depth_histogram": {
+            "1": 87
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_west",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_west.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_west.png",
+      "reference_png_sha256": "52b4849eb7d173c8ba8f10105afb6005e49e8d3db3dd647db6b88fb25fca0490",
+      "installed_png_sha256": "67877c36cc2d2ea5fb86a7f19366a12a806ece1a97beae226f55ae289dc2019c",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 154,
+          "removed_bbox": [
+            151,
+            73,
+            424,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 154,
+          "combined_rule_background_connected_pixels": 154,
+          "background_depth_histogram": {
+            "1": 146,
+            "2": 8
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 150,
+          "removed_bbox": [
+            152,
+            76,
+            426,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 150,
+          "combined_rule_background_connected_pixels": 150,
+          "background_depth_histogram": {
+            "1": 143,
+            "2": 7
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 143,
+          "removed_bbox": [
+            151,
+            73,
+            424,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 143,
+          "combined_rule_background_connected_pixels": 143,
+          "background_depth_histogram": {
+            "1": 141,
+            "2": 2
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 149,
+          "removed_bbox": [
+            151,
+            71,
+            424,
+            437
+          ],
+          "new_hard_magenta_rule_pixels": 149,
+          "combined_rule_background_connected_pixels": 149,
+          "background_depth_histogram": {
+            "1": 141,
+            "2": 8
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 151,
+          "removed_bbox": [
+            151,
+            73,
+            424,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 151,
+          "combined_rule_background_connected_pixels": 151,
+          "background_depth_histogram": {
+            "1": 143,
+            "2": 8
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 144,
+          "removed_bbox": [
+            152,
+            79,
+            426,
+            423
+          ],
+          "new_hard_magenta_rule_pixels": 144,
+          "combined_rule_background_connected_pixels": 144,
+          "background_depth_histogram": {
+            "1": 137,
+            "2": 7
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 140,
+          "removed_bbox": [
+            153,
+            77,
+            426,
+            423
+          ],
+          "new_hard_magenta_rule_pixels": 140,
+          "combined_rule_background_connected_pixels": 140,
+          "background_depth_histogram": {
+            "1": 138,
+            "2": 2
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 153,
+          "removed_bbox": [
+            153,
+            75,
+            426,
+            428
+          ],
+          "new_hard_magenta_rule_pixels": 153,
+          "combined_rule_background_connected_pixels": 153,
+          "background_depth_histogram": {
+            "1": 146,
+            "2": 7
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_west",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_west.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_west.png",
+      "reference_png_sha256": "75305f49d6d9a03adbeed72e44dc122f274ca2158941a282ac76d321beb07075",
+      "installed_png_sha256": "a4a3ea7435da758a52b34a9e5832cfa590c7e659602077ff0f501dffee4164b4",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 171,
+          "removed_bbox": [
+            151,
+            74,
+            421,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 171,
+          "combined_rule_background_connected_pixels": 171,
+          "background_depth_histogram": {
+            "1": 168,
+            "2": 3
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 189,
+          "removed_bbox": [
+            152,
+            73,
+            407,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 189,
+          "combined_rule_background_connected_pixels": 189,
+          "background_depth_histogram": {
+            "1": 186,
+            "2": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_west",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_west.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_west.png",
+      "reference_png_sha256": "dddc9fc88ecf65ad1578747bb2a9ee2d439e0a2ce713641510117fd40646eec5",
+      "installed_png_sha256": "c09ac2140d51927c175f2d0b1a21bbbe8d5417381a26cad79775cf1faccbb8a3",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 150,
+          "removed_bbox": [
+            149,
+            71,
+            424,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 150,
+          "combined_rule_background_connected_pixels": 150,
+          "background_depth_histogram": {
+            "1": 148,
+            "2": 2
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 146,
+          "removed_bbox": [
+            151,
+            74,
+            426,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 146,
+          "combined_rule_background_connected_pixels": 146,
+          "background_depth_histogram": {
+            "1": 144,
+            "2": 2
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 146,
+          "removed_bbox": [
+            149,
+            65,
+            424,
+            431
+          ],
+          "new_hard_magenta_rule_pixels": 146,
+          "combined_rule_background_connected_pixels": 146,
+          "background_depth_histogram": {
+            "1": 143,
+            "2": 3
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 144,
+          "removed_bbox": [
+            151,
+            66,
+            426,
+            412
+          ],
+          "new_hard_magenta_rule_pixels": 144,
+          "combined_rule_background_connected_pixels": 144,
+          "background_depth_histogram": {
+            "1": 141,
+            "2": 3
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 141,
+          "removed_bbox": [
+            151,
+            75,
+            426,
+            419
+          ],
+          "new_hard_magenta_rule_pixels": 141,
+          "combined_rule_background_connected_pixels": 141,
+          "background_depth_histogram": {
+            "1": 139,
+            "2": 2
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 142,
+          "removed_bbox": [
+            151,
+            78,
+            426,
+            421
+          ],
+          "new_hard_magenta_rule_pixels": 142,
+          "combined_rule_background_connected_pixels": 142,
+          "background_depth_histogram": {
+            "1": 140,
+            "2": 2
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 148,
+          "removed_bbox": [
+            151,
+            69,
+            426,
+            419
+          ],
+          "new_hard_magenta_rule_pixels": 148,
+          "combined_rule_background_connected_pixels": 148,
+          "background_depth_histogram": {
+            "1": 146,
+            "2": 2
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 152,
+          "removed_bbox": [
+            149,
+            61,
+            424,
+            426
+          ],
+          "new_hard_magenta_rule_pixels": 152,
+          "combined_rule_background_connected_pixels": 152,
+          "background_depth_histogram": {
+            "1": 149,
+            "2": 3
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_southwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_southwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_southwest.png",
+      "reference_png_sha256": "433cd96a312dc6dc54ecb22819a91f1e55bc7ea5fb817377a3d46ead05763f92",
+      "installed_png_sha256": "9e2439b87f219a877e7e8ddb7d5086ac859c88880c90c0d5a3ae9a17a52a33fe",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            150,
+            68,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 132
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            151,
+            73,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 132
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 131,
+          "removed_bbox": [
+            150,
+            71,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 131,
+          "combined_rule_background_connected_pixels": 131,
+          "background_depth_histogram": {
+            "1": 131
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            149,
+            71,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 132
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 131,
+          "removed_bbox": [
+            150,
+            75,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 131,
+          "combined_rule_background_connected_pixels": 131,
+          "background_depth_histogram": {
+            "1": 131
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 133,
+          "removed_bbox": [
+            151,
+            82,
+            421,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 133,
+          "combined_rule_background_connected_pixels": 133,
+          "background_depth_histogram": {
+            "1": 133
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 131,
+          "removed_bbox": [
+            150,
+            80,
+            421,
+            451
+          ],
+          "new_hard_magenta_rule_pixels": 131,
+          "combined_rule_background_connected_pixels": 131,
+          "background_depth_histogram": {
+            "1": 131
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            150,
+            77,
+            422,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 131,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_southwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_southwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_southwest.png",
+      "reference_png_sha256": "6aaa8aa214e83b7cf52aadb00f21cd4418fa3c653fbfd3739ed4c421172ea7fe",
+      "installed_png_sha256": "c28850103c09cebac58db9a1e68b038814f95f407ba73a392975cba713b6d5bd",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 155,
+          "removed_bbox": [
+            151,
+            73,
+            420,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 155,
+          "combined_rule_background_connected_pixels": 155,
+          "background_depth_histogram": {
+            "1": 155
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 151,
+          "removed_bbox": [
+            150,
+            79,
+            403,
+            455
+          ],
+          "new_hard_magenta_rule_pixels": 150,
+          "combined_rule_background_connected_pixels": 151,
+          "background_depth_histogram": {
+            "1": 149,
+            "2": 2
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_southwest",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_southwest.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_southwest.png",
+      "reference_png_sha256": "033a9af8b4529be3077f44fc9d20455306d7bbd41c5d5655366a5e952b122a4f",
+      "installed_png_sha256": "8fe053c6781d25720f173d54235eefb34779122ddeb228df17cbf913355e9aac",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            151,
+            64,
+            422,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 132
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 133,
+          "removed_bbox": [
+            152,
+            71,
+            422,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 133,
+          "combined_rule_background_connected_pixels": 133,
+          "background_depth_histogram": {
+            "1": 133
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 136,
+          "removed_bbox": [
+            150,
+            66,
+            422,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 136,
+          "combined_rule_background_connected_pixels": 136,
+          "background_depth_histogram": {
+            "1": 135,
+            "2": 1
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 131,
+          "removed_bbox": [
+            150,
+            67,
+            422,
+            437
+          ],
+          "new_hard_magenta_rule_pixels": 131,
+          "combined_rule_background_connected_pixels": 131,
+          "background_depth_histogram": {
+            "1": 130,
+            "2": 1
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 137,
+          "removed_bbox": [
+            151,
+            73,
+            422,
+            437
+          ],
+          "new_hard_magenta_rule_pixels": 137,
+          "combined_rule_background_connected_pixels": 137,
+          "background_depth_histogram": {
+            "1": 135,
+            "2": 2
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 133,
+          "removed_bbox": [
+            152,
+            80,
+            422,
+            444
+          ],
+          "new_hard_magenta_rule_pixels": 133,
+          "combined_rule_background_connected_pixels": 133,
+          "background_depth_histogram": {
+            "1": 133
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 133,
+          "removed_bbox": [
+            151,
+            71,
+            423,
+            450
+          ],
+          "new_hard_magenta_rule_pixels": 133,
+          "combined_rule_background_connected_pixels": 133,
+          "background_depth_histogram": {
+            "1": 133
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 132,
+          "removed_bbox": [
+            150,
+            58,
+            422,
+            452
+          ],
+          "new_hard_magenta_rule_pixels": 132,
+          "combined_rule_background_connected_pixels": 132,
+          "background_depth_histogram": {
+            "1": 132
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "walk_south",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/walk_south.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/walk_south.png",
+      "reference_png_sha256": "fd8e7585714af14752ae7a9b30a0654e8816261c133993191c0895d8d340e107",
+      "installed_png_sha256": "db616245c0259972437a8b8b043e92a0a47b3a42f720446e15283c23c5130527",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            68,
+            397,
+            424
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            74,
+            397,
+            422
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            73,
+            397,
+            418
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            74,
+            397,
+            429
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            68,
+            397,
+            433
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 38,
+          "removed_bbox": [
+            157,
+            74,
+            397,
+            434
+          ],
+          "new_hard_magenta_rule_pixels": 38,
+          "combined_rule_background_connected_pixels": 38,
+          "background_depth_histogram": {
+            "1": 38
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            73,
+            397,
+            434
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            157,
+            74,
+            397,
+            434
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "idle_south",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/idle_south.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/idle_south.png",
+      "reference_png_sha256": "f93fe4a6dfb899b0b0774b37ee10381424c600bc107e9d7d55177a5070fd199b",
+      "installed_png_sha256": "e85cbe547676127dca76d2aa0118f096f2788344ab5f3868b94054b483b03afe",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 44,
+          "removed_bbox": [
+            157,
+            73,
+            397,
+            439
+          ],
+          "new_hard_magenta_rule_pixels": 44,
+          "combined_rule_background_connected_pixels": 44,
+          "background_depth_histogram": {
+            "1": 44
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 59,
+          "removed_bbox": [
+            152,
+            79,
+            380,
+            458
+          ],
+          "new_hard_magenta_rule_pixels": 59,
+          "combined_rule_background_connected_pixels": 59,
+          "background_depth_histogram": {
+            "1": 58,
+            "2": 1
+          }
+        }
+      ]
+    },
+    {
+      "character": "cook-mouse",
+      "action": "run_south",
+      "canonical_reference": "output/character-motion/cook-mouse/normalized-v1/run_south.png",
+      "installed": "assets/sprites/character-animations/cook-mouse/run_south.png",
+      "reference_png_sha256": "1e7a9bca70011afab39042c4215cdf952d82459bf6ece7e5351adc53555fcf33",
+      "installed_png_sha256": "4a26bc0abc2e140be57f1d9c81138cccaa51f93df682698bd8dfb813d5d07be7",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 35,
+          "removed_bbox": [
+            158,
+            72,
+            395,
+            405
+          ],
+          "new_hard_magenta_rule_pixels": 35,
+          "combined_rule_background_connected_pixels": 35,
+          "background_depth_histogram": {
+            "1": 35
+          }
+        },
+        {
+          "frame": 2,
+          "removed_pixels": 33,
+          "removed_bbox": [
+            158,
+            81,
+            377,
+            414
+          ],
+          "new_hard_magenta_rule_pixels": 33,
+          "combined_rule_background_connected_pixels": 33,
+          "background_depth_histogram": {
+            "1": 33
+          }
+        },
+        {
+          "frame": 3,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            158,
+            78,
+            395,
+            423
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 4,
+          "removed_pixels": 38,
+          "removed_bbox": [
+            158,
+            67,
+            395,
+            428
+          ],
+          "new_hard_magenta_rule_pixels": 38,
+          "combined_rule_background_connected_pixels": 38,
+          "background_depth_histogram": {
+            "1": 38
+          }
+        },
+        {
+          "frame": 5,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            158,
+            72,
+            395,
+            434
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 6,
+          "removed_pixels": 35,
+          "removed_bbox": [
+            158,
+            81,
+            377,
+            434
+          ],
+          "new_hard_magenta_rule_pixels": 35,
+          "combined_rule_background_connected_pixels": 35,
+          "background_depth_histogram": {
+            "1": 35
+          }
+        },
+        {
+          "frame": 7,
+          "removed_pixels": 37,
+          "removed_bbox": [
+            158,
+            78,
+            395,
+            426
+          ],
+          "new_hard_magenta_rule_pixels": 37,
+          "combined_rule_background_connected_pixels": 37,
+          "background_depth_histogram": {
+            "1": 37
+          }
+        },
+        {
+          "frame": 8,
+          "removed_pixels": 36,
+          "removed_bbox": [
+            158,
+            67,
+            395,
+            403
+          ],
+          "new_hard_magenta_rule_pixels": 36,
+          "combined_rule_background_connected_pixels": 36,
+          "background_depth_histogram": {
+            "1": 36
+          }
+        }
+      ]
+    },
+    {
+      "character": "trail-fox",
+      "action": "idle_southwest",
+      "canonical_reference": "output/character-motion/trail-fox/normalized-v2/idle_southwest.png",
+      "installed": "assets/sprites/character-animations/trail-fox/idle_southwest.png",
+      "reference_png_sha256": "fcb3191308a87b6ed1c04ee80791433135eebefa99e02a93bcf5c4a53484ec0a",
+      "installed_png_sha256": "6e6c45f8179addb79821ad9ed851c0039e73473ed963ddfa8a2e8014a9e651f7",
+      "frames": [
+        {
+          "frame": 1,
+          "removed_pixels": 1,
+          "removed_bbox": [
+            170,
+            241,
+            171,
+            242
+          ],
+          "new_hard_magenta_rule_pixels": 0,
+          "combined_rule_background_connected_pixels": 1,
+          "background_depth_histogram": {
+            "1": 1
+          }
+        }
+      ]
+    }
+  ],
+  "evidence_pngs": [
+    {
+      "file": "botanist-frog-page-01.png",
+      "sha256": "44a9d5ab51b523388885e24970ac091c8d2916e7b4568100cce8f9ce3a3e2336"
+    },
+    {
+      "file": "botanist-frog-page-02.png",
+      "sha256": "46878e69fcddd64fbb423b9922a2dc468136bb51af2bebd241c9951b0cb77342"
+    },
+    {
+      "file": "botanist-frog-page-03.png",
+      "sha256": "515ecafa29d540b75e5235b7637ec821cfea7279b1b936b395f3a7af885909ed"
+    },
+    {
+      "file": "botanist-frog-page-04.png",
+      "sha256": "c757e5c30a7eb622d3b17b963069c4fcda9f8850c9f92aa816624b23cb295851"
+    },
+    {
+      "file": "botanist-frog-page-05.png",
+      "sha256": "48765c036db717cc031aff200e590edc2864cc266643ae0ab33c2579c38c450c"
+    },
+    {
+      "file": "botanist-frog-page-06.png",
+      "sha256": "0de9cf1dd34f49529ebd4806cbbefc5014f55c5f109084a3989e99544334ef4c"
+    },
+    {
+      "file": "botanist-frog-page-07.png",
+      "sha256": "b5857b2cf7db0f89022ca5ca67eeb9f45b6f3afb73bfdda656be9080c70bb191"
+    },
+    {
+      "file": "botanist-frog-page-08.png",
+      "sha256": "8187791f5d707a8292ca3e691d1ded3dd05b09b26ec775b425c0f5b3d6906493"
+    },
+    {
+      "file": "conductor-cat-page-01.png",
+      "sha256": "129829a67b7bd6df8eda33375fb3fd173fd369f098811bce8b3d7873b733e918"
+    },
+    {
+      "file": "cook-frog-page-01.png",
+      "sha256": "d3f0d89a4b7bd9f87e034b03bcafee0ecca0e4555effbf21020dd8183c265eb2"
+    },
+    {
+      "file": "cook-frog-page-02.png",
+      "sha256": "53ea1732683634696795c98b7ebd9b904f94f9d13a8945b484b31c231714c325"
+    },
+    {
+      "file": "cook-frog-page-03.png",
+      "sha256": "0f05c23468a917bbab631365581868578b8928d84900fb12921daffadef187d3"
+    },
+    {
+      "file": "cook-mouse-page-01.png",
+      "sha256": "e7b8715c6e70e1078cdac47857ab09172406c3619fd0ddd91f679eb501464767"
+    },
+    {
+      "file": "cook-mouse-page-02.png",
+      "sha256": "39c2bd0d8f81aee2f430f43bc61511e20e081d5c4a1c3045aa4a05275b50c0ea"
+    },
+    {
+      "file": "cook-mouse-page-03.png",
+      "sha256": "96cebfaca21c48cbf41b5129f81ff35313b108d67fc75c5ce4a5f4d1c3f92a11"
+    },
+    {
+      "file": "cook-mouse-page-04.png",
+      "sha256": "2666ccec1cb0b5e39dc37c5b9e9e3aa4394beb93a7c9c73e326a944201e2027c"
+    },
+    {
+      "file": "cook-mouse-page-05.png",
+      "sha256": "d4855ab4639a7325128c556449f1def00db8fce531d6ce86ec47ef9e50ffbf98"
+    },
+    {
+      "file": "cook-mouse-page-06.png",
+      "sha256": "d212427a51b3273c38c0bdb90ed00ada93dba012b73c8e69356e8b68a7c941a5"
+    },
+    {
+      "file": "cook-mouse-page-07.png",
+      "sha256": "8868611aad9b2b84776107cb31e57cf9d39cf1deec9d4af5678692bc5b4aa987"
+    },
+    {
+      "file": "deep-regions-page-01.png",
+      "sha256": "0c173105bb8b493be2210ccf94a41c994f08b994af164b6eee21e12cd63f46ae"
+    },
+    {
+      "file": "deep-regions-page-02.png",
+      "sha256": "3c9f31289b25511579db4a93ec42bbb8c393d04c84c0657d2f8c2c7e232e3d51"
+    },
+    {
+      "file": "deep-regions-page-03.png",
+      "sha256": "8bfbc903c9451a6b73ca2f016415e145701eb1d09bdcc9acd42dce6f7c931bd2"
+    },
+    {
+      "file": "deepest-botanist-frog-run_west-frame-03.png",
+      "sha256": "d878e0b7e74c6a1145fff0c24bd996e5e747e56e16d23ce6c3efc95965648ebf"
+    },
+    {
+      "file": "deepest-botanist-frog-run_west-frame-07.png",
+      "sha256": "ce0a0331a9faf9a218beb72b373c87d03148faed377ee251fe6ad8ebb0ebe160"
+    },
+    {
+      "file": "trail-fox-page-01.png",
+      "sha256": "900638c212e1297c4c6d54c9d7b5c3364af44135dc4e071b63d34be9d519729c"
+    }
+  ]
+}

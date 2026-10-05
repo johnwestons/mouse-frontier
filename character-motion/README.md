@@ -46,10 +46,18 @@ rendering behavior until their complete directional set is installed.
 
 `canonical_sheet_pixels.json` records the exact dimensions and SHA256 of decoded
 RGBA bytes for every walk, idle and run reference used by the calibrated motion
-profiles. The regression test binds each entry to its motion spec action and
-source filename, then compares the installed sheet to this tracked fingerprint.
+profiles. Version 2 retains the original `rgba_sha256` and separately records
+`installed_rgba_sha256`, derived by applying the reviewed edge-connected magenta
+cleanup to that immutable reference. Each entry also records its removed pixel
+count. The regression test binds entries to motion spec actions and source
+filenames, then compares installed sheets to the derived fingerprints.
 A clean checkout can run that contract without the ignored `output/` PNGs.
 Transparent pixels and their RGB bytes are included in the fingerprint.
+
+The normalization record pins the complete cleanup module with line endings
+normalized to LF, the canonical source commit, and the tracked review evidence. The
+[October 5 cleanup review](../docs/audits/2026-10-05-canonical-sprite-cleanup.md)
+and [per-sheet proof](canonical_cleanup_review.json) explain the derivation.
 
 Canonical reference updates require review. Changing a spec path, action,
 dimension or installed sprite does not automatically update this baseline.
@@ -59,13 +67,15 @@ With the reviewed reference PNGs present, compare the current baseline using:
 python tools/update_canonical_sheet_pixels.py
 ```
 
-After the reference artwork changes have been explicitly approved, record their
-fingerprints and review the manifest diff:
+To record the reviewed cleanup derivation from the retained original references,
+use the explicit write flag and review the manifest diff:
 
 ```powershell
 python tools/update_canonical_sheet_pixels.py --write-reviewed-references
 ```
 
-The tool reads the canonical PNG paths declared by the specs. Do not regenerate
-the baseline merely to clear an installed asset mismatch. The regression suite
-never regenerates it.
+The tool reads the canonical PNG paths declared by the specs and never reads
+installed sprites. Even with the write flag, changed original sources, paths,
+dimensions or cleanup policy are refused. Future approved source or policy
+changes require a deliberate review and corresponding contract update; this
+command cannot approve them. The regression suite never regenerates the manifest.
