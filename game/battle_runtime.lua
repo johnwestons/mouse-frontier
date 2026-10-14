@@ -1,5 +1,8 @@
 local Accessibility=require("game.accessibility")
+local CoopProgression=require("game.coop_progression")
 local ExpeditionBattleState=require("game.expedition_battle_state")
+local TacticalState=require('game.tactical_battle_state')
+local BattleActors=require('game.battle_actors')
 
 local function required(context,name,expected)
   local value=context[name]
@@ -48,6 +51,17 @@ local function new(context)
   local handleInventoryClick=required(context,"handleInventoryClick","function")
   local returnToTrain=required(context,"returnToTrain","function")
   local syncExpeditionEnemies
+  local commands=context.commands
+  local function tactical() return commands and runtime.saveData and runtime.saveData.tacticalBattle~=nil end
+  local function refresh() runtime.battle=TacticalState.restore(runtime.saveData,Catalog) end
+  local function act(name,extra)
+      local s=runtime.saveData.tacticalBattle; local b=runtime.battle
+      if not s or not b then return false,'battle_unavailable' end
+      local args={encounterId=s.encounterId,turnRevision=s.revision,unitId=b.units[b.active].id}
+      for key,value in pairs(extra or {}) do args[key]=value end
+      local reply=commands.submit(name,args); refresh()
+      return reply.ok,reply.reason
+  end
 
   local function turnSignature(battle)
       if not ExpeditionBattleState.isExpedition(battle) then return nil end
@@ -105,6 +119,24 @@ local function new(context)
   end
 
   local function beginEncounter(encounter)
+      if not CoopProgression.allowed(runtime,"battle.begin") then return false,"host_only" end
+      if commands then
+          local args={encounterId=encounter.entityId}
+          if encounter.source=='expedition' then
+              args.enemyIds={}
+              local area=runtime.saveData.expeditions[encounter.areaId]
+              for _,enemy in ipairs(encounter.enemyStates or {}) do
+                  local saved=area and area.mobs[enemy.mobId]
+                  if not saved then return false,'enemy_unavailable' end
+                  args.enemyIds[#args.enemyIds+1]=commands.identify(saved)
+              end
+              args.encounterId=args.enemyIds[1]
+          end
+          local reply=commands.submit('battle.begin',args)
+          if not reply.ok then return false,reply.reason end
+          refresh(); runtime.state='battle'; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.dialogue=nil
+          return true
+      end
       runtime.battle=nil
       runtime.battle=BattleController.begin(controllerContext(),encounter)
       runtime.state="battle"
@@ -112,6 +144,7 @@ local function new(context)
       runtime.mapOpen=false
       runtime.dialogue=nil
       writeBattleSave()
+      return true
   end
 
   local function balanceAudit() return CombatBalance.audit() end
@@ -119,20 +152,30 @@ local function new(context)
   local function playerBalanceAudit() return PlayerProgression.audit() end
 
   local function setPrompt(text) BattleController.prompt(controllerContext(),text) end
-  local function advanceTurn() BattleController.advance(controllerContext()); writeBattleSave() end
-  local function resolveAttack(attacker,target,weaponName)
-      local result=BattleController.resolve(controllerContext(),attacker,target,weaponName)
+  local function advanceTurn()
+      if tactical() then return act('battle.endTurn') end
+      BattleController.advance(controllerContext()); writeBattleSave()
+  end
+  local function resolveAttack(attacker,target,weaponName,itemId)
+      if tactical() then return act('battle.attack',{weapon=itemId or weaponName,targetId=target.id}) end
+      local result=BattleController.resolve(controllerContext(),attacker,target,weaponName,itemId)
       writeBattleSave(); return result
   end
-  local function attack(weaponName) BattleController.attack(controllerContext(),weaponName) end
-  local function moveTo(q,r) BattleController.move(controllerContext(),q,r); writeBattleSave() end
-  local function heal() BattleController.heal(controllerContext()); writeBattleSave() end
-  local function guard() BattleController.guard(controllerContext()); writeBattleSave() end
-  local function useAbility(kind) BattleController.ability(controllerContext(),kind); writeBattleSave() end
-  local function usePotion(name) return BattleController.usePotion(controllerContext(),name) end
-  local function useHealingItem(name) return BattleController.useHealingItem(controllerContext(),name) end
+  local function attack(weaponName) if tactical() then return act('battle.attack',{weapon=weaponName}) end; BattleController.attack(controllerContext(),weaponName) end
+  local function moveTo(q,r) if tactical() then return act('battle.move',{q=q,r=r}) end; BattleController.move(controllerContext(),q,r); writeBattleSave() end
+  local function heal() if tactical() then return act('battle.heal') end; BattleController.heal(controllerContext()); writeBattleSave() end
+  local function guard() if tactical() then return act('battle.guard') end; BattleController.guard(controllerContext()); writeBattleSave() end
+  local function useAbility(kind) if tactical() then return act('battle.ability',{kind=kind}) end; BattleController.ability(controllerContext(),kind); writeBattleSave() end
+  local function usePotion(name) if tactical() then return act('battle.item',{name=name}) end; return BattleController.usePotion(controllerContext(),name) end
+  local function useHealingItem(name) if tactical() then return act('battle.item',{name=name}) end; return BattleController.useHealingItem(controllerContext(),name) end
 
   local function update(dt)
+      if tactical() then
+          local busy=BattleController.animate(controllerContext(),dt*Accessibility.motionSpeed(runtime.saveData))
+          local b=runtime.battle; local u=BattleRules.activeUnit(b)
+          if b and not b.intro and not b.finished and not busy and b.attackTimer<=0 and (b.enemyDelay or 0)<=0 and u and u.team=='enemy' then act('battle.enemyTurn') end
+          return true
+      end
       local before=turnSignature(runtime.battle)
       if runtime.battle then BattleController.update(controllerContext(),dt*Accessibility.motionSpeed(runtime.saveData)) end
       if ExpeditionBattleState.isExpedition(runtime.battle) then
@@ -154,6 +197,11 @@ local function new(context)
           mobDeathImages=mobDeathImages,mobWalkImages=mobWalkImages,mobRangedImages=mobRangedImages,
           animationClock=runtime.animationClock,characterAnimations=getCharacterAnimations(),
           saveData=runtime.saveData,inventoryOpen=runtime.inventoryOpen,ui=ui,playerProgression=PlayerProgression,
+          canAct=function(unit)
+              if not tactical() then return true end
+              local owner=BattleActors.id(unit) or 'host'; local service=commands.authority()
+              return owner=='host' or owner=='companion' and service and service.bindings.companion==nil
+          end,
           drawLandscape=renderer.drawLandscape,drawGround=renderer.drawGround,
           drawAnimatedCharacter=renderer.drawAnimatedCharacter,button=screenUI.button,screenToGame=screenToGame,pointerPosition=pointerPosition,
           setInventoryOpen=function(value) runtime.inventoryOpen=value end,
@@ -172,8 +220,20 @@ local function new(context)
   end
 
   local function finishBattle(outcome)
+      if not CoopProgression.allowed(runtime,outcome=="retreat" and "battle.retreat" or "battle.continue") then return false,"host_only" end
       local battle=runtime.battle
       local encounter=battle and battle.encounter
+      if tactical() then
+          local s=runtime.saveData.tacticalBattle
+          local reply=commands.submit(outcome=='retreat' and 'battle.retreat' or 'battle.continue',{encounterId=s.encounterId,turnRevision=s.revision})
+          if not reply.ok then return false,reply.reason end
+          runtime.battle=nil; runtime.state='game'; runtime.inventoryOpen=false
+          if reply.savePending then return false,'save_pending' end
+          if reply.result.battleSource~='expedition' then
+              if reply.result.outcome=='win' then enterStop() else returnToTrain(false) end
+          end
+          return reply.result.outcome
+      end
       syncExpeditionEnemies(battle)
       if ExpeditionBattleState.isExpedition(battle) then applyExpeditionDestination(battle,outcome) end
       runtime.battle=nil; runtime.state="game"; runtime.inventoryOpen=false

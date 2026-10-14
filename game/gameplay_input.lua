@@ -1,10 +1,13 @@
 local Accessibility=require("game.accessibility")
+local Preferences=require("game.local_preferences")
+local Items=require("game.item_instances")
 local WorldPause=require("game.world_pause")
 local UIStyle=require("game.ui_layout")
 local UIFocus=require("game.ui_focus")
 local LootProgression=require("game.loot_progression")
 local RepairLayout=require("game.repair_workbench_layout")
 
+local CoopProgression=require("game.coop_progression")
 local function required(context, name, expectedType)
   local value=context[name]
   assert(value~=nil,"gameplay input requires "..name)
@@ -30,6 +33,19 @@ local function new(context)
   local removeSave=required(context,"removeSave","function")
   local EngineUpgrades=required(context,"engineUpgrades","table")
   local TrainUpgradeBalance=required(context,"trainUpgradeBalance","table")
+  local commands=context.commands
+  local function ownsBattleTurn(unit)
+      if not runtime.saveData.tacticalBattle then return true end
+      local owner=require('game.battle_actors').id(unit) or 'host'
+      if owner=='host' then return true end
+      local service=type(commands)=='table' and commands.authority and commands.authority()
+      return owner=='companion' and service and service.bindings.companion==nil
+  end
+
+  local function commandResult(name,args)
+      local reply=commands.submit(name,args)
+      return reply.ok and reply.result or {ok=false,reason=reply.reason}
+  end
   local Maintenance=required(context,"maintenance","table")
   local BattleRules=required(context,"battleRules","table")
   local Stops=required(context,"stops","table")
@@ -70,6 +86,7 @@ local function new(context)
   local newSave=required(context,"newSave","function")
   local enterGame=required(context,"enterGame","function")
   local chooseEvent=required(context,"chooseEvent","function")
+  local continueEvent=context.continueEvent
   local handleEventClick=required(context,"handleEventClick","function")
   local enterStop=required(context,"enterStop","function")
   local handleBattleMouse=required(context,"handleBattleMouse","function")
@@ -100,7 +117,12 @@ local function new(context)
   local ShootingRange=required(context,"shootingRange","table")
   local resolveFirstAid=required(context,"resolveFirstAid","function")
   local chooseHelpDialogue=required(context,"chooseHelpDialogue","function")
-  local chooseFinale=required(context,"chooseFinale","function")
+  local resolveFinale=required(context,"chooseFinale","function")
+  local function chooseFinale(id)
+      local ok,reason=resolveFinale(id)
+      if ok and not context.finaleCommands then writeSave() end
+      return ok,reason
+  end
   local beginShootingRange=required(context,"beginShootingRange","function")
   local handleShootingRange=required(context,"handleShootingRange","function")
 
@@ -120,7 +142,7 @@ local function new(context)
       rainEnabled=true,musicPaused=false,musicMuted=false,
   }
   local function optionsData()
-      local data=runtime.saveData or ui.menuSettings
+      local data=Preferences.view(runtime.saveData or ui.menuSettings)
       data.audio=data.audio or {
           station="chill",musicVolume=.10,sfxVolume=.55,rainVolume=.20,
           rainEnabled=true,musicPaused=false,musicMuted=false,
@@ -130,7 +152,8 @@ local function new(context)
   end
 
   local function persistOptions()
-      if runtime.saveData then writeSave() end
+      if ui.localPreferences then return ui.localPreferences:save(true) end
+      if runtime.saveData then return writeSave() end
   end
 
   local function activateEscapeChoice(index)
@@ -192,6 +215,8 @@ local function new(context)
       return true
   end
 
+  ui.handleOptionsKey=handleOptionsKey
+
   local function handleEscapeMenuClick(x,y)
       if not ui.escMenuOpen then return false end
       if Util.pointIn(x,y,ui.escChoiceContinue) then activateEscapeChoice(1)
@@ -210,6 +235,8 @@ local function new(context)
   end
 
   local function declineQuestOffer()
+      if context.declineQuest then return context.declineQuest() end
+      if not CoopProgression.allowed(runtime,"quest.decline") then return false,"host_only" end
       if not runtime.questOffer then return false end
       runtime.saveData.questAsked=runtime.saveData.questAsked or {}
       runtime.saveData.questAsked[tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC)]=true
@@ -226,6 +253,12 @@ local function new(context)
   end
 
   local function startTravel()
+      if not CoopProgression.allowed(runtime,"travel.depart") then return false,"host_only" end
+      if ui.transitionParty then
+          local reply=ui.transitionParty("travel.depart",{})
+          if reply.ok then playTrainDepart() end
+          return reply.ok,reply.reason
+      end
       local status=travelStatus()
       if not status.affordable then
           runtime.travelConfirm=false
@@ -242,6 +275,12 @@ local function new(context)
   end
 
   local function exitHouse()
+      if not CoopProgression.allowed(runtime,"scene.exitHouse") then return false,"host_only" end
+      if ui.transitionParty then
+          local reply=ui.transitionParty("scene.exitHouse",{})
+          if reply.ok then ui.playSfx("doors") end
+          return reply.ok,reply.reason
+      end
       if runtime.scene~="house" then return false end
       ui.playSfx("doors"); ensureStopLayout(); runtime.scene="stop"; runtime.saveData.activeHouseDoor=nil
       local x,y=Settlements.doorPoint(runtime.saveData.location,runtime.saveData.lastStopDoor)
@@ -251,18 +290,23 @@ local function new(context)
 
   function ui.offerGift(slot)
       local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.wearableItems[name] or name=="coal-chunk" or name=="coal-bucket"
-      if accepted then
+      if accepted and commands then
+          local result=commands.gift(runtime.giftNPC,{kind="inventory",index=slot})
+          if result.ok then runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
+          else runtime.dialogue={speaker="Gift unavailable",text="The item or recipient is no longer available here.",timer=3} end
+      elseif accepted then
           local passenger; for _,p in ipairs(runtime.saveData.passengers or {}) do if p.npc==runtime.giftNPC then passenger=p; break end end
           if isWeapon(name) then
-              if passenger then passenger.weapon=name
-              else local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]; if layout then layout.npcWeapon=name end; if runtime.npcActor then runtime.npcActor.weapon=name end end
+              local instance=Items.get(runtime.saveData,nil,{kind="inventory",index=slot})
+              if passenger then passenger.weapon=name; passenger.weaponInstance=instance
+              else local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]; if layout then layout.npcWeapon=name; layout.npcWeaponInstance=instance end; if runtime.npcActor then runtime.npcActor.weapon=name end end
           end
           local effect=Catalog.itemEffects[name]
           local category=isWeapon(name) and "weapon" or (Catalog.wearableItems[name] and "gear"
               or ((name=="coal-chunk" or name=="coal-bucket") and "fuel"
               or (effect and effect.health and "medical" or (effect and effect.food and "food" or (effect and effect.water and "water" or "useful")))))
           local result=NpcRelationships.recordGift(runtime.saveData,runtime.giftNPC,name,category)
-          runtime.saveData.inventory[slot]=nil; runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
+          Inventory.setValue(runtime.saveData,nil,{kind="inventory",index=slot},nil); runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
       else
           local result=NpcRelationships.rejection(runtime.saveData,runtime.giftNPC)
           runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=4}
@@ -274,11 +318,15 @@ local function new(context)
       if Util.pointIn(x,y,ui.pose) then runtime.poseMenu=not runtime.poseMenu; ui.optionsOpen=false; ui.mobileMenuOpen=false; ui.playSfx("menu"); return true end
       if not runtime.poseMenu then return false end
       if Util.pointIn(x,y,ui.poseClose) then runtime.poseMenu=false; ui.playSfx("menu"); return true
-      elseif Util.pointIn(x,y,ui.poseIdle) then runtime.playerPose="idle"
-      elseif Util.pointIn(x,y,ui.poseSit) then runtime.playerPose="sit"
-      elseif Util.pointIn(x,y,ui.poseLay) then runtime.playerPose="lay"
-      elseif Util.pointIn(x,y,ui.poseAction) then runtime.playerPose="idle"; runtime.actionKind="use"; runtime.actionTimer=.45
-      else return true end
+      end
+      local pose=Util.pointIn(x,y,ui.poseIdle) and "idle" or Util.pointIn(x,y,ui.poseSit) and "sit"
+          or Util.pointIn(x,y,ui.poseLay) and "lay" or Util.pointIn(x,y,ui.poseAction) and "use"
+      if not pose then return true end
+      if ui.changePose then
+          local result=ui.changePose(pose)
+          if result~=true and (type(result)~="table" or result.ok~=true) then return true end
+      elseif pose=="use" then runtime.playerPose="idle"; runtime.actionKind="use"; runtime.actionTimer=.45
+      else runtime.playerPose=pose end
       runtime.poseMenu=false; return true
   end
 
@@ -308,7 +356,7 @@ local function new(context)
       elseif request.kind=="buyItem" then
           local source=currentTradeSource()
           if source then
-              local result=MerchantTrade.buy(runtime.saveData,Catalog,source,request.stockIndex)
+              local result=commands and commands.trade("merchant.buy",source,request.stockIndex,request) or MerchantTrade.buy(runtime.saveData,Catalog,source,request.stockIndex)
               if result.ok then
                   runtime.tradeMessage=result.delivery=="train" and (Util.titleFromFile(result.name).." sent to the train mailbox.")
                       or (result.delivery=="ammo" and (Util.titleFromFile(result.name).." added to ammunition reserves.")
@@ -321,20 +369,24 @@ local function new(context)
               end
           end
       elseif request.kind=="trainEngine" then
-          local result=TrainUpgradeBalance.purchaseEngine(runtime.saveData,EngineUpgrades)
+          local result=commands and commandResult("train.engineUpgrade",{}) or TrainUpgradeBalance.purchaseEngine(runtime.saveData,EngineUpgrades)
           if result.ok then
               runtime.dialogue={speaker="Train Workshop",text=result.entry.name.." installed! Future journeys use fewer supplies and finish faster.",timer=4}
               writeSave()
           end
       elseif request.kind=="trainCar" then
           local entry=Catalog.trainCarCatalog[request.index]
-          local result=entry and TrainUpgradeBalance.purchaseCar(runtime.saveData,entry)
+          local result=entry and (commands and commandResult("train.upgrade",{carId=entry.id}) or TrainUpgradeBalance.purchaseCar(runtime.saveData,entry))
           if result and result.ok then
               runtime.trainUpgradeOpen=false
               runtime.dialogue={speaker="Train Workshop",text=entry.name.." added to your train! "..entry.description,timer=3}
               writeSave()
           end
       elseif request.kind=="rangeAmmo" then
+          if WorldPause.isSharedHost(runtime) then
+              if context.rangeInput then context.rangeInput("keypressed","b") end
+              return true
+          end
           local purchased=ShootingRange.buyAmmo(runtime.shootingRange,runtime.saveData,Catalog)
           if purchased then writeSave(); ui.playSfx("menu") end
       end
@@ -342,6 +394,7 @@ local function new(context)
   end
 
   local function requestEventChoice(index)
+      if runtime.eventOutcome then return false end
       local event=runtime.randomEvent
       local choice=event and event.choices and event.choices[index]
       local rect=ui.eventChoices and ui.eventChoices[index]
@@ -373,7 +426,9 @@ local function new(context)
       for i,r in pairs(ui.tradeBuy or {}) do
           if Util.pointIn(x,y,r) then
               if r.enabled==false then
-                  local result=MerchantTrade.buy(runtime.saveData,Catalog,source,i)
+                  -- A disabled button may explain a quote, never execute it.
+                  local price=MerchantTrade.buyPrice(runtime.saveData,Catalog,source,i)
+                  local result={reason=price and runtime.saveData.scrap<price and "scrap" or "space"}
                   runtime.tradeMessage=result.reason=="scrap" and "Not enough scrap."
                       or (result.reason=="space" and (source.mailboxOverflow and "Your backpack and train mailbox are full." or "Your backpack is full.")
                       or "That item is no longer available.")
@@ -388,7 +443,7 @@ local function new(context)
       end
       for i,r in pairs(ui.tradeSell or {}) do
           if Util.pointIn(x,y,r) and runtime.saveData.inventory[i] then
-              local result=MerchantTrade.sell(runtime.saveData,Catalog,source,i)
+              local result=commands and commands.trade("merchant.sell",source,i) or MerchantTrade.sell(runtime.saveData,Catalog,source,i)
               if result.ok then runtime.tradeMessage="Sold "..Util.titleFromFile(result.name).." for "..result.price.." scrap."; writeSave()
               else runtime.tradeMessage=source.kind=="caravan" and "The caravan cannot afford that item." or "This merchant cannot afford that item." end
               return true
@@ -397,8 +452,14 @@ local function new(context)
       for i,r in pairs(ui.tradeGive or {}) do
           if source.allowGifts and Util.pointIn(x,y,r) and isWeapon(runtime.saveData.inventory[i]) then
               local layout=ensureStopLayout(); local merchant=source.merchant or runtime.tradeNPC or runtime.saveData.currentNPC; local weapon=runtime.saveData.inventory[i]
-              layout.npcWeapon=weapon; if runtime.npcActor then runtime.npcActor.weapon=layout.npcWeapon end
-              NpcRelationships.recordGift(runtime.saveData,merchant,weapon,"weapon"); runtime.saveData.inventory[i]=nil; writeSave(); return true
+              if commands then
+                  local result=commands.gift(merchant,{kind="inventory",index=i})
+                  if not result.ok then runtime.tradeMessage="The item or recipient is no longer available here."; return true end
+              else
+                  layout.npcWeapon=weapon; layout.npcWeaponInstance=Items.get(runtime.saveData,nil,{kind="inventory",index=i}); if runtime.npcActor then runtime.npcActor.weapon=layout.npcWeapon end
+                  NpcRelationships.recordGift(runtime.saveData,merchant,weapon,"weapon"); Inventory.setValue(runtime.saveData,nil,{kind="inventory",index=i},nil)
+              end
+              writeSave(); return true
           end
       end
       return true
@@ -408,19 +469,41 @@ local function new(context)
       return handleBattleMouse(x,y,rightClick)
   end
 
+  local function changeRadio(station,rainEnabled)
+      if commands then
+          local changed=false
+          for _,item in ipairs(runtime.saveData.droppedItems or {}) do
+              if item.name=="boombox-radio" then
+                  local reply=commands.submit("radio.station",{entityId=commands.identify(item),station=station,rainEnabled=rainEnabled})
+                  if reply.ok then changed=true; break end
+              end
+          end
+          if not changed then
+              ui.radioOpen=false; runtime.dialogue={speaker="RADIO",text="Move near the radio to change its station.",timer=4}
+              return false
+          end
+      else
+          if station then runtime.saveData.audio.station=station end
+          if rainEnabled~=nil then runtime.saveData.audio.rainEnabled=rainEnabled end
+      end
+      if ui.localPreferences then Preferences.followRadio(runtime.saveData) end
+      audioResetMusic()
+      writeSave(); return true
+  end
+
   function ui.handleRadioMousePressed(x,y)
       if not ui.radioOpen then return false end
       local iconX,iconY=x,y
       if not mobileEnabled() then iconX,iconY=UIStyle.inversePoint(x,y,"radio",{x=90,y=62,w=780,h=610}) end
-      if Util.pointIn(iconX,iconY,ui.radio8bit) then if runtime.saveData.audio.station~="8bit" then runtime.saveData.audio.station="8bit"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
-      elseif Util.pointIn(iconX,iconY,ui.radioChill) then if runtime.saveData.audio.station~="chill" then runtime.saveData.audio.station="chill"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
-      elseif Util.pointIn(iconX,iconY,ui.radioVibes) then if runtime.saveData.audio.station~="vibes" then runtime.saveData.audio.station="vibes"; audioResetMusic(); writeSave() end; ui.playSfx("menu")
-      elseif Util.pointIn(iconX,iconY,ui.radioRain) then runtime.saveData.audio.rainEnabled=not runtime.saveData.audio.rainEnabled; ui.playSfx("menu"); writeSave()
+      if Util.pointIn(iconX,iconY,ui.radio8bit) then if runtime.saveData.audio.station~="8bit" or Preferences.hasOverride(runtime.saveData) then changeRadio("8bit") end; ui.playSfx("menu")
+      elseif Util.pointIn(iconX,iconY,ui.radioChill) then if runtime.saveData.audio.station~="chill" or Preferences.hasOverride(runtime.saveData) then changeRadio("chill") end; ui.playSfx("menu")
+      elseif Util.pointIn(iconX,iconY,ui.radioVibes) then if runtime.saveData.audio.station~="vibes" or Preferences.hasOverride(runtime.saveData) then changeRadio("vibes") end; ui.playSfx("menu")
+      elseif Util.pointIn(iconX,iconY,ui.radioRain) then changeRadio(nil,not runtime.saveData.audio.rainEnabled); ui.playSfx("menu")
       elseif Util.pointIn(iconX,iconY,ui.radioClose) then ui.radioOpen=false; ui.playSfx("menu") end
-      if Util.pointIn(x,y,ui.radioPrevious) then audioPreviousTrack(); ui.playSfx("menu"); writeSave()
-      elseif Util.pointIn(x,y,ui.radioPause) then audioTogglePause(); ui.playSfx("menu"); writeSave()
-      elseif Util.pointIn(x,y,ui.radioNext) then audioNextTrack(); ui.playSfx("menu"); writeSave()
-      elseif Util.pointIn(x,y,ui.radioMute) then audioToggleMute(); ui.playSfx("menu"); writeSave() end
+      if Util.pointIn(x,y,ui.radioPrevious) then audioPreviousTrack(); ui.playSfx("menu"); persistOptions()
+      elseif Util.pointIn(x,y,ui.radioPause) then audioTogglePause(); ui.playSfx("menu"); persistOptions()
+      elseif Util.pointIn(x,y,ui.radioNext) then audioNextTrack(); ui.playSfx("menu"); persistOptions()
+      elseif Util.pointIn(x,y,ui.radioMute) then audioToggleMute(); ui.playSfx("menu"); persistOptions() end
       return true
   end
 
@@ -456,6 +539,8 @@ local function new(context)
       elseif Util.pointIn(x,y,ui.controlsEditorButton) then
           if ui.openTouchControls then ui.openTouchControls() end
           return true
+      elseif Util.pointIn(x,y,ui.optionsFollowRadio) then
+          Preferences.followRadio(runtime.saveData or ui.menuSettings); audioResetMusic(); ui.playSfx("menu")
       elseif Util.pointIn(x,y,ui.optionsStation8bit) then
           local audio=optionsData().audio
           if audio.station~="8bit" then audio.station="8bit"; audioResetMusic() end
@@ -494,11 +579,13 @@ local function new(context)
   end
 
   local function cancelWeaponRepair()
+      if rawget(context,"cancelWeaponRepair") then context.cancelWeaponRepair() end
       runtime.weaponRepairStartedAt=nil
       runtime.weaponRepairActiveWeapon=nil
       runtime.weaponRepairDrag=nil
       runtime.weaponRepairMessage=nil
   end
+  ui.cancelWeaponRepair=cancelWeaponRepair
 
   local function selectRepairWeapon(name)
       cancelWeaponRepair()
@@ -506,7 +593,7 @@ local function new(context)
   end
 
   local function scrollRepairWeapons(value)
-      local count=#LootProgression.ownedWeapons(runtime.saveData,Catalog)
+      local count=#LootProgression.repairChoices(runtime.saveData,Catalog)
       runtime.weaponRepairScroll=math.max(1,math.min(math.max(1,count-RepairLayout.visibleRows+1),math.floor(value+.5)))
   end
 
@@ -522,12 +609,16 @@ local function new(context)
       elseif (runtime.saveData.scrap or 0)<status.cost then
           cancelWeaponRepair(); runtime.weaponRepairMessage="Not enough scrap for this repair."
       elseif not runtime.weaponRepairStartedAt or runtime.weaponRepairActiveWeapon~=name then
-          runtime.weaponRepairStartedAt=runtime.animationClock
+          local begin=rawget(context,"beginWeaponRepair")
+          local result=begin and begin(name) or {ok=true,startedAt=runtime.animationClock}
+          if not result or not result.ok then return end
+          runtime.weaponRepairStartedAt=result.startedAt
           runtime.weaponRepairActiveWeapon=name
           runtime.weaponRepairMessage="Tap or press confirm on the brass mark."
           ui.keyboardFocusScreen="weapon-repair"; ui.keyboardFocusId="weapon-repair.start"
       else
-          local phase=((runtime.animationClock-runtime.weaponRepairStartedAt)*.86)%1
+          local elapsed=context.repairElapsed and context.repairElapsed(runtime.weaponRepairStartedAt) or runtime.animationClock-runtime.weaponRepairStartedAt
+          local phase=(elapsed*.86)%1
           local quality=phase>=.62 and phase<=.69 and "perfect" or (phase>=.53 and phase<=.78 and "good" or "miss")
           local result=repairWeapon(name,quality)
           runtime.weaponRepairStartedAt=nil; runtime.weaponRepairActiveWeapon=nil
@@ -557,7 +648,7 @@ local function new(context)
   ui.openWeaponRepairWorkbench=function()
       local allowed=ui.canOpenWeaponRepairWorkbench()
       if not allowed then return false end
-      local owned=LootProgression.ownedWeapons(runtime.saveData,Catalog)
+      local owned=LootProgression.repairChoices(runtime.saveData,Catalog)
       cancelWeaponRepair()
       runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil
       runtime.mapOpen=false; runtime.journeyLogOpen=false; runtime.draggedSlot=nil; runtime.inventoryDragActive=false
@@ -608,7 +699,7 @@ local function new(context)
           runtime.weaponRepairOpen=true
           runtime.weaponRepairOrigin=nil
           cancelWeaponRepair(); runtime.weaponRepairScroll=1
-          local owned=LootProgression.ownedWeapons(runtime.saveData,Catalog)
+          local owned=LootProgression.repairChoices(runtime.saveData,Catalog)
           runtime.weaponRepairSelected=runtime.weaponRepairSelected or owned[1]
           return true
       end
@@ -633,28 +724,42 @@ local function new(context)
   function ui.handleEditorMousePressed(x,y)
       if not runtime.editMode then return false end
       local item=runtime.editedItem and runtime.saveData.droppedItems[runtime.editedItem]
-      if Util.pointIn(x,y,ui.editDone) then runtime.editMode=false; runtime.editedItem=nil; ui.editSliderDrag=nil; writeSave(); return true end
+      if ui.editedDecoration then item=ui.editedDecoration() end
+      local function change(values)
+          if ui.placeDecoration then ui.placeDecoration(item,values)
+          else for key,value in pairs(values) do item[key]=value end end
+          writeSave(); return true
+      end
+      if Util.pointIn(x,y,ui.editDone) then
+          if ui.closeDecoration then ui.closeDecoration() end
+          runtime.editMode=false; runtime.editedItem=nil; ui.editSliderDrag=nil; writeSave(); return true
+      end
       if item and Util.pointIn(x,y,ui.editHue) then ui.editSliderDrag="hue"; runtime.editDragging=false; ui.updateEditColorSlider(x); return true end
       if item and Util.pointIn(x,y,ui.editSaturation) then ui.editSliderDrag="saturation"; runtime.editDragging=false; ui.updateEditColorSlider(x); return true end
       if item and Util.pointIn(x,y,ui.editLeft) then moveEditedItem(-5,0); return true end
       if item and Util.pointIn(x,y,ui.editRight) then moveEditedItem(5,0); return true end
       if item and Util.pointIn(x,y,ui.editUp) then moveEditedItem(0,-5); return true end
       if item and Util.pointIn(x,y,ui.editDown) then moveEditedItem(0,5); return true end
-      if item and Util.pointIn(x,y,ui.editSmaller) then item.scale=math.max(0.5,(item.scale or 1)-0.1); writeSave(); return true end
-      if item and Util.pointIn(x,y,ui.editLarger) then item.scale=math.min(2.5,(item.scale or 1)+0.1); writeSave(); return true end
-      if item and Util.pointIn(x,y,ui.editRotate) then item.rotation=((item.rotation or 0)+math.pi/4)%(math.pi*2); writeSave(); return true end
-      if item and Util.pointIn(x,y,ui.editBack) then item.layer=(item.layer or runtime.editedItem)-1; writeSave(); return true end
-      if item and Util.pointIn(x,y,ui.editForward) then item.layer=(item.layer or runtime.editedItem)+1; writeSave(); return true end
+      if item and Util.pointIn(x,y,ui.editSmaller) then return change({scale=math.max(0.5,(item.scale or 1)-0.1)}) end
+      if item and Util.pointIn(x,y,ui.editLarger) then return change({scale=math.min(2.5,(item.scale or 1)+0.1)}) end
+      if item and Util.pointIn(x,y,ui.editRotate) then return change({rotation=((item.rotation or 0)+math.pi/4)%(math.pi*2)}) end
+      if item and Util.pointIn(x,y,ui.editBack) then return change({layer=(item.layer or runtime.editedItem)-1}) end
+      if item and Util.pointIn(x,y,ui.editForward) then return change({layer=(item.layer or runtime.editedItem)+1}) end
       if item and Util.pointIn(x,y,ui.editPickup) then
+          if ui.collectDecoration then ui.collectDecoration(); writeSave(); return true end
           if item.permanent then runtime.dialogue={speaker=Util.titleFromFile(item.name),text="This stays aboard the train.",timer=1.4}; runtime.editMode=false; runtime.editedItem=nil
           elseif Catalog.storageCapacities[item.name] and item.storage and next(item.storage) then runtime.dialogue={speaker=Util.titleFromFile(item.name),text="Empty this container before picking it up.",timer=4}; runtime.editMode=false; runtime.editedItem=nil
-          else local slot=Inventory.firstEmptySlot(runtime.saveData); if slot then runtime.saveData.inventory[slot]=item.name; table.remove(runtime.saveData.droppedItems,runtime.editedItem); runtime.editedItem=nil; writeSave() end end
+          else local slot=Inventory.firstEmptySlot(runtime.saveData); if slot then Inventory.setValue(runtime.saveData,nil,{kind="inventory",index=slot},item.name,Catalog.wearableItems,item.itemInstance); table.remove(runtime.saveData.droppedItems,runtime.editedItem); runtime.editedItem=nil; writeSave() end end
           return true
       end
-      runtime.editedItem=trainItemAt(x,y); runtime.editDragging=runtime.editedItem~=nil; return true
+      local selected=trainItemAt(x,y)
+      if ui.selectDecoration then ui.selectDecoration(selected) else runtime.editedItem=selected end
+      runtime.editDragging=runtime.editedItem~=nil; return true
   end
 
   local function clearCaravanExitOverlays()
+      if ui.closeDecoration then ui.closeDecoration() end
+      if ui.pauseFirstAid then ui.pauseFirstAid() end
       Maintenance.close(maintenanceSession)
       runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil
       runtime.draggedSlot=nil; runtime.inventoryDragActive=false; runtime.giftOpen=false; runtime.giftSlot=nil
@@ -774,7 +879,10 @@ local function new(context)
       for index,tab in ipairs(ui.trainCarTabs or {}) do
           if Util.pointIn(x,y,tab) then beginCarTransition(index); return true end
       end
-      if Util.pointIn(x,y,ui.editMode) then runtime.editMode=not runtime.editMode; ui.mobileMenuOpen=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil; runtime.inventoryOpen=false; runtime.mapOpen=false; writeSave(); return true end
+      if Util.pointIn(x,y,ui.editMode) then
+          if ui.closeDecoration then ui.closeDecoration() end
+          runtime.editMode=not runtime.editMode; ui.mobileMenuOpen=false; runtime.editedItem=nil; runtime.editDragging=false; ui.editSliderDrag=nil; runtime.inventoryOpen=false; runtime.mapOpen=false; writeSave(); return true
+      end
       if Util.pointIn(x,y,ui.trainUpgrade) then runtime.trainUpgradeOpen=true; runtime.weaponRepairOpen=false; cancelWeaponRepair(); ui.mobileMenuOpen=false; runtime.inventoryOpen=false; runtime.mapOpen=false; runtime.editMode=false; runtime.poseMenu=false; ui.optionsOpen=false; return true end
       if Util.pointIn(x,y,ui.pauseMenu) then
           ui.mobileMenuOpen=false
@@ -867,6 +975,9 @@ local function new(context)
                       return true
                   end
               end
+              if WorldPause.isSharedHost(runtime) then
+                  return processRangeOutcome(context.rangeInput and context.rangeInput("mousepressed",rangeX,rangeY,button))
+              end
               return processRangeOutcome(ShootingRange.mousepressed(runtime.shootingRange,rangeX,rangeY,runtime.saveData,Catalog,button))
           end
           return
@@ -895,6 +1006,10 @@ local function new(context)
       if button~=1 then return end
       if runtime.state=="event" then
           x,y=UIStyle.inversePoint(x,y,"event",{x=60,y=42,w=840,h=640})
+          if runtime.eventOutcome then
+              if continueEvent and Util.pointIn(x,y,ui.eventContinue) then continueEvent() end
+              return
+          end
           for index,control in ipairs(ui.eventChoices or {}) do
               if Util.pointIn(x,y,control) then requestEventChoice(index); return end
           end
@@ -902,7 +1017,7 @@ local function new(context)
       end
       if runtime.state=="ending" then
           if not (runtime.saveData.finale and runtime.saveData.finale.choice) then
-              for _,control in ipairs(ui.endingChoices or {}) do if Util.pointIn(x,y,control) then chooseFinale(control.id); writeSave(); return end end
+              for _,control in ipairs(ui.endingChoices or {}) do if Util.pointIn(x,y,control) then chooseFinale(control.id); return end end
           elseif Util.pointIn(x,y,ui.endingButton) then writeSave(); runtime.state="slots" end
           return
       end
@@ -998,6 +1113,7 @@ local function new(context)
       if cameraPanning() then moveCameraPan(x,y); return end
       if runtime.shootingRange then
           x,y=screenToGame(x,y); x,y=UIStyle.inversePoint(x,y,"shootingRange",{x=0,y=0,w=960,h=720})
+          if WorldPause.isSharedHost(runtime) then if context.rangeInput then context.rangeInput("mousemoved",x,y,touchAim) end; return end
           ShootingRange.mousemoved(runtime.shootingRange,x,y,touchAim); return
       end
       if runtime.firstAid then
@@ -1042,6 +1158,7 @@ local function new(context)
       end
       x,y=screenToGame(x,y)
       if runtime.shootingRange then
+          if WorldPause.isSharedHost(runtime) then if context.rangeInput then context.rangeInput("mousereleased",x,y,button) end; return end
           ShootingRange.mousereleased(runtime.shootingRange,button)
           if button==2 then ShootingRange.setAim(runtime.shootingRange,false) end
           return
@@ -1131,12 +1248,13 @@ local function new(context)
       end
       if runtime.state=="event" then
           local choice=key=="1" and 1 or (key=="2" and 2 or (key=="3" and 3)); if choice then ui.keyboardFocusVisible=true; requestEventChoice(choice) end
+          if runtime.eventOutcome and continueEvent and (key=='return' or key=='kpenter' or key=='space') then continueEvent() end
           return
       end
       if runtime.state=="ending" then
           if not (runtime.saveData.finale and runtime.saveData.finale.choice) then
               local index=tonumber(key); local control=index and ui.endingChoices and ui.endingChoices[index]
-              if control then chooseFinale(control.id); writeSave() end
+              if control then chooseFinale(control.id) end
           elseif key=="return" or key=="space" or key=="escape" then writeSave(); runtime.state="slots" end
           return
       end
@@ -1152,13 +1270,15 @@ local function new(context)
           elseif runtime.battle.finished and (key=="return" or key=="space" or key=="e") then
               finishBattle(runtime.battle.finished)
           elseif runtime.battle.finished or runtime.battle.intro or not active or active.team~="ally" or active.hp<=0 then return true
+          elseif key=="r" or key=="escape" then finishBattle("retreat")
+          elseif not ownsBattleTurn(active) then return true
           elseif key=="i" then runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; ui.playSfx("menu")
           elseif not runtime.battle.finished and tonumber(key) and runtime.battle.options and runtime.battle.options[tonumber(key)] then battleAttack(runtime.battle.options[tonumber(key)])
           elseif not runtime.battle.finished and key=="h" then battleHeal()
           elseif not runtime.battle.finished and key=="m" and not runtime.battle.moveUsed then runtime.battle.phase="move"; setBattlePrompt("Choose a highlighted terrain piece to move.")
           elseif not runtime.battle.finished and key=="g" then battleGuard()
           elseif not runtime.battle.finished and key=="space" then advanceBattleTurn()
-          elseif not runtime.battle.finished and (key=="r" or key=="escape") then finishBattle("retreat") end
+          end
           return
       end
       if runtime.state=="game" and runtime.inventoryOpen and key=="e" then runtime.inventoryOpen=false; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; if runtime.giftOpen then runtime.giftOpen=false; runtime.giftSlot=nil end; writeSave(); return true end
@@ -1176,13 +1296,21 @@ local function new(context)
       elseif action=="talkPassenger" then
           local p=runtime.saveData.passengers[arg]
           local lines=#(Catalog.passengerLines or {})>0 and Catalog.passengerLines or Catalog.dialogueLines
-          local line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,lines)
+          local line,status
+          if commands and commands.chatter then line,status=commands.chatter(p.npc,p)
+          else line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,lines) end
           runtime.questOffer=nil
           runtime.dialogue={speaker=line and (Util.titleFromFile(p.npc).." • "..status.name) or "PASSENGER",
               text=line or ("Destination: stop "..tostring(p.destination or "—")..". No new conversation available."),timer=7}; writeSave()
       elseif action=="car" then beginCarTransition((runtime.saveData.activeCar or 1)+arg)
       elseif action=="talkNPC" then ui.playSfx("talking"); talkToNPC()
       elseif action=="enterHouse" then
+          if not CoopProgression.allowed(runtime,"scene.enterHouse") then return false,"host_only" end
+          if ui.transitionParty then
+              local reply=ui.transitionParty("scene.enterHouse",{door=arg})
+              if reply.ok then ui.playSfx("doors") end
+              return reply.ok,reply.reason
+          end
           runtime.saveData.lastStopDoor=arg; runtime.saveData.activeHouseDoor=arg; ui.playSfx("doors"); runtime.scene="house"
           local homeLayout=Stops.ensureDoor(runtime.saveData,Catalog,arg); ensureHouseItems(); runtime.player.x,runtime.player.y=InteriorDoors.spawnPoint(homeLayout.interior,scenery.interiorFiles); setupNPC(); writeSave()
       elseif action=="exitHouse" then exitHouse()
@@ -1251,7 +1379,7 @@ local function new(context)
           if runtime.optionsPage=="audio" then
               option("audioTab",ui.optionsAudioTab); option("accessibilityTab",ui.optionsAccessTab); option("controlsTab",ui.optionsControlsTab)
               for _,entry in ipairs({{"station8bit",ui.optionsStation8bit},{"stationChill",ui.optionsStationChill},
-                  {"stationVibes",ui.optionsStationVibes},{"stationRain",ui.optionsStationRain},
+                  {"stationVibes",ui.optionsStationVibes},{"stationRain",ui.optionsStationRain},{"followRadio",ui.optionsFollowRadio},
                   {"musicDown",ui.musicDown},{"musicUp",ui.musicUp},{"sfxDown",ui.sfxDown},{"sfxUp",ui.sfxUp},
                   {"rainDown",ui.rainDown},{"rainUp",ui.rainUp},{"musicPrevious",ui.musicPrevious},
                   {"musicPause",ui.musicPause},{"musicNext",ui.musicNext},{"musicMute",ui.musicMute}}) do
@@ -1349,6 +1477,10 @@ local function new(context)
           end
       elseif runtime.state=="event" then
           screenKey="random-event"
+          if runtime.eventOutcome and continueEvent and ui.eventContinue then
+              local rect=UIStyle.transformRectFor('event',{x=60,y=42,w=840,h=640},ui.eventContinue)
+              add('event.continue',rect,continueEvent)
+          end
           for index,rect in ipairs(ui.eventChoices or {}) do
               local choice=index
               local transformed=UIStyle.transformRectFor("event",{x=60,y=42,w=840,h=640},rect)
@@ -1359,7 +1491,7 @@ local function new(context)
           if not (runtime.saveData.finale and runtime.saveData.finale.choice) then
               for index,control in ipairs(ui.endingChoices or {}) do
                   local choiceId=control.id
-                  add("ending.choice."..index,control,function() chooseFinale(choiceId); writeSave() end)
+                  add("ending.choice."..index,control,function() chooseFinale(choiceId) end)
               end
           else
               add("ending.return",ui.endingButton,function() writeSave(); runtime.state="slots" end)
@@ -1594,6 +1726,7 @@ local function new(context)
                   return true
               end
           end
+          if WorldPause.isSharedHost(runtime) then processRangeOutcome(context.rangeInput and context.rangeInput("keypressed",key)); return end
           processRangeOutcome(ShootingRange.keypressed(runtime.shootingRange,key,runtime.saveData,Catalog))
           return
       end
@@ -1632,7 +1765,10 @@ local function new(context)
   end
 
   local function keyreleased(key)
-      if runtime.shootingRange then ShootingRange.keyreleased(runtime.shootingRange,key); return end
+      if runtime.shootingRange then
+          if WorldPause.isSharedHost(runtime) then if context.rangeInput then context.rangeInput("keyreleased",key) end; return end
+          ShootingRange.keyreleased(runtime.shootingRange,key); return
+      end
       if key=="e" and runtime.holdPickupIndex then
           runtime.holdPickupIndex,runtime.holdPickupTime=nil,0
       end

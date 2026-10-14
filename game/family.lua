@@ -6,7 +6,8 @@ function Family.kindForAdult(file)
     if file:find("opossum") or file:find("possum") then return "opossum" end
 end
 
-function Family.ensure(actor,file)
+function Family.ensure(actor,file,rng)
+    local random=require("game.coop_random").range(rng)
     local kind=Family.kindForAdult(file)
     if not kind then actor.family=nil; return end
     if actor.familyRolled then return end
@@ -14,8 +15,8 @@ function Family.ensure(actor,file)
     actor.family=nil
     -- Only 40% of eligible adults are parents at this stop.  Their saved NPC
     -- record keeps this result stable when the player leaves and returns.
-    if love.math.random()>.40 then return end
-    local composition=love.math.random(3) -- child only, baby only, or both
+    if random()>.40 then return end
+    local composition=random(3) -- child only, baby only, or both
     local family={}
     if composition==1 or composition==3 then family[#family+1]={kind=kind.."-child",x=actor.x-48,y=actor.y+20,facing=1} end
     if composition==2 or composition==3 then family[#family+1]={kind=kind.."-baby",x=actor.x-82,y=actor.y+25,facing=1} end

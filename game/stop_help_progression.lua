@@ -1,5 +1,6 @@
 local Relationships=require("game.npc_relationships")
 local HelpQuest=require("game.help_quest_session")
+local Items=require("game.item_instances")
 local StopHelp={}
 
 StopHelp.policyVersion=4
@@ -71,12 +72,15 @@ function StopHelp.ensureRequest(layout,npc,kind,location,data)
         local title=kind=="aid" and "TREAT A WOUNDED CRITTER" or "BRING A NEEDED ITEM"
         local objective=kind=="aid" and "Talk to the wounded critter and offer treatment."
             or ("Find "..(request.label or request.item or "the requested item")..".")
-        local quest=HelpQuest.ensure(data,{source=kind=="aid" and "first-aid" or "item-request",kind=kind,mode=kind=="aid" and "minigame" or "dialogue",
+        local spec={source=kind=="aid" and "first-aid" or "item-request",kind=kind,mode=kind=="aid" and "minigame" or "dialogue",
             npc=npc,location=location,title=title,objective=objective,stageCount=kind=="aid" and 6 or 3,
-            goodwill={assisted=1,successful=request.goodwill or (kind=="aid" and 3 or 2),exceptional=(request.goodwill or 2)+1}})
+            goodwill={assisted=1,successful=request.goodwill or (kind=="aid" and 3 or 2),exceptional=(request.goodwill or 2)+1}}
+        -- Reopening a stop must not rewrite a command's objective or unpause a
+        -- guest's activity. Only import legacy acceptance when it has no state.
+        local quest=data.helpQuestSessions and data.helpQuestSessions[HelpQuest.id(spec)] or HelpQuest.ensure(data,spec)
         request.sessionId=quest.id
-        if request.complete then HelpQuest.importResolved(data,quest.id,"successful","This critter was already helped.")
-        elseif request.accepted then HelpQuest.investigate(data,quest.id,objective) end
+        if request.complete and quest.state~='resolved' then HelpQuest.importResolved(data,quest.id,"successful","This critter was already helped.")
+        elseif request.accepted and quest.state=='offered' then HelpQuest.investigate(data,quest.id,objective) end
     end
     return request
 end
@@ -97,23 +101,24 @@ function StopHelp.medicalItem(data,catalog)
 end
 
 local function consume(data,slot,name)
-    if slot and data.inventory[slot]==name then data.inventory[slot]=nil; return true end
+    if slot and data.inventory[slot]==name then Items.write(data,nil,{kind="inventory",index=slot},nil); return true end
     local fallback=StopHelp.findItem(data,name)
-    if fallback then data.inventory[fallback]=nil; return true end
+    if fallback then Items.write(data,nil,{kind="inventory",index=fallback},nil); return true end
     return false
 end
 
-function StopHelp.completeItem(data,request,npc,location)
+function StopHelp.completeItem(data,request,npc,location,selectedSlot)
     if not request or request.complete then return {completed=request and request.complete==true,gained=0} end
     local session=request.sessionId and HelpQuest.get(data,request.sessionId)
     if session then HelpQuest.accept(data,session.id) end
-    local slot=StopHelp.findItem(data,request.item)
+    local slot=selectedSlot or StopHelp.findItem(data,request.item)
+    if slot and data.inventory[slot]~=request.item then slot=nil end
     if not slot then
         if session then HelpQuest.investigate(data,session.id,"Find "..(request.label or request.item).." and return to this critter.") end
         return {completed=false,missing=request.item,label=request.label,session=session}
     end
     if session then HelpQuest.activate(data,session.id,"Give the requested item to the critter.") end
-    data.inventory[slot]=nil; request.accepted=true; request.complete=true
+    Items.write(data,nil,{kind="inventory",index=slot},nil); request.accepted=true; request.complete=true
     local gained,total,tier
     if session then
         HelpQuest.resolve(data,session.id,"successful","The requested item was delivered.")

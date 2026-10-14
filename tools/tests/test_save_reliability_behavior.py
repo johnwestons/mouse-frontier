@@ -79,6 +79,76 @@ class SaveReliabilityBehaviorTests(unittest.TestCase):
             assert(Save.write(1,data)==false)
         ''')
 
+    def test_valid_but_stale_primary_cannot_count_as_confirmed_write(self) -> None:
+        self.lua.execute(r'''
+            data.scrap=7; assert(Save.write(1,data))
+            local old=files[Save.path(1)]; local write=love.filesystem.write
+            love.filesystem.write=function(path,text)
+                if path==Save.path(1) then return true end
+                return write(path,text)
+            end
+            data.scrap=19; assert(not Save.write(1,data))
+            assert(files[Save.path(1)]==old and Save.read(1).scrap==7)
+            assert(files[Save.path(1)..'.tmp'])
+            love.filesystem.write=write; assert(Save.write(1,data) and Save.read(1).scrap==19)
+        ''')
+
+    def test_valid_but_altered_temporary_file_is_rejected(self) -> None:
+        self.lua.execute(r'''
+            data.scrap=7; assert(Save.write(1,data))
+            local old=files[Save.path(1)]; local write=love.filesystem.write
+            love.filesystem.write=function(path,text)
+                if path==Save.path(1)..'.tmp' then files[path]=old; return true end
+                return write(path,text)
+            end
+            data.scrap=19; assert(not Save.write(1,data))
+            assert(files[Save.path(1)]==old and not files[Save.path(1)..'.tmp'])
+        ''')
+
+    def test_filesystem_exception_keeps_pending_save_for_retry(self) -> None:
+        self.lua.execute(r'''
+            data.scrap=7; assert(Save.write(1,data)); data.scrap=19
+            local write=love.filesystem.write
+            love.filesystem.write=function(path,text)
+                if path==Save.path(1) then error('I/O exception') end
+                return write(path,text)
+            end
+            assert(Save.schedule(1,data) and not Save.flush(1))
+            assert(Save.read(1).scrap==7)
+            love.filesystem.write=write
+            assert(Save.flush(1) and Save.read(1).scrap==19)
+            love.filesystem.createDirectory=function() error('directory unavailable') end
+            assert(not Save.write(1,data))
+        ''')
+
+    def test_failed_recovery_copy_cannot_replace_primary(self) -> None:
+        self.lua.execute(r'''
+            data.scrap=7; assert(Save.write(1,data)); local old=files[Save.path(1)]
+            local write=love.filesystem.write
+            love.filesystem.write=function(path,text)
+                if path==Save.path(1)..'.bak' then return false end
+                return write(path,text)
+            end
+            data.scrap=19; assert(not Save.write(1,data) and files[Save.path(1)]==old)
+            love.filesystem.write=write; assert(Save.write(1,data) and Save.read(1).scrap==19)
+        ''')
+
+    def test_focus_and_shutdown_fail_when_live_campaign_cannot_be_queued(self) -> None:
+        self.lua.execute(r'''
+            local Session=require('game.game_session'); local session=Session.new()
+            session:activate(data,{x=1,y=2}); session:selectSlot(1)
+            local runtime={saveData=data,selectedSlot=1,syncForSave=function() end}
+            local queued,flushed=false,0
+            local persistence=require('game.persistence_runtime').new({runtime=runtime,ui={},session=session,
+                save={schedule=function() return queued end,flush=function() flushed=flushed+1; return true end},
+                maintenance={release=function() end},maintenanceSession={},focusMobile=function() end,
+                focusAudio=function() end,shutdownAudio=function() end})
+            assert(not persistence.checkpoint() and not persistence.focus(false) and not persistence.shutdown())
+            assert(flushed==0,'an empty flush must not hide a scheduling failure')
+            queued=true; assert(persistence.checkpoint() and flushed==1)
+            session:setNetworkMode('client'); assert(not persistence.checkpoint() and flushed==1)
+        ''')
+
 
 if __name__ == "__main__":
     unittest.main()

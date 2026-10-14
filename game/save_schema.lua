@@ -1,9 +1,13 @@
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
 local HelpQuestSession = require("game.help_quest_session")
+local CoopPlayers = require("game.coop_players")
+local CoopEntities = require("game.coop_entities")
+local ItemInstances = require("game.item_instances")
+local ReplicaOwnership = require("game.replica_ownership")
 
 local SaveSchema = {
-    CURRENT_VERSION = 37,
+    CURRENT_VERSION = 44,
     LEGACY_VERSION = 1,
 }
 
@@ -33,9 +37,19 @@ end
 
 local function validateShape(data)
     if type(data)~="table" then return false,"save data must be a table" end
+    if ReplicaOwnership.isReplica(data) then return false,"network replicas cannot be saved as campaigns" end
+    if CoopPlayers.isActorView(data) then return false,"actor views cannot be saved as campaigns" end
+    local playersValid,playersError=CoopPlayers.validateShape(data)
+    if not playersValid then return false,playersError end
     local version=versionOf(data)
     if not version or version<SaveSchema.LEGACY_VERSION then return false,"invalid save version" end
     if version>SaveSchema.CURRENT_VERSION then return false,"future save version "..tostring(version) end
+    if type(data.coop)=="table" and data.coop.preferencesDetached then
+        if data.accessibility~=nil then return false,"device accessibility cannot be stored in a detached campaign" end
+        for key in pairs(type(data.audio)=="table" and data.audio or {}) do
+            if key~="station" and key~="rainEnabled" then return false,"device audio cannot be stored in a detached campaign" end
+        end
+    end
     for _,field in ipairs(STRUCTURAL_TABLES) do
         if data[field]~=nil and type(data[field])~="table" then
             return false,field.." must be a table"
@@ -49,6 +63,19 @@ local function validateShape(data)
     if data.scene~=nil and type(data.scene)~="string" then return false,"scene must be text" end
     if data.activeHelpQuestId~=nil and type(data.activeHelpQuestId)~="string" then return false,"activeHelpQuestId must be text" end
     if data.activeExpeditionArea~=nil and type(data.activeExpeditionArea)~="string" then return false,"activeExpeditionArea must be text" end
+    if not require('game.coop_quest_decisions').validateOffers(data) then return false,'invalid saved quest offer' end
+    if not require('game.coop_events').validateCurrent(data) then return false,'invalid saved event' end
+    if not require('game.coop_finale').validate(data) then return false,'invalid saved finale' end
+    if not require('game.tactical_battle_state').validate(data) then return false,'invalid saved tactical battle' end
+    if not require('game.roaming_combat_state').validate(data) then return false,'invalid saved field combat' end
+    if not require('game.roaming_encounter_state').validate(data) then return false,'invalid saved field encounter' end
+    if not require('game.coop_shooter_sessions').validate(data) then return false,'invalid saved shooter session' end
+    if not require('game.coop_ambush_state').validate(data) then return false,'invalid saved ambush actor' end
+    if not require('game.coop_last_stand_state').validate(data) then return false,'invalid saved Last Stand combat' end
+    if not require('game.coop_last_stand_lifecycle').validate(data) then return false,'invalid saved Last Stand lifecycle' end
+    if not require('game.coop_last_stand_aid_state').validate(data) then return false,'invalid saved Last Stand treatment' end
+    if not require('game.coop_last_stand_position_state').validate(data) then return false,'invalid saved Last Stand positions' end
+    if not require('game.coop_range_state').validate(data) then return false,'invalid saved range session' end
     if data.conversations then
         local state=data.conversations
         for _,field in ipairs({"assignments","completed","seen"}) do
@@ -59,6 +86,7 @@ local function validateShape(data)
             if type(key)~="string" or type(entry)~="table" or type(entry.id)~="string" or type(entry.npc)~="string"
                 or not finiteNumber(entry.location) or tostring(entry.location)~=key then return false,"invalid conversation assignment" end
         end
+        if not require('game.npc_conversations').validateActive(data) then return false,'invalid active conversation' end
     end
     local caravans=data.crowCaravans
     if caravans then
@@ -100,7 +128,7 @@ local function validateShape(data)
     for key,value in pairs(data.trainCars or {}) do
         if type(key)~="number" or type(value)~="string" then return false,"trainCars contains an invalid entry" end
     end
-    return true
+    return CoopEntities.validate(data,true)
 end
 
 local function deepCopy(value, seen, depth)
@@ -234,7 +262,10 @@ end
 
 local function ensureRootTables(data)
     local hadDeliveryCycle=type(data.supplyDeliveryCycle)=="table"
-    for _,field in ipairs(STRUCTURAL_TABLES) do data[field]=data[field] or {} end
+    local detached=data.coop and data.coop.preferencesDetached
+    for _,field in ipairs(STRUCTURAL_TABLES) do
+        if field~="accessibility" or not detached then data[field]=data[field] or {} end
+    end
     if data.wearables.backpack==nil and type(data.backpack)=="string" then
         data.wearables.backpack=data.backpack
     end
@@ -267,13 +298,15 @@ local function ensureRootTables(data)
     data.activeCar=math.max(1,math.min(#data.trainCars,math.floor(nonnegative(data.activeCar,1))))
     data.engineLevel=math.floor(nonnegative(data.engineLevel,0))
     data.audio.station=AudioCatalog.normalizeStation(data.audio.station)
-    data.audio.musicVolume=math.min(1,nonnegative(data.audio.musicVolume,.10))
-    data.audio.sfxVolume=math.min(1,nonnegative(data.audio.sfxVolume,.55))
-    data.audio.rainVolume=math.min(1,nonnegative(data.audio.rainVolume,.20))
     data.audio.rainEnabled=data.audio.rainEnabled==true
-    data.audio.musicPaused=data.audio.musicPaused==true
-    data.audio.musicMuted=data.audio.musicMuted==true
-    Accessibility.ensure(data)
+    if not detached then
+        data.audio.musicVolume=math.min(1,nonnegative(data.audio.musicVolume,.10))
+        data.audio.sfxVolume=math.min(1,nonnegative(data.audio.sfxVolume,.55))
+        data.audio.rainVolume=math.min(1,nonnegative(data.audio.rainVolume,.20))
+        data.audio.musicPaused=data.audio.musicPaused==true
+        data.audio.musicMuted=data.audio.musicMuted==true
+        Accessibility.ensure(data)
+    end
     require("game.npc_conversations").ensure(data)
     removeRetiredStopActivities(data)
     HelpQuestSession.ensureData(data)
@@ -297,9 +330,17 @@ end
 function SaveSchema.migrate(data)
     local valid,errorMessage=validateShape(data)
     if not valid then return nil,errorMessage end
+    -- Existing ledgers are persisted ownership, not a spawn request. Missing
+    -- records must not silently turn into fresh, fully repaired equipment.
+    if ItemInstances.enabled(data) then
+        local itemsValid,itemsError=ItemInstances.validate(data)
+        if not itemsValid then return nil,itemsError end
+    end
     local wasCanonical=SaveSchema.validate(data)==true
     local migrated,copyError=deepCopy(data)
     if not migrated then return nil,copyError end
+    local prepared,playersError=CoopPlayers.prepare(migrated)
+    if not prepared then return nil,playersError end
     local fromVersion=versionOf(migrated)
     migrated.version=fromVersion
     local steps=0
@@ -314,6 +355,16 @@ function SaveSchema.migrate(data)
         steps=steps+1
     end
     ensureRootTables(migrated)
+    CoopPlayers.normalize(migrated)
+    require('game.coop_last_stand_lifecycle').prepare(migrated)
+    require('game.coop_last_stand_aid_state').prepare(migrated)
+    require('game.coop_last_stand_position_state').prepare(migrated)
+    local entities,entitiesError=CoopEntities.ensure(migrated)
+    if not entities then return nil,entitiesError end
+    local items,itemsError=ItemInstances.ensure(migrated)
+    if not items then return nil,itemsError end
+    require('game.coop_shooter_sessions').prepare(migrated)
+    require('game.coop_last_stand_state').prepare(migrated)
     local current,currentError=validateShape(migrated)
     if not current then return nil,currentError end
     return migrated,{
@@ -326,11 +377,36 @@ function SaveSchema.migrate(data)
 end
 
 function SaveSchema.validate(data)
+    if type(data)=='table' and data.lastStand and data.lastStand.positionVersion~=1 then
+        return false,'saved Last Stand positions require migration'
+    end
+    if type(data)=='table' and type(data.lastStand)=='table' and data.lastStand.treatmentProgress and data.lastStand.treatmentVersion~=1 then
+        return false,'Last Stand treatment requires migration'
+    end
     local valid,errorMessage=validateShape(data)
     if not valid then return false,errorMessage end
     if data.version~=SaveSchema.CURRENT_VERSION then return false,"save is not at the current version" end
+    if data.lastStand and data.lastStand.lifecycle and data.lastStand.lifecycle.version~=require('game.coop_last_stand_lifecycle').VERSION then
+        return false,'Last Stand lifecycle needs migration'
+    end
+    if data.lastStand and data.lastStand.combat and data.lastStand.combat.version~=require('game.coop_last_stand_state').VERSION then
+        return false,'Last Stand combat requires migration'
+    end
+    local playersValid,playersError=CoopPlayers.validate(data)
+    if not playersValid then return false,playersError end
+    local entitiesValid,entitiesError=CoopEntities.validate(data)
+    if not entitiesValid then return false,entitiesError end
+    local itemsValid,itemsError=ItemInstances.validate(data)
+    if not itemsValid then return false,itemsError end
+    -- A decoded canonical save is a plain table. Validate through a detached
+    -- host bridge without modifying the caller or requiring duplicate fields.
+    local projected,projectionError=deepCopy(data)
+    if not projected then return false,projectionError end
+    data=CoopPlayers.attachHost(projected)
     for _,field in ipairs(STRUCTURAL_TABLES) do
-        if type(data[field])~="table" then return false,field.." is missing from the current schema" end
+        if type(data[field])~="table" and not (field=="accessibility" and data.coop.preferencesDetached) then
+            return false,field.." is missing from the current schema"
+        end
     end
     local copied,copyError=deepCopy(data)
     if not copied then return false,copyError end
@@ -347,6 +423,15 @@ function SaveSchema.isCurrent(data)
     return SaveSchema.validate(data)==true
 end
 
-SaveSchema.copy=deepCopy
+function SaveSchema.copy(data)
+    if CoopPlayers.isActorView(data) then return nil,"actor views cannot be copied as campaigns" end
+    local result,message=deepCopy(data)
+    if result and result.players then
+        local valid,playersError=CoopPlayers.validateShape(result)
+        if not valid then return nil,playersError end
+        CoopPlayers.attachHost(result)
+    end
+    return result,message
+end
 SaveSchema.migrations=migrations
 return SaveSchema

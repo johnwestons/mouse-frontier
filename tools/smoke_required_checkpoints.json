@@ -16,6 +16,13 @@
     "first_aid_keyboard_treatment",
     "first_aid_physical_treatment",
     "first_aid_pause_resume_is_free",
+    "sewing_authority_save_resume",
+    "accepted_quest_authority_rewards",
+    "train_object_authority_controls",
+    "device_preferences_campaign_isolation",
+    "critical_checkpoint_blocks_and_retries",
+    "party_scene_travel_save_resume",
+    "coop_replica_campaign_projection",
     "save_round_trip",
     "save_recovers_corrupt_primary",
     "asset_contract"

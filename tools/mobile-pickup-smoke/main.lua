@@ -6,6 +6,7 @@ local function run()
     local app=require("game.application_composition").new({engine=love})
     app.installSmoke(); app.load()
     local g,ui,p=c.runtime,c.ui,c.presentationRuntime
+    g.selectedSlot=99; require("game.save").remove(99)
     c.enterGame(c.newSave(c.characters[1]))
     local data=g.saveData
     local controls=c.getMobileControls()
@@ -20,7 +21,9 @@ local function run()
         g.holdPickupIndex=nil; g.holdPickupTime=0; g.lastStand=nil
         g.player.x,g.player.y=480,500
         g.player.velocityX,g.player.velocityY=0,0
-        data.inventory={}; data.droppedItems={{name=name,x=500,y=500,scene="house",location=data.location,
+        local items=require("game.item_instances")
+        for index=1,data.inventoryCapacity do items.write(data,nil,{kind="inventory",index=index},nil) end
+        data.droppedItems={{name=name,x=500,y=500,scene="house",location=data.location,
             houseDoor=1,scale=1.4,storage=storage}}
         ui.itemOrderRevision=(ui.itemOrderRevision or 0)+1
         c.ensureStopLayout(); c.setupNPC()

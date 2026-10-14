@@ -1,6 +1,8 @@
 local Events = {}
+local Items = require("game.item_instances")
 local LootProgression = require("game.loot_progression")
 local TrainAmbush = require("game.train_ambush_rules")
+local Random = require('game.coop_random')
 
 local function C(label,hint,data)
     data=data or {}; data.label=label; data.hint=hint; return data
@@ -171,11 +173,18 @@ local definitions={
 
 Events.definitions=definitions
 
+function Events.findById(id)
+    for _,pool in pairs(definitions) do
+        for _,event in ipairs(pool) do if event.id==id then return event end end
+    end
+end
+
 local function find(category,index)
     return definitions[category] and definitions[category][index]
 end
 
-function Events.ensure(data)
+function Events.ensure(data,rng)
+    local random=Random.range(rng)
     data.eventProgress=data.eventProgress or {story=0,mystery=0}
     data.eventHistory=data.eventHistory or {}
     data.eventCategoryHistory=data.eventCategoryHistory or {}
@@ -187,22 +196,23 @@ function Events.ensure(data)
         local occupied={[15]=true,[35]=true,[47]=true}; for _,stop in ipairs(Events.storyStops) do occupied[stop]=true end
         for _,band in ipairs(bands) do
             local choices={}; for stop=band[1],band[2] do if not occupied[stop] then choices[#choices+1]=stop end end
-            local selected=choices[love.math.random(#choices)]; data.mysteryStops[#data.mysteryStops+1]=selected; occupied[selected]=true
+            local selected=choices[random(#choices)]; data.mysteryStops[#data.mysteryStops+1]=selected; occupied[selected]=true
         end
         table.sort(data.mysteryStops)
     end
 end
 
-function Events.required(data,location)
-    Events.ensure(data)
+function Events.required(data,location,rng)
+    Events.ensure(data,rng)
     -- The >= check also migrates journeys already beyond an assigned clue:
     -- the next unplayed chapter appears at the next available stop.
     for index,stop in ipairs(Events.storyStops) do if location>=stop and (data.eventProgress.story or 0)<index then return find("story",index) end end
     for index,stop in ipairs(data.mysteryStops or {}) do if location>=stop and (data.eventProgress.mystery or 0)<index then return find("mystery",index) end end
 end
 
-function Events.random(data,EventBalance)
-    Events.ensure(data)
+function Events.random(data,EventBalance,rng)
+    Events.ensure(data,rng)
+    local random=Random.range(rng)
     -- Test saves may request one deterministic event without changing normal
     -- journey odds. The flag is consumed by the event receipt at that stop.
     if type(data.forceEventId)=="string" then
@@ -212,17 +222,17 @@ function Events.random(data,EventBalance)
             end
         end
     end
-    local category=EventBalance.pickCategory(data.location,data.eventCategoryHistory,love.math.random())
+    local category=EventBalance.pickCategory(data.location,data.eventCategoryHistory,random())
     local pool=definitions[category]; local recent=data.eventHistory or {}; local event
     for _=1,8 do
-        event=pool[love.math.random(#pool)]
+        event=pool[random(#pool)]
         if recent[#recent]~=event.id and recent[#recent-1]~=event.id then break end
     end
     return event
 end
 
-function Events.record(data,event,choiceIndex)
-    Events.ensure(data)
+function Events.record(data,event,choiceIndex,rng)
+    Events.ensure(data,rng)
     data.events[tostring(data.location)]={id=event.id,title=event.title,category=event.category,choice=choiceIndex}
     data.eventHistory[#data.eventHistory+1]=event.id
     while #data.eventHistory>8 do table.remove(data.eventHistory,1) end
@@ -262,14 +272,14 @@ function Events.canChoose(data,choice,catalog)
     return true
 end
 
-local function scaledItem(catalog,location,quality)
-    if quality=="medical" then return LootProgression.rollMedical(catalog,location,"uncommon") end
+local function scaledItem(catalog,location,quality,rng)
+    if quality=="medical" then return LootProgression.rollMedical(catalog,location,"uncommon",rng) end
     local minimum=LootProgression.qualityRarity(quality)
-    return LootProgression.rollItem(catalog,location,{minimumRarity=minimum,weaponChance=quality=="legendary" and .45 or .12})
+    return LootProgression.rollItem(catalog,location,{minimumRarity=minimum,weaponChance=quality=="legendary" and .45 or .12,rng=rng})
 end
 
 local function giveItem(data,catalog,item)
-    for index=1,(data.inventoryCapacity or 6) do if not data.inventory[index] then data.inventory[index]=item; return item end end
+    for index=1,(data.inventoryCapacity or 6) do if not data.inventory[index] then Items.write(data,nil,{kind="inventory",index=index},item); return item end end
     -- Event/battle rewards that do not fit go to the train mailbox.  Supplies
     -- quests do not use this helper; their food/water is applied directly to
     -- the resource stores, so their overflow remains intentionally excluded.
@@ -280,19 +290,19 @@ local function giveItem(data,catalog,item)
     if mailbox then
         mailbox.storage=mailbox.storage or {}
         for slot=1,(catalog.storageCapacities["mailbox-reward"] or 20) do
-            if not mailbox.storage[slot] then mailbox.storage[slot]=item; mailbox.mailUnread=true; return item end
+            if not mailbox.storage[slot] then Items.write(data,mailbox,{kind="chest",index=slot},item); mailbox.mailUnread=true; return item end
         end
     end
     data.pendingRewards=data.pendingRewards or {}; data.pendingRewards[#data.pendingRewards+1]=item
     return item
 end
 
-local function scaledWeapon(catalog,location,quality)
-    return LootProgression.rollWeapon(catalog,location,LootProgression.qualityRarity(quality))
+local function scaledWeapon(catalog,location,quality,rng)
+    return LootProgression.rollWeapon(catalog,location,LootProgression.qualityRarity(quality),rng)
 end
 
-local function giveAmmo(data,catalog,weapon)
-    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or LootProgression.rollAmmo(catalog,data.location)
+local function giveAmmo(data,catalog,weapon,rng)
+    local combat=weapon and catalog.weaponCombat[weapon]; local ammo=(combat and combat.ammo) or LootProgression.rollAmmo(catalog,data.location,rng)
     local amount=(catalog.ammoPickupAmounts[ammo] or 6)+math.floor((data.location or 1)/10)
     data.ammo[ammo]=(data.ammo[ammo] or 0)+amount; return ammo,amount
 end
@@ -301,11 +311,12 @@ local function title(name)
     return (name or ""):gsub("%-"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)
 end
 
-function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgradeBalance)
+function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgradeBalance,rng)
+    local random=Random.range(rng)
     local choice=event and event.choices[choiceIndex]; if not choice then return {} end
     if not Events.canChoose(data,choice,catalog) then return {blocked=true} end
     if event.id=="rail-bandits" and choice.trainAmbush then
-        Events.ensure(data)
+        Events.ensure(data,rng)
         if data.events[tostring(data.location)] then return {blocked=true} end
         local summary
         if choice.trainAmbush=="fight" then
@@ -316,7 +327,7 @@ function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgrad
             data.scrap=data.scrap-TrainAmbush.bribe
             summary="Paid "..TrainAmbush.bribe.." scrap. The pickup falls behind."
         end
-        Events.record(data,event,choiceIndex)
+        Events.record(data,event,choiceIndex,rng)
         local receipt=data.events[tostring(data.location)]
         receipt.resolved=choice.trainAmbush~="fight"
         receipt.outcome=choice.trainAmbush~="fight" and choice.trainAmbush or nil
@@ -325,11 +336,11 @@ function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgrad
     end
     applyValues(data,choice.cost,-1,TrainUpgradeBalance); applyValues(data,choice.reward,1,TrainUpgradeBalance)
     local notes={}
-    if choice.loseItem then for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then notes[#notes+1]="lost "..data.inventory[i]; data.inventory[i]=nil; break end end end
+    if choice.loseItem then for i=1,(data.inventoryCapacity or 6) do if data.inventory[i] then notes[#notes+1]="lost "..data.inventory[i]; Items.write(data,nil,{kind="inventory",index=i},nil); break end end end
     local weapon
-    if choice.weapon then weapon=scaledWeapon(catalog,data.location,2); giveItem(data,catalog,weapon); notes[#notes+1]="found "..weapon end
-    if choice.itemPool then local item=scaledItem(catalog,data.location,choice.itemPool); giveItem(data,catalog,item); notes[#notes+1]="found "..item end
-    if choice.ammo then local ammo,amount=giveAmmo(data,catalog,weapon); notes[#notes+1]="received "..amount.." "..ammo end
+    if choice.weapon then weapon=scaledWeapon(catalog,data.location,2,rng); giveItem(data,catalog,weapon); notes[#notes+1]="found "..weapon end
+    if choice.itemPool then local item=scaledItem(catalog,data.location,choice.itemPool,rng); giveItem(data,catalog,item); notes[#notes+1]="found "..item end
+    if choice.ammo then local ammo,amount=giveAmmo(data,catalog,weapon,rng); notes[#notes+1]="received "..amount.." "..ammo end
     if choice.ammoCost then
         local remaining=3
         for _,name in ipairs({"rocks","arrows","ball-bearings","22lr","9mm","45-cal","556","30-carbine","8mm","380-acp","32-acp","12-gauge","762x39"}) do
@@ -338,14 +349,14 @@ function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgrad
             if remaining<=0 then break end
         end
     end
-    Events.record(data,event,choiceIndex)
+    Events.record(data,event,choiceIndex,rng)
     local encounter
     if choice.battle then
         local tier=CombatBalance.tierFor(data.location); local pool=catalog.mobTiers[tier]
         encounter={rolled=true,hasMob=true,resolved=false,tier=tier,mobFiles={},eventBattle=true,eventReward=true,eventRewardQuality=choice.rewardQuality or 2,defenseBattle=choice.defense,defenseTitle=event.title}
-        local count=choice.count or CombatBalance.mobCount(tier,data.location,love.math.random())
-        for i=1,count do encounter.mobFiles[i]=pool[love.math.random(#pool)] end
-        if choice.allies then encounter.temporaryAllies={}; local available={}; for _,file in ipairs(data.npcRoster or {}) do available[#available+1]=file end; for i=1,math.min(choice.allies,#available) do encounter.temporaryAllies[i]=table.remove(available,love.math.random(#available)) end end
+        local count=choice.count or CombatBalance.mobCount(tier,data.location,random())
+        for i=1,count do encounter.mobFiles[i]=pool[random(#pool)] end
+        if choice.allies then encounter.temporaryAllies={}; local available={}; for _,file in ipairs(data.npcRoster or {}) do available[#available+1]=file end; for i=1,math.min(choice.allies,#available) do encounter.temporaryAllies[i]=table.remove(available,random(#available)) end end
     end
     local summary=choice.hint or "The journey continues."
     if #notes>0 then
@@ -355,12 +366,12 @@ function Events.resolve(data,catalog,event,choiceIndex,CombatBalance,TrainUpgrad
     return {encounter=encounter,notes=notes,clue=event.clue,summary=summary}
 end
 
-function Events.grantBattleLoot(data,catalog,encounter)
+function Events.grantBattleLoot(data,catalog,encounter,rng)
     if not encounter or not encounter.eventReward then return "" end
-    local weapon=scaledWeapon(catalog,data.location,encounter.eventRewardQuality or 2); giveItem(data,catalog,weapon)
-    local ammo,amount=giveAmmo(data,catalog,weapon); local quality=(encounter.eventRewardQuality or 2)>=3 and "rare" or "uncommon"
-    if (data.battlePotionLootChance or 0)>0 and love.math.random()<data.battlePotionLootChance then quality="rare" end
-    local item=scaledItem(catalog,data.location,quality); giveItem(data,catalog,item)
+    local weapon=scaledWeapon(catalog,data.location,encounter.eventRewardQuality or 2,rng); giveItem(data,catalog,weapon)
+    local ammo,amount=giveAmmo(data,catalog,weapon,rng); local quality=(encounter.eventRewardQuality or 2)>=3 and "rare" or "uncommon"
+    if (data.battlePotionLootChance or 0)>0 and Random.range(rng)()<data.battlePotionLootChance then quality="rare" end
+    local item=scaledItem(catalog,data.location,quality,rng); giveItem(data,catalog,item)
     return " Event loot: "..title(weapon)..", "..title(item)..", and "..amount.." "..title(ammo).."."
 end
 

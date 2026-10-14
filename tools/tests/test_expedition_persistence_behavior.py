@@ -95,7 +95,7 @@ function startBattle(runtime,api,twoEnemies)
     return runtime.battle
 end
 
-function newBootstrap(runtime)
+function newBootstrap(runtime,useTacticalCommands)
     local image={getHeight=function() return 100 end}
     local noop=function() end
     local ctx={saveSchema=Schema,characters={"mouse-engineer.png"},characterImages={["mouse-engineer.png"]=image},
@@ -112,7 +112,7 @@ function newBootstrap(runtime)
         isFurnitureItem=function() return false end,resetStopSludges=noop,expeditionAreas=Areas,
         resetExpedition=function() runtime.resetCount=(runtime.resetCount or 0)+1 end,
         prepareExpeditionBattleAssets=function() runtime.assetsPrepared=(runtime.assetsPrepared or 0)+1 end,
-        writeSave=noop}
+        writeSave=noop,useTacticalCommands=useTacticalCommands}
     return require("game.session_bootstrap").new(ctx)
 end
 '''
@@ -298,6 +298,56 @@ class ExpeditionPersistenceBehaviorTests(unittest.TestCase):
             assert(battle.active==1 and runtime.saveCount>saves)
             assert(runtime.lastSaved.expeditionBattle.battle.active==1)
             assert(runtime.lastSaved.health==runtime.saveData.health)
+        ''')
+
+
+    def test_legacy_attack_selection_cancels_but_keeps_turn_and_passenger_weapon(self) -> None:
+        self.lua.execute(r'''
+            local data=newData()
+            data.passengers={{npc='guard-fox.png',weapon='frontier-short-sword'}}
+            local runtime=newRuntime(data); local api=newBattleRuntime(runtime)
+            local battle=startBattle(runtime,api)
+            local passenger=battle.units[2]
+            passenger.weaponOwnerId=nil; passenger.weaponItemId=nil
+            battle.phase='target'; battle.chosenWeapon='frontier-short-sword'; battle.chosenItemId=nil
+            battle.moveUsed=true; battle.round=3; battle.units[1].hp=11; data.health=11
+            local saved=saveRoundTrip(data)
+            local restored,changed=Checkpoints.recover(saved,Catalog)
+            assert(changed and restored.phase=='action' and restored.chosenWeapon==nil and restored.chosenItemId==nil)
+            assert(restored.round==3 and restored.active==1 and restored.moveUsed and restored.units[1].hp==11)
+            assert(restored.units[2].weaponItemId==saved.passengers[1].weaponInstance.id)
+            local again,rewritten=Checkpoints.recover(saved,Catalog)
+            assert(again==restored and not rewritten)
+        ''')
+
+    def test_canonical_attack_checkpoint_preserves_id_and_replacement_cancels_it(self) -> None:
+        self.lua.execute(r'''
+            local data=newData(); local runtime=newRuntime(data); local api=newBattleRuntime(runtime)
+            local battle=startBattle(runtime,api)
+            local id=data.itemSlots.equipment[1].id
+            battle.phase='target'; battle.chosenWeapon='frontier-short-sword'; battle.chosenItemId=id
+            local saved=saveRoundTrip(data)
+            local restored,changed=Checkpoints.recover(saved,Catalog)
+            assert(not changed and restored.phase=='target' and restored.chosenItemId==id)
+            require('game.item_instances').write(saved,nil,{kind='equipment',index=1},'frontier-short-sword')
+            restored,changed=Checkpoints.recover(saved,Catalog)
+            assert(changed and restored.phase=='select' and restored.chosenItemId==nil)
+            assert(saved.itemSlots.equipment[1].id~=id and restored.active==1)
+        ''')
+
+    def test_ambiguous_legacy_passenger_weapon_is_not_guessed(self) -> None:
+        self.lua.execute(r'''
+            local data=newData()
+            data.passengers={{npc='guard-fox.png',weapon='frontier-short-sword'},
+                {npc='guard-fox.png',weapon='frontier-short-sword'}}
+            local runtime=newRuntime(data); local api=newBattleRuntime(runtime)
+            local battle=startBattle(runtime,api)
+            battle.units[2].weaponOwnerId=nil; battle.units[2].weaponItemId=nil
+            local restored=Checkpoints.recover(data,Catalog)
+            local passenger=restored.units[2]
+            local ownership=require('game.battle_weapon_ownership')
+            assert(not passenger.weaponOwnerId and not ownership.resolve(data,passenger,passenger.weapon,Catalog))
+            assert(ownership.resolve(data,passenger,'scratch',Catalog))
         ''')
 
 

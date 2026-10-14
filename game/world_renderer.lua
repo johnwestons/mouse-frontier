@@ -187,44 +187,70 @@ local function new(context)
       return CharacterAnimation.draw(getCharacterAnimations(),file,action,x,y,maxW,maxH,facing,phase,runtime.animationClock,motion)
   end
 
-  local function drawPlayer(drawShadow)
-      if not runtime.player.image then return end
-      if getCharacterAnimations()[runtime.saveData.character] then
-          if runtime.player.moving and runtime.actionTimer<=0 then
-              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
-              if drawAnimatedCharacter(runtime.saveData.character,"walk",runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,runtime.animationClock,runtime.player) then return end
+  local function drawActor(actor,record,presentation,drawShadow)
+      local baseImage=actor.image or characterImages[record.character]
+      if not baseImage then return end
+      local baseScale=actor.scale or math.min(.075,90/baseImage:getHeight())
+      local clock=presentation.animationClock or runtime.animationClock
+      local timer=presentation.actionTimer or 0
+      if getCharacterAnimations()[record.character] then
+          if actor.moving and timer<=0 then
+              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",actor.x,actor.y+28,20,7) end
+              if drawAnimatedCharacter(record.character,"walk",actor.x,actor.y+34,82,104,actor.facing,clock,actor) then return end
           end
-          if not runtime.player.moving or runtime.actionTimer>0 then
-              local action=runtime.actionTimer>0 and (runtime.actionKind or "use") or (runtime.playerPose=="sit" and "sit" or (runtime.playerPose=="lay" and "lay" or "idle"))
-              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
-              local actionPhase=runtime.actionTimer>0 and math.max(0,.35-runtime.actionTimer) or runtime.animationClock
-              drawAnimatedCharacter(runtime.saveData.character,action,runtime.player.x,runtime.player.y+34,82,104,runtime.player.facing,actionPhase,runtime.player)
-              if runtime.actionTimer>0 and runtime.actionHeldItem then
-                  local combat=Catalog.weaponCombat[runtime.actionHeldItem]
+          if not actor.moving or timer>0 then
+              local action=timer>0 and (presentation.actionKind or "use") or (presentation.playerPose=="sit" and "sit" or (presentation.playerPose=="lay" and "lay" or "idle"))
+              if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",actor.x,actor.y+28,20,7) end
+              local actionPhase=timer>0 and math.max(0,.35-timer) or clock
+              drawAnimatedCharacter(record.character,action,actor.x,actor.y+34,82,104,actor.facing,actionPhase,actor)
+              if timer>0 and presentation.actionHeldItem then
+                  local combat=Catalog.weaponCombat[presentation.actionHeldItem]
                   local attached=combat and (action=="melee" or action=="ranged") and WeaponAttachment.draw(
-                      getCharacterAnimations(),runtime.saveData.character,runtime.actionHeldItem,
-                      WeaponAttachment.itemSprite(ui,runtime.actionHeldItem),runtime.player.x,runtime.player.y+34,
-                      82,104,runtime.player.facing,actionPhase,action,combat
+                      getCharacterAnimations(),record.character,presentation.actionHeldItem,
+                      WeaponAttachment.itemSprite(ui,presentation.actionHeldItem),actor.x,actor.y+34,
+                      82,104,actor.facing,actionPhase,action,combat
                   )
-                  if not attached then ui.drawItem(runtime.actionHeldItem,{x=runtime.player.x+(runtime.player.facing==1 and 12 or -42),y=runtime.player.y-22,w=32,h=32}) end
+                  if not attached then ui.drawItem(presentation.actionHeldItem,{x=actor.x+(actor.facing==1 and 12 or -42),y=actor.y-22,w=32,h=32}) end
               end
               return
           end
       end
-      local actionImage=runtime.actionTimer>0 and characterActionImages[runtime.saveData.character]
-      local image,drawFacing,scale=actionImage or runtime.player.image,-runtime.player.facing,runtime.player.scale
+      local actionImage=timer>0 and characterActionImages[record.character]
+      local image,drawFacing,scale=actionImage or baseImage,-actor.facing,baseScale
       -- Action sheets use much more of their canvas than the idle portraits. Match
       -- their visible body size, not only the PNG canvas height.
-      if actionImage then scale=((runtime.player.image:getHeight()*runtime.player.scale)/actionImage:getHeight())*.78 end
-      if runtime.player.moving and runtime.actionTimer<=0 then
-          local walk=characterWalkImages[runtime.saveData.character]
-          if walk then image=walk; drawFacing=-runtime.player.facing; scale=math.min(0.075,90/image:getHeight()) end
+      if actionImage then scale=((baseImage:getHeight()*baseScale)/actionImage:getHeight())*.78 end
+      if actor.moving and timer<=0 then
+          local walk=characterWalkImages[record.character]
+          if walk then image=walk; drawFacing=-actor.facing; scale=math.min(0.075,90/image:getHeight()) end
       end
       local bob=0
-      if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",runtime.player.x,runtime.player.y+28,20,7) end
+      if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",actor.x,actor.y+28,20,7) end
       local rotation,scaleY,yOffset=0,scale,0
-      if runtime.playerPose=="sit" then scaleY=scale*.72; yOffset=10 elseif runtime.playerPose=="lay" then rotation=math.pi/2; scaleY=scale*.82; yOffset=16 end
-      love.graphics.setColor(1,1,1); love.graphics.draw(image,runtime.player.x,runtime.player.y+bob+yOffset,rotation,scale*drawFacing,scaleY,image:getWidth()/2,image:getHeight()/2)
+      if presentation.playerPose=="sit" then scaleY=scale*.72; yOffset=10 elseif presentation.playerPose=="lay" then rotation=math.pi/2; scaleY=scale*.82; yOffset=16 end
+      love.graphics.setColor(1,1,1); love.graphics.draw(image,actor.x,actor.y+bob+yOffset,rotation,scale*drawFacing,scaleY,image:getWidth()/2,image:getHeight()/2)
+  end
+
+  local function drawPlayer(drawShadow)
+      return drawActor(runtime.player,runtime.saveData,ui.coopPlayerPresentation and ui.coopPlayerPresentation() or runtime,drawShadow)
+  end
+  local function companion()
+      if ui.coopCompanion then return ui.coopCompanion() end
+  end
+  local function drawCompanion(drawShadow,carIndex)
+      local actor,record,presentation=companion()
+      if actor and (not carIndex or record.activeCar==carIndex) then
+          if presentation and (presentation.actionTimer or 0)>0 and presentation.facing then
+              local copy={}; for key,value in pairs(actor) do copy[key]=value end
+              copy.facing=presentation.facing; actor=copy
+          end
+          drawActor(actor,record,presentation or {},drawShadow)
+      end
+  end
+  local function drawParty(drawShadow)
+      local actor=companion()
+      if actor and actor.y<runtime.player.y then drawCompanion(drawShadow); drawPlayer(drawShadow)
+      else drawPlayer(drawShadow); drawCompanion(drawShadow) end
   end
 
   local function drawDroppedItems(carIndex)
@@ -234,11 +260,11 @@ local function new(context)
       ui.itemOrderCache=ui.itemOrderCache or {}
       local cached=ui.itemOrderCache[cacheKey]
       local ordered
-      if cached and cached.revision==revision then ordered=cached.items else
+      if cached and cached.revision==revision and not ui.decorationPreview then ordered=cached.items else
           ordered={}
           for i,item in ipairs(runtime.saveData.droppedItems) do
               local visible=carIndex and item.scene=="train" and (item.carIndex or 1)==carIndex or (not carIndex and itemIsHere(item))
-              if visible then ordered[#ordered+1]={index=i,item=item} end
+              if visible then ordered[#ordered+1]={index=i,item=ui.decorationPreview and ui.decorationPreview(item) or item} end
           end
           table.sort(ordered,function(a,b) return (a.item.layer or a.index)<(b.item.layer or b.index) end)
           ui.itemOrderCache[cacheKey]={revision=revision,items=ordered}
@@ -348,7 +374,7 @@ local function new(context)
           drawStopSludges(sludgeImages())
           drawWildlife(ensureStopLayout())
           InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
-          drawNPC(); drawPlayer()
+          drawNPC(); drawParty()
           InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
           return
       end
@@ -383,7 +409,7 @@ local function new(context)
       drawStopSludges(sludgeImages())
       drawWildlife(layout)
       InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
-      drawNPC(); drawPlayer()
+      drawNPC(); drawParty()
       InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
   end
 
@@ -401,20 +427,20 @@ local function new(context)
       end
       drawDroppedItems()
       InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
-      drawNPC(); drawPlayer()
+      drawNPC(); drawParty()
       InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
   end
 
   local function drawExpedition()
       drawLandscape()
-      drawExpeditionRuntime({drawDroppedItems=drawDroppedItems,drawPlayer=drawPlayer})
+      drawExpeditionRuntime({drawDroppedItems=drawDroppedItems,drawPlayer=drawParty})
   end
 
   local function drawCaravan()
       drawLandscape()
       drawCaravanRuntime({
           drawDroppedItems=drawDroppedItems,
-          drawPlayer=function() drawPlayer(false) end,
+          drawPlayer=function() drawParty(false) end,
           characterImages=npcImages,
           caravanAssets=scenery.crowCaravanAssets,
           props=scenery.stopProps or {},
@@ -441,16 +467,24 @@ local function new(context)
           love.graphics.push(); love.graphics.translate((playerX or runtime.player.x)-runtime.player.x,(playerY or runtime.player.y)-runtime.player.y); drawPlayer(); love.graphics.pop()
           InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
       end
+      drawCompanion(true,focusIndex)
       love.graphics.pop()
   end
 
   return {
+    release=function()
+      if landscapeSeamShader then landscapeSeamShader:release(); landscapeSeamShader=nil end
+      for image,quads in pairs(landscapeQuads) do
+        quads.body:release(); if quads.sky then quads.sky:release() end; landscapeQuads[image]=nil
+      end
+    end,
     drawLandscape=drawLandscape,
     drawTracks=drawTracks,
     drawLocomotive=drawLocomotive,
     drawTrainCar=drawTrainCar,
     drawAnimatedCharacter=drawAnimatedCharacter,
     drawPlayer=drawPlayer,
+    drawActor=drawActor,
     drawDroppedItems=drawDroppedItems,
     trainItemAt=trainItemAt,
     drawNPC=drawNPC,

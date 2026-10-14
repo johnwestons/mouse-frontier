@@ -9,12 +9,17 @@ local LootProgression = require("game.loot_progression")
 local FirstPersonWeaponViews = require("game.first_person_weapon_views")
 local CrowCaravanArt = require("game.crow_caravan_art")
 local OutfitItemArt = require("game.outfit_item_art")
+local LazyGroups = require("game.lazy_asset_groups")
+local LastStandLife = require("game.coop_last_stand_lifecycle")
 
 local Assets = {}
 local missingRequired
 local lazyPaths=setmetatable({},{__mode="k"})
 local lazyCategories=setmetatable({},{__mode="k"})
 local externallyOwnedImages=setmetatable({},{__mode="k"})
+local residentGroups=setmetatable({},{__mode="k"})
+local residentTargets=setmetatable({},{__mode="k"})
+local itemAtlasCaches=setmetatable({},{__mode="k"})
 
 local function loadImage(path,category)
     local ok, image = pcall(love.graphics.newImage, path)
@@ -78,30 +83,55 @@ local function loadFolderImages(path, destination, predicate, category)
 end
 
 local function registerItemAtlas(ui, path, names, columns, rows, clearGeneratedChecker)
-    local image
-    if clearGeneratedChecker and love.image and love.image.newImageData then
-        local ok,data=pcall(love.image.newImageData,path)
-        if ok and data then
-            data:mapPixel(function(_,_,r,g,b,a)
-                local pale=math.min(r,g,b)>.89 and math.max(r,g,b)-math.min(r,g,b)<.045
-                return r,g,b,pale and 0 or a
-            end)
-            local made,result=pcall(love.graphics.newImage,data)
-            if made then image=result end
+    local caches=itemAtlasCaches[ui]
+    if not caches then caches={};itemAtlasCaches[ui]=caches end
+    local cache={records={}};caches[#caches+1]=cache
+    local function load()
+        if cache.image then return end
+        local image
+        if clearGeneratedChecker and love.image and love.image.newImageData then
+            local ok,data=pcall(love.image.newImageData,path)
+            if ok and data then
+                data:mapPixel(function(_,_,r,g,b,a)
+                    local pale=math.min(r,g,b)>.89 and math.max(r,g,b)-math.min(r,g,b)<.045
+                    return r,g,b,pale and 0 or a
+                end)
+                local made,result=pcall(love.graphics.newImage,data)
+                if made then image=result end
+                if data.release then data:release() end
+            end
+        end
+        image=image or loadImage(path,"item atlas")
+        if not image then return end
+        cache.image=image
+        local imageWidth, imageHeight = image:getDimensions()
+        local cellWidth, cellHeight = imageWidth / columns, imageHeight / rows
+        for index, name in ipairs(names) do
+            local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
+            local record=cache.records[index]
+            rawset(record,"image",image)
+            rawset(record,"quad",love.graphics.newQuad(column * cellWidth,row * cellHeight,cellWidth,cellHeight,imageWidth,imageHeight))
+            rawset(record,"w",cellWidth);rawset(record,"h",cellHeight)
         end
     end
-    image=image or loadImage(path,"item atlas")
-    if not image then return end
-    local imageWidth, imageHeight = image:getDimensions()
-    local cellWidth, cellHeight = imageWidth / columns, imageHeight / rows
-    for index, name in ipairs(names) do
-        local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
-        ui.atlasItems[name] = {
-            image = image,
-            quad = love.graphics.newQuad(column * cellWidth, row * cellHeight, cellWidth, cellHeight, imageWidth, imageHeight),
-            w = cellWidth,
-            h = cellHeight,
-        }
+    -- Records stay enumerable for the item catalog without decoding a sheet.
+    for index,name in ipairs(names)do
+        local record={}
+        setmetatable(record,{__index=function(self,key)load();return rawget(self,key)end})
+        cache.records[index]=record;ui.atlasItems[name]=record
+    end
+end
+
+local function releaseItemAtlases(ui)
+    for _,cache in ipairs(itemAtlasCaches[ui] or {})do
+        if cache.image then
+            if cache.image.release then cache.image:release()end
+            cache.image=nil
+            for _,record in ipairs(cache.records)do
+                local quad=rawget(record,"quad");if quad and quad.release then quad:release()end
+                for _,key in ipairs({"image","quad","w","h"})do rawset(record,key,nil)end
+            end
+        end
     end
 end
 
@@ -121,6 +151,7 @@ local function loadGeneratedAnimationAtlas(path, columns, rows, count)
         return r,g,b,a
     end)
     local made,image=pcall(love.graphics.newImage,data)
+    if data.release then data:release() end
     if not made or not image then
         AssetDiagnostics.record(path,"mob animation","could not create generated atlas image")
         return nil
@@ -257,7 +288,10 @@ local function loadGeneratedBattleAtlas(file)
         if neutral and math.min(r,g,b)>.82 then return r,g,b,0 end
         return r,g,b,a
     end)
-    local image=love.graphics.newImage(data); image:setFilter("nearest","nearest")
+    local made,image=pcall(love.graphics.newImage,data)
+    if data.release then data:release() end
+    if not made or not image then AssetDiagnostics.record(path,"battle scenery","could not create generated atlas image"); return nil end
+    image:setFilter("nearest","nearest")
     local width,height=image:getDimensions(); local cellWidth,cellHeight=width/3,height/2
     local atlas={image=image,cw=cellWidth,ch=cellHeight,quads={}}
     for index=1,6 do local column,row=(index-1)%3,math.floor((index-1)/3); atlas.quads[index]=love.graphics.newQuad(column*cellWidth,row*cellHeight,cellWidth,cellHeight,width,height) end
@@ -369,6 +403,8 @@ function Assets.load(targets)
         ui.resourceIcons[name] = image
     end
     local characters, characterImages = targets.characters, targets.characterImages
+    prepareLazyImages(characterImages)
+    prepareLazyImages(targets.familyImages)
     local npcImages, mobImages, mobFiles = targets.npcImages, targets.mobImages, targets.mobFiles
     local characterWalkImages, npcWalkImages = targets.characterWalkImages, targets.npcWalkImages
     local characterActionImages = targets.characterActionImages
@@ -390,8 +426,14 @@ function Assets.load(targets)
         end
     end
     ui.objectTintShader = loadShader()
-    scenery.titleImage = loadImage("assets/sprites/ui/title/title-option-3.png", "UI")
     prepareLazyImages(scenery)
+    local sceneAssets=LazyGroups.new(scenery)
+    residentGroups[scenery]={scene=sceneAssets}
+    residentTargets[scenery]=targets
+    local function sceneImage(key,path,group,category)
+        sceneAssets:add(key,group,function()return loadImage(path,category or "scenery")end)
+    end
+    registerLazyImage(scenery,"titleImage","assets/sprites/ui/title/title-option-3.png","UI")
     registerLazyImage(scenery,"titleHeaderBackdrop","assets/sprites/ui/title/title-header-backdrop-v1.png","title UI")
     registerLazyImage(scenery,"titleFooterBackdrop","assets/sprites/ui/title/title-footer-backdrop-v1.png","title UI")
     local titleSnapshotNames={"share-water","share-food","bandage","laugh","help-walk","handshake","seedling-care","share-shelter","radio-repair","warm-kettle","shared-haul","lantern-melody","route-map","herbal-delivery","roadside-repair","quiet-garden","camp-supper","lantern-repair","shared-bandages","fair-trade","boiler-repair","river-route","trailmarkers","signal-lesson","station-map"}
@@ -414,7 +456,7 @@ function Assets.load(targets)
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/MainCharacters")) do
         if Roster.isPlayable(file) then
             characters[#characters + 1] = file
-            characterImages[file] = requireImage("assets/sprites/MainCharacters/" .. file)
+            registerRequiredLazyImage(characterImages,file,"assets/sprites/MainCharacters/" .. file)
         end
     end
     table.sort(characters)
@@ -431,13 +473,13 @@ function Assets.load(targets)
         end
     end
 
-    scenery.fire = loadImage("assets/sprites/characters/fire-spirit.png","train scenery")
-    scenery.fireFrames = {scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-2.png","train scenery"), scenery.fire, loadImage("assets/sprites/characters/animations/fire-spirit-idle-3.png","train scenery")}
-    scenery.boiler = loadImage("assets/sprites/train-decorations/boiler-firebox.png","train scenery")
-    scenery.curtain = loadFallback({"assets/sprites/train-decorations/train-window-curtain.png","assets/sprites/train-decorations/porthole-curtain.png"},"train scenery")
-    scenery.smokeLarge1 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-1.png","train scenery")
-    scenery.smokeLarge2 = loadImage("assets/sprites/train-decorations/locomotive-smoke-large-2.png","train scenery")
-    scenery.smokeSmall = loadImage("assets/sprites/train-decorations/locomotive-smoke-small.png","train scenery")
+    sceneImage("fire","assets/sprites/characters/fire-spirit.png","train","train scenery")
+    sceneAssets:add("fireFrames","train",function()return {scenery.fire,loadImage("assets/sprites/characters/animations/fire-spirit-idle-2.png","train scenery"),scenery.fire,loadImage("assets/sprites/characters/animations/fire-spirit-idle-3.png","train scenery")}end)
+    sceneImage("boiler","assets/sprites/train-decorations/boiler-firebox.png","train","train scenery")
+    sceneAssets:add("curtain","train",function()return loadFallback({"assets/sprites/train-decorations/train-window-curtain.png","assets/sprites/train-decorations/porthole-curtain.png"},"train scenery")end)
+    sceneImage("smokeLarge1","assets/sprites/train-decorations/locomotive-smoke-large-1.png","train","train scenery")
+    sceneImage("smokeLarge2","assets/sprites/train-decorations/locomotive-smoke-large-2.png","train","train scenery")
+    sceneImage("smokeSmall","assets/sprites/train-decorations/locomotive-smoke-small.png","train","train scenery")
     scenery.cloudImages = {}
     for _, file in ipairs({"cloud-1.png", "cloud-2.png", "cloud-3.png", "cloud-4.png", "cloud-5.png", "cloud-6.png", "cloud-7.png", "cloud-8.png", "cloud-9.png"}) do
         scenery.cloudImages[#scenery.cloudImages + 1] = loadImage("assets/sprites/effects/clouds/" .. file,"sky effects")
@@ -451,7 +493,7 @@ function Assets.load(targets)
         end
     end
 
-    scenery.homeTexture = loadImage("assets/textures/home-interior-floor.png","interior scenery")
+    sceneImage("homeTexture","assets/textures/home-interior-floor.png","home","interior scenery")
     -- Interior images are intentionally not created here.  The filename list is
     -- cheap startup metadata; AssetStreamer keeps only the active home on the GPU.
     scenery.interiors = nil
@@ -471,7 +513,7 @@ function Assets.load(targets)
     for _, file in ipairs(generatedInteriorFiles) do
         scenery.interiorFiles[#scenery.interiorFiles + 1] = file
     end
-    scenery.trainTexture = loadImage("assets/textures/train-interior-panels.png","train scenery")
+    sceneImage("trainTexture","assets/textures/train-interior-panels.png","train","train scenery")
 
     for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS")) do
         if Roster.isNpcCandidate(file) then registerLazyImage(npcImages,file,"assets/sprites/NPCS/" .. file,"NPC") end
@@ -503,14 +545,16 @@ function Assets.load(targets)
         end
     end
     local sludgeAtlasRoot="assets/sprites/Mobs/atlases/"
-    local sludgeIdleWalk=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-idle-walk.png",2,2,4)
-    scenery.sludgeAnimations={
+    sceneAssets:add("sludgeAnimations","stop",function()
+      local sludgeIdleWalk=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-idle-walk.png",2,2,4)
+      return {
         idle=sludgeIdleWalk,
         walk=sludgeIdleWalk,
         attack=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-attack.png",2,2,4),
         hit=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-hit.png",2,2,4),
         death=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-death.png",2,2,4),
-    }
+      }
+    end)
     scenery.firstAidAssets={bandageStrips={}}
     prepareLazyImages(scenery.firstAidAssets)
     prepareLazyImages(scenery.firstAidAssets.bandageStrips)
@@ -573,7 +617,9 @@ function Assets.load(targets)
         return value
     end})
     if love.filesystem.getInfo("assets/sprites/NPCS/families") then
-        loadFolderImages("assets/sprites/NPCS/families", targets.familyImages,nil,"family character")
+        for _,file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/NPCS/families"))do
+            if file:match("%.png$")then registerLazyImage(targets.familyImages,file:gsub("%.png$",""),"assets/sprites/NPCS/families/"..file,"family character")end
+        end
     end
     table.sort(mobFiles)
 
@@ -591,7 +637,9 @@ function Assets.load(targets)
         local part=rawget(Catalog.repairParts or {},target)
         if part and type(part.sprite)=="string" then registerLazyImage(ui.propImages,alias,part.sprite,"weapon repair component") end
     end
-    targets.itemIdleImages["flower-pot"] = {ui.propImages["flower-pot"], loadImage("assets/sprites/items/animations/flower-pot-idle-2.png"), loadImage("assets/sprites/items/animations/flower-pot-idle-3.png")}
+    local itemAnimations=LazyGroups.new(targets.itemIdleImages)
+    residentGroups[scenery].items=itemAnimations
+    itemAnimations:add("flower-pot","world",function()return {ui.propImages["flower-pot"],loadImage("assets/sprites/items/animations/flower-pot-idle-2.png"),loadImage("assets/sprites/items/animations/flower-pot-idle-3.png")}end)
 
     ui.atlasItems = {}
     registerItemAtlas(ui, "assets/sprites/atlases/food-water-v1.png", {"trail-beans-can", "dried-berry-pouch", "cornbread-square", "mushroom-stew", "jerky-bundle", "preserved-peaches", "metal-water-flask", "blue-water-bottle", "rainwater-jar", "patched-canteen", "boxed-fruit-drink", "ceramic-water-crock"}, 4, 3)
@@ -607,62 +655,74 @@ function Assets.load(targets)
     -- The old independently redrawn locomotives are retained only for their
     -- transparent smoke area. The approved boiler/cab/tender body is invariant;
     -- wheels and rods are now composed over it by the train renderer.
-    scenery.worldTrainSmokeFrames = {}
-    for index = 1, 3 do
-        local image = loadImage("assets/sprites/train/animations/locomotive-red-run-" .. index .. ".png","train scenery")
-        if image then
-            local imageWidth,imageHeight=image:getDimensions()
-            scenery.worldTrainSmokeFrames[index]={image=image,
-                quad=love.graphics.newQuad(0,0,imageWidth,math.min(225,imageHeight),imageWidth,imageHeight)}
+    sceneAssets:add("worldTrainSmokeFrames","train",function()
+        local frames={}
+        for index = 1, 3 do
+            local image = loadImage("assets/sprites/train/animations/locomotive-red-run-" .. index .. ".png","train scenery")
+            if image then
+                local imageWidth,imageHeight=image:getDimensions()
+                frames[index]={image=image,
+                    quad=love.graphics.newQuad(0,0,imageWidth,math.min(225,imageHeight),imageWidth,imageHeight)}
+            end
         end
-    end
-    scenery.redTrain = loadImage("assets/sprites/train/locomotive-red.png","train scenery")
-    scenery.worldTrain = scenery.redTrain
+        return frames
+    end)
+    sceneImage("redTrain","assets/sprites/train/locomotive-red.png","trainMarker","train scenery")
+    sceneAssets:add("worldTrain","train",function()return scenery.redTrain end)
     scenery.generatedAlphaCutoffShader = loadAlphaCutoffShader()
-    scenery.worldTrainBody = loadImage("assets/sprites/train/animations/locomotive-red-body-v2.png","train scenery")
-    local runningGearImage=loadImage(
-        "assets/sprites/train/animations/locomotive-running-gear-components-v1.png","train scenery")
-    if runningGearImage then
-        local gearWidth,gearHeight=runningGearImage:getDimensions()
-        local function component(x,y,w,h,originX,originY,length)
-            return {quad=love.graphics.newQuad(x,y,w,h,gearWidth,gearHeight),
-                originX=originX,originY=originY,length=length}
+    sceneImage("worldTrainBody","assets/sprites/train/animations/locomotive-red-body-v2.png","train","train scenery")
+    sceneAssets:add("worldTrainRunningGear","train",function()
+        local runningGearImage=loadImage(
+            "assets/sprites/train/animations/locomotive-running-gear-components-v1.png","train scenery")
+        if runningGearImage then
+            local gearWidth,gearHeight=runningGearImage:getDimensions()
+            local function component(x,y,w,h,originX,originY,length)
+                return {quad=love.graphics.newQuad(x,y,w,h,gearWidth,gearHeight),
+                    originX=originX,originY=originY,length=length}
+            end
+            return {image=runningGearImage,
+                largeWheel=component(130,40,560,560,282,281),
+                smallWheel=component(950,160,380,380,192,193),
+                couplingRod=component(130,690,520,170,65,87,378),
+                connectingRod=component(790,650,720,210,634,116,558),
+                jointPin=component(1070,830,170,140,82,67)}
         end
-        scenery.worldTrainRunningGear={image=runningGearImage,
-            largeWheel=component(130,40,560,560,282,281),
-            smallWheel=component(950,160,380,380,192,193),
-            couplingRod=component(130,690,520,170,65,87,378),
-            connectingRod=component(790,650,720,210,634,116,558),
-            jointPin=component(1070,830,170,140,82,67)}
-    end
+    end)
     scenery.trainCarImages = {}
+    local trainCars=LazyGroups.new(scenery.trainCarImages)
+    residentGroups[scenery].cars=trainCars
     for _, entry in ipairs(Catalog.trainCarCatalog) do
-        scenery.trainCarImages[entry.id] = loadImage("assets/sprites/train/cars/" .. entry.id .. ".png","train scenery")
+        local id=entry.id
+        trainCars:add(id,id,function()return loadImage("assets/sprites/train/cars/"..id..".png","train scenery")end)
     end
-    scenery.trainCarImages["living-car"] = loadImage("assets/sprites/train/cars/living-car.png","train scenery")
-    scenery.trainCarBogie = loadHorizontalAtlas(
-        "assets/sprites/train/animations/train-car-bogie-run-4-v1.png",4,"train scenery")
-    scenery.track = loadImage("assets/sprites/tracks/railway-track-v2.png","train scenery")
-    scenery.ballastPocketFrames = loadVerticalAtlas(
-        "assets/sprites/tracks/railway-ballast-pocket-run-4-v1.png",4,"train scenery")
+    trainCars:add("living-car","living-car",function()return loadImage("assets/sprites/train/cars/living-car.png","train scenery")end)
+    sceneAssets:add("trainCarBogie","train",function()return loadHorizontalAtlas("assets/sprites/train/animations/train-car-bogie-run-4-v1.png",4,"train scenery")end)
+    sceneImage("track","assets/sprites/tracks/railway-track-v2.png","train","train scenery")
+    sceneAssets:add("ballastPocketFrames","train",function()return loadVerticalAtlas("assets/sprites/tracks/railway-ballast-pocket-run-4-v1.png",4,"train scenery")end)
 
-    local projectileImage = loadImage("assets/sprites/projectiles/projectiles-packed-v1.png","battle scenery")
-    if projectileImage then
-        local imageWidth, imageHeight = projectileImage:getDimensions()
-        local cellWidth = imageWidth / 5
-        scenery.projectiles = {image = projectileImage, w = cellWidth, h = imageHeight, quads = {}}
-        for index = 1, 5 do scenery.projectiles.quads[index] = love.graphics.newQuad((index - 1) * cellWidth, 0, cellWidth, imageHeight, imageWidth, imageHeight) end
-    end
-
-    local groundImage = loadImage("assets/sprites/ground/stop-ground-textures-v1.png","scenery")
-    if groundImage then
-        local imageWidth, imageHeight = groundImage:getDimensions()
-        scenery.stopGround = {image = groundImage, w = imageWidth / 2, h = imageHeight / 2, quads = {}}
-        for index = 1, 4 do
-            local column, row = (index - 1) % 2, math.floor((index - 1) / 2)
-            scenery.stopGround.quads[index] = love.graphics.newQuad(column * imageWidth / 2, row * imageHeight / 2, imageWidth / 2, imageHeight / 2, imageWidth, imageHeight)
+    sceneAssets:add("projectiles","battle",function()
+        local projectileImage = loadImage("assets/sprites/projectiles/projectiles-packed-v1.png","battle scenery")
+        if projectileImage then
+            local imageWidth, imageHeight = projectileImage:getDimensions()
+            local cellWidth = imageWidth / 5
+            local atlas = {image = projectileImage, w = cellWidth, h = imageHeight, quads = {}}
+            for index = 1, 5 do atlas.quads[index] = love.graphics.newQuad((index - 1) * cellWidth, 0, cellWidth, imageHeight, imageWidth, imageHeight) end
+            return atlas
         end
-    end
+    end)
+
+    sceneAssets:add("stopGround","stop",function()
+        local groundImage = loadImage("assets/sprites/ground/stop-ground-textures-v1.png","scenery")
+        if groundImage then
+            local imageWidth, imageHeight = groundImage:getDimensions()
+            local atlas = {image = groundImage, w = imageWidth / 2, h = imageHeight / 2, quads = {}}
+            for index = 1, 4 do
+                local column, row = (index - 1) % 2, math.floor((index - 1) / 2)
+                atlas.quads[index] = love.graphics.newQuad(column * imageWidth / 2, row * imageHeight / 2, imageWidth / 2, imageHeight / 2, imageWidth, imageHeight)
+            end
+            return atlas
+        end
+    end)
 
     local battleFiles={{"WASTELAND", "wasteland-tiles-v2.png", "wasteland-tiles-v3.png", "wasteland-tiles-v4.png"},
         {"FOREST", "forest-tiles-v1.png", "forest-tiles-v2.png", "forest-tiles-v3.png"},
@@ -674,19 +734,33 @@ function Assets.load(targets)
         local atlas=loadGeneratedBattleAtlas(entry[4]); if atlas then atlas.name=entry[1] end
         return atlas
     end)
-    scenery.battleObstacles=loadGeneratedBattleAtlas("battle-obstacles-v1.png")
+    sceneAssets:add("battleObstacles","battle",function()return loadGeneratedBattleAtlas("battle-obstacles-v1.png")end)
 
     -- Settlement sprites now provide the complete stop surface and buildings.
     -- Keep only chicken assets from the wildlife module for future dynamic spawns.
     scenery.stopWildlife, scenery.stopWildlifeFeeding = {}, {}
-    loadFolderImages("assets/sprites/stop-wildlife", scenery.stopWildlife, function(file) return not file:find("atlas") end,"wildlife")
-    Wildlife.load(scenery.stopWildlife, function(path) return loadImage(path,"wildlife") end)
-    Mice.load(scenery.stopWildlife, function(path) return loadImage(path,"wildlife") end)
+    local wildlife=LazyGroups.new(scenery.stopWildlife)
+    local feeding=LazyGroups.new(scenery.stopWildlifeFeeding)
+    residentGroups[scenery].wildlife=wildlife;residentGroups[scenery].feeding=feeding
+    for _,file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/stop-wildlife"))do
+        if file:match("%.png$") and not file:find("atlas")then
+            local name=file:gsub("%.png$","");local path="assets/sprites/stop-wildlife/"..file
+            wildlife:add(name,"stop",function()return loadImage(path,"wildlife")end)
+        end
+    end
+    for _,file in ipairs({"chicken-rooster-walk.png","chicken-hen-walk.png","chicken-chick-walk.png"})do
+        local key=file
+        wildlife:add(key,"stop",function()return loadImage("assets/sprites/stop-wildlife/chickens/"..key,"wildlife")end)
+    end
+    wildlife:add("field-mouse-walk.png","stop",function()return scenery.stopWildlife["field-mouse-walk"]end)
     scenery.eventArt = EventUI.load(function(path) return loadImage(path,"event UI") end)
     if love.filesystem.getInfo("assets/sprites/stop-wildlife/animations") then
         for _, file in ipairs(love.filesystem.getDirectoryItems("assets/sprites/stop-wildlife/animations")) do
             local name = file:match("^(.-)%-feed%.png$")
-            if name then scenery.stopWildlifeFeeding[name] = loadImage("assets/sprites/stop-wildlife/animations/" .. file,"wildlife") end
+            if name then
+                local key,path=name,"assets/sprites/stop-wildlife/animations/"..file
+                feeding:add(key,"stop",function()return loadImage(path,"wildlife")end)
+            end
         end
     end
 
@@ -703,28 +777,77 @@ end
 function Assets.assertHealthy() return AssetDiagnostics.assertHealthy() end
 function Assets.assetFailureSummary() return AssetDiagnostics.summary() end
 function Assets.assetFailureCount() return AssetDiagnostics.count() end
-function Assets.releaseIntroImages(scenery) releaseLazyImages(scenery) end
+function Assets.releaseIntroImages(scenery,runtime)
+    local keep
+    if runtime and runtime.state=="slots" then
+        local TitleSnapshots=require("game.title_snapshots")
+        keep={titleImage=true,titleHeaderBackdrop=true,titleFooterBackdrop=true}
+        for side=0,1 do
+            keep["titleSnapshot_"..TitleSnapshots.playback(runtime.animationClock or 0,side).id]=true
+        end
+    end
+    releaseLazyImages(scenery,keep)
+end
 
-function Assets.releaseDormantSceneArt(scenery,runtime)
+local function retainSceneGroups(scenery,runtime,options)
+    local groups=residentGroups[scenery];if not groups then return end
+    options=options or {}
+    local data=runtime.saveData
+    if runtime.state=="slots" or runtime.state=="intro" then releaseItemAtlases(residentTargets[scenery].ui)end
+    local battle=runtime.state=="battle" or runtime.battle~=nil or options.battle
+    local hidden=options.shootingRange or runtime.shootingRange~=nil or runtime.scene=="lastStand"
+        or LastStandLife.active(data)~=nil or data and data.trainAmbush and data.trainAmbush.active==true
+    local world=data~=nil and (runtime.state=="game" or runtime.state=="event") and not battle and not hidden
+    local train=world and runtime.scene=="train"
+    local stop=world and runtime.scene=="stop"
+    local keep={train=train,trainMarker=train or stop,home=world and (train or runtime.scene=="house"),
+        stop=stop,battle=battle,world=world}
+    groups.scene:retain(keep)
+    groups.wildlife:retain(keep);groups.feeding:retain(keep)
+    groups.items:retain(keep,residentTargets[scenery].ui.propImages)
+    local cars={}
+    if train then for _,id in ipairs(data.trainCars or {})do cars[id]=true end end
+    groups.cars:retain(cars)
+end
+
+-- Called before settlement/animation preparation, without decoding any images.
+function Assets.retainResidentArt(scenery,runtime,portraits,npcActor)
+    retainSceneGroups(scenery,runtime)
+    local targets=residentTargets[scenery];if not targets then return end
+    if runtime.state~="characters" then releaseLazyImages(targets.characterImages,portraits or {})end
+    local family={}
+    if runtime.saveData and (runtime.scene=="stop" or runtime.scene=="house") and not runtime.battle then
+        for _,member in ipairs(npcActor and npcActor.family or {})do
+            for _,pose in ipairs({"walk","lay","idle"})do
+                for frame=1,2 do family[member.kind.."-"..pose.."-"..frame]=true end
+            end
+        end
+    end
+    releaseLazyImages(targets.familyImages,family)
+end
+
+function Assets.releaseDormantSceneArt(scenery,runtime,keep)
     if not scenery or not runtime then return end
-    if runtime.state~="battle" then
+    keep=keep or {}
+    retainSceneGroups(scenery,runtime,keep)
+    if runtime.state~="battle" and not keep.battle then
         if scenery.battleAtlases then scenery.battleAtlases:release() end
         if scenery.battleVariations then scenery.battleVariations:release() end
         if scenery.battleAccents then scenery.battleAccents:release() end
     end
-    if runtime.state~="event" and scenery.eventArt and scenery.eventArt.release then
+    if runtime.state~="event" and not keep.event and scenery.eventArt and scenery.eventArt.release then
         scenery.eventArt:release()
     end
-    if not runtime.firstAid and scenery.firstAidAssets then
+    if not runtime.firstAid and not keep.firstAid and scenery.firstAidAssets then
         releaseLazyImages(scenery.firstAidAssets)
         releaseLazyImages(scenery.firstAidAssets.bandageStrips)
     end
-    if not runtime.shootingRange and scenery.shootingRangeAssets then
+    if not runtime.shootingRange and not keep.shootingRange and scenery.shootingRangeAssets then
         local keepEntrance=runtime.state=="game" and runtime.scene=="stop"
         releaseLazyImages(scenery.shootingRangeAssets,keepEntrance and {entrance=true} or nil)
         if scenery.shootingRangeAssets.weaponViews then scenery.shootingRangeAssets.weaponViews:release() end
     end
-    if (runtime.state~="game" or runtime.scene~="caravan") and scenery.crowCaravanAssets
+    if (runtime.state~="game" or runtime.scene~="caravan") and not keep.caravan and scenery.crowCaravanAssets
         and scenery.crowCaravanAssets.release then
         scenery.crowCaravanAssets:release()
     end

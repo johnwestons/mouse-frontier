@@ -38,6 +38,8 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
                 remove=function(path) files[path]=nil; return true end,
             }}
             Catalog=require('game.catalog')
+            Items=require('game.item_instances')
+            function itemId(data,name) return assert(Items.owned(data,name)).id end
             Loot=require('game.loot_progression')
             House=require('game.house')
             Inventory=require('game.inventory')
@@ -186,19 +188,19 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
                 local data=prepared({equipment={weapon},inventory={[1]=wrong},
                     weaponDurability={[weapon]=0},droppedItems={chest}})
                 chest=data.droppedItems[1]
-                local failure=Loot.completeRepair(data,Catalog,weapon,'perfect')
+                local failure=Loot.completeRepair(data,Catalog,itemId(data,weapon),'perfect')
                 assert(not failure.ok and failure.reason=='part')
-                assert(data.scrap==1000 and data.weaponDurability[weapon]==0)
+                assert(data.scrap==1000 and Items.condition(data,weapon)==0)
                 assert(data.inventory[1]==wrong and chest.storage[2]==part)
                 assert(transfer(data,chest,{kind='chest',index=2}))
                 data.inventory[4]=part
-                local success=Loot.completeRepair(data,Catalog,weapon,'perfect')
-                assert(success.ok and data.weaponDurability[weapon]==100)
+                local success=Loot.completeRepair(data,Catalog,itemId(data,weapon),'perfect')
+                assert(success.ok and Items.condition(data,weapon)==100)
                 assert(data.inventory[1]==wrong and data.inventory[2]==nil and data.inventory[4]==part)
                 local saved=roundtrip(data)
                 assert(saved.inventory[1]==wrong and saved.inventory[2]==nil and saved.inventory[4]==part)
                 assert(saved.droppedItems[1].storage[2]==nil)
-                assert(saved.scrap==1000-success.cost and saved.weaponDurability[weapon]==100)
+                assert(saved.scrap==1000-success.cost and Items.condition(saved,weapon)==100)
             end
         ''')
 
@@ -209,12 +211,12 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
                 local other=weapon=='hunting-bow' and 'scrap-hatchet' or 'hunting-bow'
                 local data=roundtrip(prepared({equipment={weapon,other},inventory={[3]=alias},
                     weaponDurability={[weapon]=0,[other]=0}}))
-                local refused=Loot.completeRepair(data,Catalog,other,'perfect')
+                local refused=Loot.completeRepair(data,Catalog,itemId(data,other),'perfect')
                 assert(not refused.ok and refused.reason=='part')
                 assert(data.inventory[3]==alias and data.scrap==1000)
-                local repaired=Loot.completeRepair(data,Catalog,weapon,'perfect')
+                local repaired=Loot.completeRepair(data,Catalog,itemId(data,weapon),'perfect')
                 assert(repaired.ok and data.inventory[3]==nil)
-                assert(data.weaponDurability[other]==0 and data.weaponDurability[weapon]==100)
+                assert(Items.condition(data,other)==0 and Items.condition(data,weapon)==100)
             end
         ''')
 
@@ -258,13 +260,14 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
                 catalog=Catalog,util=require('game.util'),trainUpgradeBalance={},lootProgression=Loot,
                 writeSave=function() saveCalls=saveCalls+1; assert(Save.write(1,runtime.saveData)) end,
                 useBattleHealingItem=function() end,useBattlePotion=function() end})
-            assert(not actions.repairWeapon(weapon,'miss').ok)
+            local selector=itemId(runtime.saveData,weapon)
+            assert(not actions.repairWeapon(selector,'miss').ok)
             assert(saveCalls==0 and runtime.saveData.inventory[2]==part and runtime.saveData.scrap==1000)
-            local result=actions.repairWeapon(weapon,'perfect')
+            local result=actions.repairWeapon(selector,'perfect')
             assert(result.ok and saveCalls==1)
             local saved=assert(Save.read(1))
-            assert(saved.inventory[2]==nil and saved.weaponDurability[weapon]==100 and saved.scrap==1000-result.cost)
-            assert(not actions.repairWeapon(weapon,'perfect').ok and saveCalls==1,'repeat click cannot charge twice')
+            assert(saved.inventory[2]==nil and Items.condition(saved,selector)==100 and saved.scrap==1000-result.cost)
+            assert(not actions.repairWeapon(selector,'perfect').ok and saveCalls==1,'repeat click cannot charge twice')
         ''')
 
     def test_drop_and_pickup_preserve_parts_and_do_not_bypass_backpack_capacity(self) -> None:

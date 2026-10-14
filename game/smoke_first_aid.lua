@@ -2,6 +2,7 @@ local StopHelp=require("game.stop_help_progression")
 local HelpQuest=require("game.help_quest_session")
 local Viewport=require("game.viewport")
 local UIStyle=require("game.ui_layout")
+local Items=require("game.item_instances")
 
 local function required(context,name,kind)
     local value=context[name]
@@ -16,6 +17,7 @@ local function steps(context)
     local newSave=required(context,"newSave","function")
     local enterGame=required(context,"enterGame","function")
     local ensureStopLayout=required(context,"ensureStopLayout","function")
+    local setupNPC=required(context,"setupNPC","function")
     local update=required(context,"update","function")
     local draw=required(context,"draw","function")
     local presentation=required(context,"presentationRuntime","table")
@@ -58,9 +60,18 @@ local function steps(context)
         if touch then love.touchreleased(id,x,y) else love.mousereleased(x,y,1) end
     end
     local function accept(request)
-        -- Use the existing neutral request UI, then its actual Accept control.
-        game.questOffer={kind="aid"}
-        game.dialogue={speaker="TASK",text=request.text,choice=true,timer=math.huge}
+        -- Resume accepted treatment through Talk. A pause notification must be
+        -- dismissed first, just as it is during ordinary player input.
+        if game.dialogue and not game.questOffer then love.keypressed('e'); love.keyreleased('e') end
+        ui.refreshWorldInteraction()
+        love.keypressed('e'); love.keyreleased('e')
+        if request.accepted then
+            assert(game.firstAid and game.firstAid.command,'accepted first-aid talk did not resume treatment')
+            return
+        end
+        -- New treatment opens a real persisted offer before its Accept control.
+        assert(game.questOffer and game.questOffer.kind=='aid' and game.dialogue.text==request.text,
+            'first-aid talk did not create its current offer')
         draw()
         if mobileEnabled() then
             local controls=getMobileControls()
@@ -87,16 +98,22 @@ local function steps(context)
             options=ui.optionsOpen,escape=ui.escMenuOpen,radio=ui.radioOpen,mobileMenu=ui.mobileMenuOpen}
         local randomState=love.math.getRandomState()
         local ok,result=xpcall(function()
-            game.selectedSlot=nil
+            require("game.save").remove(99); game.selectedSlot=99
             ui.optionsOpen=false;ui.escMenuOpen=false;ui.radioOpen=false;ui.mobileMenuOpen=false
             love.math.setRandomSeed(seed)
             local data=newSave(character)
             data.location=2;data.scene="stop"
             enterGame(data);data=game.saveData
-            data.health=10;data.inventory={"field-bandage-roll","water-bottle"}
+            game.scene="stop"; data.scene="stop"; setupNPC()
+            data.health=10
+            for slot=1,data.inventoryCapacity do Items.write(data,nil,{kind="inventory",index=slot},nil) end
+            Items.write(data,nil,{kind="inventory",index=1},"field-bandage-roll")
+            Items.write(data,nil,{kind="inventory",index=2},"water-bottle")
             data.goodwill=0;data.helpHistory={};data.helpQuestSessions={}
+            data.conversations={assignments={},completed={},seen={},nextStop=99}
             local layout=ensureStopLayout()
             local npc=assert(data.currentNPC,"first-aid fixture has no NPC")
+            game.player.x,game.player.y=game.npcActor.x+35,game.npcActor.y
             layout.npcOffers[npc]="aid";layout.offer="aid"
             local request=assert(StopHelp.ensureRequest(layout,npc,"aid",2,data))
             presentation.resetCamera(true)
@@ -105,6 +122,7 @@ local function steps(context)
                 .." scene="..tostring(game.scene).." dialogue="..tostring(game.dialogue and game.dialogue.text)
                 .." offer="..tostring(game.questOffer and game.questOffer.kind).." pose="..tostring(game.poseMenu)
                 .." inventory="..tostring(game.inventoryOpen).." menu="..tostring(ui.mobileMenuOpen))
+            assert(game.firstAid.command and game.firstAid.leaseId,"treatment bypassed the production authority")
             assert(data.inventory[1]=="field-bandage-roll" and data.goodwill==0,"accepting treatment prematurely charged the item or awarded goodwill")
             local report=run(data,request,10)
             report.input=mobileEnabled() and "production touch callbacks" or "production mouse callbacks"
@@ -149,7 +167,12 @@ local function steps(context)
             tap(300,300,true)
             assert(session.phase==1,"click outside the injury advanced treatment")
             tap(512,420,true);tap(480,370,true)
-            for _=1,20 do if session.phase~=2 then break end;update(.05) end
+            for _=1,20 do
+                if session.phase~=2 then break end
+                -- Timed treatment uses the host clock, including in this native
+                -- fixture; a synthetic frame delta cannot claim pour duration.
+                love.timer.sleep(.05); update(.05)
+            end
             assert(session.phase==3 and session.progress.pourTime>=.75,"timed disinfectant did not advance treatment")
             draw();drag(410,{550,410,550,410})
             assert(session.phase==4 and session.progress.rubTurns>=3,"rag gesture did not clean the injury")
@@ -178,9 +201,15 @@ local function steps(context)
             accept(request)
             assert(game.firstAid and game.firstAid.phase==3 and game.firstAid.progress.rubDistance==distance,
                 "accepting the paused request lost treatment progress")
+            love.focus(false)
+            assert(game.firstAid==nil and quest.paused and not request.complete,"focus loss left treatment active")
+            assert(data.inventory[1]=="field-bandage-roll" and data.goodwill==0,"focus loss charged unfinished treatment")
+            love.focus(true); accept(request)
+            assert(game.firstAid and game.firstAid.phase==3 and game.firstAid.progress.rubDistance==distance,
+                "focus loss discarded the treatment checkpoint")
             for phase=3,6 do draw();love.keypressed(tostring(phase)) end
             local report=completed(data,request,health)
-            report.pausedWithoutCost=true;report.progressRestored=true
+            report.pausedWithoutCost=true;report.progressRestored=true;report.focusReleased=true
             return report
         end),
     }

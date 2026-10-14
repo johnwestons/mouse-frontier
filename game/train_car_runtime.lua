@@ -1,3 +1,4 @@
+local CoopProgression=require("game.coop_progression")
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"train-car runtime requires "..name)
@@ -41,6 +42,11 @@ local function new(context)
       local current=runtime.saveData.activeCar or 1
       targetIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {}),targetIndex))
       if targetIndex==current then return false end
+      if ui.changeCar then
+          local reply=ui.changeCar(targetIndex)
+          return reply.ok,reply.reason
+      end
+      if ui.closeDecoration then ui.closeDecoration() end
       local left,right,top,bottom=floorBounds()
       runtime.carTransition={
           from=current,
@@ -59,21 +65,35 @@ local function new(context)
       return true
   end
 
+  local function acceptTransition(result)
+      if ui.closeDecoration then ui.closeDecoration() end
+      runtime.carTransition={from=result.from,to=result.car,t=0,duration=result.duration,
+          fromX=runtime.player.x,fromY=runtime.player.y,committed=true}
+      runtime.player.x,runtime.player.y,runtime.player.facing=result.x,result.y,result.facing
+      runtime.player.velocityX,runtime.player.velocityY=0,0; runtime.player.moving=false
+      runtime.nearbyItem=nil; runtime.nearChest=nil; runtime.nearCarNext=false; runtime.nearCarPrev=false
+      ui.interaction=nil; ui.playSfx('trainDoor')
+      return true
+  end
+
   local function updateTransition(dt)
       local transition=runtime.carTransition
       if not transition then return false end
       transition.t=math.min(transition.duration,transition.t+dt)
       runtime.player.moving=false
       if transition.t>=transition.duration then
-          runtime.saveData.activeCar=transition.to
-          runtime.player.x,runtime.player.y=transition.targetX,transition.targetY
+          if not transition.committed then
+              runtime.saveData.activeCar=transition.to
+              runtime.player.x,runtime.player.y=transition.targetX,transition.targetY
+          end
           runtime.carTransition=nil
-          writeSave()
+          if not transition.committed then writeSave() end
       end
       return true
   end
 
   local function editedItem()
+      if ui.editedDecoration then return ui.editedDecoration() end
       return runtime.editedItem and runtime.saveData and runtime.saveData.droppedItems[runtime.editedItem]
   end
 
@@ -81,6 +101,7 @@ local function new(context)
       local item=editedItem()
       if not item then return false end
       local left,right,top,bottom=objectBounds()
+      if ui.placeDecoration then return ui.placeDecoration(item,{x=math.max(left,math.min(right,x)),y=math.max(top,math.min(bottom,y))}) end
       item.x=math.max(left,math.min(right,x))
       item.y=math.max(top,math.min(bottom,y))
       return true
@@ -94,6 +115,12 @@ local function new(context)
   end
 
   local function enterTrain(playDoorSound)
+      if not CoopProgression.allowed(runtime,"scene.returnTrain") then return false,"host_only" end
+      if ui.transitionParty then
+          local reply=ui.transitionParty("scene.returnTrain",{})
+          if reply.ok and playDoorSound then ui.playSfx("trainDoor") end
+          return reply.ok,reply.reason
+      end
       if playDoorSound then ui.playSfx("trainDoor") end
       local left,right,top,bottom=floorBounds()
       runtime.scene="train"
@@ -114,6 +141,7 @@ local function new(context)
       objectBounds=objectBounds,
       clampToFloor=clampToFloor,
       beginTransition=beginTransition,
+      acceptTransition=acceptTransition,
       updateTransition=updateTransition,
       placeEditedItem=placeEditedItem,
       moveEditedItem=moveEditedItem,

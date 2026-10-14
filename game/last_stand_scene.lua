@@ -3,6 +3,7 @@ local CharacterMotion=require("game.character_motion")
 local CharacterAnimation=require("game.character_animation")
 local Typography=require("game.typography")
 local Scene={}
+local Geometry=require('game.last_stand_geometry')
 local WindowScene=require("game.window_scene")
 
 local function text(value,x,y,w,h,scale,align)
@@ -96,17 +97,7 @@ function Scene.setDestination(scene,x,y)
 end
 
 function Scene.isWalkable(scene,x,y)
-    if x<70 or x>890 or y>(scene.mode=="interior" and 620 or 620) then return false end
-    if scene.mode=="interior" then
-        if y<285 or (y>535 and (x<435 or x>525)) then return false end
-        if x>150 and x<340 and y>350 and y<523 then return false end
-        if x>807 and x<872 and y>342 and y<405 then return false end
-    else
-        if y<360 or (y>555 and (x<395 or x>590)) then return false end
-        if x>125 and x<340 and y>429 and y<530 then return false end
-        if x>551 and x<739 and y>409 and y<513 then return false end
-    end
-    return true
+    return Geometry.walkable(scene.mode,x,y)
 end
 
 function Scene.update(scene,dt,options)
@@ -133,7 +124,7 @@ function Scene.update(scene,dt,options)
             end
         end
     end
-    if scene.handoff then return reports end
+    if scene.handoff or options.noMovement then return reports end
     local mobileX,mobileY=options.mobileX or 0,options.mobileY or 0
     local dx=movementAxis("a","d")+movementAxis("left","right")+(scene.axisX or 0)+mobileX
     local dy=movementAxis("w","s")+movementAxis("up","down")+(scene.axisY or 0)+mobileY
@@ -158,11 +149,7 @@ function Scene.update(scene,dt,options)
         maxDistance=destination and math.max(0,distanceToTarget-2) or nil,
         move=function(_,_,x,y)
             local player=scene.player
-            local nextX,nextY=player.x,player.y
-            if Scene.isWalkable(scene,x,player.y) then nextX=x end
-            if Scene.isWalkable(scene,nextX,y) then nextY=y end
-            local minY=scene.mode=="interior" and 285 or 360
-            return math.max(70,math.min(890,nextX)),math.max(minY,math.min(620,nextY))
+            return Geometry.move(scene.mode,player.x,player.y,x,y)
         end,
     }
     CharacterMotion.updateActor(scene.player,dx,dy,dt,motionOptions)
@@ -306,7 +293,7 @@ local function drawPauseButton(width,height,touchControls)
     text(touchControls and "PAUSE" or "PAUSE  [P]",x+4,y+5,w-8,26,.88)
 end
 
-function Scene.draw(scene,width,height,playerImage,needsLoan,touchControls,showPause)
+function Scene.draw(scene,width,height,playerImage,needsLoan,touchControls,showPause,companions,hideAction)
     love.graphics.push("all")
     WorldView.begin()
     drawBackground(scene,width,height)
@@ -314,9 +301,13 @@ function Scene.draw(scene,width,height,playerImage,needsLoan,touchControls,showP
     love.graphics.rectangle("fill",0,0,width,height)
     local actors=actorsFor(scene)
     actors[#actors+1]={player=true,x=scene.player.x,y=scene.player.y}
+    for _,companion in ipairs(companions or {}) do
+        actors[#actors+1]={companion=companion,x=companion.player.x,y=companion.player.y}
+    end
     table.sort(actors,function(a,b) return a.y<b.y end)
     for _,actor in ipairs(actors) do
-        if actor.player then
+        if actor.companion then drawPlayer(actor.companion.player,actor.companion.visual)
+        elseif actor.player then
             drawPlayer(scene.player,playerImage)
         else
             drawAtlas(actor.path,actor.frame,actor.x,actor.y,actor.scale,512,512,4,actor.flip)
@@ -328,8 +319,10 @@ function Scene.draw(scene,width,height,playerImage,needsLoan,touchControls,showP
         if scene.defenders.gecko.flash and scene.defenders.gecko.flash>0 then WindowScene.drawEffect(0,666,248,.06,1) end
     end
     WorldView.finish()
-    drawMovementHint(width,height,touchControls)
-    drawAction(Scene.action(scene,needsLoan),width,height,touchControls)
+    if not hideAction then
+        drawMovementHint(width,height,touchControls)
+        drawAction(Scene.action(scene,needsLoan),width,height,touchControls)
+    end
     if showPause then drawPauseButton(width,height,touchControls) end
     love.graphics.pop()
 end
@@ -342,7 +335,8 @@ function Scene.pauseRect(width,height)
     return width-122,height-156,104,36
 end
 
-function Scene.drawApproach(state)
+function Scene.drawApproach(state,options)
+    options=options or {}
     local scout=state.scout
     if not scout then return end
     love.graphics.push("all")
@@ -353,7 +347,7 @@ function Scene.drawApproach(state)
     drawAtlas(PATHS.otterWalk,frame,scout.x,scout.y+APPROACH_SCOUT_FOOT_PADDING,.23,320,512,8)
     WorldView.finish()
     local hintX,hintY=WorldView.toScreen(scout.x,scout.y)
-    if state.arrival and state.arrival>0 then
+    if state.arrival and state.arrival>0 and not options.passive then
         love.graphics.setColor(.08,.05,.03,.92)
         love.graphics.rectangle("fill",hintX-104,hintY-145,208,44,8,8)
         love.graphics.setColor(.98,.88,.68,1)
@@ -361,6 +355,21 @@ function Scene.drawApproach(state)
             or state.manualOffer and "[E] Talk to the scout" or "[E] Farmhouse defense"
         text(bark,hintX-96,hintY-139,192,26,.78)
     end
+    love.graphics.pop()
+end
+
+function Scene.drawGuestApproach(state)
+    return Scene.drawApproach(state,{passive=true})
+end
+
+function Scene.drawGuestOffer(state,width,height)
+    -- The quest's existing landscape supplies a passive backdrop without
+    -- ordinary stop interaction beacons or character-dialogue overlays.
+    love.graphics.push('all')
+    WorldView.begin()
+    WindowScene.drawBackground({quest=state.quest,clock=state.clock or 0,reducedMotion=state.reducedMotion},width,height)
+    WorldView.finish()
+    Scene.drawGuestApproach(state)
     love.graphics.pop()
 end
 
@@ -387,7 +396,8 @@ local function drawTraveler(visual,file,x,groundY,direction,distance,moving,cloc
     end
 end
 
-function Scene.drawTransition(state,width,height,returning,playerVisual)
+function Scene.drawTransition(state,width,height,returning,playerVisual,options)
+    options=options or {}
     love.graphics.push("all")
     WorldView.begin()
     WindowScene.drawBackground({quest=state.quest,clock=state.clock,reducedMotion=state.reducedMotion},width,height)
@@ -403,10 +413,14 @@ function Scene.drawTransition(state,width,height,returning,playerVisual)
     local distance=state.reducedMotion and 0 or (returning and travel*.45 or math.min(width*.58,travel*.45))
     local scoutX=state.reducedMotion and width*.58 or (returning and width-distance or 120+distance)
     local groundY=height*.70
-    local moving=not state.reducedMotion
+    local moving=not state.reducedMotion and not (options.passive and state.paused)
     drawTraveler(playerVisual,"otter-scout.png",scoutX,groundY,direction,distance,moving,state.clock)
     drawTraveler(playerVisual,playerVisual and playerVisual.character,
         scoutX-direction*95,groundY,direction,distance,moving,state.clock)
+    if options.guestVisual then
+        drawTraveler(options.guestVisual,options.guestVisual.character,
+            scoutX-direction*190,groundY,direction,distance,moving,state.clock)
+    end
     WorldView.finish()
     love.graphics.setColor(.04,.025,.016,.82)
     love.graphics.rectangle("fill",110,height*.14,width-220,118,12,12)
@@ -414,8 +428,12 @@ function Scene.drawTransition(state,width,height,returning,playerVisual)
     text(returning and "The relay falls quiet behind you." or "You follow the scout beyond the town limits.",135,height*.14+18,width-270,28,.94)
     love.graphics.setColor(.82,.70,.52,1)
     text(returning and "The survivors can finally leave the windows." or "Distant rifle cracks roll over the fields.",135,height*.14+59,width-270,28,.86)
-    text("[SPACE] Skip journey",width/2-120,height-59,240,24,.76)
+    if not options.passive then text("[SPACE] Skip journey",width/2-120,height-59,240,24,.76) end
     love.graphics.pop()
+end
+
+function Scene.drawGuestTransition(state,width,height,returning,hostVisual,guestVisual)
+    return Scene.drawTransition(state,width,height,returning,hostVisual,{passive=true,guestVisual=guestVisual})
 end
 
 function Scene.release()

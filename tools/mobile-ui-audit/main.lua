@@ -104,7 +104,9 @@ local function setupStages()
     add("16-train-upgrades",function() game.trainUpgradeOpen=true end)
     add("17-event",function() stop(6); services.eventRuntime.beginRandom() end)
     add("18-battle",function()
-        stop(6); services.battleRuntime.beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={catalog.mobTiers.easy[1]}})
+        stop(6); local e={rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={catalog.mobTiers.easy[1]}}
+        game.saveData.encounters['6']=e; assert(require('game.coop_entities').ensure(game.saveData))
+        assert(services.battleRuntime.beginEncounter(e))
         game.battle.intro=nil
     end)
     add("19-first-aid",function() game.firstAid=require("game.first_aid").new({npc="ferret-medic.png",location=6,itemName="field-bandage-roll",itemSlot=1}) end)

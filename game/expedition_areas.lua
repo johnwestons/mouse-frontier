@@ -395,6 +395,10 @@ function Areas.ensure(data)
         state.contentVersion=definition.version or 1
     end
     if data.activeExpeditionArea and not definitions[data.activeExpeditionArea] then data.activeExpeditionArea=nil end
+    if data.players then
+        assert(require("game.coop_entities").ensure(data))
+        assert(require("game.item_instances").ensure(data))
+    end
     initialized[data]=data.expeditions
     local pending=data.expeditionBattle
     local battle=type(pending)=="table" and pending.battle
@@ -479,10 +483,11 @@ function Areas.updateEnvironment(data,areaId,dt)
     return state.environmentPhase,previous~=state.environmentPhase
 end
 
-function Areas.environment(data,areaId)
+function Areas.environment(data,areaId,readOnly)
     local area=definitions[areaId]
     if not area or not area.environment then return nil end
-    local state=Areas.state(data,areaId)
+    local state=readOnly and data.expeditions and data.expeditions[areaId] or (not readOnly and Areas.state(data,areaId))
+    if not state then return nil end
     local phase=state.environmentPhase or hazardPhase(area,state.environmentClock)
     return {kind=area.environment.kind,phase=phase,flooded=phase=="flooded",definition=area.environment}
 end
@@ -565,12 +570,14 @@ local function gateBlocked(area,state,x,y)
     return false
 end
 
-function Areas.isWalkable(data,areaId,x,y)
+function Areas.isWalkable(data,areaId,x,y,readOnly)
     local area=definitions[areaId]
     if not area or x<24 or y<24 or x>area.width-24 or y>area.height-24 then return false end
-    local state=Areas.state(data,areaId)
-    Areas.updateGates(data,areaId)
-    if Areas.isInFlood(data,areaId,x,y) then return false end
+    local state
+    if readOnly then state=data.expeditions and data.expeditions[areaId]
+    else state=Areas.state(data,areaId); Areas.updateGates(data,areaId) end
+    if not state then return false end
+    if state.environmentPhase=='flooded' and insideFloodZone(area.environment and area.environment.floodZone,x,y) then return false end
     local mask=walkMask(area)
     if mask then
         local mw,mh=mask:getDimensions()
@@ -606,24 +613,24 @@ function Areas.clamp(data,areaId,x,y)
     return fallback and fallback.x or 100,fallback and fallback.y or 100
 end
 
-function Areas.move(data,areaId,oldX,oldY,newX,newY)
+function Areas.move(data,areaId,oldX,oldY,newX,newY,readOnly)
     -- Substeps prevent sprinting or a long frame from hopping over a river.
     local steps=math.max(1,math.ceil(distance(oldX,oldY,newX,newY)/6))
     local dx,dy=(newX-oldX)/steps,(newY-oldY)/steps
     local x,y=oldX,oldY
     for _=1,steps do
-        if Areas.isWalkable(data,areaId,x+dx,y+dy) then x,y=x+dx,y+dy
-        elseif Areas.isWalkable(data,areaId,x+dx,y) then x=x+dx
-        elseif Areas.isWalkable(data,areaId,x,y+dy) then y=y+dy end
+        if Areas.isWalkable(data,areaId,x+dx,y+dy,readOnly) then x,y=x+dx,y+dy
+        elseif Areas.isWalkable(data,areaId,x+dx,y,readOnly) then x=x+dx
+        elseif Areas.isWalkable(data,areaId,x,y+dy,readOnly) then y=y+dy end
     end
     return x,y
 end
 
-function Areas.canReach(data,areaId,x1,y1,x2,y2)
+function Areas.canReach(data,areaId,x1,y1,x2,y2,readOnly)
     local steps=math.max(1,math.ceil(distance(x1,y1,x2,y2)/7))
     for i=0,steps do
         local t=i/steps
-        if not Areas.isWalkable(data,areaId,x1+(x2-x1)*t,y1+(y2-y1)*t) then return false end
+        if not Areas.isWalkable(data,areaId,x1+(x2-x1)*t,y1+(y2-y1)*t,readOnly) then return false end
     end
     return true
 end

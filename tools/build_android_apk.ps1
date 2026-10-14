@@ -1,9 +1,12 @@
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
-    [switch]$Install
+    [switch]$Install,
+    [switch]$SkipDeviceProbe,
+    [string]$PythonPath
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Install -and $SkipDeviceProbe) { throw '-Install cannot be combined with -SkipDeviceProbe.' }
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $outputRoot = Join-Path $projectRoot 'output\mobile'
 $toolingRoot = Join-Path $outputRoot 'tooling'
@@ -17,6 +20,17 @@ function Get-StreamSha256 {
     $algorithm = [System.Security.Cryptography.SHA256]::Create()
     try { return ([System.BitConverter]::ToString($algorithm.ComputeHash($Stream))).Replace('-','').ToLowerInvariant() }
     finally { $algorithm.Dispose() }
+}
+
+function Get-AndroidDeviceProbe {
+    param([string]$AdbPath,[switch]$SkipDeviceProbe)
+    if ($SkipDeviceProbe) {
+        return [pscustomobject]@{ status='not_probed'; devices=@(); count=$null }
+    }
+    $deviceLines = @(& $AdbPath devices)
+    if ($LASTEXITCODE -ne 0) { throw 'Android device probe failed; connected device count is unknown.' }
+    $readyDevices = @($deviceLines | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
+    return [pscustomobject]@{ status='probed'; devices=$readyDevices; count=$readyDevices.Count }
 }
 
 # Reject a stale or unrelated game archive before downloading tools or building.
@@ -49,6 +63,26 @@ try {
 }
 finally { $packageArchive.Dispose() }
 $packageSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedPackage).Hash.ToLowerInvariant()
+
+$pythonExecutable = $PythonPath
+if (-not $pythonExecutable) {
+    $pythonExecutable = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
+    if (-not (Test-Path -LiteralPath $pythonExecutable -PathType Leaf)) {
+        $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+        if ($pythonCommand) { $pythonExecutable = $pythonCommand.Source }
+    }
+}
+if (-not $pythonExecutable -or -not (Test-Path -LiteralPath $pythonExecutable -PathType Leaf)) { throw 'Python 3 is required for the Local Play package audit; pass -PythonPath.' }
+New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
+$coopAuditScript = Join-Path $projectRoot 'tools\audit_coop_package.py'
+$packageCoopAuditPath = Join-Path $outputRoot 'package-coop-audit.json'
+& $pythonExecutable $coopAuditScript --package $resolvedPackage --report $packageCoopAuditPath
+if ($LASTEXITCODE -ne 0) { throw 'Shared Local Play package audit failed before Android build.' }
+$packageCoopAudit = Get-Content -Raw -LiteralPath $packageCoopAuditPath | ConvertFrom-Json
+if (-not $packageManifest.network -or $packageManifest.network.build -ne $packageCoopAudit.network.build -or
+    $packageManifest.network.schema -ne $packageCoopAudit.network.schema -or $packageManifest.network.protocol -ne $packageCoopAudit.network.protocol) {
+    throw 'Game package Local Play identity is missing or stale; rebuild the mobile package.'
+}
 
 New-Item -ItemType Directory -Force -Path $toolingRoot,$androidRoot | Out-Null
 
@@ -313,12 +347,23 @@ public class GameActivity extends SDLActivity {
     $expectedIdentity = "package: name='$($config.applicationId)' versionCode='$($config.versionCode)' versionName='$($config.versionName)'"
     if (-not $badging.Contains($expectedIdentity)) { throw 'Android APK identity/version differs from mobile/config.json' }
 
+    # Inspect the final merged APK, not just the source manifest/engine checkout.
+    $permissions = (& $aapt dump permissions $apkPath | Out-String)
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to inspect final APK network permissions' }
+    $permissionDumpPath = Join-Path $outputRoot 'apk-permissions.txt'
+    [System.IO.File]::WriteAllText($permissionDumpPath,$permissions,[System.Text.UTF8Encoding]::new($false))
+    $apkCoopAuditPath = Join-Path $outputRoot 'apk-coop-audit.json'
+    & $pythonExecutable $coopAuditScript --package $resolvedPackage --apk $apkPath --permissions-file $permissionDumpPath --report $apkCoopAuditPath
+    if ($LASTEXITCODE -ne 0) { throw 'Final APK Local Play native/source/permission audit failed' }
+    $apkCoopAudit = Get-Content -Raw -LiteralPath $apkCoopAuditPath | ConvertFrom-Json
+
     $apksigner = Join-Path $androidRoot 'build-tools\34.0.0\apksigner.bat'
     & $apksigner verify --verbose $apkPath
     if ($LASTEXITCODE -ne 0) { throw "APK signature verification failed with exit code $LASTEXITCODE" }
 
     $adb = Join-Path $androidRoot 'platform-tools\adb.exe'
-    $devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
+    $deviceProbe = Get-AndroidDeviceProbe -AdbPath $adb -SkipDeviceProbe:$SkipDeviceProbe
+    $devices = @($deviceProbe.devices)
     $deviceLaunchVerified = $false
     if ($Install) {
         if ($devices.Count -ne 1) { throw "Expected one connected Android device, found $($devices.Count)" }
@@ -356,12 +401,23 @@ public class GameActivity extends SDLActivity {
         sourceDirty = $packageManifest.sourceDirty
         embeddedGameBytes = $packageBytes
         embeddedGameSha256 = $embeddedGameSha
-        connectedAndroidDevices = $devices.Count
+        connectedAndroidDevices = $deviceProbe.count
+        deviceProbeStatus = $deviceProbe.status
         deviceLaunchVerified = $deviceLaunchVerified
+        network = $apkCoopAudit.network
+        internetPermissionVerified = $apkCoopAudit.mergedInternetPermissionVerified
+        permissionDumpPath = $permissionDumpPath
+        permissionDumpSha256 = $apkCoopAudit.permissionDumpSha256
+        coopAuditPath = $apkCoopAuditPath
+        nativeBindings = $apkCoopAudit.nativeBindings
+        runtimeModuleLoadVerified = $false
+        physicalNetworkVerified = $false
     }
-    [System.IO.File]::WriteAllText((Join-Path $outputRoot 'apk-report.json'),($apkReport | ConvertTo-Json) + "`n",[System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText((Join-Path $outputRoot 'apk-report.json'),($apkReport | ConvertTo-Json -Depth 12) + "`n",[System.Text.UTF8Encoding]::new($false))
     Write-Output "ANDROID_APK=$apkPath"
-    Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
+    Write-Output "DEVICE_PROBE_STATUS=$($deviceProbe.status)"
+    $reportedDeviceCount = if ($deviceProbe.status -eq 'not_probed') { 'not_probed' } else { $deviceProbe.count }
+    Write-Output "CONNECTED_ANDROID_DEVICES=$reportedDeviceCount"
 }
 finally {
     $env:JAVA_HOME = $previousJavaHome

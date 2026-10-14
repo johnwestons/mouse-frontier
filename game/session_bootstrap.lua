@@ -136,7 +136,11 @@ local function new(context)
       Events.ensure(result)
       local caravanState,caravanError=CrowCaravans.ensureSchedule(result,caravanScheduleOptions(result))
       assert(caravanState,caravanError)
-      return result
+      -- A freshly created campaign has the same actor ownership as a loaded
+      -- one before any controller, trade window or save can observe it.
+      local prepared,prepareError=SaveSchema.migrate(result)
+      assert(prepared,prepareError)
+      return prepared
   end
 
   local function enterGame(data)
@@ -200,8 +204,11 @@ local function new(context)
       end
       data.scrap=data.scrap or 0
       data.audio=data.audio or {station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false}
-      data.audio.musicPaused=data.audio.musicPaused or false; data.audio.musicMuted=data.audio.musicMuted or false
-      data.audio.station=AudioCatalog.normalizeStation(data.audio.station); if data.audio.musicVolume==nil then data.audio.musicVolume=.10 end; data.audio.sfxVolume=data.audio.sfxVolume or .55; data.audio.rainVolume=data.audio.rainVolume or .20
+      data.audio.station=AudioCatalog.normalizeStation(data.audio.station)
+      if not data.coop.preferencesDetached then
+          data.audio.musicPaused=data.audio.musicPaused or false; data.audio.musicMuted=data.audio.musicMuted or false
+          if data.audio.musicVolume==nil then data.audio.musicVolume=.10 end; data.audio.sfxVolume=data.audio.sfxVolume or .55; data.audio.rainVolume=data.audio.rainVolume or .20
+      end
       if data.audio.rainEnabled==nil then data.audio.rainEnabled=data.audio.station=="chill" end
       data.trainCars=data.trainCars or {"living-car"}
       data.activeCar=math.max(1,math.min(#data.trainCars,data.activeCar or 1))
@@ -289,10 +296,10 @@ local function new(context)
           for i=#data.droppedItems,1,-1 do
               local item=data.droppedItems[i]
               if (item.scene=="stop" or item.scene=="house") and not item.droppedByPlayer and not isFurnitureItem(item.name) then
-                  loose[#loose+1]={name=item.name,location=item.location or data.location}; table.remove(data.droppedItems,i)
+                  loose[#loose+1]={name=item.name,location=item.location or data.location,instance=item.itemInstance}; table.remove(data.droppedItems,i)
               end
           end
-          for _,loot in ipairs(loose) do House.storeLoot(data,Catalog,loot.name,loot.location) end
+          for _,loot in ipairs(loose) do House.storeLoot(data,Catalog,loot.name,loot.location,loot.instance) end
           data.lootContainerMigration=true
       end
       if not data.expandedLootAdded then data.expandedLootAdded=true end
@@ -321,7 +328,23 @@ local function new(context)
       for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
       if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
       resetStopSludges()
-      local pendingBattle,expeditionRecovered=ExpeditionBattleState.recover(data,Catalog)
+      local entities,entitiesError=require("game.coop_entities").ensure(data)
+      if not entities then return false,entitiesError end
+      local items,itemsError=require("game.item_instances").ensure(data)
+      if not items then return false,itemsError end
+      local TacticalState=require('game.tactical_battle_state')
+      local expeditionImported,expeditionImportError=false,nil
+      if context.useTacticalCommands then expeditionImported,expeditionImportError=TacticalState.importLegacy(data) end
+      local pendingBattle,expeditionRecovered
+      if expeditionImportError and data.expeditionBattle then
+          -- The production runtime requires a validated shared board. Retain
+          -- the campaign/items while recovering an unconvertible old board.
+          data.expeditionBattle=nil; data.scene='train'; data.activeExpeditionArea=nil
+          data.playerX,data.playerY=nil,nil; data.health=math.max(1,data.health or 1)
+          expeditionRecovered=true
+      else pendingBattle,expeditionRecovered=ExpeditionBattleState.recover(data,Catalog) end
+      local tacticalBattle=TacticalState.restore(data,Catalog)
+      pendingBattle=tacticalBattle or pendingBattle
       local image = characterImages[data.character]
       local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
       local restoredFacing=1
@@ -349,8 +372,14 @@ local function new(context)
           image = image, facing = restoredFacing, moving = false, scale = image and math.min(0.075, 90 / image:getHeight()) or 1,
           velocityX=0,velocityY=0,intentX=restoredFacing,intentY=0,animationDistance=0,idleClock=0,
           gaitSpeedMultiplier=1,gaitAccelerationMultiplier=1,blocked=false}
+      local preferencesChanged=ui.localPreferences and not data.coop.preferencesDetached
+      if ui.localPreferences then
+          ui.localPreferences:attach(data,function() return runtime.session.networkMode or "offline" end)
+      end
       runtime:activate(data,activePlayer)
       runtime:resetForGameEntry()
+      require('game.coop_events').restore(runtime)
+      require("game.coop_scene_runtime").restoreJourney(runtime)
       runtime.battle=nil
       resetExpedition()
       runtime.expeditionGraceTimer=data.scene==ExpeditionAreas.SCENE and 1.5 or 0
@@ -362,8 +391,9 @@ local function new(context)
       -- Hosts that provide the normal debounced save callback persist a newly
       -- migrated roll immediately. The standard shutdown/focus save remains a
       -- fallback, and deterministic generation makes crash-before-save safe.
-      if (caravanScheduleChanged or expeditionRecovered) and scheduleSave then scheduleSave() end
-      return true,nil,{migration=migrationInfo,caravanScheduleChanged=caravanScheduleChanged==true,expeditionRecovered=expeditionRecovered==true}
+      if (caravanScheduleChanged or expeditionRecovered or expeditionImported or preferencesChanged) and scheduleSave then scheduleSave() end
+      return true,nil,{migration=migrationInfo,caravanScheduleChanged=caravanScheduleChanged==true,
+          expeditionRecovered=expeditionRecovered==true,expeditionImported=expeditionImported==true}
   end
 
   return {newSave=newSave,enterGame=enterGame}

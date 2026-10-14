@@ -148,6 +148,26 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
             drawRepair()
         ''')
 
+    def test_duplicate_item_rows_keep_identity_and_cancel_when_selected_copy_is_replaced(self) -> None:
+        self.lua.execute(r'''
+            local Items=require('game.item_instances')
+            data.inventory[1]=weapon
+            data=assert(require('game.save_schema').migrate(data)); runtime.saveData=data
+            assert(Items.ensure(data))
+            local equipped=Items.get(data,nil,{kind='equipment',index=1})
+            local spare=Items.get(data,nil,{kind='inventory',index=1}); spare.durability=60
+            runtime.weaponRepairSelected=spare.id; drawRepair()
+            assert(#ui.repairRows==2 and ui.repairRows[1].name~=ui.repairRows[2].name)
+            for _,draw in ipairs(textDraws) do assert(draw.fits,'text overflow: '..draw.text) end
+            click(ui.repairStart)
+            assert(runtime.weaponRepairStartedAt and runtime.weaponRepairActiveWeapon==spare.id)
+            Inventory.setValue(data,nil,{kind='inventory',index=1},weapon)
+            drawRepair()
+            assert(not runtime.weaponRepairStartedAt and not runtime.weaponRepairActiveWeapon)
+            assert(runtime.weaponRepairSelected==equipped.id and equipped.durability==50 and saves==0)
+            assert(Items.validate(data))
+        ''')
+
     def test_mouse_started_repair_accepts_space_even_when_row_has_focus(self) -> None:
         self.lua.execute(r'''
             click(ui.repairStart)

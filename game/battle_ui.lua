@@ -1,4 +1,6 @@
 local WorldView=require("game.world_view")
+local WeaponOwnership=require("game.battle_weapon_ownership")
+local Actors=require('game.battle_actors')
 local BattleRules = require("game.battle_rules")
 local Catalog = require("game.catalog")
 local Util = require("game.util")
@@ -23,13 +25,14 @@ local function boardToScreen(ctx,q,r)
 end
 
 function BattleUI.screenToBoardSpace(ctx,x,y)
-    x,y=WorldView.toWorld(x,y)
+    x,y=(ctx.worldView or WorldView).toWorld(x,y)
     return Grid.screenToBoardSpace(ctx.battle,1,x,y)
 end
 
 function BattleUI.draw(ctx)
     return UIStyle.scope("battle",{x=0,y=0,w=ctx.W,h=ctx.H},function()
     local W,H=ctx.W,ctx.H
+    local worldView=ctx.worldView or WorldView
     local battle,scenery,colors=ctx.battle,ctx.scenery,ctx.colors
     local characterImages,npcImages,mobImages=ctx.characterImages,ctx.npcImages,ctx.mobImages
     local characterWalkImages,npcWalkImages=ctx.characterWalkImages,ctx.npcWalkImages
@@ -42,7 +45,7 @@ function BattleUI.draw(ctx)
     local textScale=Accessibility.textScale(saveData)
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
-    WorldView.begin(); drawLandscape(); drawGround(); WorldView.finish()
+    worldView.begin(); drawLandscape(); drawGround(); worldView.finish()
     love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,12,910,668,12,12)
     if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,12,910,668,12,12); love.graphics.setLineWidth(1) end
     -- The northern scenery reaches above its board tile. Keep the heading in
@@ -50,7 +53,7 @@ function BattleUI.draw(ctx)
     -- Inspecting a unit changes its information card, never who owns the turn.
     local active=BattleRules.activeUnit(battle)
     local inspected=BattleRules.selectedUnit(battle)
-    WorldView.begin({clip={25,80,910,(mobile and 414 or 476)-80}})
+    worldView.begin({clip={25,80,910,(mobile and 414 or 476)-80}})
     local terrainAtlas=scenery.battleAtlases and scenery.battleAtlases[battle.biome or 1]
     if terrainAtlas then
         local reachableSpaces=active and active.team=="ally" and BattleRules.reachable(battle,active,active.move) or {}
@@ -174,7 +177,7 @@ function BattleUI.draw(ctx)
             local atlas=scenery.projectiles; local scale=math.min(34/atlas.w,22/atlas.h); love.graphics.setColor(1,1,1); love.graphics.draw(atlas.image,atlas.quads[index],px,py,math.atan2(ty-sy,tx-sx),scale,scale,atlas.w/2,atlas.h/2)
         end
     end
-    WorldView.finish()
+    worldView.finish()
     love.graphics.setColor(colors.cream); text("TACTICAL ENCOUNTER  •  ROUND "..battle.round,25,18,910,30,1.25,1,"center")
     love.graphics.setColor(colors.brass); text("OBJECTIVE  •  "..(battle.objective or "Defeat all threats"),190,51,580,24,mobile and .80 or .72,.68,"center")
     -- Paint the controls backing before the card/feed so mobile actions never
@@ -200,7 +203,7 @@ function BattleUI.draw(ctx)
     end
     if mobile then ui.battleLogUp=nil; ui.battleLogDown=nil
     else ui.battleLogUp=button("^",735,500,28,27,offset<#log-1); ui.battleLogDown=button("v",735,533,28,27,offset>0) end
-    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleMove=nil; ui.battleInventory=nil
+    ui.battleWeapons={}; ui.battlePotionButtons={}; ui.battleHeal=nil; ui.battleGuard=nil; ui.battleAbility=nil; ui.battleEnd=nil; ui.battleRetreat=nil; ui.battleContinue=nil; ui.battleMove=nil; ui.battleInventory=nil
     if terrainAtlas then love.graphics.setColor(colors.cream); text(terrainAtlas.name,790,105,135,35,.75,.65,"right") end
     if inspected then
         -- Character card occupies the lower-left corner between the battle
@@ -214,23 +217,26 @@ function BattleUI.draw(ctx)
         text("HP "..inspected.hp.."/"..inspected.maxHP,cardX+60,cardY+(mobile and 23 or 36),mobile and 212 or 100,18,mobile and .84 or .65,.60)
         text("MOVE "..inspected.move.."  ARM "..inspected.armor,cardX+60,cardY+(mobile and 43 or 56),mobile and 212 or 100,16,mobile and .70 or .55,.52)
     end
-    if battle.finished then
+    if battle.finished and ctx.hostControls~=false then
         local expedition=battle.encounter and battle.encounter.source=="expedition"
         local label=battle.finished=="win" and (expedition and "RETURN TO AREA" or "CONTINUE TO STOP") or "RETURN TO TRAIN"
         ui.battleContinue=button(label,mobile and 300 or 330,mobile and 585 or 605,mobile and 360 or 300,mobile and 70 or 45,true)
-    elseif active and active.team=="ally" then
+    elseif active and active.team=="ally" and (not ctx.canAct or ctx.canAct(active)) then
+        local actionData=Actors.data(saveData,active)
         if not mobile then love.graphics.setColor(colors.brass); text("ATTACK",20,578,110,16,.54,.50); text("ACTIONS",548,578,110,16,.54,.50) end
-        local options={"scratch"}; if active.id=="player" then for i=1,2 do if saveData.equipment[i] then options[#options+1]=saveData.equipment[i] end end elseif active.weapon then options[#options+1]=active.weapon end; battle.options=options
-        for i,w in ipairs(options) do
+        local options=WeaponOwnership.options(saveData,active,Catalog); battle.options=options
+        for i,selector in ipairs(options) do
+            local info=WeaponOwnership.resolve(saveData,active,selector,Catalog)
+            local w=info and info.name or active.weapon or "scratch"
             local bx=20+(i-1)*(mobile and 210 or 174)
             ui.battleWeapons[i]=button((i).."  "..weaponButtonLabel(Catalog,Util,w),bx,mobile and 506 or 592,mobile and 200 or 166,mobile and 54 or 34,true,mobile and .62 or .56)
             local mx,my=screenToGame(ctx.pointerPosition())
             if not mobile and Util.pointIn(mx,my,ui.battleWeapons[i]) then
                 local stats=Catalog.weaponStats[w] or Catalog.weaponStats.scratch
                 local combat=Catalog.weaponCombat[w] or Catalog.weaponCombat.scratch
-                local durability=(w=="scratch") and 100 or (saveData.weaponDurability[w] or 100)
+                local durability=info and info.durability or 0
                 local details=string.format("%s  DMG %d-%d  %s  REACH %d",stats.name,stats.min,stats.max,combat.kind=="melee" and Catalog.weaponRole(w) or string.upper(combat.kind or "melee"),Catalog.weaponReach(w))
-                if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(saveData.ammo[combat.ammo] or 0) end
+                if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(actionData.ammo[combat.ammo] or 0) end
                 details=details.."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or "")
                 love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
                 love.graphics.setColor(colors.cream); text(details,200,538,560,32,.67,.60,"center")
@@ -240,21 +246,20 @@ function BattleUI.draw(ctx)
         ui.battleHeal=button("HEAL",mobile and 240 or 648,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
         ui.battleGuard=button("GUARD",mobile and 460 or 748,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,true,.66)
         local abilityBase=Catalog.characterAbility(active.file or "")
-        local abilityLevel=active.id=="player" and saveData.stats.level or math.max(1,math.min(12,math.ceil((saveData.location or 1)/5)))
+        local abilityLevel=Actors.id(active) and actionData.stats.level or math.max(1,math.min(12,math.ceil((saveData.location or 1)/5)))
         local abilityProfile=ctx.playerProgression.abilityProfile(abilityBase.kind,abilityLevel)
         ui.battleAbility=button("ABILITY R"..abilityProfile.rank,mobile and 680 or 848,mobile and 570 or 592,mobile and 200 or 94,mobile and 54 or 34,not battle.abilitiesUsed[active.id],.60)
         ui.battleInventory=button("BACKPACK",20,mobile and 634 or 638,mobile and 200 or 105,mobile and 54 or 34,true,.68)
         if not mobile then love.graphics.setColor(colors.brass); text("QUICK ITEMS",135,628,120,16,.44,.42) end
         local potionIndex=0
-        for i=1,(saveData.inventoryCapacity or 6) do
-            local item=saveData.inventory[i]; local effect=item and Catalog.itemEffects[item]
+        for i=1,(actionData.inventoryCapacity or 6) do
+            local item=actionData.inventory[i]; local effect=item and Catalog.itemEffects[item]
             if not mobile and effect and effect.potion and potionIndex<5 then
                 potionIndex=potionIndex+1; local px=135+(potionIndex-1)*100
                 ui.battlePotionButtons[potionIndex]={button(string.upper(effect.shortName or effect.potion),px,642,92,30,true,.44),name=item}
             end
         end
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
-        ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
         if mobile and Accessibility.enabled(saveData,"controlHints") then
             local hintScale=.76*math.min(textScale,1.15)
             love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",240,634,200,54,5,5)
@@ -265,6 +270,9 @@ function BattleUI.draw(ctx)
             love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
             love.graphics.setColor(colors.cream); text(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,522,371,46,.72,.60,"center")
         end
+    end
+    if not battle.finished and active and active.team=='ally' and active.hp>0 and ctx.hostControls~=false then
+        ui.battleRetreat=button("RETREAT",mobile and 730 or 815,mobile and 634 or 638,mobile and 200 or 127,mobile and 54 or 34,true,.72)
     end
     if battle.intro then
         local p=math.min(1,battle.intro/battle.introDuration)
@@ -302,7 +310,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     end
     if Util.pointIn(x,y,ui.battleLogUp) then ui.playSfx("menu"); battle.logScroll=math.min(math.max(0,#(battle.log or {})-1),(battle.logScroll or 0)+1); return "handled" end
     if Util.pointIn(x,y,ui.battleLogDown) then ui.playSfx("menu"); battle.logScroll=math.max(0,(battle.logScroll or 0)-1); return "handled" end
-    if battle.finished and Util.pointIn(x,y,ui.battleContinue) then
+    if battle.finished and ctx.hostControls~=false and Util.pointIn(x,y,ui.battleContinue) then
         ui.playSfx("menu")
         return battle.finished=="win" and "continue_win" or "continue_loss"
     end
@@ -317,9 +325,17 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     -- A click can arrive after a turn changes and before the next draw clears
     -- the old button rectangles. Do not let stale controls skip an enemy turn.
     if not active or active.team~="ally" or active.hp<=0 then return "handled" end
+    if ctx.hostControls~=false and Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); ctx.saveData.battlePotionLootChance=nil; return "retreat" end
+    if ctx.canAct and not ctx.canAct(active) then
+        if sceneX>=25 and sceneX<=935 and sceneY>=80 and sceneY<(ctx.mobileEnabled and 414 or 476) then
+            local q,r=BattleUI.screenToBoardSpace(ctx,sceneX,sceneY); local clicked=q and BattleRules.unitAt(battle,q,r)
+            if clicked then battle.selected=clicked.id end
+        end
+        return 'handled'
+    end
     if Util.pointIn(x,y,ui.battleInventory) then ctx.setInventoryOpen(true); ctx.resetInventoryDrag(); ui.playSfx("menu"); return "handled" end
     for i,r in ipairs(ui.battleWeapons or {}) do if Util.pointIn(x,y,r) then ui.playSfx("menu"); ctx.battleAttack(battle.options[i]); return "handled" end end
-    if Util.pointIn(x,y,ui.battleMove) and not battle.moveUsed then ui.playSfx("menu"); battle.phase="move"; ctx.setBattlePrompt("Choose a highlighted terrain piece to move."); return "handled" end
+    if Util.pointIn(x,y,ui.battleMove) and not battle.moveUsed then ui.playSfx("menu"); if ctx.setMoveMode then ctx.setMoveMode() else battle.phase="move" end; ctx.setBattlePrompt("Choose a highlighted terrain piece to move."); return "handled" end
     if Util.pointIn(x,y,ui.battleHeal) then ui.playSfx("menu"); ctx.battleHeal(); return "handled" end
     if Util.pointIn(x,y,ui.battleGuard) then ui.playSfx("menu"); ctx.battleGuard(); return "handled" end
     if Util.pointIn(x,y,ui.battleAbility) then
@@ -328,16 +344,15 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
         ctx.useBattleAbility(abilityProfile.kind); return "handled"
     end
     for _,entry in ipairs(ui.battlePotionButtons or {}) do
-        if Util.pointIn(x,y,entry[1]) then ui.playSfx("menu"); ctx.useBattlePotion(entry[2]); return "handled" end
+        if Util.pointIn(x,y,entry[1]) then ui.playSfx("menu"); ctx.useBattlePotion(entry.name or entry[2]); return "handled" end
     end
     if Util.pointIn(x,y,ui.battleEnd) then ui.playSfx("menu"); ctx.advanceBattleTurn(); return "handled" end
-    if Util.pointIn(x,y,ui.battleRetreat) then ui.playSfx("menu"); ctx.saveData.battlePotionLootChance=nil; return "retreat" end
     if sceneX<25 or sceneX>935 or sceneY<80 or sceneY>=(ctx.mobileEnabled and 414 or 476) then return "handled" end
     local q,r=BattleUI.screenToBoardSpace(ctx,sceneX,sceneY)
     if q then
         local clicked=BattleRules.unitAt(battle,q,r)
         if clicked and battle.phase=="target" and clicked.team=="enemy" then
-            ctx.resolveBattleAttack(active,clicked,battle.chosenWeapon or "scratch")
+            ctx.resolveBattleAttack(active,clicked,battle.chosenWeapon or "scratch",battle.chosenItemId)
             return "handled"
         elseif clicked then
             if clicked.team=="ally" and battle.phase~="target" then battle.selected=clicked.id end
@@ -346,7 +361,7 @@ function BattleUI.handleMouse(ctx,x,y,rightClick)
     end
     if q and active and active.team=="ally" then
         local target=BattleRules.unitAt(battle,q,r)
-        if battle.phase=="target" and target and target.team=="enemy" then ctx.resolveBattleAttack(active,target,battle.chosenWeapon or "scratch")
+        if battle.phase=="target" and target and target.team=="enemy" then ctx.resolveBattleAttack(active,target,battle.chosenWeapon or "scratch",battle.chosenItemId)
         elseif not target then ctx.battleMoveTo(q,r) end
     end
     return "handled"

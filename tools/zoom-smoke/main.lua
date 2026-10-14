@@ -12,6 +12,7 @@ local function run()
     app.installSmoke(); app.load()
     local c=context
     local g,ui,p=c.runtime,c.ui,c.presentationRuntime
+    g.selectedSlot=99; require("game.save").remove(99)
     local data=c.newSave(c.characters[1])
     c.enterGame(data)
     data=g.saveData
@@ -78,7 +79,8 @@ local function run()
         close(wx,point[1]); close(wy,point[2])
     end
     g.scene="stop"; data.scene="stop"; c.setupNPC()
-    c.beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={c.catalog.mobTiers.easy[1]}})
+    local encounter={rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={c.catalog.mobTiers.easy[1]}}
+    g.saveData.encounters[tostring(g.saveData.location)]=encounter; assert(require('game.coop_entities').ensure(g.saveData)); assert(c.beginEncounter(encounter))
     g.battle.intro=nil; pair("battle")
     local unit=g.battle.units[1]
     local bx,by=require("game.battle_grid").boardToScreen(1,unit.q,unit.r)
@@ -86,7 +88,9 @@ local function run()
     local q,r=require("game.battle_ui").screenToBoardSpace({battle=g.battle},bx,by)
     expect(q==unit.q and r==unit.r,"zoomed battle tile inverse")
     g.state="game"; g.battle=nil
-    data.equipment={"frontier-sr22-pistol"}; data.ammo["22lr"]=100
+    local items=require("game.item_instances")
+    for index=1,2 do items.write(data,nil,{kind="equipment",index=index},nil) end
+    items.write(data,nil,{kind="equipment",index=1},"frontier-sr22-pistol"); data.ammo["22lr"]=100
     g.shootingRange=assert(range.new(data,{preferences={},highScores={}},c.catalog))
     range.keypressed(g.shootingRange,"return",data,c.catalog)
     for _=1,3 do range.update(g.shootingRange,.08) end

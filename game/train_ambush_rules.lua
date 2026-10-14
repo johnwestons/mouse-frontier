@@ -1,5 +1,6 @@
 -- Serializable encounter state. Rendering and input never own rewards or costs.
 local Shooting=require("game.first_person_shooting")
+local ActorState=require('game.coop_ambush_state')
 local Rules={version=2,bribe=5,hideFood=2,hideWater=2,reward=5}
 
 Rules.vehicleDefs={
@@ -77,6 +78,8 @@ function Rules.start(data)
     local current=data.trainAmbush
     if current and current.active then
         if not current.vehicles then migrateLegacy(current) end
+        ActorState.ensure(data,current)
+        if data.players then assert(require('game.coop_entities').ensure(data)) end
         return current
     end
     local pickup=vehicleFor(Rules.vehicleDefs.pickup,{},true)
@@ -89,6 +92,8 @@ function Rules.start(data)
         maxProtection=pickup.maxProtection,cover=false,coverProgress=0,shots=0,crewHits=0,hullHits=0,
         trainDamage=0,playerDamage=0,bulletHoles={},activeFar="wagon"}
     data.trainAmbush=state
+    ActorState.ensure(data,state)
+    if data.players then assert(require('game.coop_entities').ensure(data)) end
     return state
 end
 
@@ -253,8 +258,9 @@ local function addBulletHole(state,target,vehicle)
     if #state.bulletHoles>48 then table.remove(state.bulletHoles,1) end
 end
 
-function Rules.hit(data,state,target,gun)
-    if state.phase~="combat" or state.coverProgress>0 or state.cover then return false end
+function Rules.hit(data,state,target,gun,actorId)
+    local owner=ActorState.owner(state,actorId)
+    if not owner or state.phase~="combat" or owner.coverProgress>0 or owner.cover then return false end
     local damage=(damageByAmmo[gun.ammoType] or 1)
     local kind,vehicle,index
     if type(target)=="number" then kind="crew"; vehicle=Rules.vehicle(state,"pickup"); index=target
@@ -289,11 +295,10 @@ function Rules.hit(data,state,target,gun)
     return false
 end
 
-function Rules.update(data,state,dt,onEnemyFire)
+function Rules.update(data,state,dt,onEnemyFire,participants)
     state.clock=state.clock+dt
     state.phaseClock=state.phaseClock+dt
-    local step=dt/.16
-    state.coverProgress=state.cover and math.min(1,state.coverProgress+step) or math.max(0,state.coverProgress-step)
+    ActorState.updateCover(state,dt)
     local motionChanged=false
     for _,vehicle in ipairs(state.vehicles or {}) do
         if vehicle.active and updateMotion(state,vehicle,dt) then motionChanged=true end
@@ -321,16 +326,16 @@ function Rules.update(data,state,dt,onEnemyFire)
                             crew.phase=nextPhase[crew.phase] or "hidden"
                             crew.timer=durations[crew.phase]
                             changed=true
+                            if crew.phase=='peek' then
+                                crew.targetActorId=ActorState.target(data,state,participants,state.lastTargetActorId)
+                                state.lastTargetActorId=crew.targetActorId
+                            end
                             if crew.phase=="fire" then
                                 vehicle.protection=math.max(0,vehicle.protection-2)
                                 state.protection=math.max(0,state.protection-2)
                                 state.trainDamage=state.trainDamage+Rules.wear(data,1)
-                                if state.coverProgress<1 then
-                                    local before=data.health or 20
-                                    data.health=math.max(1,before-2)
-                                    state.playerDamage=state.playerDamage+before-data.health
-                                end
-                                if onEnemyFire then onEnemyFire(vehicle.id,index) end
+                                ActorState.damage(data,state,crew.targetActorId or 'host',2,participants)
+                                if onEnemyFire then onEnemyFire(vehicle.id,index,crew.targetActorId or 'host') end
                                 if (data.health or 20)<=1 or state.protection<=0 then
                                     Rules.finish(data,state,"overrun")
                                     return true

@@ -1,4 +1,6 @@
+local Preferences=require("game.local_preferences")
 local Accessibility=require("game.accessibility")
+local CoopProgression=require("game.coop_progression")
 local CharacterMotion=require("game.character_motion")
 local WorldPause=require("game.world_pause")
 local Assets=require("game.assets")
@@ -98,18 +100,100 @@ local function new(context)
   end
   ui.refreshWorldInteraction=updateInteraction
 
+  local heldPatient
+  local function updateSharedActors(dt)
+    local patientBusy=runtime.firstAid or ui.coopPatientBusy and ui.coopPatientBusy()
+    if heldPatient and (heldPatient.actor~=runtime.npcActor or not patientBusy) then
+        if heldPatient.actor==runtime.npcActor then
+            runtime.npcActor.targetX,runtime.npcActor.targetY=heldPatient.x,heldPatient.y
+        end
+        heldPatient=nil
+    end
+    if runtime.npcActor and patientBusy then
+        if not heldPatient then heldPatient={actor=runtime.npcActor,x=runtime.npcActor.targetX,y=runtime.npcActor.targetY} end
+        runtime.npcActor.targetX=nil; runtime.npcActor.moving=false
+        runtime.npcActor.velocityX,runtime.npcActor.velocityY=0,0
+        runtime.npcActor.intentX,runtime.npcActor.intentY=0,0
+    elseif runtime.npcActor then
+        Family.update(runtime.npcActor,dt,function(oldX,oldY,newX,newY)
+            if runtime.scene=="stop" then return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY) end
+            if runtime.scene=="house" then return Util.clampHouseFloor(newX,newY) end
+            return newX,newY
+        end)
+        runtime.npcActor.wait=(runtime.npcActor.wait or 1)-dt
+        if runtime.npcActor.wait<=0 then
+            local angle=love.math.random()*math.pi*2
+            local distance=love.math.random(18,58)
+            runtime.npcActor.targetX=runtime.npcActor.homeX+math.cos(angle)*distance
+            runtime.npcActor.targetY=runtime.npcActor.homeY+math.sin(angle)*distance*.55
+            runtime.npcActor.wait=love.math.random(3,7)
+        end
+        if runtime.npcActor.targetX then
+            if runtime.scene=="house" then runtime.npcActor.targetX,runtime.npcActor.targetY=Util.clampHouseFloor(runtime.npcActor.targetX,runtime.npcActor.targetY)
+            elseif runtime.scene=="stop" then runtime.npcActor.targetX,runtime.npcActor.targetY=Settlements.clamp(runtime.npcActor.targetX,runtime.npcActor.targetY,runtime.saveData.location) end
+            local nx,ny=runtime.npcActor.targetX-runtime.npcActor.x,runtime.npcActor.targetY-runtime.npcActor.y; local len=math.sqrt(nx*nx+ny*ny)
+            if len<2 then runtime.npcActor.targetX=nil else
+                local npcProfile=CharacterMotion.profileFor(runtime.saveData.currentNPC)
+                if npcProfile then
+                    local arrived=CharacterMotion.moveToward(runtime.npcActor,runtime.npcActor.targetX,runtime.npcActor.targetY,dt,{
+                        profile=npcProfile,speed=32,stopDistance=2,move=moveInCurrentScene,
+                    })
+                    if arrived then runtime.npcActor.targetX=nil end
+                else
+                if math.abs(nx)>.1 then runtime.npcActor.facing=nx>0 and 1 or -1 end
+                local step=math.min(len,32*dt); runtime.npcActor.x=runtime.npcActor.x+nx/len*step; runtime.npcActor.y=runtime.npcActor.y+ny/len*step
+                end
+            end
+        end
+    end
+    if runtime.scene=="train" then for _,passenger in ipairs(runtime.saveData.passengers or {}) do
+        passenger.carIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {1}),passenger.carIndex or 1)); passenger.wait=(passenger.wait or 1)-dt
+        if passenger.wait<=0 then
+            local preferred=Passengers.preferredCar(passenger,runtime.saveData.trainCars)
+            if preferred~=passenger.carIndex and love.math.random()<.55 then passenger.targetCar=preferred; passenger.targetX=preferred>passenger.carIndex and car.x+car.w-35 or car.x+35; passenger.targetY=car.y+205
+            else local left,right,top,bottom=trainFloorBounds(); passenger.targetX,passenger.targetY=clampToTrainFloor(love.math.random(left+20,right-20),love.math.random(top,bottom)) end
+            passenger.wait=love.math.random(4,8); passenger.pose="idle"
+        end
+        if passenger.targetX then
+            local dx,dy=passenger.targetX-passenger.x,passenger.targetY-passenger.y; local len=math.sqrt(dx*dx+dy*dy)
+            if len<2 then
+                passenger.targetX=nil
+                if passenger.targetCar then local left,right,top,bottom=trainFloorBounds(); passenger.carIndex=passenger.targetCar; passenger.targetCar=nil; passenger.x=passenger.carIndex>1 and left or right; passenger.y=(top+bottom)/2 end
+                local hasSleeper=false; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="sleeper" then hasSleeper=true end end; passenger.pose=(hasSleeper and love.math.random()<.25) and "lay" or (love.math.random()<.55 and "sit" or "idle")
+            else
+                local passengerProfile=CharacterMotion.profileFor(passenger.npc)
+                if passengerProfile then
+                    CharacterMotion.moveToward(passenger,passenger.targetX,passenger.targetY,dt,{
+                        profile=passengerProfile,speed=38,stopDistance=2,
+                        move=function(_,_,x,y) return clampToTrainFloor(x,y) end,
+                    })
+                else
+                    local step=math.min(len,38*dt); passenger.x=passenger.x+dx/len*step; passenger.y=passenger.y+dy/len*step; passenger.facing=dx>0 and 1 or -1
+                end
+            end
+        end
+    end end
+  end
+
   local function update(dt)
       updatePersistence(dt)
-      if ui.escMenuOpen or ui.optionsOpen or runtime.exitPrompt then
+      if journeyRules.updateConversation then journeyRules.updateConversation() end
+      local sharedHost=WorldPause.isSharedHost(runtime)
+      local overlayOpen=ui.escMenuOpen or ui.optionsOpen or ui.playerToolsOpen or runtime.exitPrompt
+          or ui.localPlay and (ui.localPlay.menuOpen or sharedHost and ui.localPlay.focused==false)
+      if overlayOpen and (not sharedHost or WorldPause.isSimulationPaused(runtime,ui,maintenanceSession)) then
           updateAudio()
           return
       end
       runtime.animationClock=runtime.animationClock+dt
       Clouds.update(cloudLayer,dt)
       if screens:is("intro") then updateAudio(); screens:update(dt); return end
-      Assets.releaseIntroImages(scenery)
+      Assets.releaseIntroImages(scenery,runtime)
       Assets.releaseDormantSceneArt(scenery,runtime)
-      if ui.assetStreamer then ui.assetStreamer:update(runtime.state,runtime.scene,runtime.saveData,runtime.battle,runtime.npcActor,runtime.characterPreviewFile) end
+      if ui.assetStreamer then
+          local companion=ui.coopCompanion and ui.coopCompanion()
+          ui.assetStreamer:update(runtime.state,runtime.scene,runtime.saveData,runtime.battle,runtime.npcActor,runtime.characterPreviewFile,companion and companion.character)
+      end
       -- Full settlement scenes keep only the dedicated dynamic chicken flocks;
       -- the retired random decoration wildlife remains disconnected.
       runtime.walkingSoundTimer=math.max(0,runtime.walkingSoundTimer-dt)
@@ -120,15 +204,27 @@ local function new(context)
       runtime.actionTimer=math.max(0,runtime.actionTimer-dt)
       if runtime.actionTimer<=0 then runtime.actionHeldItem=nil; runtime.actionKind=nil end
       if screens:update(dt) then return end
+      if context.rangeUpdate then context.rangeUpdate(dt) end
       if runtime.shootingRange then
-          local outcome=ShootingRange.update(runtime.shootingRange,dt,runtime.saveData,Catalog)
-          if outcome then handleShootingRange(outcome) end
-          return
+          if not sharedHost then
+              local outcome=ShootingRange.update(runtime.shootingRange,dt,runtime.saveData,Catalog)
+              if outcome then handleShootingRange(outcome) end
+              return
+          end
       end
-      if runtime.firstAid then FirstAid.update(runtime.firstAid,dt); return end
-      if not WorldPause.isPaused(runtime,ui,maintenanceSession) then updateWorldScene(dt) end
+      if runtime.firstAid then
+          if not overlayOpen then
+              local outcome=FirstAid.update(runtime.firstAid,dt)
+              if outcome=="cancelled" and ui.pauseFirstAid then ui.pauseFirstAid() end
+          end
+          if not sharedHost then return end
+      end
+      if not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then updateWorldScene(dt) end
       if runtime.state~="game" then return end
       if runtime.travelTransition then
+          -- The guest receives the host's journey state. A stale local
+          -- transition must not charge, advance, or award an arrival.
+          if not CoopProgression.allowed(runtime,"travel.depart") then return end
           local transition=runtime.travelTransition
           transition.t=transition.t+dt*Accessibility.motionSpeed(runtime.saveData)
           local t=transition.t; local speedFactor; local timing=EngineUpgrades.timings(runtime.saveData.engineLevel,transition.maintenanceCondition or Maintenance.condition(runtime.saveData))
@@ -138,7 +234,7 @@ local function new(context)
               local fade=math.max(0,math.min(1,(timing.depart-t)/(.55/EngineUpgrades.profile(runtime.saveData.engineLevel).speed)))
               local source=ui.departSource
               local ok,playing=pcall(source.isPlaying,source)
-              if ok and playing then pcall(source.setVolume,source,(runtime.saveData.audio.sfxVolume or .55)*fade)
+              if ok and playing then pcall(source.setVolume,source,(Preferences.audio(runtime.saveData).sfxVolume or .55)*fade)
               else ui.departSource=nil end
               if ui.departSource and t>=timing.change then pcall(ui.departSource.stop,ui.departSource); ui.departSource=nil end
           end
@@ -147,6 +243,10 @@ local function new(context)
           runtime.sceneryOffset=runtime.sceneryOffset+sceneryDistance*(landscape.trackSpeed or 1)
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
           if not transition.changed and transition.t>=timing.change then
+              if ui.transitionParty then
+                  local reply=ui.transitionParty("travel.arrive",{})
+                  if not reply.ok or reply.savePending then return end
+              else
               transition.changed=true; runtime.saveData.location=runtime.saveData.location+1; runtime.saveData.stopped=true; runtime.saveData.visitedStops[runtime.saveData.location]=true
               Maintenance.onTravel(runtime.saveData)
               -- The scene is still the train interior at this point. Keep the
@@ -156,9 +256,11 @@ local function new(context)
               runtime.player.x,runtime.player.y=clampToTrainFloor(runtime.player.x,runtime.player.y)
               TrainUpgradeBalance.applyArrival(runtime.saveData)
               ensureStopLayout(); journeyRules.passengerContributions(); journeyRules.processPassengerArrivals(); writeSave()
+              end
           end
           if not transition.arriveSoundPlayed and transition.t>=timing.arrive then transition.arriveSoundPlayed=true; ui.playSfx("trainArrive") end
           if transition.t>=timing.total then
+              if ui.transitionParty then ui.transitionParty("travel.finish",{}); return end
               runtime.travelTransition=nil; runtime.sceneryOffset=0; runtime.landscapeOffset=0
               if runtime.saveData.location>=50 then runtime.state="ending"
               elseif runtime.saveData.arrivalNotice then runtime.dialogue={speaker="Passenger",text=runtime.saveData.arrivalNotice,timer=4}; runtime.saveData.arrivalNotice=nil; writeSave() end
@@ -184,17 +286,23 @@ local function new(context)
           runtime.sceneryOffset=runtime.sceneryOffset+sceneryDistance*(landscape.trackSpeed or 1)
           runtime.landscapeOffset=runtime.landscapeOffset+sceneryDistance
       end
-      if updateCarTransition(dt*Accessibility.motionSpeed(runtime.saveData)) then return end
-      Maintenance.update(maintenanceSession,dt)
+      if updateCarTransition(dt*Accessibility.motionSpeed(runtime.saveData)) then
+          if sharedHost and not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then updateSharedActors(dt) end
+          return
+      end
+      if not overlayOpen then Maintenance.update(maintenanceSession,dt) end
       if WorldPause.isPaused(runtime,ui,maintenanceSession) then
+          if ui.coopPoseMovement then ui.coopPoseMovement(0,0) end
           runtime.player.moving=false
           runtime.player.velocityX,runtime.player.velocityY=0,0
+          if sharedHost and not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then updateSharedActors(dt) end
           return
       end
       local dx=movementAxis("a","d")+movementAxis("left","right")
       local dy=movementAxis("w","s")+movementAxis("up","down")
       local mobileX,mobileY=mobileMovement(); local controllerX,controllerY=controlBindings:movement()
       dx,dy=dx+mobileX+controllerX,dy+mobileY+controllerY
+      if ui.coopPoseMovement then ui.coopPoseMovement(dx,dy) end
       local motionProfile=CharacterMotion.profileFor(runtime.saveData.character)
       if motionProfile then
           if dx~=0 or dy~=0 then runtime.playerPose="idle"; runtime.poseMenu=false end
@@ -233,65 +341,7 @@ local function new(context)
           end
       end
       end
-      if runtime.npcActor then
-          Family.update(runtime.npcActor,dt,function(oldX,oldY,newX,newY)
-              if runtime.scene=="stop" then return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY) end
-              if runtime.scene=="house" then return Util.clampHouseFloor(newX,newY) end
-              return newX,newY
-          end)
-          runtime.npcActor.wait=(runtime.npcActor.wait or 1)-dt
-          if runtime.npcActor.wait<=0 then
-              local angle=love.math.random()*math.pi*2
-              local distance=love.math.random(18,58)
-              runtime.npcActor.targetX=runtime.npcActor.homeX+math.cos(angle)*distance
-              runtime.npcActor.targetY=runtime.npcActor.homeY+math.sin(angle)*distance*.55
-              runtime.npcActor.wait=love.math.random(3,7)
-          end
-          if runtime.npcActor.targetX then
-              if runtime.scene=="house" then runtime.npcActor.targetX,runtime.npcActor.targetY=Util.clampHouseFloor(runtime.npcActor.targetX,runtime.npcActor.targetY)
-              elseif runtime.scene=="stop" then runtime.npcActor.targetX,runtime.npcActor.targetY=Settlements.clamp(runtime.npcActor.targetX,runtime.npcActor.targetY,runtime.saveData.location) end
-              local nx,ny=runtime.npcActor.targetX-runtime.npcActor.x,runtime.npcActor.targetY-runtime.npcActor.y; local len=math.sqrt(nx*nx+ny*ny)
-              if len<2 then runtime.npcActor.targetX=nil else
-                  local npcProfile=CharacterMotion.profileFor(runtime.saveData.currentNPC)
-                  if npcProfile then
-                      local arrived=CharacterMotion.moveToward(runtime.npcActor,runtime.npcActor.targetX,runtime.npcActor.targetY,dt,{
-                          profile=npcProfile,speed=32,stopDistance=2,move=moveInCurrentScene,
-                      })
-                      if arrived then runtime.npcActor.targetX=nil end
-                  else
-                  if math.abs(nx)>.1 then runtime.npcActor.facing=nx>0 and 1 or -1 end
-                  local step=math.min(len,32*dt); runtime.npcActor.x=runtime.npcActor.x+nx/len*step; runtime.npcActor.y=runtime.npcActor.y+ny/len*step
-                  end
-              end
-          end
-      end
-      if runtime.scene=="train" then for _,passenger in ipairs(runtime.saveData.passengers or {}) do
-          passenger.carIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {1}),passenger.carIndex or 1)); passenger.wait=(passenger.wait or 1)-dt
-          if passenger.wait<=0 then
-              local preferred=Passengers.preferredCar(passenger,runtime.saveData.trainCars)
-              if preferred~=passenger.carIndex and love.math.random()<.55 then passenger.targetCar=preferred; passenger.targetX=preferred>passenger.carIndex and car.x+car.w-35 or car.x+35; passenger.targetY=car.y+205
-              else local left,right,top,bottom=trainFloorBounds(); passenger.targetX,passenger.targetY=clampToTrainFloor(love.math.random(left+20,right-20),love.math.random(top,bottom)) end
-              passenger.wait=love.math.random(4,8); passenger.pose="idle"
-          end
-          if passenger.targetX then
-              local dx,dy=passenger.targetX-passenger.x,passenger.targetY-passenger.y; local len=math.sqrt(dx*dx+dy*dy)
-              if len<2 then
-                  passenger.targetX=nil
-                  if passenger.targetCar then local left,right,top,bottom=trainFloorBounds(); passenger.carIndex=passenger.targetCar; passenger.targetCar=nil; passenger.x=passenger.carIndex>1 and left or right; passenger.y=(top+bottom)/2 end
-                  local hasSleeper=false; for _,id in ipairs(runtime.saveData.trainCars or {}) do if id=="sleeper" then hasSleeper=true end end; passenger.pose=(hasSleeper and love.math.random()<.25) and "lay" or (love.math.random()<.55 and "sit" or "idle")
-              else
-                  local passengerProfile=CharacterMotion.profileFor(passenger.npc)
-                  if passengerProfile then
-                      CharacterMotion.moveToward(passenger,passenger.targetX,passenger.targetY,dt,{
-                          profile=passengerProfile,speed=38,stopDistance=2,
-                          move=function(_,_,x,y) return clampToTrainFloor(x,y) end,
-                      })
-                  else
-                      local step=math.min(len,38*dt); passenger.x=passenger.x+dx/len*step; passenger.y=passenger.y+dy/len*step; passenger.facing=dx>0 and 1 or -1
-                  end
-              end
-          end
-      end end
+      if not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then updateSharedActors(dt) end
       updateInteraction()
   end
 

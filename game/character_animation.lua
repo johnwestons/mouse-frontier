@@ -67,9 +67,12 @@ local function loadSet(manager,file)
     return set
 end
 
-local function releaseSet(set)
+local function releaseSet(set,protected,released)
+    released=released or {}
     for _,animation in pairs(set or {}) do
-        if type(animation)=="table" and animation.image and animation.image.release then
+        if type(animation)=="table" and animation.image and animation.image.release
+            and not (protected and protected[animation.image]) and not released[animation.image] then
+            released[animation.image]=true
             pcall(animation.image.release,animation.image)
         end
     end
@@ -106,10 +109,19 @@ function CharacterAnimation.retain(manager,files)
     table.sort(names)
     local signature=table.concat(names,"|")
     if signature==manager.retainSignature then return end
-    local keep={}; for _,file in ipairs(names) do keep[file]=true; if not manager.sets[file] then loadSet(manager,file) end end
-    for file,set in pairs(manager.sets) do
-        if not keep[file] then releaseSet(set); manager.sets[file]=nil end
+    local keep,protected,released={},{},{}
+    for _,file in ipairs(names)do
+        keep[file]=true
+        for _,animation in pairs(manager.sets[file] or {})do
+            if type(animation)=='table' and animation.image then protected[animation.image]=true end
+        end
     end
+    for file,set in pairs(manager.sets) do
+        if not keep[file] then releaseSet(set,protected,released); manager.sets[file]=nil end
+    end
+    -- Town/NPC transitions must not allocate a complete new sheet set while
+    -- irrelevant previous scene sets are still resident. Kept actor art stays.
+    for _,file in ipairs(names)do if not manager.sets[file]then loadSet(manager,file)end end
     manager.retainSignature=signature
 end
 

@@ -129,6 +129,8 @@ function RuntimeState:resetForGameEntry()
     self.journeyLogScroll=0
     self.mapOpen=false
     self.dialogue=nil
+    self.randomEvent=nil
+    self.eventOutcome=nil
     self.editMode=false
     self.chestOpen=false
     self.activeChest=nil

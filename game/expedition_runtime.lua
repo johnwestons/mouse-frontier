@@ -1,9 +1,11 @@
 local InteractionBeacon=require("game.interaction_beacon")
+local CoopProgression=require("game.coop_progression")
 local WorldPause=require("game.world_pause")
 local Rewards=require("game.expedition_rewards")
 local Sprites=require("game.expedition_sprites")
 local Assets=require("game.assets")
 local Typography=require("game.typography")
+local Hazards=require('game.coop_expedition_hazards')
 
 local ExpeditionRuntime={}
 
@@ -44,22 +46,22 @@ local function new(context)
         ["sludge-badger-boss.png"]={actionPath="assets/sprites/Mobs/expedition/sludge-badger-boss-action-atlas.png",walkPath="assets/sprites/Mobs/expedition/sludge-badger-boss-walk-v4.png",boss=true},
     }
 
-    local function ensureAssets(area)
+    local function ensureAssets(area,keep)
         area=area or Areas.current(runtime.saveData)
         if not area then return end
-        if not backgrounds[area.id] then
+        if not (keep and keep.background==false) and not backgrounds[area.id] then
             local image=love.graphics.newImage(area.background); image:setFilter("linear","linear")
             backgrounds[area.id]=image
         end
         for _,definition in ipairs(area.mobs or {}) do
             local file,spec=definition.file,atlasDefinitions[definition.file]
-            if spec and not actionAssets[file] then
+            if (not keep or not keep.mobs or keep.mobs[file]) and spec and not actionAssets[file] then
                 local frames=Sprites.load(spec); actionAssets[file]=frames
                 for _,image in ipairs(frames) do Assets.markExternallyOwned(image) end
                 mobImages[file]=frames[1]; mobIdleImages[file]=frames[1]; mobWalkImages[file]=frames[2]
                 mobAttackImages[file]=frames[3]; mobHitImages[file]=frames[4]; mobDeathImages[file]=frames[5]
                 mobRangedImages[file]=frames[3]
-            elseif not spec and not actionAssets[file] then
+            elseif (not keep or not keep.mobs or keep.mobs[file]) and not spec and not actionAssets[file] then
                 -- Ordinary world mobs use the same authored sprites as regular
                 -- encounters. Reuse their standalone sprite in the field until
                 -- a later expedition supplies a dedicated action atlas.
@@ -79,8 +81,13 @@ local function new(context)
     end
 
     local function enterArea(areaId,spawnId)
+        if not CoopProgression.allowed(runtime,"scene.expedition") then return false,"host_only" end
         local area=Areas.definition(areaId)
         if not area then return false end
+        if ui.transitionParty then
+            local reply=ui.transitionParty('scene.expedition',{action='enterArea',areaId=areaId,spawn=spawnId})
+            return reply.ok,reply.reason
+        end
         Areas.ensure(runtime.saveData)
         runtime.saveData.activeExpeditionArea=areaId
         local state=Areas.state(runtime.saveData,areaId); state.discovered=true
@@ -103,11 +110,36 @@ local function new(context)
     end
 
     local function returnToStop()
+        if not CoopProgression.allowed(runtime,"scene.expedition") then return false,"host_only" end
+        if ui.transitionParty then
+            local reply=ui.transitionParty('scene.expedition',{action='returnStop'})
+            return reply.ok,reply.reason
+        end
         runtime.scene="stop"; runtime.saveData.activeExpeditionArea=nil; runtime.npcActor=nil
         runtime.player.x,runtime.player.y=clampToStop(875,420)
         runtime.player.velocityX,runtime.player.velocityY=0,0; runtime.player.moving=false
         ui.playSfx("doors"); writeSave()
         return true
+    end
+
+    local function acceptParty(result)
+        routes=setmetatable({},{__mode='k'})
+        runtime.expeditionFloodEjectTimer=0
+        if result.expeditionEntry then
+            local area=Areas.current(runtime.saveData)
+            roaming.transient[area.id]=nil; runtime.expeditionGraceTimer=1.5
+            ensureAssets(area)
+            if result.expeditionTutorial and area.tutorialText then runtime.dialogue={speaker="Expedition",text=area.tutorialText,timer=10} end
+        else runtime.expeditionGraceTimer=0 end
+        ui.playSfx('doors')
+    end
+    local function acceptBattleReturn()
+        routes=setmetatable({},{__mode='k'}); runtime.expeditionFloodEjectTimer=0
+        runtime.npcActor=nil
+        if runtime.scene==Areas.SCENE then
+            local area=Areas.current(runtime.saveData)
+            roaming.transient[area.id]=nil; runtime.expeditionGraceTimer=1.5; ensureAssets(area)
+        else runtime.expeditionGraceTimer=0 end
     end
 
     local function currentInteraction()
@@ -118,9 +150,19 @@ local function new(context)
         if WorldPause.isPaused(runtime,ui) then return false end
         selected=selected or currentInteraction()
         if not selected or selected.kind~="expedition" then return false end
+        if ui.expeditionAssist and (selected.action=='survey' or selected.action=='chest') then
+            local reply=ui.expeditionAssist(selected)
+            if not reply.ok then
+                roaming.message=reply.reason=='cache_sealed' and (selected.lockedMessage or 'This cache is sealed.')
+                    or 'This interaction is unavailable. Move closer and try again.'
+                roaming.messageTimer=4.5
+            elseif reply.savePending then roaming.message='Waiting for this interaction to save...'; roaming.messageTimer=4.5 end
+            return true
+        end
         if selected.action=="enterArea" then return enterArea(selected.targetArea,selected.spawn) end
         if selected.action=="returnStop" then return returnToStop() end
         if selected.action=="challenge" then
+            if not CoopProgression.allowed(runtime,"battle.begin") then return false,"host_only" end
             ensureAssets()
             local ctx=roamingContext()
             return ctx and RoamingMobs.challenge(roaming,ctx,selected.mobId) or false
@@ -169,6 +211,8 @@ local function new(context)
         local areaState=Areas.state(runtime.saveData,area.id)
         return {
             data=runtime.saveData,area=area,areaState=areaState,player=runtime.player,catalog=Catalog,
+            actors=ui.expeditionActors and ui.expeditionActors() or nil,
+            onContact=ui.roamingPressure and function(definition,target) return ui.roamingPressure(definition,target) end,
             isWeapon=isWeapon,clock=runtime.animationClock,assets=actionAssets,
             grace=(runtime.expeditionGraceTimer or 0)>0,
             onHostileAction=function() runtime.expeditionGraceTimer=0 end,
@@ -187,7 +231,7 @@ local function new(context)
             beginEncounter=function(encounter)
                 ensureAssets(area)
                 local begin=getBeginEncounter(); assert(type(begin)=="function","battle runtime is not ready")
-                begin(encounter)
+                return begin(encounter)
             end,
             onAction=function(weapon,duration) runtime.actionHeldItem=weapon; runtime.actionKind="melee"; runtime.actionTimer=duration or .42 end,
             playSfx=ui.playSfx,
@@ -202,16 +246,18 @@ local function new(context)
     local function update(dt)
         if runtime.scene~=Areas.SCENE or not runtime.saveData or not runtime.player then return end
         Areas.ensure(runtime.saveData); Areas.updateGates(runtime.saveData,runtime.saveData.activeExpeditionArea)
-        if WorldPause.isPaused(runtime,ui) then return end
+        if WorldPause.isSimulationPaused(runtime,ui) then return end
         runtime.expeditionFloodEjectTimer=math.max(0,(runtime.expeditionFloodEjectTimer or 0)-dt)
         local environmentPhase,environmentChanged=Areas.updateEnvironment(runtime.saveData,runtime.saveData.activeExpeditionArea,dt)
-        if environmentChanged and environmentPhase=="flooded"
-            and Areas.isInFlood(runtime.saveData,runtime.saveData.activeExpeditionArea,runtime.player.x,runtime.player.y) then
-            local bankX,bankY=Areas.nearestFloodBank(runtime.saveData,runtime.saveData.activeExpeditionArea,runtime.player.x,runtime.player.y)
-            if bankX and bankY then
-                runtime.player.x,runtime.player.y=bankX,bankY
-                runtime.player.velocityX,runtime.player.velocityY=0,0; runtime.player.moving=false
-                runtime.expeditionFloodEjectTimer=3.5
+        if environmentChanged and environmentPhase=="flooded" then
+            local actors=ui.expeditionActors and ui.expeditionActors() or {{id='host',x=runtime.player.x,y=runtime.player.y}}
+            local corrections=Hazards.plan(runtime.saveData,runtime.saveData.activeExpeditionArea,actors)
+            for id,point in pairs(corrections or {}) do
+                if id=='host' then
+                    runtime.player.x,runtime.player.y=point.x,point.y
+                    runtime.player.velocityX,runtime.player.velocityY=0,0; runtime.player.moving=false
+                    runtime.expeditionFloodEjectTimer=3.5
+                elseif ui.relocateExpeditionCompanion then ui.relocateExpeditionCompanion(point.x,point.y) end
             end
         end
         if environmentChanged then writeSave() end
@@ -230,10 +276,34 @@ local function new(context)
     local function attack(x,y)
         if runtime.scene~=Areas.SCENE or WorldPause.isPaused(runtime,ui) then return false end
         ensureAssets()
+        if ui.roamingAttack then
+            local used,reason=ui.roamingAttack(x,y)
+            if not used and (reason=='melee_required' or reason=='weapon_broken') then
+                roaming.message=reason=='weapon_broken' and "Your melee weapon is broken. Repair it at the train workshop." or "A melee weapon is required."
+                roaming.messageTimer=2.4
+            end
+            return used,reason
+        end
         local ctx=roamingContext(); if not ctx then return false end
         local used=RoamingMobs.attack(roaming,ctx,x,y)
         if used then writeSave() end
         return used
+    end
+
+    local function presentAttack(result)
+        if runtime.scene~=Areas.SCENE or result.epoch~=runtime.saveData.coop.sceneEpoch
+            or result.areaId~=runtime.saveData.activeExpeditionArea then return false end
+        RoamingMobs.present(roaming,result.areaId,result)
+        runtime.expeditionGraceTimer=0
+        if result.actorId=='host' and not context.readOnlyPresentation then
+            runtime.player.facing=result.facing
+            runtime.actionHeldItem=result.weapon; runtime.actionKind="melee"; runtime.actionTimer=result.duration
+        elseif not context.readOnlyPresentation then
+            runtime.companionFieldAction={epoch=result.epoch,untilTime=(runtime.animationClock or 0)+result.duration,
+                weapon=result.weapon,facing=result.facing}
+        end
+        if ui.playSfx then ui.playSfx("sword") end
+        return true
     end
 
     local function draw(options)
@@ -289,7 +359,7 @@ local function new(context)
             elseif environment and environment.phase=="receding" then message="THE FLOOD IS DRAINING — THE WASH WILL REOPEN"
             else message=RoamingMobs.message(roaming) end
         end
-        if message then
+        if message and not context.suppressMessages then
             love.graphics.setColor(.04,.025,.02,.86); love.graphics.rectangle("fill",W/2-205,H-74,410,42,8,8)
             love.graphics.setColor(1,1,1,1); love.graphics.printf(message,W/2-195,H-61,390,"center")
         end
@@ -430,9 +500,55 @@ local function new(context)
         love.graphics.pop()
     end
 
-    return {update=update,draw=draw,move=move,attack=attack,currentInteraction=currentInteraction,
-        activateInteraction=activateInteraction,enterArea=enterArea,returnToStop=returnToStop,
-        cameraOffset=cameraOffset,ensureAssets=ensureAssets,reset=reset,audit=audit,
+    local function retainAssets(keep)
+        keep=keep or {};local wantedBackgrounds,wantedMobs=keep.backgrounds or {},keep.mobs or {}
+        local protected,seen={},{}
+        local function framesEach(frames,callback)
+            for _,image in ipairs(frames or {})do callback(image)end
+            for _,image in ipairs(frames and frames.walkFrames or {})do callback(image)end
+        end
+        for id,image in pairs(backgrounds)do if wantedBackgrounds[id]then protected[image]=true end end
+        for file,frames in pairs(actionAssets)do
+            if wantedMobs[file]then framesEach(frames,function(image)protected[image]=true end)end
+        end
+        local function discard(image)
+            if not protected[image] and not seen[image]then seen[image]=true;image:release()end
+        end
+        for key,image in pairs(backgrounds)do
+            if not wantedBackgrounds[key]then discard(image);backgrounds[key]=nil end
+        end
+        for file,frames in pairs(actionAssets) do
+            if not wantedMobs[file]then
+              if atlasDefinitions[file] then
+                local registered={}
+                framesEach(frames,function(image)registered[image]=true;discard(image)end)
+                for _,images in ipairs({mobImages,mobIdleImages,mobWalkImages,mobAttackImages,mobHitImages,mobDeathImages,mobRangedImages}) do
+                    if registered[rawget(images,file)] then images[file]=nil end
+                end
+              end
+              -- Ordinary mob images are borrowed from their existing owner.
+              -- Drop this runtime's references without releasing shared art.
+              actionAssets[file]=nil
+            end
+        end
+    end
+    local function release()retainAssets()end
+    local function presentAssistance(result)
+        if runtime.scene~=Areas.SCENE or runtime.saveData.activeExpeditionArea~=result.areaId then return end
+        roaming.message=require('game.coop_expedition_assistance').message(result); roaming.messageTimer=3.5
+        if result.containerId then
+            local chest=require('game.coop_entities').find(runtime.saveData,result.containerId)
+            if not chest then return end
+            runtime.activeChest=chest; runtime.chestOpen=true; runtime.inventoryOpen=true
+            runtime.draggedSlot=nil; runtime.inventoryDragActive=false
+        end
+        if not result.already then ui.playSfx('menu') end
+    end
+    return {update=update,draw=draw,move=move,attack=attack,currentInteraction=currentInteraction,release=release,
+        activateInteraction=activateInteraction,enterArea=enterArea,returnToStop=returnToStop,acceptParty=acceptParty,acceptBattleReturn=acceptBattleReturn,
+        cameraOffset=cameraOffset,ensureAssets=ensureAssets,retainAssets=retainAssets,reset=reset,audit=audit,
+        fieldState=function() return roaming end,presentAttack=presentAttack,presentAssistance=presentAssistance,
+        updatePresentation=function(dt) RoamingMobs.tickPresentation(roaming,dt) end,
         objective=objective,drawTrailhead=drawTrailhead,drawLocalMap=drawLocalMap}
 end
 

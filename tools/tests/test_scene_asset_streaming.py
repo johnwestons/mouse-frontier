@@ -143,5 +143,25 @@ class SceneAssetStreamingTests(unittest.TestCase):
         ''')
 
 
+    def test_connected_companion_art_is_retained_and_released_after_leave(self) -> None:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.globals().package.path = ROOT.as_posix() + "/?.lua;" + lua.globals().package.path
+        lua.execute(r'''
+            local Assets=require('game.assets')
+            local Animation=require('game.character_animation')
+            local Streamer=require('game.asset_streamer')
+            local retained,legacy
+            Animation.retain=function(_,keep) retained=keep end
+            Assets.retainAnimationImages=function(_,keep) legacy=keep end
+            local streamer=Streamer.new({characterAnimations={},legacyAnimationTables={},interiorFiles={}})
+            local data={character='cook-mouse.png',players={companion={character='conductor-cat.png'}}}
+            streamer:update('game','train',data,nil,nil,nil,'conductor-cat.png')
+            assert(retained['cook-mouse.png'] and retained['conductor-cat.png'] and legacy['conductor-cat.png'])
+            streamer:update('game','train',data,nil,nil,nil,nil)
+            assert(retained['cook-mouse.png'] and not retained['conductor-cat.png'] and not legacy['conductor-cat.png'])
+            assert(data.players.companion.character=='conductor-cat.png')
+        ''')
+
+
 if __name__ == "__main__":
     unittest.main()

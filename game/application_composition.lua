@@ -1,4 +1,5 @@
 local WorldGesture=require("game.world_gesture")
+local WorldPause=require("game.world_pause")
 local Config = require("game.config")
 local SaveSchema = require("game.save_schema")
 local Audio = require("game.audio")
@@ -34,6 +35,7 @@ local MobileControls = require("game.mobile_controls")
 local Modules = require("game.systems")
 local UIStyle = require("game.ui_layout")
 local TrainAmbush = require("game.train_ambush")
+local CoopInventoryRuntime = require("game.coop_inventory_runtime")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -58,8 +60,10 @@ local function new(context)
   local runtime=RuntimeState.new({session=session,transition=function(screen) screens:transition(screen) end})
   local content=Modules.contentRegistry.new({filesystem=Filesystem})
   local scenery,ui=content.scenery,content.ui
+  ui.localPreferences=require("game.local_preferences").new(Filesystem)
+  ui.menuSettings=ui.localPreferences.menu
   local maintenanceSession=Maintenance.new()
-  local trainAmbush
+  local trainAmbush,lastStand
   services.screenFlow=serviceRegistry.publish("screenFlow",Modules.screenFlow.new({
     runtime=runtime,ui=ui,screens=screens,intro=Modules.intro,scenery=scenery,colors=colors,
     updateBattle=function(...) return services.battleRuntime.update(...) end,
@@ -90,12 +94,15 @@ local function new(context)
   })
   serviceRegistry.publishAll(platform)
 
+  local coopCommands
   local world=Modules.worldSessionComposition.new({
     worldSceneFactory=Modules.worldScene,sessionBootstrapFactory=Modules.sessionBootstrap,
     platform=platform,content=content,runtime=runtime,ui=ui,car=car,maintenanceSession=maintenanceSession,
     filesystem=Filesystem,saveSchema=SaveSchema,catalog=Catalog,util=Util,house=House,stops=Stops,
     family=Family,settlements=Settlements,wildlife=Wildlife,mice=Mice,stopSludges=StopSludges,
     shootingRange=Modules.shootingRange,
+    rangeCommands=function(name,args) return coopCommands and coopCommands.submit(name,args) end,
+    rangeView=function(id) return coopCommands and coopCommands.rangeView(id) end,
     expeditionAreas=Modules.expeditionAreas,expeditionRuntime=Modules.expeditionRuntime,roamingMobs=Modules.roamingMobs,
     crowCaravans=Modules.crowCaravans,crowCaravanArea=Modules.crowCaravanArea,
     roster=Roster,maintenance=Maintenance,engineUpgrades=EngineUpgrades,passengers=Passengers,events=Events,
@@ -108,7 +115,94 @@ local function new(context)
   })
   serviceRegistry.publishAll(world)
 
+  coopCommands=CoopInventoryRuntime.new({runtime=runtime,session=session,catalog=Catalog,car=car,maintenanceSession=maintenanceSession,
+    poseActorState=function(id)
+      if id~='host' then return {} end
+      local player=runtime.player
+      local stopped=runtime.poseMenu or not player
+      return {moving=player and player.moving==true or false,inputX=stopped and 0 or runtime.coopPoseInputX or 0,
+        inputY=stopped and 0 or runtime.coopPoseInputY or 0,
+        actionBusy=(runtime.actionTimer or 0)>0 and runtime.actionKind~='use'}
+    end,
+    rangeState=function(id)
+      local paused=WorldPause.isSimulationPaused(runtime,ui,maintenanceSession)
+      if id=='host' then
+        local rangeStatus=world.worldScene.rangeCommandState and world.worldScene.rangeCommandState()
+        if rangeStatus then rangeStatus.paused=rangeStatus.paused or paused end
+        return rangeStatus
+      end
+      local lp=ui.localPlay
+      return {active=runtime.scene=='stop',paused=paused,ready=id=='host' or lp and lp.motion
+        and lp.motion.generation and lp.motion.readyEpoch==lp.motion.epoch}
+    end,
+    ambushState=function(id) return trainAmbush and trainAmbush:commandState(id) end,
+    lastStandPhase=function(id) return lastStand and lastStand.positionCommandState and lastStand:positionCommandState(id) end,
+    lastStandState=function(id)
+      local shootingState=lastStand and lastStand:commandState(id)
+      if id~='companion' then return shootingState end
+      local lp=ui.localPlay; local data=runtime.saveData; local motion=lp and lp.motion
+      local position=coopCommands and coopCommands.lastStandPosition and coopCommands.lastStandPosition(id)
+      if not shootingState or not position or not lp or lp.campaign~=data or not lp.authority or not motion or not motion.generation
+          or lp.authority.bindings.companion~=motion.generation or motion.readyEpoch~=motion.epoch
+          or motion.domain~=require('game.coop_last_stand_lifecycle').key(data) then return nil end
+      return shootingState
+    end,
+    lastStandScene=function() return lastStand and lastStand:progressionState() end,
+    clock=function() return Engine.timer.getTime() end,
+    checkpoint=platform.persistenceRuntime.checkpointCampaign,
+    scene={interiorFiles=function() return scenery.interiorFiles end,isFurniture=content.isFurnitureItem,
+      carArrival=function(data,id,index,forward)
+        local image=(scenery.trainCarImages or {})[data.trainCars[index]]
+        local left,right,top,bottom=Train.characterBounds(car,image,30)
+        return Train.clampCharacterToFloor(car,image,forward and left or right,(top+bottom)/2,30)
+      end,
+      trainSpawn=function(data,id)
+        local actor=data.players[id]; local image=(scenery.trainCarImages or {})[data.trainCars[actor.activeCar]]
+        local left,right,top,bottom=Train.characterBounds(car,image,30)
+        return math.min((left+right)/2-48,W-56),(top+bottom)/2
+      end,
+      trainClamp=function(data,id,x,y)
+        local actor=data.players[id]; local image=(scenery.trainCarImages or {})[data.trainCars[actor.activeCar]]
+        return Train.clampCharacterToFloor(car,image,x,y,30)
+      end},
+    applyParty=function(result,name) return ui.applyPartyState(result,name) end,
+    applyCar=function(result) return platform.trainCarRuntime.acceptTransition(result) end,
+    fieldState=world.worldScene.fieldState,applyField=world.worldScene.presentFieldAttack,
+    applyExpedition=world.worldScene.presentExpeditionAssistance})
+  ui.expeditionAssist=function(selected)
+    local data=runtime.saveData; local areaId=selected.areaId or data.activeExpeditionArea
+    if selected.action=='survey' then return coopCommands.submit('expedition.survey',{areaId=areaId,markerId=selected.markerId}) end
+    local chest=data.expeditions[areaId].chests[selected.chestId]
+    return coopCommands.submit('expedition.cache',{areaId=areaId,containerId=chest and chest.entityId})
+  end
+  ui.roamingAttack=function(x,y)
+    local name=require('game.coop_roaming').weapon(runtime.saveData,'host',Catalog)
+    if not name then return false,'melee_required' end
+    local reply=coopCommands.submit('roaming.attack',{areaId=runtime.saveData.activeExpeditionArea,weaponId=name,targetX=x,targetY=y})
+    return reply.ok,reply.reason
+  end
+  ui.roamingPressure=function(definition)
+    local data=runtime.saveData; local mob=data.expeditions[data.activeExpeditionArea].mobs[definition.id]
+    local reply=coopCommands.submit('roaming.pressure',{areaId=data.activeExpeditionArea,leadId=mob.entityId})
+    return reply.ok==true
+  end
+  ui.changeCar=function(index) return coopCommands.submit('player.car',{car=index}) end
+  ui.coopPoseMovement=function(x,y) runtime.coopPoseInputX,runtime.coopPoseInputY=x,y end
+  ui.coopPlayerPresentation=function()
+    if not WorldPause.isSharedHost(runtime) then return runtime end
+    return require('game.coop_player_pose').presentation(coopCommands.poseState('host'),runtime)
+  end
+  require("game.coop_scene_runtime").install({runtime=runtime,ui=ui,commands=coopCommands,catalog=Catalog,
+    applyScene=world.worldScene.acceptParty,
+    closeMaintenance=function() if maintenanceSession.open then Maintenance.close(maintenanceSession) end end,
+    neutralize=function() platform.mobileRuntime.focus(false); platform.presentationRuntime.endPan() end})
+  require("game.coop_decoration_runtime").install({runtime=runtime,ui=ui,commands=coopCommands})
+  maintenanceSession.commands=function(name,args,campaign)
+    if runtime.saveData~=campaign then return {ok=false,reason="wrong_campaign"} end
+    return coopCommands.submit(name,args)
+  end
   local adventure=Modules.adventureComposition.new({
+    inventoryCommands=coopCommands,
     battleRuntimeFactory=Modules.battleRuntime,inventoryActionsFactory=Modules.inventoryActions,
     journeyRulesFactory=Modules.journeyRules,eventRuntimeFactory=Modules.eventRuntime,
     runtime=runtime,width=W,height=H,ui=ui,content=content,colors=colors,car=car,
@@ -134,6 +228,7 @@ local function new(context)
     returnToTrain=platform.trainCarRuntime.enterTrain,
   })
   serviceRegistry.publishAll(adventure)
+  ui.pauseFirstAid=function() return adventure.journeyRules.resolveFirstAid("cancelled") end
 
   local startup=Modules.startupComposition.new({
     startupRuntimeFactory=Modules.startupRuntime,assetStreamer=Modules.assetStreamer,
@@ -148,7 +243,44 @@ local function new(context)
   })
   serviceRegistry.publishAll(startup)
 
-  local lastStand=Modules.lastStandQuest.new({
+  lastStand=Modules.lastStandQuest.new({
+    hostSavedJourneyPending=function()
+      local lp=ui.localPlay
+      return lp and lp.hostingIntent~=nil and lp.network==nil or false
+    end,
+    positionStatus=function(id) return coopCommands.lastStandPosition(id) end,
+    globalSimulationBlocked=function()
+      return runtime.session and runtime.session.checkpointPending or runtime.state~='game' or runtime.scene~='stop'
+        or runtime.battle~=nil and runtime.battle~=false or runtime.saveData and not not runtime.saveData.roamingEncounter
+        or runtime.saveData and runtime.saveData.coop and not not runtime.saveData.coop.journey or false
+    end,
+    participants=function()
+      local lp=ui.localPlay
+      if not lp or lp.phase~='hosting' then return {'host'} end
+      local ids={}; local data=runtime.saveData
+      local host=lastStand and lastStand:commandState('host')
+      if host and host.active and not host.paused and coopCommands.lastStandPosition('host') then ids[#ids+1]='host' end
+      local motion=lp.motion; local guest=lastStand and lastStand:commandState('companion')
+      if guest and guest.active and not guest.paused and lp.campaign==data and lp.authority and motion and motion.generation
+          and lp.authority.bindings.companion==motion.generation and motion.readyEpoch==motion.epoch
+          and motion.domain==require('game.coop_last_stand_lifecycle').key(data)
+          and coopCommands.lastStandPosition('companion') then ids[#ids+1]='companion' end
+      return ids
+    end,
+    companionSceneActor=function()
+      local lp=ui.localPlay; local motion=lp and lp.motion
+      if not motion or not motion.generation or not motion.actor or not require('game.coop_last_stand_lifecycle').walking(runtime.saveData) then return nil end
+      if motion.domain~=require('game.coop_last_stand_lifecycle').key(runtime.saveData) then return nil end
+      local actor=runtime.saveData.players.companion
+      return {player=motion.actor,visual={image=content.characterImages[actor.character],character=actor.character,
+        animations=startup.startupRuntime.characterAnimations(),walkImage=content.characterWalkImages[actor.character],clock=runtime.animationClock or 0}}
+    end,
+    submit=function(name,args) return coopCommands.submit(name,args) end,
+    inputPaused=function()
+      local lp=ui.localPlay
+      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true
+        or lp and (lp.menuOpen or lp.focused==false) or false
+    end,
     runtime=runtime,catalog=Catalog,writeSave=platform.persistenceRuntime.schedule,
     characterImages=content.characterImages,characterWalkImages=content.characterWalkImages,
     getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
@@ -162,6 +294,27 @@ local function new(context)
   trainAmbush=TrainAmbush.new({
     runtime=runtime,catalog=Catalog,width=W,height=H,controlBindings=controlBindings,
     writeSave=platform.persistenceRuntime.schedule,enterStop=adventure.journeyRules.enterStop,
+    submit=function(name,args) return coopCommands.submit(name,args) end,
+    checkpointSettlement=function()
+      local authority=coopCommands.authority()
+      local saved=authority and authority:checkpointNow()
+      coopCommands.checkpointStatus()
+      return saved==true
+    end,
+    checkpointPending=function() return coopCommands.checkpointStatus().pending end,
+    inputPaused=function()
+      local lp=ui.localPlay
+      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true
+        or lp and (lp.menuOpen or lp.focused==false) or false
+    end,
+    participants=function()
+      local ids={'host'}; local lp=ui.localPlay; local motion=lp and lp.motion
+      if lp and lp.campaign==runtime.saveData and lp.authority and motion and motion.generation
+          and lp.authority.bindings.companion==motion.generation and motion.readyEpoch==runtime.saveData.coop.sceneEpoch then
+        ids[#ids+1]='companion'
+      end
+      return ids
+    end,
   })
 
   local views=Modules.viewComposition.new({
@@ -180,6 +333,7 @@ local function new(context)
   serviceRegistry.publishAll(views)
 
   local input=Modules.inputComposition.new({
+    commands=coopCommands,
     gameplayInputFactory=Modules.gameplayInput,runtime=runtime,ui=ui,content=content,
     maintenanceSession=maintenanceSession,platform=platform,adventure=adventure,views=views,
     worldScene=world.worldScene,sessionBootstrap=world.sessionBootstrap,
@@ -228,8 +382,18 @@ local function new(context)
   end
 
   function application.update(dt)
+    ui.updateDecoration()
+    if WorldPause.isSharedHost(runtime) and not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then
+      coopCommands.advanceRange(dt)
+    end
     if globalMenuActive() then
       trainAmbush:suspend()
+      if WorldPause.isSharedHost(runtime) and trainAmbush:update(dt) then
+        platform.persistenceRuntime.update(dt); platform.audioRuntime.update(); return true
+      end
+      if WorldPause.isSharedHost(runtime) and not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then
+        return services.startupRuntime.update(dt)
+      end
       platform.persistenceRuntime.update(dt)
       platform.audioRuntime.update()
       return true
@@ -310,6 +474,7 @@ local function new(context)
     key,knownKey=controlBindings:translateKey(key)
     if knownKey and not key then return true end
     if key=="escape" or key=="acback" then
+      if not globalMenuActive() and lastStand:isCapturing() then return lastStand:keypressed('escape',scancode,isrepeat) end
       trainAmbush:suspend()
       return services.mobileRuntime.keypressed(key,scancode,isrepeat)
     end
@@ -434,11 +599,166 @@ local function new(context)
   application=require("game.outfit_workbench_host").wrap(application,{
     runtime=runtime,ui=ui,mobile=platform.mobileRuntime,presentation=platform.presentationRuntime,
     persistence=platform.persistenceRuntime,audio=platform.audioRuntime,bindings=controlBindings,
-    maintenanceSession=maintenanceSession,
+    maintenanceSession=maintenanceSession,commands=coopCommands,
   })
-  return require("game.player_tools_host").wrap(application,{
+  application=require("game.player_tools_host").wrap(application,{
     runtime=runtime,ui=ui,filesystem=Filesystem,mobile=platform.mobileRuntime,
     presentation=platform.presentationRuntime,persistence=platform.persistenceRuntime,
+  })
+  application=require('game.coop_roaming_host').wrap(application,{
+    runtime=runtime,ui=ui,commands=coopCommands,screenToGame=platform.presentationRuntime.screenToGame,
+    battleEntered=function() runtime.battle=require('game.tactical_battle_state').restore(runtime.saveData,Catalog) end,
+    neutralize=function()
+      platform.mobileRuntime.focus(false); platform.presentationRuntime.endPan()
+      if runtime.player then runtime.player.velocityX=0; runtime.player.velocityY=0; runtime.player.moving=false end
+      if ui.suspendOutfitWorkbench then ui.suspendOutfitWorkbench() end
+      if ui.cancelWeaponRepair then ui.cancelWeaponRepair() end
+      if ui.closeDecoration then ui.closeDecoration() end
+      if ui.pauseFirstAid then ui.pauseFirstAid() end
+      if maintenanceSession.open then Maintenance.close(maintenanceSession) end
+    end,
+  })
+  application=require("game.coop_checkpoint_host").wrap(application,{
+    runtime=runtime,ui=ui,commands=coopCommands,audio=platform.audioRuntime,bindings=controlBindings,
+    screenToGame=platform.presentationRuntime.screenToGame,
+    requestQuit=function() love.event.quit() end,
+    neutralize=function()
+      platform.mobileRuntime.focus(false); platform.presentationRuntime.endPan(); trainAmbush:suspend()
+      if ui.suspendOutfitWorkbench then ui.suspendOutfitWorkbench() end
+      if ui.cancelWeaponRepair then ui.cancelWeaponRepair() end
+      if ui.closeDecoration then ui.closeDecoration() end
+      if ui.pauseFirstAid then ui.pauseFirstAid() end
+      if maintenanceSession.open then Maintenance.close(maintenanceSession) end
+    end,
+  })
+  local coopCollision=require("game.coop_collision").new({car=car,scenery=scenery})
+  local localPlay=require("game.coop_local_play").new({
+    runtime=runtime,session=session,commands=coopCommands,filesystem=Filesystem,catalog=Catalog,
+    onStop=function() if world.worldScene.closeSharedRange then world.worldScene.closeSharedRange() end end,
+    localPlayPreferences=ui.localPreferences:localPlay(),
+    saveLocalPlayPreferences=function(value) return ui.localPreferences:setLocalPlay(value) end,
+    clock=function() return Engine.timer.getTime() end,
+    characters=function() return content.characters end,
+    roaming=function()
+      return world.worldScene.fieldState(),require('game.world_pause').isSimulationPaused(runtime,ui) or (runtime.expeditionGraceTimer or 0)>0
+    end,
+    lastStandEffects=function() return lastStand and lastStand.effectState and lastStand:effectState() end,
+    lastStandStage=function() return lastStand and lastStand.stageState and lastStand:stageState() end,
+    createGuestView=function(controller)
+      return require("game.coop_guest_view").new({content=content,ui=ui,catalog=Catalog,colors=colors,car=car,
+        preferences=ui.localPreferences,audio=platform.audioRuntime,bindings=controlBindings,filesystem=Filesystem,mobileEnabled=platform.mobileRuntime.isEnabled,
+        drawMenuFrame=views.screenUI.drawMenuFrame,
+        characterAnimations=startup.startupRuntime.characterAnimations,
+        move=coopCollision,clock=function() return Engine.timer.getTime() end,
+        createWorldRenderer=views.worldRenderer.createView,
+        rangeAssets=function() return scenery.shootingRangeAssets or {} end,
+        prepareCharacters=function(players)
+          for _,actor in pairs(players) do
+            local animations=startup.startupRuntime.characterAnimations()[actor.character]
+            assert(content.characterImages[actor.character],"missing guest traveler art")
+          end
+        end},controller)
+    end,
+    prepareCompanion=function(actor)
+      -- Finish lazy character loads before the peer receives its ready receipt.
+      -- A first on-screen draw must not stall input service to load this art.
+      local animations=startup.startupRuntime.characterAnimations()[actor.character]
+      return content.characterImages[actor.character]~=nil
+    end,
+    movement={
+      presentation=function(id) return coopCommands.poseState(id) end,
+      domain=function() return require('game.coop_last_stand_lifecycle').key(runtime.saveData) end,
+      position=function(id)
+        local data=runtime.saveData; local Life=require('game.coop_last_stand_lifecycle')
+        if Life.walking(data) then Life.ensure(data) end
+        local pose=Life.pose(data,id)
+        return pose and {playerX=pose.x,playerY=pose.y,playerFacing=pose.facing} or data.players[id]
+      end,
+      store=function(actor)
+        local pose=require('game.coop_last_stand_lifecycle').pose(runtime.saveData,'companion')
+        if pose then pose.x,pose.y,pose.facing=actor.x,actor.y,actor.facing
+        else local record=runtime.saveData.players.companion; record.playerX,record.playerY,record.playerFacing=actor.x,actor.y,actor.facing end
+      end,
+      hostActor=function() return lastStand:movementActor() or runtime.player end,
+      allowed=function()
+        return runtime.state=="game" and not runtime.travelTransition and not runtime.battle
+          and not runtime.saveData.roamingEncounter
+          and not coopCommands.carBusy('companion')
+          and not coopCommands.activityBusy('companion','lastStandAid')
+          and not coopCommands.activityBusy('companion','range')
+          and (not require('game.coop_last_stand_lifecycle').active(runtime.saveData) or lastStand:movementActor()~=nil)
+          and not (runtime.trainAmbush and runtime.trainAmbush.phase~="complete")
+      end,
+      move=coopCollision,
+    },
+    neutralize=function()
+      platform.mobileRuntime.focus(false); platform.presentationRuntime.endPan()
+      if runtime.player then runtime.player.moving=false; runtime.player.velocityX=0; runtime.player.velocityY=0 end
+    end,
+    beforeJoin=function()
+      if runtime.saveData and runtime.selectedSlot then
+        local authority=coopCommands.authority()
+        return authority and authority:checkpointNow() or false
+      end
+      return platform.persistenceRuntime.flush()~=false
+    end,
+    placeCompanion=function(data)
+      local host=data.players.host
+      local hx,hy=host.playerX,host.playerY
+      if type(hx)~="number" or type(hy)~="number" then return false,"spawn_unavailable" end
+      local actors,reason=require("game.party_scene").place(data,function() return hx,hy end,function(x,y,id,actor)
+        if data.scene=="train" then
+          local image=(scenery.trainCarImages or {})[data.trainCars[actor.activeCar]]
+          return Train.clampCharacterToFloor(car,image,x,y,30)
+        elseif data.scene=="stop" then return Settlements.clamp(x,y,data.location)
+        elseif data.scene=="house" then return Util.clampHouseFloor(x,y)
+        elseif data.scene=="expedition" then return Modules.expeditionAreas.clamp(data,data.activeExpeditionArea,x,y)
+        elseif data.scene=="caravan" then return Modules.crowCaravanArea.clamp(x,y)
+        end
+      end)
+      if not actors or host.playerX~=hx or host.playerY~=hy then return false,reason or "spawn_unavailable" end
+      if require('game.coop_last_stand_lifecycle').walking(data) then require('game.coop_last_stand_lifecycle').ensure(data) end
+      return true
+    end,
+  })
+  coopCommands.setRemoteActorState(function()
+    local motion=localPlay.motion
+    if not motion or not motion.generation or not motion.actor then return nil end
+    local input=motion.input
+    if input and Engine.timer.getTime()-input.received>=require('game.net.movement').STALE_SECONDS then input=nil end
+    return {screen=runtime.state,scene=runtime.scene,x=motion.actor.x,y=motion.actor.y,
+      facing=motion.actor.facing,intentX=motion.actor.intentX,intentY=motion.actor.intentY,
+      traveling=runtime.travelTransition~=nil,encounterActive=not not runtime.battle
+        or (runtime.lastStand and runtime.lastStand.capture)==true or (runtime.trainAmbush and runtime.trainAmbush.phase~='complete') or false,
+      activityBlocked=motion.readyEpoch~=motion.epoch,
+      movementReady=motion.readyEpoch==motion.epoch,
+      motionId=motion.motionId,moving=motion.actor.moving==true,
+      inputX=input and input.x or 0,inputY=input and input.y or 0,
+      modalDomain=motion.domain,
+      npc=runtime.npcActor and {id=runtime.saveData.currentNPC,x=runtime.npcActor.x,y=runtime.npcActor.y} or nil}
+  end)
+  ui.expeditionActors=function()
+    local actors={}
+    local campaign=runtime.saveData
+    if not campaign or not campaign.players then return actors end
+    if runtime.player and campaign.health>0 then
+      actors[1]={id='host',x=runtime.player.x,y=runtime.player.y}
+    end
+    local motion=localPlay.motion
+    if motion and motion.generation and motion.actor and motion.epoch==campaign.coop.sceneEpoch
+        and campaign.players.companion and campaign.players.companion.health>0 then
+      actors[#actors+1]={id='companion',x=motion.actor.x,y=motion.actor.y,ready=motion.readyEpoch==motion.epoch}
+    end
+    return actors
+  end
+  ui.relocateExpeditionCompanion=function(x,y)
+    return localPlay.motion and localPlay.motion:relocate(x,y)
+  end
+  ui.coopPatientBusy=function() return coopCommands.patientBusy(runtime.saveData.currentNPC) end
+  return require("game.local_play_host").wrap(application,{
+    controller=localPlay,runtime=runtime,ui=ui,commands=coopCommands,bindings=controlBindings,
+    screenToGame=platform.presentationRuntime.screenToGame,
+    idleUpdate=function(dt,presentation) platform.persistenceRuntime.update(dt); platform.audioRuntime.update(presentation); return true end,
   })
 end
 

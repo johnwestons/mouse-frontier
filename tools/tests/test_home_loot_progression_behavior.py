@@ -315,7 +315,10 @@ class HomeLootProgressionBehaviorTests(unittest.TestCase):
                 House.rollLoot(data,Catalog,stop)
                 -- Claim everything in home 1, keeping its containers and roll flags.
                 for _,item in ipairs(data.droppedItems) do
-                    if item.scene=='house' and item.location==stop and item.houseDoor==1 then item.storage={} end
+                    if item.scene=='house' and item.location==stop and item.houseDoor==1 then
+                        local slots={}; for slot in pairs(item.storage or {}) do slots[#slots+1]=slot end
+                        for _,slot in ipairs(slots) do require('game.item_instances').write(data,item,{kind='chest',index=slot},nil) end
+                    end
                 end
                 data=roundtrip(data)
                 local baseline=assert(Schema.migrate(data))

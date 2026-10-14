@@ -69,10 +69,12 @@ local function new(context)
     getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
     isWeapon=adventure.inventoryActions.isWeapon,travelCost=adventure.journeyRules.travelCost,
     repairStatus=adventure.inventoryActions.repairStatus,
+    repairElapsed=adventure.inventoryActions.repairElapsed,
     questSummary=adventure.journeyRules.questSummary,
   })
 
   inventoryPresenter=InventoryPresenter.new({
+    data=adventure.inventoryActions.personalData,
     runtime=runtime,ui=ui,inventoryUI=InventoryUI,inventory=Inventory,catalog=Catalog,colors=colors,
     mobileEnabled=platform.mobileRuntime.isEnabled,pointIn=Util.pointIn,title=Util.titleFromFile,
     isWeapon=adventure.inventoryActions.isWeapon,drawMenuFrame=screenUI.drawMenuFrame,button=screenUI.button,
@@ -83,7 +85,7 @@ local function new(context)
     consumeBattle=adventure.inventoryActions.consumeBattleSelected,
   })
 
-  worldRenderer=WorldRenderer.new({
+  local rendererOptions={
     runtime=runtime,width=W,height=H,backgroundImages=content.backgroundImages,scenery=content.scenery,car=car,colors=colors,landscape=landscape,
     getCharacterAnimations=function() return startup.startupRuntime.characterAnimations() end,
     characterImages=content.characterImages,characterWalkImages=content.characterWalkImages,
@@ -97,7 +99,8 @@ local function new(context)
     train=Train,characterAnimation=CharacterAnimation,catalog=Catalog,family=Family,settlements=Settlements,stops=Stops,util=Util,ui=ui,
     itemIsHere=world.worldScene.itemIsHere,pendingMailHere=adventure.journeyRules.pendingMailHere,
     ensureStopLayout=world.worldScene.ensureStopLayout,
-  })
+  }
+  worldRenderer=WorldRenderer.new(rendererOptions)
 
   gameplayHUD=GameplayHUD.new({
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
@@ -119,6 +122,15 @@ local function new(context)
   ui.drawOptions=gameplayHUD.drawOptions
 
   local views={screenUI=screenUI,inventoryPresenter=inventoryPresenter,worldRenderer=worldRenderer,gameplayHUD=gameplayHUD}
+  function worldRenderer.createView(viewRuntime,viewUI,scene)
+    local options={}; for key,value in pairs(rendererOptions) do options[key]=value end
+    options.runtime,options.ui=viewRuntime,viewUI
+    for _,key in ipairs({'drawStopSludges','drawShootingRangeSpot','drawWildlife','drawExpedition','drawExpeditionTrailhead',
+        'drawCaravanRuntime','drawCaravanGate','itemIsHere','pendingMailHere','ensureStopLayout'}) do
+      options[key]=assert(scene[key],'guest scene presentation missing '..key)
+    end
+    return WorldRenderer.new(options)
+  end
   function views.status()
     return {
       ready=type(screenUI.drawEnding)=="function" and type(inventoryPresenter.handleClick)=="function"

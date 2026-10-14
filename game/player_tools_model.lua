@@ -130,7 +130,7 @@ function Model.grantItem(data,entry,value)
     local free={}
     for i=1,(data.inventoryCapacity or 6) do if not data.inventory[i] then free[#free+1]=i end end
     if #free<amount then return false,"Only "..#free.." free backpack slots. Lower the quantity or make room." end
-    for i=1,amount do data.inventory[free[i]]=entry.id end
+    for i=1,amount do Inventory.setValue(data,nil,{kind="inventory",index=free[i]},entry.id,Catalog.wearableItems) end
     return true,"Added "..amount.." x "..entry.label.." to your backpack."
 end
 return Model

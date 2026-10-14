@@ -1,4 +1,5 @@
 local WeaponSoundProfiles=require("game.weapon_sound_profiles")
+local Preferences=require("game.local_preferences")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -32,7 +33,12 @@ local function new(context)
       return audio
   end
 
-  local function settings()
+  local function settings(presentation)
+      local runtime=presentation or runtime
+      if ui.localPreferences then
+          if runtime.state=="intro" or runtime.state=="slots" or runtime.state=="characters" then return menuSettings end
+          return Preferences.audio(runtime.saveData) or menuSettings
+      end
       local saved=runtime.saveData and runtime.saveData.audio
       if runtime.state=="intro" or runtime.state=="slots" or runtime.state=="characters" then
           if saved then
@@ -49,7 +55,8 @@ local function new(context)
       return saved
   end
 
-  local function musicCategory()
+  local function musicCategory(presentation)
+      local runtime=presentation or runtime
       if runtime.state=="intro" or runtime.state=="slots" or runtime.state=="characters" then return "chill" end
       if runtime.state=="ending" then return "endingHappy" end
       if runtime.state=="battle" then return runtime.battle and runtime.battle.encounter and runtime.battle.encounter.boss and "bossFight" or "battle" end
@@ -88,9 +95,9 @@ local function new(context)
       return WeaponSoundProfiles.forWeapon(weaponName,Catalog)
   end
 
-  local function update()
-      local current=settings()
-      if audio and current then audio:update(current,musicCategory()) end
+  local function update(presentation)
+      local current=settings(presentation)
+      if audio and current then audio:update(current,musicCategory(presentation)) end
   end
 
   local function resetMusic()
@@ -98,24 +105,32 @@ local function new(context)
       return false
   end
 
-  local function previousTrack()
-      local current=settings()
-      return audio and current and audio:previousTrack(current,musicCategory()) or false
+  local function previousTrack(presentation)
+      local current=settings(presentation)
+      local result=audio and current and audio:previousTrack(current,musicCategory(presentation)) or false
+      if ui.localPreferences then ui.localPreferences:save(true) end
+      return result
   end
 
-  local function togglePause()
-      local current=settings()
-      return audio and current and audio:togglePause(current) or false
+  local function togglePause(presentation)
+      local current=settings(presentation)
+      local result=audio and current and audio:togglePause(current) or false
+      if ui.localPreferences then ui.localPreferences:save(true) end
+      return result
   end
 
-  local function nextTrack()
-      local current=settings()
-      return audio and current and audio:nextTrack(current,musicCategory()) or false
+  local function nextTrack(presentation)
+      local current=settings(presentation)
+      local result=audio and current and audio:nextTrack(current,musicCategory(presentation)) or false
+      if ui.localPreferences then ui.localPreferences:save(true) end
+      return result
   end
 
-  local function toggleMute()
-      local current=settings()
-      return audio and current and audio:toggleMute(current) or false
+  local function toggleMute(presentation)
+      local current=settings(presentation)
+      local result=audio and current and audio:toggleMute(current) or false
+      if ui.localPreferences then ui.localPreferences:save(true) end
+      return result
   end
 
   local function status()
@@ -129,8 +144,8 @@ local function new(context)
       }
   end
 
-  local function focus(focused)
-      local current=settings()
+  local function focus(focused,presentation)
+      local current=settings(presentation)
       if not audio or not current then return true end
       if not focused then departSource=nil; ui.departSource=nil end
       -- Android can report focus loss when screen-recorder controls open.

@@ -7,11 +7,15 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools import audit_coop_package
 DEFAULT_DESKTOP_REPORT = ROOT / ".stabilization" / "final-parity-desktop.rpt"
 DEFAULT_MOBILE_REPORT = ROOT / ".stabilization" / "mobile-package-smoke.rpt"
 DEFAULT_ROUTE_REPORT = ROOT / ".stabilization" / "final-parity-route.rpt"
@@ -162,7 +166,22 @@ def audit(
         for abi in expected_abis:
             if f"lib/{abi}/liblove.so" not in archive.namelist():
                 raise AuditError(f"APK is missing its {abi} engine")
-    if require_device and apk.get("connectedAndroidDevices", 0) < 1:
+    permissions_path = Path(apk.get("permissionDumpPath", ""))
+    if not permissions_path.is_file() or apk.get("internetPermissionVerified") is not True:
+        raise AuditError("Final APK Local Play permission verification is missing")
+    try:
+        coop = audit_coop_package.audit_apk(installed_apk, package, ROOT,
+            permissions_path.read_text(encoding="utf-8"))
+    except (ValueError, KeyError, zipfile.BadZipFile) as exc:
+        raise AuditError(f"Actual APK Local Play package audit failed: {exc}") from exc
+    if build.get("network") != coop["network"] or apk.get("network") != coop["network"]:
+        raise AuditError("Package/APK Local Play identity differs from the actual shared code")
+    if apk.get("nativeBindings") != coop["nativeBindings"] or apk.get("permissionDumpSha256") != coop["permissionDumpSha256"]:
+        raise AuditError("APK Local Play native/permission evidence differs from the actual artifacts")
+    device_count = apk.get("connectedAndroidDevices")
+    if require_device and apk.get("deviceProbeStatus", "probed") != "probed":
+        raise AuditError("Android devices were not probed for this build")
+    if require_device and (type(device_count) is not int or device_count < 1):
         raise AuditError("No connected Android device was recorded")
     if require_device and apk.get("deviceLaunchVerified") is not True:
         raise AuditError("Installed game did not pass the on-device startup check")
@@ -182,7 +201,12 @@ def audit(
         "packageSha256": actual_package_sha,
         "verifiedAbis": sorted(expected_abis),
         "signed": True,
+        "network": coop["network"],
+        "nativeBindings": coop["nativeBindings"],
+        "internetPermissionVerified": True,
+        "physicalNetworkVerified": False,
         "connectedAndroidDevices": apk.get("connectedAndroidDevices"),
+        "deviceProbeStatus": apk.get("deviceProbeStatus", "not_recorded"),
         "deviceLaunchVerified": apk.get("deviceLaunchVerified") is True,
     }
 

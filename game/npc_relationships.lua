@@ -130,14 +130,16 @@ function Relationships.ensure(data,npc)
     return record
 end
 
-function Relationships.status(data,npc)
-    local record=Relationships.ensure(data,npc)
-    local points=record.goodwillEarned*2+countKeys(record.uniqueGifts)*3+record.rides
+function Relationships.status(data,npc,readOnly)
+    local record=readOnly and (type(data.relationships)=="table" and data.relationships[npc] or {}) or Relationships.ensure(data,npc)
+    record=type(record)=="table" and record or {}
+    local function count(key) return math.max(0,math.floor(tonumber(record[key]) or 0)) end
+    local points=count('goodwillEarned')*2+countKeys(type(record.uniqueGifts)=="table" and record.uniqueGifts or {})*3+count('rides')
     local tier,index=Relationships.tiers[1],1
     for candidate,profile in ipairs(Relationships.tiers) do
         if points>=profile.minimum then tier,index=profile,candidate end
     end
-    return {name=tier.name,index=index,points=points,helpCount=record.helpCount,gifts=record.gifts,rides=record.rides,talks=record.talks}
+    return {name=tier.name,index=index,points=points,helpCount=count('helpCount'),gifts=count('gifts'),rides=count('rides'),talks=count('talks')}
 end
 
 function Relationships.recordHelp(data,npc,amount,kind,location)
@@ -173,8 +175,8 @@ function Relationships.rejection(data,npc)
     return {accepted=false,line=line,status=status}
 end
 
-function Relationships.merchantTerms(data,npc)
-    local personal=Relationships.status(data,npc)
+function Relationships.merchantTerms(data,npc,readOnly)
+    local personal=Relationships.status(data,npc,readOnly)
     local global=globalStep(data.goodwill)
     local personalStep=personal.index-1
     return {
@@ -185,13 +187,13 @@ function Relationships.merchantTerms(data,npc)
     }
 end
 
-function Relationships.buyPrice(data,npc,base)
-    local terms=Relationships.merchantTerms(data,npc)
+function Relationships.buyPrice(data,npc,base,readOnly)
+    local terms=Relationships.merchantTerms(data,npc,readOnly)
     return math.max(1,math.floor((tonumber(base) or 1)*(1-terms.discount)+.5)),terms
 end
 
-function Relationships.sellPrice(data,npc,base)
-    local terms=Relationships.merchantTerms(data,npc)
+function Relationships.sellPrice(data,npc,base,readOnly)
+    local terms=Relationships.merchantTerms(data,npc,readOnly)
     return math.max(1,math.floor((tonumber(base) or 1)*(1+terms.saleBonus)+.5)),terms
 end
 

@@ -1,7 +1,8 @@
 -- Only scene artwork enters this transform. HUD and pointer coordinates stay
 -- in logical screen space; world interactions explicitly use toWorld.
+local function new(initial)
 local WorldView={}
-local callbacks={}
+local callbacks=initial or {}
 local depth=0
 
 function WorldView.configure(value)
@@ -43,4 +44,8 @@ function WorldView.toScreen(x,y)
     return x,y
 end
 
+return WorldView
+end
+local WorldView=new()
+WorldView.new=new
 return WorldView

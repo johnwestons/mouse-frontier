@@ -408,7 +408,7 @@ class FirstPersonWeaponRuntimeTests(unittest.TestCase):
         shooting_range = (ROOT / "game" / "shooting_range.lua").read_text(encoding="utf-8")
         self.assertIn('require("game.first_person_weapon_manifest")', shooting_range)
         self.assertIn("FirstPersonWeaponManifest.shotSequenceFor(session.weapon)", shooting_range)
-        self.assertIn("startWeaponViewSequence(session)", shooting_range)
+        self.assertIn("startWeaponViewSequence(session,canonical)", shooting_range)
         self.assertIn("updateWeaponViewSequence(session,dt)", shooting_range)
         self.assertIn("session.weaponViewState=step.state", shooting_range)
         self.assertIn("session.weaponViewPlacement=step.placement", shooting_range)

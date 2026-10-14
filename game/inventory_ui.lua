@@ -167,7 +167,11 @@ function InventoryUI.draw(ctx)
     local mx,my=ctx.pointer(); local hovered=InventoryUI.slotAtPoint(ctx,mx,my)
     local inspectName=(hovered and ctx.value(hovered)) or selectedName
     if ctx.isWeapon(inspectName) then
-        local stats,combat=Catalog.weaponStats[inspectName],Catalog.weaponCombat[inspectName] or {}; local durability=data.weaponDurability[inspectName] or 100
+        local Items=require("game.item_instances")
+        local ref=hovered or ctx.draggedSlot
+        local instance=ref and Items.get(data,ctx.activeChest,ref)
+        local stats,combat=Catalog.weaponStats[inspectName],Catalog.weaponCombat[inspectName] or {}
+        local durability=instance and instance.durability or Items.condition(data,inspectName,ref and ref.kind~="chest" and ref or nil)
         detailCard(ctx)
         text(stats.name.."  T"..stats.tier,578,565,324,17,.83,.70)
         text("DMG "..stats.min.."-"..stats.max.."  REACH "..Catalog.weaponReach(inspectName).."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or ""),578,583,324,15,.70,.62)

@@ -80,6 +80,44 @@ function Conversations.begin(data,npc)
     return view
 end
 
+-- Read-only shared presentation. Derive every spoken line from approved
+-- content, and expose neither choice controls nor advance reward hints.
+function Conversations.readAlong(data)
+    local state=data.conversations; local active=state and state.active
+    if not active or not data.coop or active.sceneEpoch~=data.coop.sceneEpoch
+        or active.scene~=data.scene or active.location~=data.location then return nil end
+    local entry=byId[active.id]
+    if not entry then return nil end
+    if active.phase=='prompt' then return {npc=active.npc,text=entry.question,waiting=true} end
+    local completed=state.completed and state.completed[active.id]
+    local choice=completed and entry.choices[completed.answer]
+    if active.phase=='response' and choice then
+        return {npc=active.npc,text=choice.response,answer=choice.label,notice=active.notice,waiting=false}
+    end
+end
+
+function Conversations.validateActive(data)
+    local state=data.conversations; local active=state and state.active
+    if active==nil then return true end
+    if type(active)~='table' then return false end
+    local fields={id=true,targetId=true,npc=true,location=true,scene=true,sceneEpoch=true,phase=true,notice=true}
+    for key in pairs(active) do if not fields[key] then return false end end
+    local assignment=state.assignments and state.assignments[tostring(active.location)]
+    local entry=byId[active.id]
+    if not entry or not assignment or assignment.id~=active.id or assignment.npc~=active.npc
+        or active.location~=data.location or active.scene~=data.scene
+        or (active.scene~='stop' and active.scene~='house')
+        or not data.coop or active.sceneEpoch~=data.coop.sceneEpoch
+        or type(active.targetId)~='string' or #active.targetId>64
+        or active.notice~=nil and (type(active.notice)~='string' or #active.notice>1200) then return false end
+    local layout=data.stopLayouts and data.stopLayouts[tostring(data.location)]
+    if not layout or layout.entityId~=active.targetId then return false end
+    local completed=state.completed and state.completed[active.id]
+    if active.phase=='prompt' then return completed==nil and active.notice==nil end
+    return active.phase=='response' and type(completed)=='table' and type(completed.answer)=='number'
+        and entry.choices[completed.answer]~=nil and completed.npc==active.npc and completed.location==active.location
+end
+
 function Conversations.choose(data,request,index,services)
     local view=Conversations.view(data,request)
     local choice=view and view.choices[index]

@@ -1,4 +1,5 @@
 local QuestProgression={}
+local Items=require("game.item_instances")
 
 QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
@@ -106,61 +107,54 @@ local function matchingSlots(data,catalog,predicate,limit)
     return slots
 end
 
-local function consumeInventoryAndResource(data,catalog,profile,predicate,resource)
-    local slots=matchingSlots(data,catalog,predicate,profile.amount)
-    local required=profile.amount-#slots
-    local stored=(data.resources and data.resources[resource]) or 0
-    if stored<required then return {completed=false,shortage=required-stored,kind=resource,label=profile.label} end
-    for _,slot in ipairs(slots) do data.inventory[slot]=nil end
-    if required>0 then data.resources[resource]=stored-required end
-    return {completed=true,inventoryUsed=#slots,resourceUsed=required,label=profile.label}
-end
-
-function QuestProgression.consumeCargo(data,catalog,quest)
-    local kind=quest.cargoKind or "food"
-    local profile=QuestProgression.deliveryProfile(kind)
-    if kind=="food" then
-        return consumeInventoryAndResource(data,catalog,profile,function(_,effect) return effect and effect.food end,"food")
-    elseif kind=="water" then
-        return consumeInventoryAndResource(data,catalog,profile,function(_,effect) return effect and effect.water end,"water")
-    elseif kind=="medicine" then
-        local slots=matchingSlots(data,catalog,function(_,effect) return effect and effect.health end,profile.amount)
-        if #slots<profile.amount then return {completed=false,shortage=profile.amount-#slots,kind=kind,label=profile.label} end
-        for _,slot in ipairs(slots) do data.inventory[slot]=nil end
-        return {completed=true,inventoryUsed=#slots,resourceUsed=0,label=profile.label}
+-- Shared read-only cargo selection. Presentation never consumes a projected
+-- inventory; the host re-plans and applies this same rule inside its transaction.
+function QuestProgression.cargoPlan(data,catalog,quest)
+    local kind=quest.cargoKind or "food"; local profile=QuestProgression.deliveryProfile(kind)
+    local plan={completed=false,kind=kind,label=profile.label,slots={},ammoUsed={},inventoryUsed=0,resourceUsed=0}
+    local predicate,resource
+    if kind=="food" or kind=="water" then
+        predicate=function(_,effect) return effect and effect[kind] end; resource=kind
+    elseif kind=="medicine" then predicate=function(_,effect) return effect and effect.health end
     elseif kind=="repair" then
-        return consumeInventoryAndResource(data,catalog,profile,function(name,effect)
-            return name=="coal-chunk" or name=="coal-bucket" or (effect and effect.oil)
-        end,"coal")
+        predicate=function(name,effect) return name=="coal-chunk" or name=="coal-bucket" or effect and effect.oil end; resource="coal"
     elseif kind=="ammunition" then
         local available=0
         for name in pairs(catalog.ammoPickupAmounts or {}) do available=available+math.max(0,(data.ammo and data.ammo[name]) or 0) end
-        if available<profile.amount then return {completed=false,shortage=profile.amount-available,kind=kind,label=profile.label} end
-        local remaining=profile.amount
+        if available<profile.amount then plan.shortage=profile.amount-available; return plan end
         local order={"rocks","arrows","ball-bearings","22lr","9mm","45-cal","380-acp","32-acp","30-carbine","12-gauge","556","762x39","8mm"}
-        local visited={}
+        local seen={}; for _,name in ipairs(order) do seen[name]=true end
+        local extras={}; for name in pairs(catalog.ammoPickupAmounts or {}) do if not seen[name] then extras[#extras+1]=name end end
+        table.sort(extras); for _,name in ipairs(extras) do order[#order+1]=name end
+        local remaining=profile.amount
         for _,name in ipairs(order) do
-            visited[name]=true
-            local held=(data.ammo and data.ammo[name]) or 0; local used=math.min(held,remaining)
-            if used>0 then data.ammo[name]=held-used; remaining=remaining-used end
+            local used=math.min((data.ammo and data.ammo[name]) or 0,remaining)
+            if used>0 then plan.ammoUsed[#plan.ammoUsed+1]={name=name,amount=used}; remaining=remaining-used end
             if remaining<=0 then break end
         end
-        if remaining>0 then
-            local extras={}; for name in pairs(catalog.ammoPickupAmounts or {}) do if not visited[name] then extras[#extras+1]=name end end
-            table.sort(extras)
-            for _,name in ipairs(extras) do
-                local held=(data.ammo and data.ammo[name]) or 0; local used=math.min(held,remaining)
-                if used>0 then data.ammo[name]=held-used; remaining=remaining-used end
-                if remaining<=0 then break end
-            end
-        end
-        return {completed=true,inventoryUsed=0,resourceUsed=profile.amount,label=profile.label}
+        plan.completed=true; plan.resourceUsed=profile.amount; return plan
     elseif kind=="recovery" then
         local encounter=data.encounters and data.encounters[tostring(quest.destination)]
-        local ready=not encounter or not encounter.hasMob or encounter.resolved
-        return {completed=ready,shortage=ready and 0 or 1,kind=kind,label=profile.label}
-    end
-    return {completed=false,shortage=profile.amount,kind=kind,label=profile.label}
+        plan.completed=not encounter or not encounter.hasMob or encounter.resolved==true
+        plan.shortage=plan.completed and 0 or 1; return plan
+    else plan.shortage=profile.amount; return plan end
+    plan.slots=matchingSlots(data,catalog,predicate,profile.amount); plan.inventoryUsed=#plan.slots
+    local required=profile.amount-plan.inventoryUsed
+    if resource then
+        plan.resource=resource; plan.kind=resource; plan.resourceUsed=required
+        local held=data.resources and data.resources[resource] or 0
+        if held<required then plan.shortage=required-held; return plan end
+    elseif required>0 then plan.shortage=required; return plan end
+    plan.completed=true; return plan
+end
+
+function QuestProgression.consumeCargo(data,catalog,quest)
+    local plan=QuestProgression.cargoPlan(data,catalog,quest)
+    if not plan.completed then return plan end
+    for _,slot in ipairs(plan.slots) do Items.write(data,nil,{kind="inventory",index=slot},nil) end
+    if plan.resource and plan.resourceUsed>0 then data.resources[plan.resource]=data.resources[plan.resource]-plan.resourceUsed end
+    for _,use in ipairs(plan.ammoUsed) do data.ammo[use.name]=data.ammo[use.name]-use.amount end
+    return plan
 end
 
 function QuestProgression.questDistance(kind,location,rng)
@@ -197,12 +191,12 @@ function QuestProgression.storeRewardItem(data,catalog,Inventory,name,fallback)
         return "ammunition"
     end
     local slot=Inventory.firstEmptySlot(data)
-    if slot then data.inventory[slot]=name; return "backpack" end
+    if slot then Items.write(data,nil,{kind="inventory",index=slot},name); return "backpack" end
     for _,item in ipairs(data.droppedItems or {}) do
         if item.name=="mailbox-reward" and item.scene=="train" then
             item.storage=item.storage or {}
             for index=1,(catalog.storageCapacities[item.name] or 20) do
-                if not item.storage[index] then item.storage[index]=name; item.mailUnread=true; return "mailbox" end
+                if not item.storage[index] then Items.write(data,item,{kind="chest",index=index},name); item.mailUnread=true; return "mailbox" end
             end
         end
     end

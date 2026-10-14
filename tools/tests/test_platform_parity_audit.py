@@ -3,11 +3,13 @@ from __future__ import annotations
 import tempfile
 import unittest
 import json
+import struct
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
 from tools import audit_platform_parity as parity
+from tools import audit_coop_package as coop
 
 
 class PlatformParityAuditTests(unittest.TestCase):
@@ -16,18 +18,25 @@ class PlatformParityAuditTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         directory = Path(temporary.name)
         package, apk_path = directory / "game.love", directory / "game.apk"
-        package.write_bytes(b"current game content")
+        with zipfile.ZipFile(package, "w") as archive:
+            for name, path in coop.source_files().items():
+                archive.writestr(name, path.read_bytes())
         self.write_apk(apk_path, package.read_bytes())
+        permission_path = directory / 'permissions.txt'
+        permission_path.write_text("uses-permission: name='android.permission.INTERNET'\n", encoding='utf-8')
+        checked = coop.audit_apk(apk_path, package, permission_dump=permission_path.read_text())
         build = {"sourceCommit": "test-head", "sourceDirty": False,
                  "applicationId": "com.mousefrontier.game", "versionName": "test", "versionCode": 5,
                  "package": str(package), "packageBytes": package.stat().st_size,
-                 "packageSha256": parity.sha256(package)}
+                 "packageSha256": parity.sha256(package), "network": checked['network']}
         apk = {key: build[key] for key in ("sourceCommit", "sourceDirty", "applicationId", "versionName", "versionCode")}
         apk.update(apk=str(apk_path), signed=True, identityVerified=True,
                    verifiedAbis=["arm64-v8a", "armeabi-v7a", "x86_64"],
                    sha256=parity.sha256(apk_path), embeddedGameBytes=package.stat().st_size,
                    embeddedGameSha256=parity.sha256(package),
-                   connectedAndroidDevices=0, deviceLaunchVerified=False)
+                   connectedAndroidDevices=0, deviceLaunchVerified=False, network=checked['network'],
+                   nativeBindings=checked['nativeBindings'], internetPermissionVerified=True,
+                   permissionDumpPath=str(permission_path), permissionDumpSha256=checked['permissionDumpSha256'])
         build_report, apk_report = directory / "build.json", directory / "apk.json"
         build_report.write_text(json.dumps(build), encoding="utf-8")
         apk_report.write_text(json.dumps(apk), encoding="utf-8")
@@ -41,13 +50,17 @@ class PlatformParityAuditTests(unittest.TestCase):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("assets/game.love", embedded)
             for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
-                archive.writestr(f"lib/{abi}/liblove.so", b"test engine")
+                bit, machine = coop.ABIS[abi]
+                header = bytearray(64); header[:6] = b'\x7fELF' + bytes((bit, 1)); struct.pack_into('<H', header, 18, machine)
+                archive.writestr(f"lib/{abi}/liblove.so", bytes(header) + b''.join(coop.ENET_MARKERS)
+                    + b'luaopen_socket_core\0luaopen_ffi\0luaJIT_setmode\0')
 
     def test_offline_artifact_audit_does_not_claim_device_verification(self) -> None:
         paths, _, _, _ = self.fixture()
         with patch.object(parity, "git_head", return_value="test-head"):
             result = parity.audit(*paths, require_device=False)
             self.assertFalse(result["deviceLaunchVerified"])
+            self.assertFalse(result['physicalNetworkVerified'])
             with self.assertRaisesRegex(parity.AuditError, "No connected Android device"):
                 parity.audit(*paths, require_device=True)
 
@@ -60,12 +73,54 @@ class PlatformParityAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(parity.AuditError, "embedded game checksum"):
                 parity.audit(*paths, require_device=False)
 
+    def test_unprobed_artifacts_preserve_unknown_count_and_cannot_satisfy_device_gate(self):
+        paths, _, _, apk = self.fixture()
+        apk.update(connectedAndroidDevices=None, deviceProbeStatus='not_probed', deviceLaunchVerified=False)
+        paths[-1].write_text(json.dumps(apk), encoding='utf-8')
+        with patch.object(parity, 'git_head', return_value='test-head'):
+            result = parity.audit(*paths, require_device=False)
+            self.assertIsNone(result['connectedAndroidDevices'])
+            self.assertEqual(result['deviceProbeStatus'], 'not_probed')
+            self.assertFalse(result['deviceLaunchVerified'])
+            with self.assertRaisesRegex(parity.AuditError, 'not probed'):
+                parity.audit(*paths, require_device=True)
+
+    def test_device_gate_handles_null_missing_and_invalid_counts_without_type_errors(self):
+        for value in [None, False, '1', -1, 'missing']:
+            with self.subTest(value=value):
+                paths, _, _, apk = self.fixture()
+                apk.update(connectedAndroidDevices=value, deviceLaunchVerified=True)
+                if value == 'missing':
+                    del apk['connectedAndroidDevices']
+                paths[-1].write_text(json.dumps(apk), encoding='utf-8')
+                with patch.object(parity, 'git_head', return_value='test-head'):
+                    with self.assertRaisesRegex(parity.AuditError, 'No connected Android device'):
+                        parity.audit(*paths, require_device=True)
+
+    def test_legacy_device_report_without_probe_status_remains_compatible(self):
+        paths, _, _, apk = self.fixture()
+        apk.update(connectedAndroidDevices=1, deviceLaunchVerified=True)
+        paths[-1].write_text(json.dumps(apk), encoding='utf-8')
+        with patch.object(parity, 'git_head', return_value='test-head'):
+            result = parity.audit(*paths, require_device=True)
+            self.assertTrue(result['deviceLaunchVerified'])
+            self.assertEqual(result['deviceProbeStatus'], 'not_recorded')
+
     def test_changed_package_is_rejected_even_when_length_is_unchanged(self) -> None:
         paths, package, _, _ = self.fixture()
         package.write_bytes(b"x" * package.stat().st_size)
         with patch.object(parity, "git_head", return_value="test-head"):
             with self.assertRaisesRegex(parity.AuditError, "Game package checksum"):
                 parity.audit(*paths, require_device=False)
+
+    def test_coop_identity_permission_and_native_evidence_are_required_and_rechecked(self):
+        for key, value in (('network', {}), ('internetPermissionVerified', False), ('nativeBindings', {}),
+                           ('permissionDumpSha256', 'tampered')):
+            with self.subTest(key=key):
+                paths, _, _, apk = self.fixture(); apk[key] = value
+                paths[-1].write_text(json.dumps(apk), encoding='utf-8')
+                with patch.object(parity, 'git_head', return_value='test-head'), self.assertRaises(parity.AuditError):
+                    parity.audit(*paths, require_device=False)
 
     def report(self, *checkpoints: tuple[str, str]) -> Path:
         temporary = tempfile.NamedTemporaryFile(

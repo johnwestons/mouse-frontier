@@ -61,6 +61,7 @@ local function new(context)
       screenToGame=platform.presentationRuntime.screenToWorld,updateAudio=platform.audioRuntime.update,
       ensureStopLayout=world.worldScene.ensureStopLayout,updateWorldScene=world.worldScene.update,
       currentShootingRange=world.worldScene.currentShootingRange,handleShootingRange=world.worldScene.handleShootingRange,
+      rangeUpdate=world.worldScene.rangeUpdate,
       clampToTrainFloor=platform.trainCarRuntime.clampToFloor,itemIsHere=world.worldScene.itemIsHere,
       setupNPC=world.worldScene.setupNPC,trainFloorBounds=platform.trainCarRuntime.floorBounds,
       moveExpedition=world.worldScene.moveExpedition,currentExpeditionInteraction=world.worldScene.currentExpeditionInteraction,

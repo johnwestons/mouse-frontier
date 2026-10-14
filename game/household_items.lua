@@ -46,12 +46,12 @@ HouseholdItems.pools = {
     rare={"handheld-radio"},
 }
 
-function HouseholdItems.roll(rarity,pools)
+function HouseholdItems.roll(rarity,pools,rng)
     pools=pools or HouseholdItems.pools
     local pool=pools[rarity]
     if not pool or #pool==0 then pool=pools.common end
     if not pool or #pool==0 then return nil end
-    return pool[love.math.random(1,#pool)]
+    return pool[rng and (1+math.floor(rng()*#pool)) or love.math.random(1,#pool)]
 end
 
 return HouseholdItems

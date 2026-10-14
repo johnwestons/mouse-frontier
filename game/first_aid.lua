@@ -37,6 +37,39 @@ local function distance(x1,y1,x2,y2)
 end
 local function title(value) return tostring(value or "none"):gsub("%-"," "):upper() end
 
+local function merge(target,source)
+    for key in pairs(target) do if source[key]==nil then target[key]=nil end end
+    for key,value in pairs(source) do
+        if type(value)=="table" then
+            target[key]=type(target[key])=="table" and target[key] or {}
+            merge(target[key],value)
+        else target[key]=value end
+    end
+end
+
+-- The UI keeps a presentation copy. Authoritative sessions have no command
+-- callback, so their gestures use the pure rules below without recursion.
+function FirstAid.bindCommands(session,submit,leaseId)
+    session.command=submit; session.leaseId=leaseId; session.commandElapsed=0
+    return session
+end
+
+local function dispatch(session,action,args)
+    args=args or {}; args.action=action; args.leaseId=session.leaseId
+    local reply=session.command("firstAid.step",args)
+    if not reply.ok then
+        session.message="Treatment unavailable. Return to the patient to continue."
+        return "cancelled"
+    end
+    local result=reply.result
+    if result.session then
+        local command,lease,elapsed=session.command,session.leaseId,session.commandElapsed
+        merge(session,result.session)
+        session.command,session.leaseId,session.commandElapsed=command,lease,elapsed
+    end
+    return result.outcome
+end
+
 local function normalizeProgress(progress)
     progress=type(progress)=="table" and progress or {}
     progress.phase=clamp(math.floor(tonumber(progress.phase or progress.stage) or 1),1,FirstAid.phaseCount)
@@ -103,6 +136,7 @@ end
 
 -- Keyboard-accessible equivalent of completing the current physical gesture.
 function FirstAid.choose(session,index)
+    if session and session.command then return dispatch(session,"choose",{index=index}) end
     if not session or tonumber(index)~=session.phase then return nil end
     if session.phase==5 then session.progress.gauzePlaced=true end
     if session.phase==6 then
@@ -116,6 +150,12 @@ end
 
 function FirstAid.update(session,dt)
     if not session then return nil end
+    if session.command then
+        session.commandElapsed=(session.commandElapsed or 0)+(dt or 0)
+        if session.commandElapsed<.1 then return nil end
+        session.commandElapsed=0
+        return dispatch(session,"tick")
+    end
     session.elapsed=(session.elapsed or 0)+(tonumber(dt) or 0)
     if session.phase==2 and hitCircle(session.pointer.x,session.pointer.y,wound,wound.r) then
         session.progress.pourTime=math.min(.8,session.progress.pourTime+(tonumber(dt) or 0))
@@ -125,6 +165,7 @@ end
 
 function FirstAid.mousepressed(session,x,y)
     if not session then return nil end
+    if session.command then return dispatch(session,"press",{x=x,y=y}) end
     session.pointer.x,session.pointer.y=x,y
     session.previousPointer={x=x,y=y}
     if hitRect(x,y,cancel) then return "cancelled" end
@@ -199,6 +240,7 @@ end
 
 function FirstAid.mousemoved(session,x,y)
     if not session then return nil end
+    if session.command then return dispatch(session,"move",{x=x,y=y}) end
     local previous=session.previousPointer or session.pointer or {x=x,y=y}
     local dx,dy=x-previous.x,y-previous.y
     session.pointer.x,session.pointer.y=x,y
@@ -210,6 +252,7 @@ end
 
 function FirstAid.mousereleased(session,x,y)
     if not session then return nil end
+    if session.command then return dispatch(session,"release",{x=x,y=y}) end
     session.pointer.x,session.pointer.y=x,y
     session.previousPointer=nil
     session.dragging=false

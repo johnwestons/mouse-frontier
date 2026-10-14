@@ -1,4 +1,5 @@
 local WorldView=require("game.world_view")
+local WorldPause=require("game.world_pause")
 local Accessibility=require("game.accessibility")
 local Typography=require("game.typography")
 local WideLayout=require("game.wide_layout")
@@ -349,7 +350,9 @@ local function new(context)
       return UIStyle.scope("pauseMenu",{x=panelX,y=panelY,w=panelW,h=panelH},function()
       drawMenuFrame(panelX,panelY,panelW,panelH,2,.99)
       love.graphics.setColor(colors.cream)
-      textBox("PAUSED",panelX+24,panelY+30,panelW-48,52,mobile and 1.5 or 1.25,"center")
+      local sharedRunning=WorldPause.isSharedHost(runtime) and not WorldPause.isSimulationPaused(runtime,ui)
+      textBox(sharedRunning and "MENU" or "PAUSED",panelX+24,panelY+30,panelW-48,sharedRunning and 40 or 52,mobile and 1.5 or 1.25,"center")
+      if sharedRunning then textBox("Your friend can keep playing.",panelX+24,panelY+74,panelW-48,20,.62,"center") end
       love.graphics.setColor(colors.brass)
       love.graphics.rectangle("fill",panelX+34,panelY+100,panelW-68,3)
       local buttonX=mobile and panelX+54 or panelX+50
@@ -386,7 +389,9 @@ local function new(context)
           textBox("MOUSE FRONTIER",0,82,W,48,2.2,"center")
       end
       love.graphics.setColor(colors.cream)
-      textBox("CHOOSE A JOURNEY  •  ARROWS / WASD + ENTER",0,182,W,28,.82,"center")
+      local hosting=ui.localPlay and ui.localPlay.hostingIntent=='selecting'
+      textBox(hosting and "CHOOSE A JOURNEY TO HOST  •  F8 TO CANCEL"
+          or "CHOOSE A JOURNEY  •  ARROWS / WASD + ENTER",0,182,W,28,.82,"center")
       ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
       for i=1,3 do
           local data, y = readSave(i), cardY+(i-1)*cardStep
@@ -603,68 +608,8 @@ local function new(context)
   local function drawTrade()
       local source=currentTradeSource()
       if not source then runtime.tradeOpen=false; runtime.tradeNPC=nil; runtime.tradeMerchantId=nil; runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; return end
-      love.graphics.setColor(0,0,0,.86); love.graphics.rectangle("fill",0,0,W,H)
-      return UIStyle.scope("trade",{x=60,y=42,w=840,h=640},function()
-      local merchant=source.relationshipId or source.merchant or runtime.tradeNPC or runtime.saveData.currentNPC
-      local terms=MerchantTrade.terms(runtime.saveData,source)
-      local availableBudget=MerchantTrade.availableBudget(runtime.saveData,source)
-      do
-          drawMenuFrame(60,42,840,640,1,1)
-          love.graphics.setColor(colors.cream); textBox(source.title or Util.titleFromFile(merchant).."'S TRADING POST",85,59,790,45,1.2,"center")
-          textBox("YOUR SCRAP "..runtime.saveData.scrap.." / MERCHANT BUDGET "..math.max(0,availableBudget),85,108,790,27,.9,"center")
-          love.graphics.setColor(colors.brass); textBox(runtime.tradeMessage or (terms.tier.." terms / "..math.floor(terms.discount*100+.5).."% buying discount"),85,139,790,32,.82,"center")
-          local stockIndices,occupied={},{}
-          for index in pairs(source.stock or {}) do if type(index)=="number" and MerchantTrade.stockItem(source,index) then stockIndices[#stockIndices+1]=index end end
-          table.sort(stockIndices)
-          for index=1,(runtime.saveData.inventoryCapacity or 6) do
-              local item=runtime.saveData.inventory[index]
-              if item and not (Catalog.repairParts and Catalog.repairParts[item]) then occupied[#occupied+1]=index end
-          end
-          local buyPages=math.max(0,math.ceil(#stockIndices/3)-1)
-          local sellPages=math.max(0,math.ceil(#occupied/3)-1)
-          runtime.tradeBuyPage=math.max(0,math.min(buyPages,runtime.tradeBuyPage or 0))
-          runtime.tradeSellPage=math.max(0,math.min(sellPages,runtime.tradeSellPage or 0))
-          ui.tradeBuy,ui.tradeSell,ui.tradeGive={},{},{}
-          textBox("FOR SALE",90,177,350,26,.95)
-          textBox("YOUR ITEMS",490,177,375,26,.95)
-          for row=0,2 do
-              local y=210+row*116
-              local index=stockIndices[runtime.tradeBuyPage*3+row+1]
-              if index then
-                  local name,entry=MerchantTrade.stockItem(source,index)
-                  local price=MerchantTrade.buyPrice(runtime.saveData,Catalog,source,index)
-                  local enabled,target=MerchantTrade.canBuy(runtime.saveData,Catalog,source,index)
-                  ui.drawItem(name,{x=90,y=y,w=54,h=54})
-                  love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(name)..((tonumber(entry and entry.quantity) or 1)>1 and (" x"..entry.quantity) or ""),154,y,290,43,.85)
-                  ui.tradeBuy[index]=button(target=="train" and "SEND" or "BUY",154,y+49,130,56,enabled,.95)
-                  ui.tradeBuy[index].enabled=enabled
-                  love.graphics.setColor(colors.cream); textBox(price.." SCRAP",297,y+49,150,56,.9,"center")
-              end
-              local ownedIndex=occupied[runtime.tradeSellPage*3+row+1]
-              local name=ownedIndex and runtime.saveData.inventory[ownedIndex]
-              if name then
-                  ui.drawItem(name,{x=490,y=y,w=54,h=54})
-                  love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(name),556,y,306,43,.85)
-                  local price=MerchantTrade.sellPrice(runtime.saveData,Catalog,source,ownedIndex)
-                  local gift=isWeapon(name) and source.allowGifts
-                  ui.tradeSell[ownedIndex]=button("SELL +"..price,556,y+49,gift and 143 or 306,56,availableBudget>=price,.95)
-                  ui.tradeSell[ownedIndex].enabled=availableBudget>=price
-                  if gift then ui.tradeGive[ownedIndex]=button("GIVE",716,y+49,146,56,true,.95) end
-              end
-          end
-          ui.tradeBuyPrev=button("<",90,559,65,52,runtime.tradeBuyPage>0)
-          ui.tradeBuyNext=button(">",382,559,65,52,runtime.tradeBuyPage<buyPages)
-          ui.tradePrev=button("<",490,559,65,52,runtime.tradeSellPage>0)
-          ui.tradeNext=button(">",797,559,65,52,runtime.tradeSellPage<sellPages)
-          ui.tradeBuyPrev.enabled=runtime.tradeBuyPage>0; ui.tradeBuyNext.enabled=runtime.tradeBuyPage<buyPages
-          ui.tradePrev.enabled=runtime.tradeSellPage>0; ui.tradeNext.enabled=runtime.tradeSellPage<sellPages
-          love.graphics.setColor(colors.cream)
-          textBox((runtime.tradeBuyPage+1).." / "..(buyPages+1),170,559,196,52,.95,"center")
-          textBox((runtime.tradeSellPage+1).." / "..(sellPages+1),570,559,212,52,.95,"center")
-          ui.tradeClose=button("DONE TRADING",340,622,280,48,true,.95)
-          return
-      end
-      end)
+      return require("game.merchant_trade_panel").draw({runtime=runtime,ui=ui,catalog=Catalog,colors=colors,trade=MerchantTrade,
+          button=button,drawMenuFrame=drawMenuFrame,textBox=textBox,isWeapon=isWeapon,width=W,height=H},source)
   end
 
   function ui.drawMap()
@@ -716,8 +661,9 @@ local function new(context)
       local questLine=quests.count>0 and ("ACTIVE: "..quests.first..(quests.count>1 and ("  +"..(quests.count-1).." more") or "")) or "No active deliveries or passengers."
       textBox(questLine,120,582,720,38,.8,"center")
       local mobile=mobileEnabled()
-      ui.mapUp=button("^",mobile and 790 or 805,105,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0); ui.mapDown=button("v",mobile and 790 or 805,mobile and 181 or 155,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
-      love.graphics.setColor(colors.ink); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,250,68,30,.85,"center")
+      ui.mapUp=button("^",mobile and 790 or 805,mobile and 148 or 132,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0)
+      ui.mapDown=button("v",mobile and 790 or 805,mobile and 224 or 182,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
+      love.graphics.setColor(colors.ink); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,mobile and 300 or 232,68,30,.85,"center")
       love.graphics.setLineWidth(1)
       end)
   end
@@ -795,7 +741,13 @@ local function new(context)
   function ui.drawRandomEvent()
       WorldView.begin(); drawLandscape(); WorldView.finish(); love.graphics.setColor(0,0,0,0.76); love.graphics.rectangle("fill",0,0,W,H)
       return UIStyle.scope("event",{x=60,y=42,w=840,h=640},function()
-          ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},canChooseEvent)
+          ui.eventChoices=nil; ui.eventContinue=nil
+          if runtime.eventOutcome then
+              ui.eventContinue=EventUI.drawReadAlong(runtime.randomEvent,require('game.coop_events').readAlong(runtime.saveData),
+                  scenery.eventArt,drawMenuFrame,button,colors,true)
+          else
+              ui.eventChoices=EventUI.draw(runtime.randomEvent,scenery.eventArt,drawMenuFrame,button,colors,runtime.saveData.eventProgress or {},canChooseEvent)
+          end
       end)
   end
 
@@ -804,7 +756,7 @@ local function new(context)
   local repairPanelBounds={x=150,y=70,w=660,h=580}
 
   local function ownedRepairWeapons()
-      return LootProgression.ownedWeapons(runtime.saveData,Catalog)
+      return LootProgression.repairChoices(runtime.saveData,Catalog)
   end
 
   local repairColors={ink={.20,.12,.07},muted={.40,.30,.20},brass={.46,.26,.10},green={.17,.34,.18},red={.61,.18,.12}}
@@ -831,6 +783,7 @@ local function new(context)
           selected=nil; runtime.weaponRepairSelected=false
       end
       if selected~=previousSelected or (runtime.weaponRepairStartedAt and runtime.weaponRepairActiveWeapon~=selected) then
+          if ui.cancelWeaponRepair then ui.cancelWeaponRepair() end
           runtime.weaponRepairStartedAt=nil; runtime.weaponRepairActiveWeapon=nil; runtime.weaponRepairMessage=nil
           runtime.weaponRepairDrag=nil
       end
@@ -854,9 +807,12 @@ local function new(context)
               local r=RepairLayout.row(row); ui.repairRows[#ui.repairRows+1]={rect=r,name=name,index=index}
               local active=name==selected
               OutfitArt.draw(active and "card-selected" or "card",r,{stretch=true})
-              local profile=Catalog.weaponStats[name]
-              love.graphics.setColor(repairColors.ink); textBox(profile.name or Util.titleFromFile(name),r.x+9,r.y+9,r.w-54,35,.65,nil,.60)
-              local condition=repairStatus(name).durability
+              local itemStatus=repairStatus(name)
+              local profile=Catalog.weaponStats[itemStatus.name]
+              local label=profile.name or Util.titleFromFile(itemStatus.name)
+              if itemStatus.ref then label=label.."\n"..(itemStatus.ref.kind=="equipment" and "EQUIPPED " or "BACKPACK ")..itemStatus.ref.index end
+              love.graphics.setColor(repairColors.ink); textBox(label,r.x+9,r.y+9,r.w-54,35,.65,nil,.60)
+              local condition=itemStatus.durability
               love.graphics.setColor(condition<=25 and repairColors.red or repairColors.green); textBox(tostring(condition).."%",r.x+r.w-43,r.y+10,37,19,.68,"right")
               RepairArt.condition(r.x+10,r.y+48,r.w-20,5,condition)
           end
@@ -867,14 +823,14 @@ local function new(context)
       love.graphics.setColor(repairColors.ink); textBox((#names==0 and "0" or tostring(runtime.weaponRepairScroll or 1)).." / "..tostring(#names),84,533,109,39,.79,"center")
 
       if selected then
-          local profile=Catalog.weaponStats[selected]
-          love.graphics.setColor(repairColors.ink); textBox(profile.name or Util.titleFromFile(selected),299,136,363,49,.98,"center")
+          local profile=Catalog.weaponStats[status.name]
+          love.graphics.setColor(repairColors.ink); textBox(profile.name or Util.titleFromFile(status.name),299,136,363,49,.98,"center")
           love.graphics.setColor(repairColors.brass); textBox("CONDITION",729,170,182,24,.83,"center")
           local condition=status.durability or 100
           local conditionLabel=condition==0 and "BROKEN" or (condition<=25 and "CRITICAL" or (condition<50 and "WORN" or (condition<75 and "USED" or "SOUND")))
           RepairArt.condition(729,202,182,10,condition)
           love.graphics.setColor(repairColors.ink); textBox(tostring(condition).."%  /  "..conditionLabel,729,222,182,26,.77,"center")
-          RepairArt.item(selected,RepairLayout.weapon,ui,Catalog)
+          RepairArt.item(status.name,RepairLayout.weapon,ui,Catalog)
           if status.part then
               RepairArt.item(status.part,RepairLayout.part,ui,Catalog)
               local part=Catalog.repairParts[status.part]
@@ -890,7 +846,8 @@ local function new(context)
           love.graphics.setColor(repairColors.ink); textBox(status.needed and (tostring(status.cost).." SCRAP") or "NO REPAIR NEEDED",729,471,182,40,.84,"center")
           love.graphics.setColor(colors.cream); textBox("TIMING CHECK",315,435,330,22,.74,"center")
           local rail=RepairLayout.rail; ui.repairRail=rail
-          local phase=runtime.weaponRepairStartedAt and ((runtime.animationClock-runtime.weaponRepairStartedAt)*.86)%1 or nil
+          local elapsed=runtime.weaponRepairStartedAt and (context.repairElapsed and context.repairElapsed(runtime.weaponRepairStartedAt) or runtime.animationClock-runtime.weaponRepairStartedAt)
+          local phase=elapsed and (elapsed*.86)%1 or nil
           RepairArt.timing(rail,phase)
           love.graphics.setColor(repairColors.green); textBox("GOOD",315,485,150,17,.65,"center")
           love.graphics.setColor(repairColors.brass); textBox("PERFECT",495,485,150,17,.65,"center")
@@ -950,6 +907,7 @@ local function new(context)
   end
 
   function ui.drawEditControls()
+      if ui.editedDecoration then ui.editedDecoration() end
       local mobile=mobileEnabled()
       love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",mobile and 100 or 110,mobile and 145 or 158,mobile and 825 or 815,mobile and 225 or 122,10,10)
       love.graphics.setColor(colors.cream); love.graphics.print(runtime.editedItem and "MOVE / SCALE SELECTED ITEM" or "SELECT A YELLOW HANDLE",132,172)
@@ -984,46 +942,28 @@ local function new(context)
       local saturation=item and math.max(0,math.min(2,item.saturation or 1)) or 1
       ui.editHue=slider("HUE  "..math.floor(hue*360).."°",mobile and 330 or 755,mobile and 345 or 190,mobile and 180 or 145,hue,"hue")
       ui.editSaturation=slider("SATURATION  "..math.floor(saturation*100).."%",mobile and 570 or 755,mobile and 345 or 239,mobile and 180 or 145,saturation/2,"saturation")
+      if ui.decorationMessage then
+          local y=mobile and 378 or 286
+          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",110,y,805,38,6,6)
+          love.graphics.setColor(colors.cream)
+          Typography.drawText(love.graphics,ui.decorationMessage,122,y+3,781,32,{scale=.75,minScale=.65,valign="center"})
+      end
   end
 
   function ui.updateEditColorSlider(x)
       local item=runtime.editedItem and runtime.saveData.droppedItems[runtime.editedItem]
+      if ui.editedDecoration then item=ui.editedDecoration() end
       local control=ui.editSliderDrag=="hue" and ui.editHue or ui.editSaturation
       if not item or not control then return end
       local value=math.max(0,math.min(1,(x-(control.x+7))/(control.w-14)))
-      if ui.editSliderDrag=="hue" then item.hue=value else item.saturation=value*2 end
+      if ui.placeDecoration then ui.placeDecoration(item,ui.editSliderDrag=="hue" and {hue=value} or {saturation=value*2})
+      elseif ui.editSliderDrag=="hue" then item.hue=value else item.saturation=value*2 end
   end
 
   local function drawEnding()
       WorldView.begin(); drawLandscape(); WorldView.finish(); love.graphics.setColor(0.08,0.05,0.03,0.72); love.graphics.rectangle("fill",0,0,W,H)
-      return UIStyle.scope("ending",{x=80,y=55,w=800,h=610},function()
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",80,55,800,610,20,20)
-      local finale=FinaleProgression.evaluate(runtime.saveData,StopHelpProgression,Maintenance)
-      love.graphics.setColor(colors.brass); textBox(finale.choice and finale.tier or "THE LAST SWITCH",110,83,740,58,1.5,"center")
-      love.graphics.setColor(colors.cream); textBox(finale.reunion,145,151,670,86,.95,"center")
-      love.graphics.setColor(colors.brass)
-      textBox("GOODWILL "..finale.goodwill.."  •  FAMILY CLUES "..finale.storyClues.."/10  •  MYSTERY CLUES "..finale.mysteryClues.."/5",120,245,720,20,.66,"center")
-      textBox("HELP "..finale.helpCount.."  •  RIDES "..finale.rides.."  •  TRAIN "..finale.condition.."%  •  CARS "..finale.cars.."  •  LEVEL "..finale.level,120,271,720,20,.66,"center")
-      if not finale.choice then
-          love.graphics.setColor(colors.cream); textBox("Your family asks what comes next. Choose the legacy this journey leaves behind.",185,318,590,46,.78,"center")
-          ui.endingChoices={}
-          for index,choice in ipairs(FinaleProgression.choices) do
-              local x=115+(index-1)*245
-              love.graphics.setColor(colors.cream); textBox(choice.description,x,362,220,73,.8,"center")
-              ui.endingChoices[index]=button(index.."  "..choice.title,x,440,220,58,true)
-              ui.endingChoices[index].id=choice.id
-          end
-          love.graphics.setColor(colors.cream); textBox("All three paths are hopeful. Your choice changes the final legacy, never a good-or-evil alignment.",190,535,580,24,.62,"center")
-          ui.endingButton=nil
-      else
-          ui.endingChoices=nil
-          love.graphics.setColor(colors.cream); textBox(finale.outcome,145,313,670,82,.92,"center")
-          love.graphics.setColor(colors.brass); textBox(finale.tierText,155,404,650,63,.85,"center")
-          local family={runtime.saveData.character,(runtime.saveData.npcRoster or {})[1],(runtime.saveData.npcRoster or {})[2]}
-          for i,file in ipairs(family) do local img=characterImages[file] or npcImages[file]; if img then local s=math.min(72/img:getWidth(),96/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,380+(i-1)*100,520+math.sin(runtime.animationClock*3+i)*3,0,s,s,img:getWidth()/2,img:getHeight()/2) end end
-          ui.endingButton=button("CAMPAIGN COMPLETE  •  RETURN",330,590,300,45,true)
-      end
-      end)
+      ui.endingChoices,ui.endingButton=require('game.finale_ui').draw(runtime.saveData,require('game.coop_finale').summary(runtime.saveData),
+          {colors=colors,textBox=textBox,button=button,characterImages=characterImages,npcImages=npcImages,animationClock=runtime.animationClock},true)
   end
 
   return {

@@ -50,13 +50,20 @@ local function samePoint(a,b)
 end
 function UI.new(context)
     assert(type(context)=="table" and type(context.data)=="function","outfit crafting UI requires data()")
+    local Model=context.model or Model
     local self={visible=false,selected=1,page=1,buttons={},focusId=nil,message="",context=context,
         tension=0,holding=false,dragging=false,time=0,workRect={x=285,y=221,w=390,h=260}}
+    local function command(action,args,fallback)
+        if context.command then return context.command(action,args or {}) end
+        return fallback()
+    end
 
     function self:isOpen() return self.visible end
     function self:suspend()
+        if self.visible and context.command then context.command("suspend",{}) end
         self.holding=false; self.dragging=false; self.heldKey=nil; self.lastDragPoint=nil
         self.blockCoincident=false; self.pointer=nil
+        self.pullAnchor=nil
     end
     function self:show()
         Model.ensure(context.data()); self.visible=true; self.message=""; self.receipt=nil
@@ -77,6 +84,7 @@ function UI.new(context)
         if context.onClose then context.onClose() end
     end
     function self:result(result)
+        if result and result.tension~=nil then self.tension=result.tension end
         self.message=result and result.message or ""
         self.messageBad=result and (not result.ok or result.correct==false) or false
         if result and result.changed and context.save then
@@ -103,18 +111,18 @@ function UI.new(context)
         local recipe=self:recipe()
         if not recipe then return end
         self.receipt=nil
-        local result=self:result(Model.start(context.data(),recipe.id))
+        local result=self:result(command("start",{recipeId=recipe.id},function() return Model.start(context.data(),recipe.id) end))
         if result.ok then self.focusId="work"; self.tension=0 end
     end
     function self:collect()
-        local result=self:result(Model.finish(context.data()))
+        local result=self:result(command("collect",{},function() return Model.finish(context.data()) end))
         if result.ok then self.receipt=result; self.focusId="start" end
     end
     function self:place(x,y)
         local stage=Model.stage(context.data())
         if not stage or stage.kind~="point" then return end
         local current=stage.currentPoint
-        local result=self:result(Model.act(context.data(),{kind="point",x=x,y=y}))
+        local result=self:result(command("point",{x=x,y=y},function() return Model.act(context.data(),{kind="point",x=x,y=y}) end))
         if result.correct then
             self.lastDragPoint=current
             local nextStage=Model.stage(context.data())
@@ -128,17 +136,24 @@ function UI.new(context)
     function self:beginPull(source)
         local stage=Model.stage(context.data())
         if not stage or stage.kind~="tension" or self.holding then return end
+        if context.command and not self:result(context.command("pullStart",{})).ok then return end
+        if context.clock then self.pullAnchor={at=context.clock(),tension=self.tension} end
         self.holding=true; self.heldKey=source; self.focusId="work"
     end
     function self:releasePull()
         local stage=Model.stage(context.data())
         self.holding=false; self.heldKey=nil
-        if stage and stage.kind=="tension" then self:result(Model.act(context.data(),{kind="tension",value=self.tension})) end
+        if stage and stage.kind=="tension" then
+            self:result(command("pullRelease",{},function() return Model.act(context.data(),{kind="tension",value=self.tension}) end))
+        end
     end
     function self:adjustTension(amount)
-        self.holding=false; self.heldKey=nil; self.tension=clamp(self.tension+amount,0,1)
+        self.holding=false; self.heldKey=nil
+        if context.command then self:result(context.command("adjust",{direction=amount<0 and -1 or 1}))
+        else self.tension=clamp(self.tension+amount,0,1) end
     end
     function self:button(id,label,x,y,w,h,action,enabled,selected,hold,kind)
+        if context.enabled then enabled=enabled~=false and context.enabled(id) end
         local rect={id=id,x=x,y=y,w=w,h=h,action=action,enabled=enabled~=false,hold=hold}
         self.buttons[#self.buttons+1]=rect
         local focused=self.focusId==id
@@ -292,8 +307,8 @@ function UI.new(context)
             panel("paper",340,387,281,105)
             text(Definitions.qualityLabels[result.quality] or title(result.quality),354,398,253,29,.92,colors.brass,"center")
             drawBenefits(profile,354,434,253,43,.80,"center")
-            text(project and "Your improvement is finished. Collect it, then install it in the matching gear slot in your inventory."
-                or "The improvement is in your backpack. Install it in the matching gear slot to apply its benefits.",294,509,382,68,.75,colors.ink)
+            text(project and "Construction is finished. Collect the improvement into the project owner's backpack."
+                or "The improvement is in the project owner's backpack. Install it in the matching gear slot to apply its benefits.",294,509,382,68,.75,colors.ink)
             local status=Model.status(context.data(),recipe.id)
             self:button(project and "collect" or "start",project and "COLLECT UPGRADE" or "CRAFT ANOTHER",297,588,371,44,
                 project and function() self:collect() end or function() self:start() end,project~=nil or status.canStart)
@@ -313,7 +328,7 @@ function UI.new(context)
         love.graphics.push("all"); self.buttons={}
         Art.background({x=0,y=0,w=960,h=720})
         text("SEWING BENCH", 90,27,665,32,1.27,colors.cream)
-        text("Improvements for your character's own outfit",92,60,667,21,.73,colors.cream)
+        text(context.subtitle and context.subtitle() or "Improvements for your character's own outfit",92,60,667,21,.73,colors.cream)
         self:button("close","PAUSE",818,28,98,46,function() self:close() end)
         panel("paper",276,498,418,145)
         self:drawRecipes()
@@ -331,7 +346,10 @@ function UI.new(context)
     function self:update(dt)
         if not self.visible then return end
         self.time=self.time+(dt or 0)
-        if self.holding then self.tension=clamp(self.tension+math.min(dt or 0,.1)*.24,0,1) end
+        if self.holding then
+            if self.pullAnchor and context.clock then self.tension=clamp(self.pullAnchor.tension+math.max(0,context.clock()-self.pullAnchor.at)*.24,0,1)
+            else self.tension=clamp(self.tension+math.min(dt or 0,.1)*.24,0,1) end
+        end
     end
     function self:mousepressed(x,y,button)
         if not self.visible then return false end

@@ -1,6 +1,14 @@
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
 local SmokeSupport={inventory=require("game.inventory"),style=require("game.ui_layout"),viewport=require("game.viewport")}
+SmokeSupport.items=require("game.item_instances")
+SmokeSupport.settlements=require("game.settlements")
+function SmokeSupport.replaceSlots(data,kind,values)
+    local previous={}
+    for index in pairs(data[kind]) do previous[#previous+1]=index end
+    for _,index in ipairs(previous) do SmokeSupport.items.write(data,nil,{kind=kind,index=index},nil) end
+    for index,name in pairs(values) do SmokeSupport.items.write(data,nil,{kind=kind,index=index},name) end
+end
 
 local function required(context,name,expected)
     local value=context[name]
@@ -53,6 +61,7 @@ local function install(context)
     local consumeSelected=required(context,"consumeSelected","function")
     local beginRandomEvent=required(context,"beginRandomEvent","function")
     local resolveEventChoice=required(context,"resolveEventChoice","function")
+    local continueEvent=context.continueEvent
     local advanceBattleTurn=required(context,"advanceBattleTurn","function")
     local battleAttack=required(context,"battleAttack","function")
     local resolveBattleAttack=required(context,"resolveBattleAttack","function")
@@ -134,10 +143,22 @@ local function install(context)
         if name=="intro" then game.state="intro"; ui.introCinematic=createIntro()
         elseif name=="slots" then game.state="slots"
         elseif name=="characters" then game.state="characters"
-        elseif name=="event" then game.scene="stop"; game.randomEvent=beginRandomEvent()
+        elseif name=="event" then
+            game.state='game'; game.scene='train'; game.saveData.scene='train'
+            game.saveData.forceEventId='broken-pump'
+            assert(beginRandomEvent(),'event render fixture did not begin through host authority')
         elseif name=="battle" then
-            beginEncounter({rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={Catalog.mobTiers.easy[1]}}); game.battle.intro=nil
-        elseif name=="ending" then game.state="ending"
+            if game.randomEvent then
+                assert(resolveEventChoice(3),'event render fixture choice failed')
+                assert(continueEvent and continueEvent(),'event render fixture continuation failed')
+            end
+            local encounter={rolled=true,hasMob=true,resolved=false,tier="easy",mobFiles={Catalog.mobTiers.easy[1]}}
+            game.saveData.encounters[tostring(game.saveData.location)]=encounter; assert(require('game.coop_entities').ensure(game.saveData))
+            assert(beginEncounter(encounter)); game.battle.intro=nil
+        elseif name=="ending" then
+            game.saveData.tacticalBattle=nil
+            game.saveData.location=50; game.saveData.stopped=true; game.saveData.coop.journey=nil
+            game.scene='train'; game.battle=nil; game.state='ending'
         elseif name=="inventory" then game.state="game"; game.scene="train"; game.saveData.scene=game.scene; game.inventoryOpen=true
         else game.state="game"; game.scene=name; game.saveData.scene=game.scene; if game.scene~="train" then ensureStopLayout(); setupNPC() end end
         return name
@@ -429,7 +450,7 @@ local function install(context)
                 Save.remove(99); game.selectedSlot=previousSlot
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
-            {name="start_new_game",action=function() game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="start_new_game",action=function() Save.remove(98); game.selectedSlot=98; game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
             {name="weapon_repair_workbench_render",action=function()
                 local previous={saveData=game.saveData,selectedSlot=game.selectedSlot,
                     weaponRepairOpen=game.weaponRepairOpen,weaponRepairSelected=game.weaponRepairSelected,
@@ -440,31 +461,34 @@ local function install(context)
                 local weapon="frontier-22-lever-rifle"
                 local component=assert(Catalog.weaponRepairParts[weapon])
                 local testSave=newSave(character)
-                testSave.equipment={}
-                testSave.inventory={weapon,component,nil,nil,nil,nil}
+                SmokeSupport.replaceSlots(testSave,"equipment",{})
+                SmokeSupport.replaceSlots(testSave,"inventory",{weapon,component})
                 testSave.inventoryCapacity=6
-                testSave.weaponDurability[weapon]=12
+                assert(SmokeSupport.items.setCondition(testSave,weapon,12))
                 testSave.scrap=200
-                enterGame(testSave)
+                local Items=require("game.item_instances")
+                assert(Items.ensure(testSave))
+                local itemId=assert(Items.get(testSave,nil,{kind="inventory",index=1})).id
+                Save.remove(99); game.selectedSlot=99; enterGame(testSave)
                 game.trainUpgradeOpen=true; game.weaponRepairOpen=false
                 ui.smokeDraw()
                 ui.repairSmokeTap(ui.weaponRepair)
                 assert(game.weaponRepairOpen,"workshop button did not open the repair bench")
-                game.weaponRepairSelected=weapon; game.weaponRepairScroll=1
+                game.weaponRepairSelected=itemId; game.weaponRepairScroll=1
                 game.weaponRepairStartedAt=nil; game.weaponRepairMessage=nil
                 ui.smokeDraw()
                 ui.smokeRepairCapturePending=true
                 local rows=ui.repairRows or {}
                 local saved=SaveSchema.copy(testSave)
-                return {selected=game.weaponRepairSelected,rowCount=#rows,
+                return {selected=game.weaponRepairSelected,itemId=itemId,weaponName=Items.owned(testSave,itemId).name,rowCount=#rows,
                     rowWeapon=rows[1] and rows[1].name,startButton=ui.repairStart~=nil,
                     partPreview=ui.repairRail~=nil,scrap=testSave.scrap,
-                    condition=testSave.weaponDurability[weapon],sessionSynchronized=game:isSynchronized(screens),
+                    condition=Items.condition(testSave,itemId),sessionSynchronized=game:isSynchronized(screens),
                     saveKeepsPart=saved and saved.inventory[2]==component,
-                    saveKeepsWear=saved and saved.weaponDurability[weapon]==12,
+                    saveKeepsWear=saved and Items.condition(saved,itemId)==12,
                     saveKeepsScrap=saved and saved.scrap==200}
             end,check=function(_,_,_,result)
-                return result.selected=="frontier-22-lever-rifle" and result.rowCount==1
+                return result.weaponName=="frontier-22-lever-rifle" and result.selected==result.itemId and result.rowCount==1
                     and result.rowWeapon==result.selected and result.startButton and result.partPreview
                     and result.scrap==200 and result.condition==12 and result.sessionSynchronized
                     and result.saveKeepsPart and result.saveKeepsWear and result.saveKeepsScrap
@@ -472,24 +496,31 @@ local function install(context)
             {name="weapon_repair_workbench_restore",action=function()
                 local previous=ui.smokeRepairRestore
                 assert(previous,"workbench smoke preview did not keep its temporary state")
-                local weapon="frontier-22-lever-rifle"
+                local weapon=game.weaponRepairSelected
                 local testSave=game.saveData
                 local cost=require("game.loot_progression").repairStatus(testSave,Catalog,weapon).cost
                 ui.repairSmokeTap(ui.repairStart)
                 local timingStarted=type(game.weaponRepairStartedAt)=="number"
                 if timingStarted then
-                    game.animationClock=game.weaponRepairStartedAt+(.655/.86)
                     ui.smokeDraw()
+                    -- Exercise the same monotonic repair clock as production.
+                    -- Changing the presentation clock no longer moves a lease.
+                    local now=love.timer.getTime()
+                    local cycle=math.floor((now-game.weaponRepairStartedAt)*.86)
+                    local target=game.weaponRepairStartedAt+(cycle+.655)/.86
+                    if target<=now then target=target+1/.86 end
+                    love.timer.sleep(target-now)
                     if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then
                         ui.repairSmokeTap(ui.repairStart)
                     else
                         love.keypressed("space")
                     end
                 end
-                local repairCommitted=testSave.weaponDurability[weapon]==100
+                local repairCommitted=require("game.item_instances").condition(testSave,weapon)==100
                     and testSave.inventory[2]==nil and testSave.scrap==200-cost
                 enterGame(previous.saveData)
                 game.selectedSlot=previous.selectedSlot
+                Save.remove(99)
                 game.weaponRepairOpen=previous.weaponRepairOpen
                 game.weaponRepairSelected=previous.weaponRepairSelected
                 game.weaponRepairScroll=previous.weaponRepairScroll
@@ -517,15 +548,16 @@ local function install(context)
                 local rendered=0
                 for _,weapon in ipairs(Catalog.weaponProgression) do
                     local component=assert(Catalog.weaponRepairParts[weapon])
-                    testSave.equipment={[2]=weapon}; testSave.inventory={[6]=component}
-                    testSave.inventoryCapacity=6; testSave.weaponDurability={[weapon]=0};testSave.scrap=200
-                    game.weaponRepairSelected=weapon;game.weaponRepairScroll=1
+                    SmokeSupport.replaceSlots(testSave,"equipment",{[2]=weapon}); SmokeSupport.replaceSlots(testSave,"inventory",{[6]=component})
+                    testSave.inventoryCapacity=6; assert(SmokeSupport.items.setCondition(testSave,weapon,0));testSave.scrap=200
+                    local selector=SmokeSupport.items.get(testSave,nil,{kind="equipment",index=2}).id
+                    game.weaponRepairSelected=selector;game.weaponRepairScroll=1
                     ui.smokeDraw()
                     assert(ui.propImages[component],"repair sprite did not load: "..component)
-                    assert(ui.repairRows[1] and ui.repairRows[1].name==weapon,"sparse equipment missing from workbench")
+                    assert(ui.repairRows[1] and ui.repairRows[1].name==selector,"sparse equipment missing from workbench")
                     rendered=rendered+1
                 end
-                testSave.equipment={};testSave.inventory={};ui.smokeDraw()
+                SmokeSupport.replaceSlots(testSave,"equipment",{});SmokeSupport.replaceSlots(testSave,"inventory",{});ui.smokeDraw()
                 local emptyList=#ui.repairRows==0
                 enterGame(previous);ui.smokeDraw()
                 return {rendered=rendered,emptyList=emptyList}
@@ -534,10 +566,10 @@ local function install(context)
                 local previous=game.saveData
                 enterGame(newSave(character))
                 local data=game.saveData
-                data.equipment={};data.inventory={};data.inventoryCapacity=#Catalog.weaponProgression
-                for index,weapon in ipairs(Catalog.weaponProgression) do data.inventory[index]=weapon end
+                SmokeSupport.replaceSlots(data,"equipment",{});SmokeSupport.replaceSlots(data,"inventory",Catalog.weaponProgression);data.inventoryCapacity=#Catalog.weaponProgression
                 game.trainUpgradeOpen=true;game.weaponRepairOpen=true;game.weaponRepairScroll=1
-                game.weaponRepairSelected=Catalog.weaponProgression[1]
+                local initialSelector=SmokeSupport.items.get(data,nil,{kind="inventory",index=1}).id
+                game.weaponRepairSelected=initialSelector
                 ui.smokeDraw()
                 local row=assert(ui.repairRows[4]).rect
                 local x,y=row.x+row.w/2,row.y+row.h/2
@@ -567,7 +599,7 @@ local function install(context)
                 local returnedToWorkshop=game.trainUpgradeOpen and not game.weaponRepairOpen
                 enterGame(previous);ui.smokeDraw()
                 return {dragScroll=dragScroll,wheelScroll=wheelScroll,
-                    dragKeptSelection=selectedAfterDrag==Catalog.weaponProgression[1],
+                    dragKeptSelection=selectedAfterDrag==initialSelector,
                     tapSelected=selectedAfterTap==selectedRow.name,returnedToWorkshop=returnedToWorkshop}
             end,check=function(_,_,_,result)
                 return result.dragScroll>1 and result.wheelScroll>result.dragScroll
@@ -579,7 +611,7 @@ local function install(context)
                 local touchReady=true; for _,control in ipairs(controls) do touchReady=touchReady and control and control.w>=100 and control.h>=42 end
                 local control=ui.accessTextSize; ui.handleOptionsMousePressed(control.x+control.w/2,control.y+control.h/2)
                 control=ui.accessHighContrast; ui.handleOptionsMousePressed(control.x+control.w/2,control.y+control.h/2)
-                love.keypressed("3"); ui.smokeDraw(); local settings=game.saveData.accessibility
+                love.keypressed("3"); ui.smokeDraw(); local settings=require("game.accessibility").ensure(game.saveData)
                 local result={touchReady=touchReady,textSize=settings.textSize,highContrast=settings.highContrast,
                     reducedMotion=settings.reducedMotion,scaled=ui.accessTextSize and ui.accessTextSize.textScale,tab=game.optionsPage}
                 settings.textSize=1; settings.highContrast=false; settings.reducedMotion=false; ui.optionsOpen=false; game.optionsPage="audio"; return result
@@ -587,18 +619,40 @@ local function install(context)
                 return result.touchReady and result.textSize==2 and result.highContrast and result.reducedMotion and result.scaled>0 and result.tab=="accessibility"
             end},
             {name="persistent_gift_response",action=function()
-                local npc=(game.saveData.npcRoster or {})[1]
-                game.saveData.inventory[1]="water-bottle"; game.giftNPC=npc; ui.offerGift(1)
+                local oldScene,oldSavedScene,oldNPC,oldCurrent=game.scene,game.saveData.scene,game.npcActor,game.saveData.currentNPC
+                local oldX,oldY=game.player.x,game.player.y
+                game.scene="stop"; game.saveData.scene="stop"; ensureStopLayout(); setupNPC()
+                local npc=game.saveData.currentNPC
+                game.player.x,game.player.y=game.npcActor.x,game.npcActor.y
+                SmokeSupport.items.write(game.saveData,nil,{kind="inventory",index=1},"water-bottle"); game.giftNPC=npc; ui.offerGift(1)
                 local record=game.saveData.relationships and game.saveData.relationships[npc]
                 local result={consumed=game.saveData.inventory[1]==nil,gifts=record and record.gifts,speaker=game.dialogue and game.dialogue.speaker,
-                    text=game.dialogue and game.dialogue.text}; game.dialogue=nil; return result
+                    text=game.dialogue and game.dialogue.text}
+                SmokeSupport.items.write(game.saveData,nil,{kind="inventory",index=1},"frontier-short-sword")
+                local gifted=SmokeSupport.items.get(game.saveData,nil,{kind="inventory",index=1}); gifted.durability=17
+                local giftedId=gifted.id
+                game.giftNPC=npc; ui.offerGift(1)
+                local saved=assert(SaveSchema.migrate(game.saveData))
+                local recipient=saved.stopLayouts[tostring(saved.location)]
+                result.weaponPreserved=saved.inventory[1]==nil and recipient.npcWeaponInstance.id==giftedId
+                    and recipient.npcWeaponInstance.durability==17 and saved.relationships[npc].gifts==2
+                game.scene,game.saveData.scene,game.npcActor,game.saveData.currentNPC=oldScene,oldSavedScene,oldNPC,oldCurrent
+                game.player.x,game.player.y=oldX,oldY
+                game.dialogue=nil; return result
             end,check=function(_,_,_,result)
                 return result.consumed and result.gifts==1 and result.speaker and result.speaker:find("Familiar Face",1,true)
-                    and result.text and result.text:find("water",1,true)
+                    and result.text and result.text:find("water",1,true) and result.weaponPreserved
             end},
             {name="audio_priority_and_menu_ambience",action=function()
-                local settings=game.saveData.audio
-                local oldStation,oldRain=settings.station,settings.rainEnabled
+                local suspendedBefore=audioRuntime.status().suspended
+                -- Hidden native windows can lose focus between smoke steps.
+                -- Playback priority has an active-focus precondition; focus
+                -- suspend/resume is checked independently above.
+                audioRuntime.focus(true)
+                local active=not audioRuntime.status().suspended
+                local settings=require("game.local_preferences").audio(game.saveData)
+                local localAudio=ui.localPreferences.values.audio
+                local oldStation,oldRain=localAudio.stationOverride,localAudio.rainOverride
                 settings.station="chill"; settings.rainEnabled=false; audioRuntime.resetMusic(); audioRuntime.update()
                 local stationCategory=audioRuntime.status().category
                 local oldState,oldBattle=game.state,game.battle
@@ -609,13 +663,21 @@ local function install(context)
                 settings.rainEnabled=true; audioRuntime.update()
                 local rainStatus=audioRuntime.status()
                 game.state,game.battle=oldState,oldBattle
-                settings.station,settings.rainEnabled=oldStation,oldRain; audioRuntime.resetMusic(); audioRuntime.update()
+                localAudio.stationOverride,localAudio.rainOverride=oldStation,oldRain; audioRuntime.resetMusic(); audioRuntime.update()
+                if suspendedBefore then audioRuntime.focus(false) end
                 return {station=stationCategory,battle=battleCategory,menuMusic=titleStatus.category,
                     menuRainDisabled=titleStatus.rainPath==nil,menuRain=rainStatus.rainPath~=nil,
-                    menuPlaying=titleStatus.nowPlaying~=nil}
+                    menuPlaying=titleStatus.nowPlaying~=nil,suspendedBefore=suspendedBefore,active=active}
             end,check=function(_,_,_,result)
-                return result.station=="chill" and result.battle=="bossFight" and result.menuMusic=="chill"
+                local passed=result.active and result.station=="chill" and result.battle=="bossFight" and result.menuMusic=="chill"
                     and result.menuRainDisabled and result.menuRain and result.menuPlaying
+                if not passed then
+                    return false,'SMOKE_AUDIO_PRIORITY_FAILED station='..tostring(result.station)..' battle='..tostring(result.battle)
+                        ..' menuMusic='..tostring(result.menuMusic)..' menuRainDisabled='..tostring(result.menuRainDisabled)
+                        ..' menuRain='..tostring(result.menuRain)..' menuPlaying='..tostring(result.menuPlaying)
+                        ..' suspendedBefore='..tostring(result.suspendedBefore)
+                end
+                return passed
             end},
             {name="radio_transport_render",action=function()
                 ui.radioOpen=true; ui.smokeDraw()
@@ -681,15 +743,26 @@ local function install(context)
                 game.dialogue=nil; ui.smokeDraw()
                 local tabs=ui.trainCarTabs or {}; local target=tabs[7]
                 if target then love.mousepressed(target.x+target.w/2,target.y+target.h/2,1) end
+                ui.smokeCarTransitionStarted=love.timer.getTime()
+                local saved=Save.read(game.selectedSlot)
                 return {transition=game.carTransition~=nil,to=game.carTransition and game.carTransition.to,tabs=#tabs,
+                    from=game.carTransition and game.carTransition.from,committed=game.carTransition and game.carTransition.committed,
+                    savedCar=saved and saved.activeCar,
                     first=tabs[1] and tabs[1].x,last=tabs[7] and tabs[7].x+tabs[7].w}
             end,check=function(_,_,snapshot,result)
                 return result.transition and result.to==7 and result.tabs==7 and result.first>=0 and result.last<=960
-                    and snapshot.activeCar==1 and snapshot.carTransitioning
+                    and result.from==1 and result.committed and result.savedCar==7
+                    and snapshot.activeCar==7 and snapshot.carTransitioning
             end},
             {name="complete_train_car_transition",action=function() return true end,
-                expect={activeCar=7,carTransitioning=false},timeout=4,
-                after=function() game.saveData.trainCars={"living-car"}; game.saveData.activeCar=1; ui.interaction=nil end},
+                -- Autoplay advances simulation faster than wall time. The
+                -- authority uses host time, so also wait for its transition
+                -- before testing an activity that would correctly be blocked.
+                check=function(_,_,snapshot)
+                    return snapshot.activeCar==7 and not snapshot.carTransitioning
+                        and love.timer.getTime()-ui.smokeCarTransitionStarted>=.8
+                end,timeout=30,
+                after=function() ui.smokeCarTransitionStarted=nil; game.saveData.trainCars={"living-car"}; game.saveData.activeCar=1; ui.interaction=nil end},
             {name="open_maintenance",action=function()
                 game.state="game"; game.scene="train"; game.saveData.scene=game.scene; Maintenance.open(maintenanceSession,game.saveData)
                 if os.getenv("MOUSE_FRONTIER_SMOKE_CAPTURE_MAINTENANCE")=="1" then ui.smokeMaintenanceCaptureRequested=true end
@@ -756,7 +829,7 @@ local function install(context)
                 game.saveData.resources.oil=0
                 local levels={}
                 for _,name in ipairs({"small-oil-canister","medium-oil-canister","large-oil-canister"}) do
-                    game.saveData.inventory[1]=name; game.draggedSlot={kind="inventory",index=1}
+                    SmokeSupport.items.write(game.saveData,nil,{kind="inventory",index=1},name); game.draggedSlot={kind="inventory",index=1}
                     if not consumeSelected() then return false end
                     levels[#levels+1]=game.saveData.resources.oil
                 end
@@ -784,7 +857,7 @@ local function install(context)
             {name="shared_shooting_range_playable",action=function()
                 local layout=ensureStopLayout(); local spot=layout.shootingRange
                 if not spot then return false end
-                game.saveData.equipment[1]="trail-slingshot"
+                SmokeSupport.items.write(game.saveData,nil,{kind="equipment",index=1},"trail-slingshot")
                 game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
                 local beforeAmmo,beforeGoodwill=game.saveData.ammo.rocks,game.saveData.goodwill
                 game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
@@ -822,6 +895,9 @@ local function install(context)
             {name="enter_house_key",action=function()
                 ui.smokeHomeSeededCount=SmokeSupport.houseLootCount(game.saveData)
                 assert(ui.smokeHomeSeededCount==1,"new game should seed one tutorial tool at stop 2")
+                local x,y=SmokeSupport.settlements.doorPoint(game.saveData.location,1)
+                game.player.x,game.player.y=SmokeSupport.settlements.clamp(x,y,game.saveData.location)
+                assert(SmokeSupport.settlements.nearDoor(game.player.x,game.player.y,game.saveData.location)==1)
                 ui.interaction={kind="house",index=1};love.keypressed("e");return "e"
             end,expect={state="game",scene="house"}},
             fixtureStep("house"),
@@ -838,7 +914,7 @@ local function install(context)
                                 repairs=repairs+1
                                 local owned=false
                                 for _,list in ipairs({data.equipment,data.inventory}) do for _,weapon in pairs(list) do if weapon==part.weapon then owned=true end end end
-                                assert(owned and (data.weaponDurability[part.weapon] or 100)<=25,"home repair bonus did not target an owned critical weapon")
+                                assert(owned and SmokeSupport.items.condition(data,part.weapon)<=25,"home repair bonus did not target an owned critical weapon")
                             end
                         end
                     end
@@ -855,6 +931,11 @@ local function install(context)
                 end
                 local target=Inventory.firstEmptySlot(data)
                 assert(chestIndex and target,"home loot fixture needs a stocked chest and empty backpack slot")
+                -- Storage transactions validate the real actor position. Place
+                -- the smoke actor in reach before exercising the normal UI.
+                local chest=data.droppedItems[chestIndex]
+                game.player.x,game.player.y=chest.x,chest.y
+                local previousSlot=game.selectedSlot
                 Save.remove(99); game.selectedSlot=99; game.dialogue=nil
                 ui.interaction={kind="chest",index=chestIndex};love.mousepressed(400,500,2)
                 assert(game.chestOpen and game.activeChest==data.droppedItems[chestIndex],"interact did not open the home container")
@@ -874,7 +955,7 @@ local function install(context)
                 assert(Save.flush(99),"collected home loot could not be flushed to disk")
                 local loaded=assert(Save.read(99),"collected home loot could not be read from disk")
                 assert(loaded.inventory[target]==name and loaded.droppedItems[chestIndex].storage[slot]==nil,"save/reload lost the container transfer")
-                enterGame(loaded); game.selectedSlot=nil; Save.remove(99)
+                enterGame(loaded); game.selectedSlot=previousSlot; Save.remove(99)
                 assert(game.scene=="house" and SmokeSupport.houseLootCount(game.saveData)==before-1,"reloading a home regenerated its collected loot")
                 return {opened=true,transferred=name,before=before,after=SmokeSupport.houseLootCount(game.saveData),base=before-repairs-ui.smokeHomeSeededCount,seeded=ui.smokeHomeSeededCount,repairBonuses=repairs,diskReload=true}
             end,check=function(_,_,snapshot,result)
@@ -1035,11 +1116,13 @@ local function install(context)
             end},
         }
         local scenarioContext={runtime=game,ui=ui,catalog=Catalog,character=character,newSave=newSave,enterGame=enterGame,
-            beginEncounter=beginEncounter,ensureStopLayout=ensureStopLayout,update=SmokeSupport.advanceSimulation,draw=ui.smokeDraw,
+            beginEncounter=beginEncounter,ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,update=SmokeSupport.advanceSimulation,draw=ui.smokeDraw,
             presentationRuntime=presentationRuntime,getMobileControls=getMobileControls,
             mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end}
         local scenarios=require("game.smoke_combat").steps(scenarioContext)
         for _,step in ipairs(require("game.smoke_first_aid").steps(scenarioContext)) do scenarios[#scenarios+1]=step end
+        for _,step in ipairs(require("game.smoke_sewing").steps(scenarioContext)) do scenarios[#scenarios+1]=step end
+        for _,step in ipairs(require("game.smoke_coop_assistance").steps(scenarioContext)) do scenarios[#scenarios+1]=step end
         for index,step in ipairs(steps) do
             if step.name=="return_to_train_button" then
                 for offset,scenario in ipairs(scenarios) do table.insert(steps,index+offset,scenario) end
@@ -1110,7 +1193,11 @@ local function install(context)
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.paused and result.resumed and result.closed end},
                 {name="mobile_exit_home_touch",action=function()
                     game.saveData=newSave(character); enterGame(game.saveData)
-                    game.scene="stop"; game.saveData.scene="stop"; ui.interaction={kind="house",index=1}; love.keypressed("e")
+                    game.scene="stop"; game.saveData.scene="stop"
+                    local doorX,doorY=SmokeSupport.settlements.doorPoint(game.saveData.location,1)
+                    game.player.x,game.player.y=SmokeSupport.settlements.clamp(doorX,doorY,game.saveData.location)
+                    ui.interaction={kind="house",index=1}; love.keypressed("e"); love.keyreleased("e")
+                    assert(game.scene=="house","mobile exit fixture did not approach and enter its house")
                     ui.smokeDraw()
                     local control=ui.exitHome
                     if not control then return false end
@@ -1135,7 +1222,7 @@ local function install(context)
                     game.scene="stop"; game.saveData.scene="stop"
                     local layout=ensureStopLayout(); local spot=layout.shootingRange
                     if not spot then return false end
-                    game.saveData.equipment[1]="trail-slingshot"
+                    SmokeSupport.items.write(game.saveData,nil,{kind="equipment",index=1},"trail-slingshot")
                     game.saveData.ammo.rocks=math.max(3,game.saveData.ammo.rocks or 0)
                     game.dialogue=nil; game.player.x,game.player.y=spot.x,spot.y
                     SmokeSupport.advanceSimulation(.05); ui.smokeDraw(); ui.interaction={kind="shootingRange",label="TARGET RANGE"}
@@ -1233,15 +1320,16 @@ local function install(context)
                             -- The real update callback advances the intro.
                         elseif game.battle and game.battle.phase=="select" then
                             local active=BattleRules.activeUnit(game.battle); if active and active.team=="ally" then
-                                battleAttack("frontier-short-sword")
+                                local choices=require("game.battle_weapon_ownership").options(game.saveData,active,Catalog)
+                                battleAttack(choices[2] or choices[1])
                             end
                         elseif game.battle and game.battle.phase=="target" then
                             local active=BattleRules.activeUnit(game.battle); local target
                             for _,unit in ipairs(game.battle.units or {}) do if unit.team=="enemy" and unit.hp>0 then target=unit; break end end
-                            if active and target then resolveBattleAttack(active,target,game.battle.chosenWeapon or "frontier-short-sword") end
+                            if active and target then resolveBattleAttack(active,target,game.battle.chosenWeapon,game.battle.chosenItemId) end
                         end
                     elseif game.state=="event" then
-                        ui.smokeDraw();love.keypressed("1")
+                        ui.smokeDraw();love.keypressed(game.eventOutcome and 'return' or '1')
                     elseif game.state=="game" and game.scene=="stop" then
                         game.dialogue=nil;ui.smokeDraw()
                         local control=assert(ui.returnTrain,"route return-to-train control was not drawn")

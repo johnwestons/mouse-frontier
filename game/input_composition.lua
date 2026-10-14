@@ -1,3 +1,4 @@
+local CoopProgression=require("game.coop_progression")
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"input composition requires "..name)
@@ -48,6 +49,7 @@ local function new(context)
   end
 
   local gameplayInput=GameplayInput.new({
+    commands=context.commands,
     runtime=runtime,ui=ui,characters=content.characters,maintenanceSession=maintenanceSession,scenery=content.scenery,
     inventory=Inventory,catalog=Catalog,npcRelationships=NpcRelationships,merchantTrade=MerchantTrade,util=Util,readSave=platform.persistenceRuntime.read,
     removeSave=platform.persistenceRuntime.remove,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,maintenance=Maintenance,
@@ -63,7 +65,7 @@ local function new(context)
     currentTradeSource=worldScene.currentTradeSource,
     moveEditedItem=platform.trainCarRuntime.moveEditedItem,
     attackStopSludge=worldScene.attackStopSludge,attackExpeditionMob=worldScene.attackExpeditionMob,
-    activateExpeditionInteraction=worldScene.activateExpeditionInteraction,acceptQuest=adventure.journeyRules.acceptQuest,
+    activateExpeditionInteraction=worldScene.activateExpeditionInteraction,acceptQuest=adventure.journeyRules.acceptQuest,declineQuest=adventure.journeyRules.declineQuestOffer,
     activateCaravanInteraction=worldScene.activateCaravanInteraction,returnFromCaravan=worldScene.returnFromCaravan,
     attemptLeaveTrain=adventure.journeyRules.attemptLeaveTrain,travelStatus=adventure.journeyRules.travelStatus,
     playTrainDepart=platform.audioRuntime.playTrainDepart,audioResetMusic=platform.audioRuntime.resetMusic,
@@ -71,6 +73,7 @@ local function new(context)
     audioNextTrack=platform.audioRuntime.nextTrack,audioToggleMute=platform.audioRuntime.toggleMute,
     enterTrain=platform.trainCarRuntime.enterTrain,placeEditedItem=placeEditedItem,
     newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,chooseEvent=adventure.eventRuntime.choose,
+    continueEvent=adventure.eventRuntime.continueEvent,
     handleEventClick=adventure.eventRuntime.handleClick,enterStop=adventure.journeyRules.enterStop,
     handleBattleMouse=adventure.battleRuntime.handleMouse,battleAttack=adventure.battleRuntime.attack,
     battleHeal=adventure.battleRuntime.heal,battleGuard=adventure.battleRuntime.guard,
@@ -86,9 +89,20 @@ local function new(context)
     trainItemAt=trainItemAt,skipIntro=Intro.skip,
     interactionMouseAction=Interactions.mouseAction,interactionKeyAction=Interactions.keyAction,
     repairWeapon=adventure.inventoryActions.repairWeapon,
+    beginWeaponRepair=adventure.inventoryActions.beginWeaponRepair,cancelWeaponRepair=adventure.inventoryActions.cancelWeaponRepair,
+    repairElapsed=adventure.inventoryActions.repairElapsed,
     firstAid=FirstAid,shootingRange=ShootingRange,resolveFirstAid=resolveFirstAid,chooseHelpDialogue=chooseHelpDialogue,
     beginShootingRange=worldScene.beginShootingRange,handleShootingRange=worldScene.handleShootingRange,
-    chooseFinale=function(id) return FinaleProgression.choose(runtime.saveData,id) end,
+    rangeInput=worldScene.rangeInput,
+    chooseFinale=function(id)
+      if not CoopProgression.allowed(runtime,"finale.choose") then return false,"host_only" end
+      if context.commands then
+        local reply=context.commands.submit('finale.choose',{id=id})
+        return reply.ok,reply.reason
+      end
+      return FinaleProgression.choose(runtime.saveData,id)
+    end,
+    finaleCommands=context.commands~=nil,
     controlBindings=controlBindings,mobileEnabled=platform.mobileRuntime.isEnabled,
   })
 

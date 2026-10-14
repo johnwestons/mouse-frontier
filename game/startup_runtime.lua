@@ -59,6 +59,7 @@ local function new(context)
       cloudLayer=Clouds.new(scenery.cloudImages)
       scenery.settlements=Settlements.load(loadImage)
       ui.assetStreamer=AssetStreamer.new({
+          scenery=scenery,
           settlements=scenery.settlements,
           interiorFiles=scenery.interiorFiles,
           characterAnimations=characterAnimations,

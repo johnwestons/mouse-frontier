@@ -71,7 +71,9 @@ class ExpeditionFrameworkTests(unittest.TestCase):
         self.assertIn('hp=saved.hp,maxHp=saved.maxHp', roaming)
         self.assertIn('returnContext={scene="expedition",areaId=ctx.area.id,x=ctx.player.x,y=ctx.player.y}', roaming)
         self.assertIn('transient.state="windup"', roaming)
-        self.assertIn('if hitDistance<=reach', roaming)
+        # Reach/LOS and committed target behavior are exercised by
+        # test_expedition_combat_behavior and test_coop_roaming_targets_behavior.
+        # A local variable name cannot establish that either player's hit works.
         self.assertIn('local carried=encounter.enemyStates and encounter.enemyStates[i]', controller)
         self.assertIn('hp=unitHP,maxHP=unitMaxHP', controller)
         self.assertIn('runtime.player.x,runtime.player.y=destination.x,destination.y', battle)

@@ -1,6 +1,7 @@
 local WorldView=require("game.world_view")
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
+local Preferences = require("game.local_preferences")
 local WorldPause = require("game.world_pause")
 local Typography = require("game.typography")
 local TrainView = require("game.train_view")
@@ -67,7 +68,7 @@ local function new(context)
   end
 
   local function optionsData()
-      local data=runtime.saveData or ui.menuSettings
+      local data=Preferences.view(runtime.saveData or ui.menuSettings)
       data.audio=data.audio or {station="chill",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=true,musicPaused=false,musicMuted=false}
       Accessibility.ensure(data)
       return data
@@ -79,6 +80,7 @@ local function new(context)
       ui.musicDown=nil; ui.musicUp=nil; ui.sfxDown=nil; ui.sfxUp=nil; ui.rainDown=nil; ui.rainUp=nil
       ui.musicPrevious=nil; ui.musicPause=nil; ui.musicNext=nil; ui.musicMute=nil
       ui.optionsStation8bit=nil; ui.optionsStationChill=nil; ui.optionsStationVibes=nil; ui.optionsStationRain=nil
+      ui.optionsFollowRadio=nil
       ui.optionsAudioTab=nil; ui.optionsAccessTab=nil; ui.optionsControlsTab=nil; ui.optionsBack=nil; ui.controlsEditorButton=nil
       ui.controlsKeyboardTab=nil; ui.controlsControllerTab=nil; ui.controlsTouchTab=nil
       ui.controlsButtonsTab=nil; ui.controlsAxesTab=nil; ui.controlBindingRows=nil
@@ -109,7 +111,7 @@ local function new(context)
           textIn("RAIN  "..math.floor((settings.audio.rainVolume or .20)*100).."%",labelX,row3,downX-labelX-20,mobile and 58 or 40,1)
           ui.rainDown=button("-",downX,row3,mobile and 95 or 58,mobile and 58 or 40,true); ui.rainUp=button("+",upX,row3,mobile and 95 or 58,mobile and 58 or 40,true)
           local stationLabel=AudioCatalog.stationLabel(settings.audio.station or "chill")
-          textIn("MUSIC STATION: "..stationLabel,labelX,panelY+338,panelW-130,28,mobile and .92 or .68)
+          textIn("PERSONAL MUSIC: "..stationLabel,labelX,panelY+338,panelW-130,28,mobile and .92 or .68)
           local stationX=panelX+45; local stationY=panelY+370; local stationGap=mobile and 10 or 8
           local stationW=(panelW-90-stationGap*3)/4; local stationH=mobile and 46 or 34
           ui.optionsStation8bit=button("8-BIT",stationX,stationY,stationW,stationH,settings.audio.station=="8bit",mobile and .88 or .62)
@@ -118,7 +120,12 @@ local function new(context)
           ui.optionsStationRain=button("RAIN",stationX+(stationW+stationGap)*3,stationY,stationW,stationH,settings.audio.rainEnabled,mobile and .88 or .62)
           local audioStatus=getAudioStatus()
           local status=audioStatus.available and (audioStatus.lastError and ("ERROR: "..audioStatus.lastError) or (audioStatus.nowPlaying and ("PLAYING: "..Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying)) or "STARTING MUSIC...")) or "AUDIO UNAVAILABLE"
-          love.graphics.setColor(audioStatus.lastError and colors.red or colors.cream); textIn(status,labelX,panelY+(mobile and 422 or 410),panelW-130,mobile and 42 or 42,mobile and .82 or .55)
+          local followWidth=mobile and 170 or 105
+          if ui.localPreferences then
+              ui.optionsFollowRadio=button("FOLLOW RADIO",panelX+panelW-followWidth-30,panelY+(mobile and 427 or 416),followWidth,mobile and 42 or 30,
+                  not Preferences.hasOverride(settings),mobile and .72 or .50)
+          end
+          love.graphics.setColor(audioStatus.lastError and colors.red or colors.cream); textIn(status,labelX,panelY+(mobile and 422 or 410),panelW-110-(ui.localPreferences and followWidth+20 or 0),42,mobile and .82 or .55)
           local controlsY=panelY+(mobile and 475 or 465); local bw=(panelW-90)/4
           ui.musicPrevious=button(mobile and "PREV" or "|<",panelX+30,controlsY,bw,mobile and 58 or 42,true); ui.musicPause=button(settings.audio.musicPaused and "PLAY" or "PAUSE",panelX+40+bw,controlsY,bw,mobile and 58 or 42,true,mobile and 1 or .72)
           ui.musicNext=button(mobile and "NEXT" or ">|",panelX+50+bw*2,controlsY,bw,mobile and 58 or 42,true); ui.musicMute=button(settings.audio.musicMuted and "UNMUTE" or "MUTE",panelX+60+bw*3,controlsY,bw,mobile and 58 or 42,true,mobile and 1 or .72)
@@ -155,7 +162,12 @@ local function new(context)
               textIn("MOVE AND POSITION EVERY ON-SCREEN CONTROL",panelX+60,panelY+210,panelW-120,46,.94,"center")
               textIn("Drag the stick, action buttons, menu, back, and backpack controls. Their positions and opacity save on this device.",
                   panelX+100,panelY+268,panelW-200,76,.76,"center")
-              ui.controlsEditorButton=button("OPEN TOUCH LAYOUT EDITOR",panelX+195,panelY+386,panelW-390,62,true,.82)
+              if ui.checkpointBlocked then
+                  ui.controlsEditorButton=nil
+                  textIn("Touch layout editing resumes after saving.",panelX+100,panelY+386,panelW-200,62,.76,"center")
+              else
+                  ui.controlsEditorButton=button("OPEN TOUCH LAYOUT EDITOR",panelX+195,panelY+386,panelW-390,62,true,.82)
+              end
           else
               ui.controlsEditorButton=nil
               local list,controlDevice
@@ -210,7 +222,13 @@ local function new(context)
       local mobile=mobileEnabled()
       local bounds=runtime.optionsPage=="controls" and {x=42,y=26,w=876,h=668}
           or {x=mobile and 90 or 485,y=mobile and 55 or 125,w=mobile and 780 or 460,h=mobile and 615 or 525}
-      return UIStyle.scope("options",bounds,drawOptionsRaw)
+      return UIStyle.scope("options",bounds,function()
+          drawOptionsRaw()
+          if ui.localPreferences and ui.localPreferences.lastError then
+              love.graphics.setColor(colors.red)
+              textIn(ui.localPreferences.lastError,bounds.x+24,math.min(684,bounds.y+bounds.h+4),bounds.w-48,32,.58,"center")
+          end
+      end)
   end
 
   local function drawExpeditionProgress()
@@ -266,9 +284,9 @@ local function new(context)
           end
       end
       ui.radioPrevious=button("PREVIOUS",118,560,166,66,true)
-      ui.radioPause=button(runtime.saveData.audio.musicPaused and "PLAY" or "PAUSE",304,560,166,66,true)
+      ui.radioPause=button(Preferences.audio(runtime.saveData).musicPaused and "PLAY" or "PAUSE",304,560,166,66,true)
       ui.radioNext=button("NEXT",490,560,166,66,true)
-      ui.radioMute=button(runtime.saveData.audio.musicMuted and "UNMUTE" or "MUTE",676,560,166,66,true)
+      ui.radioMute=button(Preferences.audio(runtime.saveData).musicMuted and "UNMUTE" or "MUTE",676,560,166,66,true)
   end
 
   local function journeyLogRows()
@@ -446,7 +464,7 @@ local function new(context)
           love.graphics.push(); love.graphics.translate(tx,0)
           if runtime.carTransition then
               local p=math.min(1,runtime.carTransition.t/runtime.carTransition.duration); local eased=p*p*(3-2*p); local direction=runtime.carTransition.to>runtime.carTransition.from and -1 or 1
-              drawTrainView(runtime.carTransition.from,direction*slide*eased,runtime.carTransition.from,runtime.player.x,runtime.player.y)
+              drawTrainView(runtime.carTransition.from,direction*slide*eased,runtime.carTransition.from,runtime.carTransition.fromX or runtime.player.x,runtime.carTransition.fromY or runtime.player.y)
               drawTrainView(runtime.carTransition.to,direction*slide*(eased-1),nil)
           else drawTrainView(runtime.saveData.activeCar or 1,0,runtime.saveData.activeCar or 1,runtime.player.x,runtime.player.y) end
           love.graphics.pop()
@@ -457,6 +475,10 @@ local function new(context)
       else drawStop() end
       if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
       WorldView.finish()
+      -- The arriving scout is part of the stop, below ordinary panels. Its
+      -- independent camera scope must finish before dialogue and touch HUD.
+      local approachingScout=quest and quest.mode=="approach"
+      if approachingScout then UIStyle.scope("lastStand",{x=0,y=0,w=W,h=H},function() LastStand:draw() end) end
       if not expeditionScene and not mobileEnabled() then
           if not ui.sideHudLayout then
               UIStyle.scope("resourceHud",{x=20,y=20,w=470,h=34},function()
@@ -723,9 +745,9 @@ local function new(context)
           textIn(AudioCatalog.stationLabel(runtime.saveData.audio.station).."   •   "..(runtime.saveData.audio.rainEnabled and "RAIN ON" or "RAIN OFF"),260,420,440,24,.82,"center")
           drawMenuFrame(230,552,500,62,4,.94)
           ui.radioPrevious=button("|<  PREV",242,560,110,46,true,.72)
-          ui.radioPause=button(runtime.saveData.audio.musicPaused and "PLAY" or "PAUSE",364,560,110,46,true,.72)
+          ui.radioPause=button(Preferences.audio(runtime.saveData).musicPaused and "PLAY" or "PAUSE",364,560,110,46,true,.72)
           ui.radioNext=button("NEXT  >|",486,560,110,46,true,.72)
-          ui.radioMute=button(runtime.saveData.audio.musicMuted and "UNMUTE" or "MUTE",608,560,110,46,true,.72)
+          ui.radioMute=button(Preferences.audio(runtime.saveData).musicMuted and "UNMUTE" or "MUTE",608,560,110,46,true,.72)
           local mx,my=screenToGame(pointerPosition()); mx,my=UIStyle.inversePoint(mx,my,"radio",{x=90,y=62,w=780,h=610}); local tip
           if Util.pointIn(mx,my,ui.radio8bit) then tip="Scene-based 8-bit score"
           elseif Util.pointIn(mx,my,ui.radioChill) then tip="Chill Radio"
@@ -774,7 +796,7 @@ local function new(context)
           ui.returnStop=mobile and button("RETURN TO STOP",700,642,238,66,true,.82) or button("RETURN TO STOP",780,670,145,34,true,.68)
           end)
       end
-      if runtime.lastStand then UIStyle.scope("lastStand",{x=0,y=0,w=W,h=H},function() LastStand:draw() end) end
+      if runtime.lastStand and not approachingScout then UIStyle.scope("lastStand",{x=0,y=0,w=W,h=H},function() LastStand:draw() end) end
       drawJourneyLog()
   end
 

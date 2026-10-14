@@ -4,6 +4,9 @@ local WindowScene=require("game.window_scene")
 local Tuning=require("game.last_stand_tuning")
 local Typography=require("game.typography")
 local Accessibility=require("game.accessibility")
+local ActorState=require('game.coop_last_stand_state')
+local Players=require('game.coop_players')
+local Sessions=require('game.coop_shooter_sessions')
 
 local Shootout={}
 local SHOT_TRAVEL=.26
@@ -17,9 +20,41 @@ local HIT_CONFIRM_FRAME=5
 local DEATH_COLLAPSE_FRAME=6
 local DEATH_DOWN_FRAME=7
 
-local function randomRange(low,high)
+-- Local controls share authority while hosting. The callback returns nil in
+-- offline play, retaining its existing local action and camera behavior.
+function Shootout.setCommands(state,submit) state.submitCommand=submit end
+local function command(state,name,args)
+    if not state.submitCommand then return nil end
+    local record=ActorState.record(state)
+    if not record then return nil end
+    local id=ActorState.actorId(state)
+    args=args or {}; args.mode='lastStand'; args.encounterId=record.entityId; args.phaseRevision=record.phaseRevision
+    if name~='gun.cover' and name~='lastStand.supply' then
+        args.weaponId=args.weaponId or (state.gun.borrowed and 'loan:'..id or state.gun.itemId)
+    end
+    local reply=state.submitCommand(name,args)
+    if reply and reply.ok then
+        local data=Players.forActor(ActorState.campaignOf(state),id)
+        local scope=Sessions.scope(data,state.quest)
+        if scope.weaponSession and Sessions.record(state.gun)~=scope.weaponSession then
+            local old=state.gun
+            state.gun=Sessions.view(scope.weaponSession,state.width,state.height)
+            state.gun.touchAim=old.touchAim
+            FirstPerson.setAim(state.gun,old.aimX,old.aimY); FirstPerson.setADS(state.gun,old.ads)
+        end
+        if name=='gun.mode' or name=='gun.select' or name=='lastStand.supply' then
+            state.gun.fireHeld=false; state.gun.fireHeldSources={}; state.fireHeldSources={}
+        end
+    end
+    return reply
+end
+
+local function visualRange(low,high)
     local value=love.math and love.math.random and love.math.random() or math.random()
     return low+(high-low)*value
+end
+local function randomRange(state,low,high)
+    return ActorState.random(state,low,high) or visualRange(low,high)
 end
 
 local function clamp(value,low,high) return math.max(low,math.min(high,value)) end
@@ -46,12 +81,12 @@ local function firearmDamage(state,data)
     return base+rank*Tuning.firearmProficiencyDamagePerRank
 end
 
-local function targetFrame(target)
+local function targetFrame(target,effect)
     if target.status=="dying" then
         local progress=1-clamp(target.timer/DEATH_ANIMATION_DURATION,0,1)
         return progress<.38 and DEATH_COLLAPSE_FRAME or DEATH_DOWN_FRAME
     end
-    if (target.hitTimer or 0)>0 then return HIT_CONFIRM_FRAME end
+    if (effect and effect.hitTimer or 0)>0 then return HIT_CONFIRM_FRAME end
     if target.status=="appearing" or target.status=="hiding" then return 1 end
     if target.status=="exposed" then return 2 end
     if target.status=="firing" then return 3 end
@@ -75,6 +110,7 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
     quest.phaseCheckpoint=tonumber(quest.phaseCheckpoint) or Tuning.phases[stageFor(quest.holdElapsed)].start
     local state={
         quest=quest,
+        width=width,height=height,
         windowId=windowId or quest.lastWindow or "wide",
         elapsed=quest.holdElapsed,
         clock=0,
@@ -94,8 +130,9 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
         spawnCursor=1,
         result=nil,
         notice=nil,
-        reducedMotion=data.accessibility and data.accessibility.reducedMotion==true,
-        reducedFlashes=data.accessibility and (data.accessibility.reducedFlashes==true or data.accessibility.reducedMotion==true),
+        targetEffects={},
+        reducedMotion=Accessibility.ensure(data) and Accessibility.ensure(data).reducedMotion==true,
+        reducedFlashes=Accessibility.ensure(data) and (Accessibility.ensure(data).reducedFlashes==true or Accessibility.ensure(data).reducedMotion==true),
     }
     state.gun=FirstPerson.new(data,Catalog,quest,width,height)
     for index=1,#WindowScene.slots do
@@ -116,13 +153,73 @@ function Shootout.new(quest,data,Catalog,windowId,width,height)
     end
     quest.targets=state.targets
     state.impacts=type(quest.impacts)=="table" and quest.impacts or {}
-    quest.impacts=state.impacts
+    if not data.players then quest.impacts=state.impacts end
+    return ActorState.bind(state,data)
+end
+
+function Shootout.forActor(state,data,Catalog,id)
+    local root=Players.campaignOf(data)
+    if ActorState.campaignOf(state)~=root or not Players.get(root,id) then return nil,'shooter_unavailable' end
+    if id=='host' then return state end
+    local view=ActorState.bind({quest=state.quest,width=state.width,height=state.height,
+        stageBanner=0,effects={},flashes={},incomingShots={},impactBursts={},impacts={},targetEffects={},
+        hitFeedback=0,reducedMotion=state.reducedMotion,reducedFlashes=state.reducedFlashes},root,id)
+    view.gun=FirstPerson.new(Players.forActor(root,id),Catalog,state.quest,state.width,state.height)
+    return view
+end
+
+-- A guest draws checked replica copies. It never binds this presentation to
+-- saved combat records, creates a weapon session, or runs world simulation.
+local function copiedEffects(source,fields,limit)
+    local result={}
+    for index,entry in ipairs(type(source)=='table' and source or {}) do
+        if index>limit then break end
+        local copy={}
+        for _,field in ipairs(fields) do
+            local value=entry[field]
+            if type(value)=='number' or type(value)=='string' or type(value)=='boolean' then copy[field]=value end
+        end
+        result[#result+1]=copy
+    end
+    return result
+end
+function Shootout.guestView(quest,actor,gun,width,height,visual)
+    local combat=quest and quest.combat; local owner=combat and combat.defenders and combat.defenders.companion
+    if not owner or not gun then return nil end
+    visual=visual or {}
+    local state={quest=quest,gun=gun,width=width,height=height,guestPresentation=true,presentationActorId='companion',
+        windowId=owner.windowId,ducking=owner.ducking,coverProgress=owner.coverProgress or 0,
+        clock=combat.clock or 0,elapsed=quest.holdElapsed or 0,stage=combat.stage or 1,
+        targets=quest.targets or {},result=combat.result,stageBanner=0,hitFeedback=math.max(0,math.min(HIT_FLASH_DURATION,tonumber(visual.hitFeedback) or 0)),
+        effects={},targetEffects={},
+        incomingShots=copiedEffects(visual.incomingShots,{'slot','point','elapsed','actorId','windowId','impactFrame','decalFrame','hit','decal','serial'},16),
+        flashes=copiedEffects(visual.flashes,{'slot','ttl','maxTtl','actorId','windowId'},16),
+        impactBursts=copiedEffects(visual.impactBursts,{'point','frame','ttl','maxTtl','actorId','windowId'},16),
+        impacts=copiedEffects(visual.impacts,{'point','frame','age','rotation','actorId','windowId'},8),
+        reducedMotion=Accessibility.ensure(actor) and Accessibility.ensure(actor).reducedMotion==true,
+        reducedFlashes=Accessibility.ensure(actor) and (Accessibility.ensure(actor).reducedFlashes==true
+            or Accessibility.ensure(actor).reducedMotion==true)}
+    for slot,effect in pairs(type(visual.targetEffects)=='table' and visual.targetEffects or {}) do
+        if type(slot)=='number' and slot==math.floor(slot) and slot>=1 and slot<=#WindowScene.slots then
+            state.targetEffects[slot]=copiedEffects({effect},{'hitTimer','damageNumber','damageNumberTimer','damageNumberElapsed'},1)[1]
+        end
+    end
     return state
 end
 
-local function activeLimit(state)
+function Shootout.drawGuest(state,data,width,height)
+    if not state or not state.guestPresentation then return false end
+    Shootout.draw(state,data,width,height); return true
+end
+
+local function activeLimit(state,data,ids)
     local stage=select(1,stageFor(state.elapsed))
-    local base=math.min(state.windowId=="tall" and 4 or 5,Tuning.phases[stage].active)
+    local windowLimit=0
+    for _,id in ipairs(ids or {'host'}) do
+        local owner=ActorState.owner(state,id)
+        if owner and ActorState.present(state,data,id,ids) then windowLimit=math.max(windowLimit,owner.windowId=='tall' and 4 or 5) end
+    end
+    local base=math.min(windowLimit,Tuning.phases[stage].active)
     return math.max(1,math.ceil(base*Tuning.pressure(state.quest.enemyMorale)))
 end
 
@@ -130,31 +227,40 @@ local function addEffect(state,frame,x,y,scale,duration)
     state.effects[#state.effects+1]={
         frame=frame,x=x,y=y,scale=scale or .14,
         ttl=duration or .24,maxTtl=duration or .24,
-        rotation=randomRange(-.35,.35),
+        rotation=visualRange(-.35,.35),
     }
 end
 
-local function enemyShot(state,target,data)
+local function enemyShot(state,target,data,ids)
     state.enemyShots=state.enemyShots+1
+    local id=target.targetActorId or 'host'
+    if not ActorState.present(state,data,id,ids) then return end -- Never redirect a committed windup.
+    local owner=ActorState.owner(state,id)
+    local root=Players.campaignOf(data)
+    local actor=root.players and Players.forActor(root,id) or data
+    local window=owner.windowId or state.windowId
     local stage=select(1,stageFor(state.elapsed))
-    local points=WindowScene.data.damagePoints[state.windowId] or WindowScene.data.damagePoints.wide
-    local pointOrder=state.windowId=="tall" and {1,2,3,4} or {2,5,1,3,4}
+    local points=WindowScene.data.damagePoints[window] or WindowScene.data.damagePoints.wide
+    local pointOrder=window=="tall" and {1,2,3,4} or {2,5,1,3,4}
     local shot={slot=target.slot,point=pointOrder[(state.enemyShots-1)%#points+1],elapsed=0,
+        actorId=id,windowId=window,serial=state.enemyShots,
         impactFrame=state.enemyShots%2==0 and 5 or 4,
         decalFrame=state.enemyShots%2==0 and 0 or 2}
     state.incomingShots[#state.incomingShots+1]=shot
     state.flashes[#state.flashes+1]={slot=target.slot,ttl=.16,maxTtl=.16}
-    if state.ducking or state.coverProgress>0 then return end
-    local cover=WindowScene.data.frames[state.windowId].cover
+    if owner.ducking or owner.coverProgress>0 then ActorState.noteShot(state,shot); return end
+    local cover=WindowScene.data.frames[window].cover
     state.quest.positionIntegrity=clamp(state.quest.positionIntegrity-(.34+stage*.12)*cover,0,100)
     local hitChance=(Tuning.hitChance+(stage-1)*Tuning.hitChancePerPhase)*cover
-    if state.hitRecovery<=0 and randomRange(0,1)<hitChance then
+    if owner.hitRecovery<=0 and randomRange(state,0,1)<hitChance then
         local damage=target.heavy and 2 or 1
-        local health=tonumber(data.health) or tonumber(data.maxHealth) or 20
-        data.health=math.max(1,health-damage)
-        state.hitRecovery=Tuning.hitRecoverySeconds
+        local health=tonumber(actor.health) or tonumber(actor.maxHealth) or 20
+        actor.health=math.max(1,health-damage)
+        owner.playerDamage=(owner.playerDamage or 0)+health-actor.health
+        owner.hitRecovery=Tuning.hitRecoverySeconds
         shot.hit=true
-        if data.health<=1 then
+        shot.damage=health-actor.health
+        if id=='host' and actor.health<=1 then
             state.retreatReason="wounded"
             state.result="retreat"
         end
@@ -162,10 +268,18 @@ local function enemyShot(state,target,data)
     if state.enemyShots%3==0 then
         shot.decal=true
     end
+    ActorState.noteShot(state,shot)
 end
 
-local function updateTargets(state,dt,data)
-    local limit=activeLimit(state)
+function Shootout.effectState(state)
+    local record=ActorState.record(state)
+    if not record or ActorState.actorId(state)~='host' then return nil end
+    return {encounterId=record.entityId,phaseRevision=record.phaseRevision,clock=record.clock,
+        events=ActorState.effectEvents(state),paused=state.effectsPaused==true}
+end
+
+local function updateTargets(state,dt,data,ids)
+    local limit=activeLimit(state,data,ids)
     state.spawnCooldown=math.max(0,(state.spawnCooldown or 0)-dt)
     local active=0
     for _,target in ipairs(state.targets) do
@@ -175,37 +289,44 @@ local function updateTargets(state,dt,data)
             if target.status=="appearing" and target.timer<=0 then
                 target.status="exposed"
                 local relief=state.elapsed>=Tuning.holdSeconds and state.quest.kills<Tuning.requiredKills
-                target.timer=relief and randomRange(1.8,2.8) or randomRange(.85,1.65)
+                target.timer=relief and randomRange(state,1.8,2.8) or randomRange(state,.85,1.65)
             elseif target.status=="exposed" and target.timer<=0 then
                 target.status="firing"
                 target.timer=.16
                 target.fired=false
+                target.targetActorId=ActorState.target(state,data,ids)
             elseif target.status=="firing" then
-                if not target.fired then target.fired=true; enemyShot(state,target,data) end
+                if not target.fired then target.fired=true; enemyShot(state,target,data,ids) end
                 if target.timer<=0 then target.status="hiding"; target.timer=.22 end
             elseif target.status=="hiding" and target.timer<=0 then
                 target.status="hidden"
-                target.timer=randomRange(.70,1.75)
+                target.timer=randomRange(state,.70,1.75)
             elseif target.status=="dying" and target.timer<=0 then
                 target.status="hidden"
-                target.timer=randomRange(1.4,2.8)
+                target.timer=randomRange(state,1.4,2.8)
             end
         else
             target.timer=target.timer-dt
         end
     end
     if active>=limit or state.spawnCooldown>0 then return end
-    local layout=WindowScene.layout(state.windowId,state.width,state.height)
     for offset=0,#state.targets-1 do
         local index=(state.spawnCursor+offset-1)%#state.targets+1
         local target=state.targets[index]
-        local x,y=WindowScene.slotPosition(layout,index)
-        if target.status=="hidden" and target.timer<=0
-            and WindowScene.pointOpen(state.windowId,state.width,state.height,x,y) then
+        local visible=false
+        for _,id in ipairs(ids or {'host'}) do
+            local owner=ActorState.owner(state,id)
+            if owner and ActorState.present(state,data,id,ids) then
+                local layout=WindowScene.layout(owner.windowId,state.width,state.height)
+                local x,y=WindowScene.slotPosition(layout,index)
+                if WindowScene.pointOpen(owner.windowId,state.width,state.height,x,y) then visible=true; break end
+            end
+        end
+        if target.status=="hidden" and target.timer<=0 and visible then
             -- Survivors keep their health and identity between peeks and retries.
             if not target.hasSpawned or (target.health or 0)<=0 then
-                local heavy=state.stage>=2 and randomRange(0,1)<(state.stage>=3 and .40 or .20)
-                target.atlas=WindowScene.targetAtlases[heavy and 3 or (randomRange(0,1)<.5 and 1 or 2)]
+                local heavy=state.stage>=2 and randomRange(state,0,1)<(state.stage>=3 and .40 or .20)
+                target.atlas=WindowScene.targetAtlases[heavy and 3 or (randomRange(state,0,1)<.5 and 1 or 2)]
                 target.heavy=heavy
                 target.maxHealth=heavy and Tuning.heavyEnemyHealth or Tuning.enemyHealth
                 target.health=target.maxHealth
@@ -214,6 +335,7 @@ local function updateTargets(state,dt,data)
             target.status="appearing"
             target.timer=.24
             target.withdrawal=nil
+            target.targetActorId=nil
             state.spawnCursor=index%#state.targets+1
             state.spawnCooldown=Tuning.spawnDelay(state.quest.enemyMorale)
             break
@@ -222,7 +344,7 @@ local function updateTargets(state,dt,data)
 end
 
 local function updateEffects(state,dt)
-    for _,target in ipairs(state.targets) do
+    for _,target in pairs(state.targetEffects) do
         if target.hitTimer then
             target.hitTimer=target.hitTimer-dt
             if target.hitTimer<=0 then target.hitTimer=nil end
@@ -256,17 +378,19 @@ local function updateEffects(state,dt)
         local shot=state.incomingShots[index]
         shot.elapsed=shot.elapsed+dt
         if shot.elapsed>=SHOT_DELAY+SHOT_TRAVEL then
+            if (shot.actorId or 'host')==ActorState.actorId(state) and (not shot.windowId or shot.windowId==state.windowId) then
             state.impactBursts[#state.impactBursts+1]={point=shot.point,frame=shot.impactFrame,
                 ttl=IMPACT_DURATION,maxTtl=IMPACT_DURATION}
-            if shot.hit then
+            if shot.hit and (shot.actorId or 'host')==ActorState.actorId(state) then
                 state.hitFeedback=HIT_FLASH_DURATION
                 state.notice={text="You were hit! Take cover below the window.",timer=1.7}
             end
             if shot.decal then
                 state.impacts[#state.impacts+1]={point=shot.point,
                     frame=shot.decalFrame,
-                    age=0,rotation=randomRange(-.4,.4)}
+                    age=0,rotation=visualRange(-.4,.4)}
                 if #state.impacts>8 then table.remove(state.impacts,1) end
+            end
             end
             table.remove(state.incomingShots,index)
         end
@@ -274,21 +398,27 @@ local function updateEffects(state,dt)
     for _,impact in ipairs(state.impacts) do impact.age=(impact.age or 0)+dt end
 end
 
-function Shootout.update(state,dt,data,Catalog,width,height)
+function Shootout.update(state,dt,data,Catalog,width,height,ids)
+    if ActorState.actorId(state)~='host' or not ActorState.accepts(state,data) then return nil,'host_only' end
+    ids=ids or {'host'}
     state.width,state.height=width,height
+    ActorState.prepareParticipants(state,data,ids)
     state.clock=state.clock+dt
-    state.hitRecovery=math.max(0,(state.hitRecovery or 0)-dt)
     state.hitFeedback=math.max(0,(state.hitFeedback or 0)-dt)
-    local coverTarget=state.ducking and 1 or 0
-    local coverStep=dt/(state.reducedMotion and .1 or Tuning.coverSeconds)
-    state.coverProgress=state.coverProgress+clamp(coverTarget-state.coverProgress,-coverStep,coverStep)
+    if not ActorState.updateDefenders(state,dt,ids) then
+        state.hitRecovery=math.max(0,(state.hitRecovery or 0)-dt)
+        local coverTarget=state.ducking and 1 or 0
+        local coverStep=dt/(state.reducedMotion and .1 or Tuning.coverSeconds)
+        state.coverProgress=state.coverProgress+clamp(coverTarget-state.coverProgress,-coverStep,coverStep)
+    end
     state.stageBanner=math.max(0,(state.stageBanner or 0)-dt)
     if state.notice then
         state.notice.timer=state.notice.timer-dt
         if state.notice.timer<=0 then state.notice=nil end
     end
-    FirstPerson.update(state.gun,dt,data,state.quest,width,height)
-    if state.gun.fireHeld and state.gun.fireMode=="auto" then
+    if not ActorState.updateGuns(state,data,dt,width,height,ids) then FirstPerson.update(state.gun,dt,data,state.quest,width,height) end
+    if ActorState.present(state,data,'host',ids) and state.gun.fireHeld and state.gun.fireMode=="auto" and not state.result
+        and state.gun.cooldown<=0 and state.gun.reloadTimer<=0 then
         Shootout.fire(state,data,width,height,Catalog)
     end
     updateEffects(state,dt)
@@ -304,9 +434,10 @@ function Shootout.update(state,dt,data,Catalog,width,height)
         return state.result
     end
     if state.result then return state.result end
-    if FirstPerson.needsSupply(state.gun,data,state.quest) then return nil end
+    if not ActorState.canFight(state,data,ids) then return nil end
 
-    if not state.ducking then state.elapsed=state.elapsed+dt end
+    local exposed=ActorState.exposed(state,data,ids)
+    if exposed then state.elapsed=state.elapsed+dt end
     state.quest.holdElapsed=state.elapsed
     local stage,name=stageFor(state.elapsed)
     if stage~=state.stage then
@@ -325,7 +456,7 @@ function Shootout.update(state,dt,data,Catalog,width,height)
             end
         end
     end
-    if not state.ducking then
+    if exposed then
         state.quest.suppressionElapsed=(state.quest.suppressionElapsed or 0)+dt
         if state.quest.suppressionElapsed>=Tuning.suppressionInterval then
             state.quest.suppressionElapsed=state.quest.suppressionElapsed-Tuning.suppressionInterval
@@ -333,7 +464,7 @@ function Shootout.update(state,dt,data,Catalog,width,height)
         end
     end
     local shots=state.enemyShots
-    updateTargets(state,dt,data)
+    updateTargets(state,dt,data,ids)
     if state.enemyShots>shots then FirstPerson.playReport("frontier-22-lever-rifle",Catalog,data,true) end
 
     if state.result then return state.result end
@@ -362,6 +493,8 @@ end
 
 function Shootout.setCover(state,value)
     if state.result then return false end
+    local reply=command(state,'gun.cover',{cover=value==true})
+    if reply then return reply.ok==true end
     state.ducking=value==true
     return true
 end
@@ -389,36 +522,50 @@ end
 
 function Shootout.cycleFireMode(state,direction)
     if not state or not state.gun then return nil end
-    local mode=FirstPerson.cycleFireMode(state.gun,direction)
+    local reply=command(state,'gun.mode',{direction=direction})
+    local mode
+    if reply then mode=reply.ok and reply.result.fireMode or nil
+    else mode=FirstPerson.cycleFireMode(state.gun,direction) end
     if mode then state.notice={text="FIRE MODE: "..string.upper(mode),timer=1.8} end
     return mode
 end
 
 function Shootout.reload(state,data)
-    local reloaded=FirstPerson.reload(state.gun,data,state.quest)
+    if not ActorState.accepts(state,data) then return false end
+    local reply=command(state,'gun.reload')
+    local reloaded
+    if reply then reloaded=reply.ok==true else reloaded=FirstPerson.reload(state.gun,data,state.quest) end
     if not reloaded then state.notice={text="No rounds available to reload.",timer=1.5} end
     return reloaded
 end
 
 function Shootout.cycleWeapon(state,data,Catalog)
+    if not ActorState.accepts(state,data) then return false end
     if state.result or state.gun.cooldown>0 or state.gun.reloadTimer>0 then return false end
     local options=FirstPerson.weaponOptions(data,Catalog)
     local selected=0
     for index,option in ipairs(options) do
-        if option.name==state.gun.weapon and option.borrowed==state.gun.borrowed then selected=index end
+        if option.name==state.gun.weapon and option.borrowed==state.gun.borrowed and option.itemId==state.gun.itemId then selected=index end
     end
     local option=options[selected%#options+1]
-    state.gun=FirstPerson.chooseWeapon(state.gun,option,data,Catalog,state.quest)
+    local reply=command(state,'gun.select',{weaponId=option.borrowed and 'loan:'..ActorState.actorId(state) or option.itemId})
+    if reply then if not reply.ok then return false end
+    else state.gun=FirstPerson.chooseWeapon(state.gun,option,data,Catalog,state.quest) end
     state.notice={text=(option.borrowed and "HOUSE RIFLE: " or "YOUR WEAPON: ")..option.name:gsub("%-"," "),timer=2.8}
     return true
 end
 
 function Shootout.supply(state,data,Catalog)
+    if not ActorState.accepts(state,data) then return false end
     if state.result or state.gun.reloadTimer>0 or state.gun.cooldown>0 then return false end
     if state.gun.borrowed and FirstPerson.rounds(state.gun,data,state.quest)>0 then return false end
-    local firstLoan=not state.quest.loanActive
-    local resupplied=(tonumber(state.quest.loanAmmo) or 0)<=0
-    state.gun=FirstPerson.useLoan(state.gun,data,Catalog,state.quest)
+    if not Sessions.owned(state.gun,data) then return false end
+    local scope=Sessions.scope(data,state.quest)
+    local firstLoan=not scope.loanActive
+    local resupplied=(tonumber(scope.loanAmmo) or 0)<=0
+    local reply=command(state,'lastStand.supply')
+    if reply then if not reply.ok then return false end
+    else state.gun=FirstPerson.useLoan(state.gun,data,Catalog,state.quest) end
     state.notice={
         text=firstLoan and "Loan rifle equipped. 48 rounds supplied."
             or resupplied and "Loan ammunition replenished."
@@ -428,20 +575,23 @@ function Shootout.supply(state,data,Catalog)
     return true
 end
 
-function Shootout.fire(state,data,width,height,Catalog)
-    if state.result or state.ducking or state.coverProgress>0 or FirstPerson.needsSupply(state.gun,data,state.quest) then return false end
+-- Detached authority drafts use campaign coordinates and no device feedback.
+function Shootout.commandView(quest,data,id,gun,width,height)
+    return ActorState.bind({quest=quest,gun=gun,width=width,height=height},data,id)
+end
+
+function Shootout.fireAt(state,data,width,height,Catalog,aimX,aimY)
+    if not ActorState.accepts(state,data) then return nil,'ownership' end
+    if ActorState.record(state) and (data.health or 0)<=1 then return nil,'shooter_unavailable' end
+    if state.result then return nil,'shooter_unavailable' end
+    if state.ducking or state.coverProgress>0 then return nil,'in_cover' end
+    if FirstPerson.needsSupply(state.gun,data,state.quest) then return nil,'supply_required' end
     local fired,reason=FirstPerson.fire(state.gun,data,state.quest)
-    if not fired then
-        local message=reason=="safe" and "Weapon selector is on SAFE. Press V to change mode."
-            or reason=="reload" and "Magazine empty. Press R to reload." or "The weapon is not ready."
-        state.notice={text=message,timer=1.5}
-        return false
-    end
+    if not fired then return nil,reason end
     local shotDamage=firearmDamage(state,data)
     local layout=WindowScene.layout(state.windowId,width,height)
-    local aimX,aimY=WorldView.toWorld(state.gun.aimX,state.gun.aimY)
-    FirstPerson.playReport(state.gun.weapon,Catalog,data,false)
-    if not WindowScene.pointOpen(state.windowId,width,height,aimX,aimY) then return true end
+    local result={fired=true,hit=false,x=aimX,y=aimY}
+    if not WindowScene.pointOpen(state.windowId,width,height,aimX,aimY) then return result end
     local best,bestDistance
     for _,target in ipairs(state.targets) do
         if target.status=="appearing" or target.status=="exposed" or target.status=="firing" then
@@ -457,49 +607,93 @@ function Shootout.fire(state,data,width,height,Catalog)
         local previousHealth=math.max(0,tonumber(best.health) or best.maxHealth or Tuning.enemyHealth)
         local dealtDamage=math.min(previousHealth,shotDamage)
         best.health=math.max(0,previousHealth-dealtDamage)
-        best.damageNumber=string.format("%.2f",dealtDamage):gsub("0+$",""):gsub("%.$","")
-        best.damageNumberTimer=DAMAGE_NUMBER_DURATION
-        best.damageNumberElapsed=0
+        result.hit=true; result.slot=best.slot; result.damage=dealtDamage
         if best.health<=0 then
             best.status="dying"
             best.timer=DEATH_ANIMATION_DURATION
-            best.hitTimer=nil
             state.quest.kills=state.quest.kills+1
             state.quest.enemyMorale=clamp(state.quest.enemyMorale-(best.heavy and 7 or 4),0,100)
-        else
-            best.hitTimer=HIT_ANIMATION_DURATION
         end
-        local x,y=WindowScene.slotPosition(layout,best.slot)
+    end
+    return result
+end
+
+local function presentShot(state,data,width,height,Catalog,result,report)
+    local aimX,aimY=result.x,result.y
+    if report then FirstPerson.playReport(state.gun.weapon,Catalog,data,false) end
+    local layout=WindowScene.layout(state.windowId,width,height)
+    if result.hit then
+        local effect=state.targetEffects[result.slot] or {}; state.targetEffects[result.slot]=effect
+        effect.damageNumber=string.format("%.2f",result.damage):gsub("0+$",""):gsub("%.$","")
+        effect.damageNumberTimer=DAMAGE_NUMBER_DURATION; effect.damageNumberElapsed=0
+        effect.hitTimer=state.targets[result.slot].health>0 and HIT_ANIMATION_DURATION or nil
+        local x,y=WindowScene.slotPosition(layout,result.slot)
         addEffect(state,1,x,y,.13,.20)
-    elseif WindowScene.buildingSolid(layout,aimX,aimY) then
+    elseif WindowScene.pointOpen(state.windowId,width,height,aimX,aimY) and WindowScene.buildingSolid(layout,aimX,aimY) then
         addEffect(state,5,aimX,aimY,.10,.24)
     end
+end
+
+function Shootout.fire(state,data,width,height,Catalog)
+    if not ActorState.accepts(state,data) then return false end
+    if state.result or state.ducking or state.coverProgress>0 or FirstPerson.needsSupply(state.gun,data,state.quest) then return false end
+    local aimX,aimY=WorldView.toWorld(state.gun.aimX,state.gun.aimY)
+    local before={}; for index,target in ipairs(state.targets) do before[index]=target.health end
+    local reply=command(state,'gun.fire',{x=math.floor(clamp(aimX/width,0,1)*1000000+.5),
+        y=math.floor(clamp(aimY/height,0,1)*1000000+.5)})
+    local result,reason
+    if reply then
+        reason=reply.reason
+        if reply.ok then
+            result={fired=true,hit=false,x=aimX,y=aimY}
+            if reply.result.hit then
+                for index,target in ipairs(state.targets) do
+                    if target.health<before[index] then
+                        result.hit=true; result.slot=target.slot; result.damage=before[index]-target.health; break
+                    end
+                end
+            end
+        end
+    else result,reason=Shootout.fireAt(state,data,width,height,Catalog,aimX,aimY) end
+    if not result then
+        local message=reason=="safe" and "Weapon selector is on SAFE. Press V to change mode."
+            or reason=="reload" and "Magazine empty. Press R to reload." or "The weapon is not ready."
+        state.notice={text=message,timer=1.5}
+        return false
+    end
+    presentShot(state,data,width,height,Catalog,result,not reply or reply.durable==true)
     return true
 end
 
 function Shootout.retry(state)
+    if ActorState.actorId(state)~='host' then return false,'host_only' end
+    if not ActorState.advance(state.quest) then return false,'phase_exhausted' end
     state.quest.positionIntegrity=65
     state.elapsed=state.quest.phaseCheckpoint or 0
     state.quest.holdElapsed=state.elapsed
     state.quest.recoveries=(state.quest.recoveries or 0)+1
     state.result=nil
     state.retreatReason=nil
-    state.ducking=false
-    state.coverProgress=0
-    state.hitRecovery=0
+    local record=ActorState.record(state)
+    if record then
+        for _,owner in pairs(record.defenders) do owner.ducking=false; owner.coverProgress=0; owner.hitRecovery=0 end
+    else state.ducking=false; state.coverProgress=0; state.hitRecovery=0 end
     state.enemyShots=0
     state.flashes={}
     state.incomingShots={}
     state.impactBursts={}
     state.hitFeedback=0
     state.impacts={}
-    state.quest.impacts=state.impacts
+    state.targetEffects={}
+    if not record then state.quest.impacts=state.impacts end
     for index,target in ipairs(state.targets) do
         target.status="hidden"
         target.withdrawal=nil
+        target.targetActorId=nil
         target.timer=.5+index*.18
     end
     state.notice={text="The defenders pull back, regroup, and reopen the firing line.",timer=3}
+    return true
 end
 
 local function drawTargets(state,layout)
@@ -511,7 +705,7 @@ local function drawTargets(state,layout)
             local rise=(target.status=="appearing" or target.status=="hiding") and rh*.15 or 0
             rise=rise+(target.withdrawal or 0)*rh*1.5
             WindowScene.clipSlot(layout,target.slot,function()
-                WindowScene.drawActor(target.atlas,targetFrame(target),rx+rw/2,ry+rh*1.45+rise,rh*1.5/512,alpha)
+                WindowScene.drawActor(target.atlas,targetFrame(target,state.targetEffects[target.slot]),rx+rw/2,ry+rh*1.45+rise,rh*1.5/512,alpha)
             end)
         end
     end
@@ -519,18 +713,19 @@ end
 
 local function drawDamageNumbers(state,layout)
     for _,target in ipairs(state.targets) do
-        if target.status~="hidden" and target.damageNumber and (target.damageNumberTimer or 0)>0 then
+        local effect=state.targetEffects[target.slot]
+        if target.status~="hidden" and effect and effect.damageNumber and (effect.damageNumberTimer or 0)>0 then
             local rx,ry,rw,rh=WindowScene.slotRect(layout,target.slot)
             local rise=(target.status=="appearing" or target.status=="hiding") and rh*.15 or 0
             rise=rise+(target.withdrawal or 0)*rh*1.5
-            local progress=clamp((target.damageNumberElapsed or 0)/DAMAGE_NUMBER_DURATION,0,1)
-            local alpha=clamp((target.damageNumberTimer or 0)/DAMAGE_NUMBER_DURATION,0,1)
+            local progress=clamp((effect.damageNumberElapsed or 0)/DAMAGE_NUMBER_DURATION,0,1)
+            local alpha=clamp((effect.damageNumberTimer or 0)/DAMAGE_NUMBER_DURATION,0,1)
             local x=rx+rw/2
             local y=ry+rh*.09+rise-progress*math.max(10,rh*.24)
             love.graphics.setColor(0,0,0,alpha*.9)
-            love.graphics.printf(target.damageNumber,x-25+1,y+1,50,"center")
+            love.graphics.printf(effect.damageNumber,x-25+1,y+1,50,"center")
             love.graphics.setColor(.96,.12,.10,alpha)
-            love.graphics.printf(target.damageNumber,x-25,y,50,"center")
+            love.graphics.printf(effect.damageNumber,x-25,y,50,"center")
         end
     end
 end
@@ -551,6 +746,8 @@ end
 
 local function drawIncomingFire(state,layout,width,height)
     for _,shot in ipairs(state.incomingShots) do
+        local actorId=state.presentationActorId or ActorState.actorId(state)
+        if (shot.actorId or 'host')==actorId and (not shot.windowId or shot.windowId==state.windowId) then
         local progress=clamp((shot.elapsed-SHOT_DELAY)/SHOT_TRAVEL,0,1)
         if progress>0 then
             local startX,startY=WindowScene.slotPosition(layout,shot.slot)
@@ -570,6 +767,7 @@ local function drawIncomingFire(state,layout,width,height)
                 love.graphics.setColor(1,.96,.72,1)
                 love.graphics.circle("fill",headX,headY,5)
             end
+        end
         end
     end
     for _,burst in ipairs(state.impactBursts) do
@@ -733,6 +931,7 @@ function Shootout.draw(state,data,width,height)
         love.graphics.setColor(.96,.86,.68,1)
         textBox(state.notice.text,width/2-276,noticeY+6,552,58,.95,"center")
     end
+    if not state.guestPresentation then
     love.graphics.setColor(.95,.84,.64,.86)
     local hints=state.touchControls and "Hold the grip. Second touch or FIRE to shoot."
         or "LMB fire  •  RMB aim  •  R reload  •  V mode  •  C cover  •  TAB weapon  •  ESC leave"
@@ -783,6 +982,7 @@ function Shootout.draw(state,data,width,height)
         love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
         love.graphics.setColor(1,.88,.62,1)
         textBox("REGROUP AND RETRY"..(state.touchControls and "" or "  [ENTER]"),rx+10,ry+4,rw-20,rh-8,1,"center")
+    end
     end
     love.graphics.pop()
 end

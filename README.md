@@ -8,6 +8,8 @@ The dependency-ordered gameplay backlog and mobile parity requirements are track
 
 The [September 10 game/mobile audit](docs/audits/2026-09-10-game-and-mobile.md) records the current fixes, verification and remaining device acceptance.
 
+Two-player LAN co-op is available through **Local Play / F8**. See [Local Play](docs/LOCAL_PLAY.md) for AUTO, Wi-Fi, USB tether and manual connections, automatic discovery/join/reconnect, and host-owned story progression. [Co-op packaging](docs/COOP_PACKAGING.md) records candidate builds and the remaining physical-device checks.
+
 ## Run on Windows
 
 1. Install [LÖVE 11.x for Windows](https://love2d.org/) using the 64-bit installer.

@@ -79,4 +79,27 @@ function EventUI.hit(x,y,rects,pointIn)
     for index,rect in ipairs(rects or EventUI.choiceRects()) do if rect.enabled~=false and pointIn(x,y,rect) then return index end end
 end
 
+-- Same authored event art/text for the committed host outcome and passive
+-- guest view. Only the host receives a continuation control.
+function EventUI.drawReadAlong(event,read,images,drawFrame,button,colors,host)
+    local function text(value,x,y,w,h,scale)
+        Typography.drawText(love.graphics,value or '',x,y,w,h,{scale=scale or 1,minScale=.65,align='center',valign='center'})
+    end
+    drawFrame(95,35,770,625,1,1)
+    love.graphics.setColor(colors.brass); text(string.upper(event.category)..' EVENT',125,48,710,32,1.05)
+    drawFrame(135,86,690,258,3,1); EventUI.drawArt(event,images,142,93,676,244)
+    love.graphics.setColor(.04,.025,.02,.73); love.graphics.rectangle('fill',142,276,676,61)
+    love.graphics.setColor(colors.cream); text(event.title,160,281,640,48,1.25)
+    text(event.text,150,352,660,72,.95)
+    if read.answer then text(read.answer,150,432,660,42,.95) end
+    text(read.notice,150,478,660,92,.88)
+    if host then
+        local rect={x=345,y=590,w=270,h=55}
+        button('CONTINUE',rect.x,rect.y,rect.w,rect.h,true)
+        return rect
+    end
+    love.graphics.setColor(colors.brass)
+    text(read.waiting and 'The host is choosing a response.' or 'The host will continue when ready.',150,594,660,42,.9)
+end
+
 return EventUI

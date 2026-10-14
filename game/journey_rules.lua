@@ -1,4 +1,7 @@
 local Conversations=require("game.npc_conversations")
+local CoopProgression=require("game.coop_progression")
+local Items=require("game.item_instances")
+local QuestDecisions=require('game.coop_quest_decisions')
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -113,6 +116,26 @@ local function new(context)
       return reward
   end
 
+  local function submitQuestAssistance(command,quest)
+      local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]
+      local reply=context.commands.submit(command,{targetId=context.commands.identify(layout),
+          npc=runtime.saveData.currentNPC,questId=quest and context.commands.identify(quest) or nil})
+      return reply.ok and reply.result or {ok=false,reason=reply.reason}
+  end
+
+  local function deliverQuest(quest,message)
+      local result=submitQuestAssistance("quest.deliver",quest)
+      if result.completed then
+          runtime.dialogue={speaker="TASK",text=(message or "Task completed.").."  Reward: "..rewardText(result.reward)
+              .." and +"..result.gained.." goodwill ("..result.total.." total).",timer=5}
+      else
+          local text=result.reason=="cargo_unavailable" and ("Delivery incomplete. Required: "..QuestProgression.deliveryProfile(quest.cargoKind).label..".")
+              or "Delivery unavailable. Return to the recipient to try again."
+          runtime.dialogue={speaker="TASK",text=text,timer=5}
+      end
+      return result
+  end
+
   local function pendingMailHere()
       for _,quest in ipairs(runtime.saveData.mailQuests or {}) do
           if not quest.complete and quest.destination==runtime.saveData.location and quest.recipient==runtime.saveData.currentNPC then return quest end
@@ -137,13 +160,29 @@ local function new(context)
   end
 
   local function beginDialogueQuest(request)
+      if not CoopProgression.allowed(runtime,"conversation.begin") then return false,"host_only" end
       return showDialogueQuest(HelpDialogueQuests.begin(runtime.saveData,request))
   end
 
   local function chooseHelpDialogue(index)
+      if index and not CoopProgression.allowed(runtime,"conversation.choose") then return false,"host_only" end
       local active=runtime.helpDialogue; local request=active and active.request
       if not request then return false end
       if active.authored then
+          if context.commands then
+              local command=index and 'conversation.choose' or 'conversation.end'
+              local reply=context.commands.submit(command,{id=request.id,index=index})
+              if not reply.ok then
+                  local refreshed=Conversations.view(runtime.saveData,Conversations.request(runtime.saveData,request.npc))
+                  if refreshed then showDialogueQuest(refreshed) end
+                  return {completed=false,reason=reply.reason}
+              end
+              if not index then runtime.helpDialogue=nil; runtime.dialogue=nil; return true end
+              local read=Conversations.readAlong(runtime.saveData)
+              runtime.helpDialogue=nil
+              runtime.dialogue={speaker=Util.titleFromFile(request.npc),text=read.text,notice=read.notice,authored=true,timer=math.huge}
+              return {completed=true,text=read.text,notice=read.notice}
+          end
           if not index then runtime.helpDialogue=nil; runtime.dialogue=nil; writeSave(); return true end
           local result=Conversations.choose(runtime.saveData,request,index,{
               storeItem=storeRewardItem,
@@ -171,8 +210,15 @@ local function new(context)
   end
 
   local function itemHelp(request)
-      request.accepted=true
-      local result=StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
+      if not request.accepted and not CoopProgression.allowed(runtime,"quest.accept") then return false,"host_only" end
+      if context.commands then
+          if not request.accepted then return false,'quest_not_accepted' end
+      else
+          request.accepted=true
+          if request.sessionId then HelpQuestSession.accept(runtime.saveData,request.sessionId) end
+      end
+      local result=context.commands and submitQuestAssistance("quest.help")
+          or StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
       local speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler")
       if result.completed then
           runtime.dialogue={speaker="TASK",text="Item delivered. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
@@ -183,23 +229,70 @@ local function new(context)
   end
 
   local function beginFirstAid(request)
-      request.accepted=true
+      if not request.accepted and not CoopProgression.allowed(runtime,"quest.accept") then return false,"host_only" end
       local quest=request.sessionId and HelpQuestSession.get(runtime.saveData,request.sessionId)
-      if quest then HelpQuestSession.accept(runtime.saveData,quest.id) end
+      if context.commands then
+          if not request.accepted then return false,'quest_not_accepted' end
+      else
+          request.accepted=true
+          if quest then HelpQuestSession.accept(runtime.saveData,quest.id) end
+      end
       local slot,name=StopHelpProgression.medicalItem(runtime.saveData,Catalog)
       if not slot then
-          if quest then HelpQuestSession.investigate(runtime.saveData,quest.id,"Find a medical supply and return to the wounded critter.") end
+          if quest and not context.commands then HelpQuestSession.investigate(runtime.saveData,quest.id,"Find a medical supply and return to the wounded critter.") end
           runtime.dialogue={speaker="TASK",text="Treatment requires a bandage, salve, tonic, splint, or medkit.",timer=6}
           return false
       end
-      if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Find the small cut, then complete all five treatment steps.") end
-      runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location,
-          helpQuestId=quest and quest.id,progress=quest and quest.progress})
+      if context.commands then
+          local campaign=runtime.saveData
+          local layout=campaign.stopLayouts[tostring(campaign.location)]
+          local targetId=context.commands.identify(layout)
+          local reply=context.commands.submit("firstAid.acquire",{targetId=targetId,npc=campaign.currentNPC})
+          if not reply.ok then
+              runtime.dialogue={speaker="TASK",text="Treatment unavailable. Stay near the patient and finish any other activity first.",timer=6}
+              return false
+          end
+          runtime.firstAid=FirstAid.bindCommands(reply.result.session,function(command,args)
+              if runtime.saveData~=campaign then return {ok=false,reason="wrong_campaign"} end
+              return context.commands.submit(command,args)
+          end,reply.result.leaseId)
+      else
+          if quest then HelpQuestSession.activate(runtime.saveData,quest.id,"Find the small cut, then complete all five treatment steps.") end
+          runtime.firstAid=FirstAid.new({npc=runtime.saveData.currentNPC,itemName=name,itemSlot=slot,location=runtime.saveData.location,
+              helpQuestId=quest and quest.id,progress=quest and quest.progress})
+      end
       runtime.dialogue=nil
       return true
   end
 
   local function acceptQuest(kind)
+      if not CoopProgression.allowed(runtime,"quest.accept") then return false,"host_only" end
+      if context.commands then
+          local data=runtime.saveData; local layout=data.stopLayouts[tostring(data.location)]
+          local command=kind=='ride' and 'passenger.recruit' or 'quest.accept'
+          local reply=context.commands.submit(command,{targetId=context.commands.identify(layout),npc=data.currentNPC,kind=kind})
+          if not reply.ok then return false,reply.reason end
+          local result=reply.result; local reward=result.reward
+          runtime.questOffer=nil
+          if kind=='mail' then
+              runtime.dialogue={speaker='TASK',text='Deliver the letter to '..Util.titleFromFile(result.recipient)..' at stop '..result.destination..'. Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=6}
+          elseif kind=='ride' then
+              runtime.dialogue={speaker='TASK',text='Passenger job: '..result.job..' until stop '..result.destination..'. Arrival reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and loot.',timer=6}
+          elseif kind=='supplies' then
+              local profile=QuestProgression.deliveryProfile(result.deliveryKind)
+              runtime.dialogue={speaker='TASK',text=string.format(profile.accepted,result.destination)..' Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=7}
+          elseif kind=='trade' then
+              runtime.tradeOpen=true; runtime.tradeNPC=data.currentNPC; runtime.tradeMerchantId=nil
+              runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; runtime.dialogue=nil
+          else
+              runtime.dialogue=nil
+              if not reply.savePending then
+                  local request=StopHelpProgression.request(layout,data.currentNPC)
+                  if kind=='item' then itemHelp(request) else beginFirstAid(request) end
+              end
+          end
+          return reply
+      end
       runtime.saveData.questAsked=runtime.saveData.questAsked or {}
       runtime.saveData.questAsked[tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC)]=true
       if kind=="mail" then
@@ -214,7 +307,12 @@ local function new(context)
           local index=#runtime.saveData.passengers+1; local px=car.x+225+(index-1)*85
           local layout=ensureStopLayout()
           local destination=runtime.saveData.location+rideStops
+          if Items.enabled(runtime.saveData) then assert(Items.ensure(runtime.saveData)) end
           runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
+          if Items.enabled(runtime.saveData) then
+              runtime.saveData.passengers[index].weaponInstance=layout.npcWeaponInstance
+              layout.npcWeapon=nil; layout.npcWeaponInstance=nil
+          end
           NpcRelationships.recordRide(runtime.saveData,runtime.saveData.currentNPC)
           local reward=QuestProgression.rewardProfile("ride",rideStops,runtime.saveData.trait,destination)
           runtime.dialogue={speaker="TASK",text="Passenger job: "..job.." until stop "..destination..". Arrival reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and loot.",timer=6}
@@ -241,9 +339,40 @@ local function new(context)
       runtime.questOffer=nil; writeSave()
   end
 
+  local function declineQuestOffer()
+      if not CoopProgression.allowed(runtime,'quest.decline') then return false,'host_only' end
+      if not runtime.questOffer then return false end
+      local data=runtime.saveData
+      if context.commands then
+          local layout=data.stopLayouts[tostring(data.location)]
+          local reply=context.commands.submit('quest.decline',{targetId=context.commands.identify(layout),npc=data.currentNPC,kind=runtime.questOffer.kind})
+          if not reply.ok then return false,reply.reason end
+      else
+          data.questAsked=data.questAsked or {}; data.questAsked[tostring(data.location)..':'..tostring(data.currentNPC)]=true; writeSave()
+      end
+      runtime.dialogue={speaker='TASK',text='Task declined.',timer=5}; runtime.questOffer=nil
+      return true
+  end
+
   local function resolveFirstAid(outcome)
       local session=runtime.firstAid
       if not session then return false end
+      if session.command then
+          local name=outcome=="complete" and "firstAid.complete" or "firstAid.step"
+          local args={leaseId=session.leaseId,action=outcome~="complete" and "pause" or nil}
+          local reply=session.command(name,args)
+          local result=reply.ok and reply.result
+          if not reply.ok then
+              session.command("firstAid.step",{leaseId=session.leaseId,action="pause"})
+              session.command("activity.release",{leaseId=session.leaseId})
+          end
+          runtime.firstAid=nil
+          local text=result and result.completed and ("Treatment complete. +"..result.gained.." goodwill. Total goodwill: "..result.total..".")
+              or outcome=="complete" and "Treatment not completed. Check the medical supply and return to the patient."
+              or "Treatment paused."
+          runtime.dialogue={speaker="TASK",text=text,timer=6}
+          writeSave(); return true
+      end
       runtime.firstAid=nil
       local layout=runtime.saveData.stopLayouts[tostring(session.location)]
       local request=StopHelpProgression.request(layout,session.npc)
@@ -264,13 +393,28 @@ local function new(context)
 
   local function talkToNPC()
       ensureStopLayout()
-      local authored=Conversations.begin(runtime.saveData,runtime.saveData.currentNPC)
+      local authored
+      if CoopProgression.allowed(runtime,'conversation.begin') then
+          if context.commands then
+              local request=Conversations.request(runtime.saveData,runtime.saveData.currentNPC)
+              if request then
+                  local layout=runtime.saveData.stopLayouts[tostring(runtime.saveData.location)]
+                  local reply=context.commands.submit('conversation.begin',{id=request.id,npc=request.npc,targetId=context.commands.identify(layout)})
+                  if not reply.ok then
+                      runtime.dialogue={speaker='CONVERSATION',text='Conversation unavailable. Stay near the resident and finish any other activity first.',timer=5}
+                      return false,reply.reason
+                  end
+                  authored=Conversations.view(runtime.saveData,Conversations.request(runtime.saveData,request.npc))
+              end
+          else authored=Conversations.begin(runtime.saveData,runtime.saveData.currentNPC) end
+      end
       if authored then
           runtime.questOffer=nil
-          showDialogueQuest(authored); writeSave(); return
+          showDialogueQuest(authored); if not context.commands then writeSave() end; return
       end
       for _,supply in ipairs(runtime.saveData.supplyQuests or {}) do
           if not supply.complete and supply.destination==runtime.saveData.location then
+              if context.commands then deliverQuest(supply,QuestProgression.deliveryProfile(supply.cargoKind).thanks); return end
               local result=QuestProgression.consumeCargo(runtime.saveData,Catalog,supply)
               local profile=QuestProgression.deliveryProfile(supply.cargoKind)
               if result.completed then
@@ -284,11 +428,16 @@ local function new(context)
           end
       end
       local mail=pendingMailHere()
-      if mail then mail.complete=true; giveQuestReward("mail",mail.origin,mail.destination,Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]); writeSave(); return end
+      if mail then
+          local message=Catalog.mailThanksLines[love.math.random(#Catalog.mailThanksLines)]
+          if context.commands then deliverQuest(mail,message)
+          else mail.complete=true; giveQuestReward("mail",mail.origin,mail.destination,message); writeSave() end
+          return
+      end
       local helpRequest=currentHelpRequest()
       if helpRequest and helpRequest.accepted and not helpRequest.complete then
           if helpRequest.kind=="item" then itemHelp(helpRequest) else beginFirstAid(helpRequest) end
-          writeSave(); return
+          if not context.commands then writeSave() end; return
       end
       local dialogueRequest=currentDialogueRequest()
       if dialogueRequest and dialogueRequest.accepted and not dialogueRequest.complete then beginDialogueQuest(dialogueRequest); writeSave(); return end
@@ -302,7 +451,14 @@ local function new(context)
       -- critters, and their quest rolls must not leak between conversations.
       local kind=(layout.npcOffers and layout.npcOffers[runtime.saveData.currentNPC]) or "none"
       if kind=="dialogue" then kind="none" end
-      if not runtime.saveData.questAsked[key] and kind~="none" and runtime.saveData.location<50 then
+      if CoopProgression.allowed(runtime,"quest.accept") and not runtime.saveData.questAsked[key] and kind~="none" and runtime.saveData.location<50 then
+          if context.commands then
+              local reply=context.commands.submit('quest.offer',{targetId=context.commands.identify(layout),npc=runtime.saveData.currentNPC})
+              if not reply.ok then return false,reply.reason end
+              runtime.questOffer=reply.result.offer
+              runtime.dialogue={speaker='TASK',text=QuestDecisions.text(layout,runtime.saveData.currentNPC,runtime.questOffer,Catalog),timer=30,choice=true}
+              return true
+          end
           runtime.questOffer={kind=kind}
           local request=StopHelpProgression.request(layout,runtime.saveData.currentNPC)
           local text
@@ -322,7 +478,9 @@ local function new(context)
           else text="Trade available." end
           runtime.dialogue={speaker="TASK",text=text,timer=30,choice=true}; writeSave(); return
       end
-      local line,status=NpcRelationships.npcDialogue(runtime.saveData,runtime.saveData.currentNPC,Catalog.dialogueLines)
+      local line,status
+      if context.commands and context.commands.chatter then line,status=context.commands.chatter(runtime.saveData.currentNPC)
+      else line,status=NpcRelationships.npcDialogue(runtime.saveData,runtime.saveData.currentNPC,Catalog.dialogueLines) end
       runtime.questOffer=nil
       runtime.dialogue={speaker=line and (Util.titleFromFile(runtime.saveData.currentNPC or "Traveler").." • "..status.name) or "CONVERSATION",
           text=line or "No new conversation available.",timer=6}
@@ -330,12 +488,29 @@ local function new(context)
   end
 
   local function enterStop()
+      if not CoopProgression.allowed(runtime,"scene.leaveTrain") then return false,"host_only" end
+      if context.commands and context.commands.sceneTransitions then
+          local reply=context.commands.submit("scene.leaveTrain",{})
+          return reply.ok,reply.reason
+      end
       runtime.scene="stop"; runtime.player.x,runtime.player.y=270,490; setupNPC(); writeSave()
   end
 
   local function attemptLeaveTrain()
+      if not CoopProgression.allowed(runtime,"scene.leaveTrain") then return false,"host_only" end
       local key=tostring(runtime.saveData.location); local encounter=runtime.saveData.encounters[key]
       if beginRequiredEvent(runtime.saveData.location) then return end
+      if context.commands then
+          if not encounter then
+              local reply=context.commands.submit('encounter.roll',{})
+              if not reply.ok or reply.savePending then return false,reply.reason or 'save_pending' end
+              encounter=runtime.saveData.encounters[key]
+          elseif context.commands.checkpointStatus().pending then return false,'save_pending' end
+          if encounter.hasMob and not encounter.resolved and (encounter.mobFile or encounter.mobFiles) then beginEncounter(encounter)
+          elseif not encounter.hasMob and not runtime.saveData.events[key] then beginRandomEvent()
+          else enterStop() end
+          return
+      end
       -- A test save can force one event at the next travel attempt. Once the
       -- event is recorded, the ordinary stop flow resumes automatically.
       if not encounter and runtime.saveData.forceEventId and not runtime.saveData.events[key] then
@@ -393,7 +568,26 @@ local function new(context)
     passengerContributions=passengerContributions,
     pendingMailHere=pendingMailHere,
     acceptQuest=acceptQuest,
+    declineQuestOffer=declineQuestOffer,
     chooseHelpDialogue=chooseHelpDialogue,
+    updateConversation=function()
+        if not context.commands or not runtime.saveData then return end
+        local active=runtime.saveData.conversations and runtime.saveData.conversations.active
+        if not active then return end
+        local presenting=runtime.dialogue and runtime.dialogue.authored
+        if presenting and active.phase=='prompt' then
+            local request=Conversations.request(runtime.saveData,active.npc)
+            local refreshed=Conversations.view(runtime.saveData,request)
+            if refreshed then runtime.helpDialogue=refreshed end
+            if context.commands.renewConversation and not context.commands.renewConversation(active.id) then
+                runtime.helpDialogue=nil; runtime.dialogue=nil; presenting=false
+            end
+        end
+        if not presenting then
+            local reply=context.commands.submit('conversation.end',{id=active.id})
+            if reply.ok then runtime.helpDialogue=nil end
+        end
+    end,
     resolveFirstAid=resolveFirstAid,
     talkToNPC=talkToNPC,
     enterStop=enterStop,

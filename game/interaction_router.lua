@@ -1,4 +1,5 @@
 local InteractionRouter = {}
+local CoopCapabilities = require("game.coop_capabilities")
 
 function InteractionRouter.select(ctx)
     local candidates={}
@@ -51,6 +52,7 @@ function InteractionRouter.select(ctx)
             end
         end
     end
+    for _,candidate in ipairs(candidates) do CoopCapabilities.requireInteraction(candidate.kind) end
     return ctx.choose(candidates,ctx.mouseX,ctx.mouseY,ctx.player)
 end
 

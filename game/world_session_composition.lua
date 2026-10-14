@@ -57,9 +57,11 @@ local function new(context)
     mobAttackImages=content.mobAttackImages,mobHitImages=content.mobHitImages,
     mobDeathImages=content.mobDeathImages,mobRangedImages=content.mobRangedImages,
     writeSave=platform.persistenceRuntime.schedule,
+    rangeCommands=context.rangeCommands,rangeView=context.rangeView,
   })
 
   local sessionBootstrap=SessionBootstrap.new({
+    useTacticalCommands=true,
     saveSchema=SaveSchema,characters=content.characters,characterImages=content.characterImages,
     npcImages=content.npcImages,car=car,ui=ui,maintenanceSession=maintenanceSession,runtime=runtime,
     filesystem=Filesystem,roster=Roster,house=House,catalog=Catalog,maintenance=Maintenance,

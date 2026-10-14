@@ -467,18 +467,9 @@ local function weaponFamily(catalog,name)
 end
 
 local function visitOwnedWeapons(data,catalog,callback)
-    local seen={}
-    for _,collection in ipairs({data and data.equipment,data and data.inventory}) do
-        for _,name in pairs(type(collection)=="table" and collection or {}) do
-            if type(name)=="string" and not seen[name] then
-                local stats=(catalog.weaponStats or {})[name]
-                local combat=(catalog.weaponCombat or {})[name]
-                if stats and combat and name~="scratch" then
-                    seen[name]=true
-                    callback(name,stats,combat)
-                end
-            end
-        end
+    for _,entry in ipairs(require("game.item_instances").weapons(data or {},catalog)) do
+        local stats,combat=catalog.weaponStats[entry.name],catalog.weaponCombat[entry.name]
+        if stats and combat then callback(entry.name,stats,combat,entry.durability) end
     end
 end
 
@@ -564,13 +555,10 @@ end
 
 local function chooseAmmo(data,catalog,lootProgression,location,used,rng)
     local reserve=data and data.ammo or {}
-    local durability=data and data.weaponDurability or {}
     local tier=lootProgression.locationTier(location)
     local preferred,seen,lowest={}, {}, nil
-    visitOwnedWeapons(data,catalog,function(name,_,combat)
+    visitOwnedWeapons(data,catalog,function(name,_,combat,condition)
         local ammo=combat.kind=="ranged" and combat.ammo
-        local condition=tonumber(durability[name])
-        if condition==nil then condition=100 end
         if ammo and condition>0 and not used[ammo] and (catalog.ammoPickupAmounts or {})[ammo]
             and ((lootProgression.ammoUnlockTier or {})[ammo] or 9)<=tier and not seen[ammo] then
             seen[ammo]=true
@@ -780,6 +768,13 @@ local function replaceTable(target,source)
     return target
 end
 
+local function appendInstances(target,instances)
+    for _,instance in ipairs(instances or {}) do
+        target.instances=target.instances or {}
+        target.instances[#target.instances+1]=instance
+    end
+end
+
 local function normalizeResaleStock(camp,catalog,lootProgression)
     if type(camp)~="table" then return {} end
     catalog=catalog or Catalog
@@ -821,8 +816,10 @@ local function normalizeResaleStock(camp,catalog,lootProgression)
         if baseByItem[original.item] then
             local listing=baseByItem[original.item]
             listing.quantity=normalizedQuantity(listing.quantity,0)+quantity
+            appendInstances(listing,original.instances)
         elseif byItem[original.item] then
             byItem[original.item].quantity=byItem[original.item].quantity+quantity
+            appendInstances(byItem[original.item],original.instances)
         else
             local sequence=candidate.sequence
             if not sequence or usedSequences[sequence] then
@@ -831,8 +828,10 @@ local function normalizeResaleStock(camp,catalog,lootProgression)
             end
             usedSequences[sequence]=true
             nextSequence=math.max(nextSequence,sequence+1)
+            local instances=original.instances
             local entry=replaceTable(original,resaleListing(camp,catalog,lootProgression,
                 original.merchantId,original.item,sequence,quantity,original.acquiredFor))
+            entry.instances=instances
             result[#result+1]=entry
             byItem[original.item]=entry
         end
@@ -919,7 +918,7 @@ function CrowCaravans.normalizeResaleStock(camp,catalog,lootProgression)
     return normalizeResaleStock(camp,catalog or Catalog,lootProgression or LootProgression)
 end
 
-function CrowCaravans.addResaleListing(camp,merchantId,name,catalog,lootProgression,acquiredFor,quantity)
+function CrowCaravans.addResaleListing(camp,merchantId,name,catalog,lootProgression,acquiredFor,quantity,instance)
     catalog=catalog or Catalog
     lootProgression=lootProgression or LootProgression
     if type(camp)~="table" then return nil,"missing-camp" end
@@ -928,10 +927,12 @@ function CrowCaravans.addResaleListing(camp,merchantId,name,catalog,lootProgress
     if not knownCatalogItem(catalog,name) then return nil,"unknown-item" end
     normalizeResaleStock(camp,catalog,lootProgression)
     quantity=math.max(1,normalizedQuantity(quantity,1))
+    if instance then assert(quantity==1 and instance.name==name,"invalid resale instance") end
     for _,otherMerchant in ipairs(camp.merchants or {}) do
         for _,listing in ipairs(otherMerchant.listings or {}) do
             if listing.item==name then
                 listing.quantity=normalizedQuantity(listing.quantity,0)+quantity
+                if instance then appendInstances(listing,{instance}) end
                 return listing,false
             end
         end
@@ -939,20 +940,22 @@ function CrowCaravans.addResaleListing(camp,merchantId,name,catalog,lootProgress
     for _,listing in ipairs(camp.resaleStock) do
         if listing.item==name then
             listing.quantity=normalizedQuantity(listing.quantity,0)+quantity
+            if instance then appendInstances(listing,{instance}) end
             return listing,false
         end
     end
     local sequence=normalizedSequence(camp.nextResaleSequence) or 1
     local listing=resaleListing(camp,catalog,lootProgression,merchantId,name,sequence,quantity,acquiredFor)
+    if instance then listing.instances={instance} end
     camp.resaleStock[#camp.resaleStock+1]=listing
     camp.nextResaleSequence=sequence+1
     return listing,true
 end
 
-function CrowCaravans.tradeListings(camp,merchantId,catalog,lootProgression)
+function CrowCaravans.tradeListings(camp,merchantId,catalog,lootProgression,readOnly)
     local merchant=merchantRecord(camp,merchantId)
     if not merchant then return {} end
-    normalizeResaleStock(camp,catalog or Catalog,lootProgression or LootProgression)
+    if not readOnly then normalizeResaleStock(camp,catalog or Catalog,lootProgression or LootProgression) end
     local result={}
     for _,listing in ipairs(merchant.listings or {}) do result[#result+1]=listing end
     for _,listing in ipairs(camp.resaleStock or {}) do
@@ -1003,7 +1006,7 @@ end
 
 function CrowCaravans.resalePrice(data,camp,name,catalog,Relationships)
     catalog=catalog or Catalog
-    local base=LootProgression.resalePrice(catalog,name,data and data.weaponDurability and data.weaponDurability[name])
+    local base=LootProgression.resalePrice(catalog,name,require("game.item_instances").condition(data,name))
     if Relationships and type(Relationships.sellPrice)=="function" then
         return Relationships.sellPrice(data,(camp and camp.relationshipKey) or CrowCaravans.relationshipKey,base)
     end

@@ -140,7 +140,7 @@ local function drawSheet(asset,fallbackFrames,frame,x,y,sx,sy,ox,oy)
 end
 
 function M.draw(sys,ctx)
-    local list=M.ensure(sys,ctx.data,ctx.location,ctx)
+    local list=ctx.readOnly and ((ctx.data.stopSludges or {})[tostring(ctx.location)] or {}) or M.ensure(sys,ctx.data,ctx.location,ctx)
     for _,s in ipairs(list) do
         local img=ctx.images and ctx.images.idle
         local frames=2; local frame=math.floor(ctx.clock*1.8+(s.x or 0)*.01)%frames

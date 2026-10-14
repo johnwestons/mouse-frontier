@@ -2,6 +2,8 @@ local Areas=require("game.expedition_areas")
 local CombatBalance=require("game.combat_balance")
 local PlayerProgression=require("game.player_progression")
 local TrainUpgradeBalance=require("game.train_upgrade_balance")
+local Players=require('game.coop_players')
+local Actors=require('game.battle_actors')
 
 local Rewards={}
 
@@ -16,7 +18,7 @@ end
 
 -- Each authored enemy owns one reward receipt.  The killing mode and party
 -- grouping cannot change its value or permit a second claim after reloading.
-function Rewards.claimEnemy(data,catalog,definition,saved)
+function Rewards.claimEnemy(data,catalog,definition,saved,actorIds)
     if not data or not definition or not saved or saved.rewardResolved then return nil end
     if not saved.dead and (saved.hp or 1)>0 then return nil end
     local profile=CombatBalance.rewardProfile(definition.tier or CombatBalance.tierFor(data.location),1,false,definition.boss==true)
@@ -25,7 +27,15 @@ function Rewards.claimEnemy(data,catalog,definition,saved)
     local coal=math.floor((profile.coalMin+profile.coalMax)/2)
     local receipt={count=1,xp=profile.xp,scrap=scrap,coal=TrainUpgradeBalance.addResource(data,"coal",coal),levels=0}
     data.scrap=(data.scrap or 0)+scrap
-    receipt.levels=PlayerProgression.gainExperience(data,profile.xp)
+    receipt.playerXP={}; receipt.playerLevels={}
+    for _,id in ipairs(actorIds or {'host'}) do
+        local actor=data.players and Players.get(data,id) and Players.forActor(data,id) or id=='host' and data
+        if actor and not receipt.playerXP[id] then
+            local levels=PlayerProgression.gainExperience(actor,profile.xp)
+            receipt.playerXP[id]=profile.xp; receipt.playerLevels[id]=levels
+            if id=='host' then receipt.levels=levels end
+        end
+    end
     saved.rewardResolved=true
     saved.rewardReceipt=receipt
     return receipt
@@ -37,13 +47,14 @@ function Rewards.claimBattle(data,catalog,battle)
     if not encounter or encounter.source~="expedition" then return total end
     local state=data.expeditions and data.expeditions[encounter.areaId]
     if not state or not state.mobs then return total end
+    local actors={}; for _,unit in ipairs(Actors.units(battle)) do actors[#actors+1]=Actors.id(unit) end
     for _,unit in ipairs(battle.units or {}) do
         local saved=unit.team=="enemy" and unit.mobId and state.mobs[unit.mobId]
         if saved and (unit.hp or 1)<=0 then
             saved.hp=0; saved.dead=true
             local definition=Areas.mobDefinition(encounter.areaId,unit.mobId)
                 or {id=unit.mobId,tier=encounter.tier,boss=unit.boss==true}
-            addReceipt(total,Rewards.claimEnemy(data,catalog,definition,saved))
+            addReceipt(total,Rewards.claimEnemy(data,catalog,definition,saved,actors))
         end
     end
     return total

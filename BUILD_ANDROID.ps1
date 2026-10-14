@@ -1,10 +1,12 @@
 param(
     [switch]$PackageOnly,
     [switch]$Install,
+    [switch]$SkipDeviceProbe,
     [string]$Ffmpeg
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Install -and $SkipDeviceProbe) { throw '-Install cannot be combined with -SkipDeviceProbe.' }
 $projectRoot = $PSScriptRoot
 $userProfilePath = [Environment]::GetFolderPath('UserProfile')
 $bundledPython = Join-Path $userProfilePath '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
@@ -31,5 +33,6 @@ if ($LASTEXITCODE -ne 0) { throw "Packaged mobile smoke test failed with exit co
 if (-not $PackageOnly) {
     $apkArguments = @{ PackagePath = $report.package }
     if ($Install) { $apkArguments.Install = $true }
+    if ($SkipDeviceProbe) { $apkArguments.SkipDeviceProbe = $true }
     & (Join-Path $projectRoot 'tools\build_android_apk.ps1') @apkArguments
 }

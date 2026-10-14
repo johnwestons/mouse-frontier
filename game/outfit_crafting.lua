@@ -1,5 +1,6 @@
 -- Pure persisted crafting model. UI timing, rendering, and input live elsewhere.
 local Definitions = require("game.outfit_catalog")
+local Items = require("game.item_instances")
 local Crafting = {}
 
 local function finite(value)
@@ -50,8 +51,7 @@ local function inventorySlots(data)
     return slots
 end
 
-function Crafting.status(data,recipeId)
-    local state=Crafting.ensure(data)
+local function status(data,recipeId,state)
     if not state then return response(false,"No character is available.",{canStart=false,materials={}}) end
     local recipe=Definitions.recipesById[recipeId]
     if not recipe then return response(false,"That outfit pattern is unavailable.",{canStart=false,materials={}}) end
@@ -74,6 +74,8 @@ function Crafting.status(data,recipeId)
         missingCount=missingCount,hasProject=hasProject})
 end
 
+function Crafting.status(data,recipeId) return status(data,recipeId,Crafting.ensure(data)) end
+
 function Crafting.start(data,recipeId)
     local status=Crafting.status(data,recipeId)
     if not status.canStart then return response(false,status.reason or status.message) end
@@ -86,14 +88,13 @@ function Crafting.start(data,recipeId)
     end
     -- Select every bundle before removing any. No partial consumption on failure.
     for _,amount in pairs(needed) do if amount>0 then return response(false,"Materials changed. Gather all required bundles first.") end end
-    for _,index in ipairs(committed) do data.inventory[index]=nil end
+    for _,index in ipairs(committed) do Items.write(data,nil,{kind="inventory",index=index},nil) end
     data.outfitCrafting.project={recipeId=recipeId,stageIndex=1,pointIndex=1,completedPoints=0,
         correctActions=0,mistakes=0,attempts=0,complete=false}
     return response(true,"Materials set aside. Mark the first panel.",{changed=true,project=data.outfitCrafting.project})
 end
 
-function Crafting.stage(data)
-    local project=Crafting.project(data)
+local function stage(project)
     local recipe=project and Definitions.recipesById[project.recipeId]
     if not recipe or project.complete then return nil end
     local source=recipe.stages[project.stageIndex]
@@ -109,14 +110,27 @@ function Crafting.stage(data)
     return stage
 end
 
-function Crafting.quality(data)
-    local project=Crafting.project(data)
+function Crafting.stage(data) return stage(Crafting.project(data)) end
+
+local function quality(project)
     if not project then return nil end
     local recipe=Definitions.recipesById[project.recipeId]
     if not recipe then return nil end
     local score=math.max(0,100-math.floor(project.mistakes*100/math.max(1,recipe.totalActions)))
     return score>=96 and "masterwork" or score>=80 and "fine" or "usable",score
 end
+
+function Crafting.quality(data) return quality(Crafting.project(data)) end
+
+-- Replicas have already passed schema validation. Presentation must never
+-- normalize or repair their host-issued values, even when there is no project.
+local function peek(data)
+    return type(data)=='table' and type(data.outfitCrafting)=='table' and data.outfitCrafting.project or nil
+end
+Crafting.view={project=peek,ensure=function(data) return data and data.outfitCrafting end,
+    stage=function(data) return stage(peek(data)) end,
+    quality=function(data) return quality(peek(data)) end,
+    status=function(data,id) return status(data,id,data and (data.outfitCrafting or {})) end}
 
 function Crafting.act(data,action)
     local project=Crafting.project(data)
@@ -173,7 +187,7 @@ function Crafting.finish(data)
     if not slot then return response(false,"Free one backpack slot. Your finished work will stay on the bench.",{inventoryFull=true,complete=true}) end
     local quality,score=Crafting.quality(data)
     local outputId=recipe.outputIds[quality]
-    data.inventory[slot]=outputId
+    Items.write(data,nil,{kind="inventory",index=slot},outputId)
     data.outfitCrafting.project=nil
     return response(true,Definitions.upgrades[outputId].label.." added to your backpack.",
         {changed=true,complete=true,outputId=outputId,quality=quality,score=score,slot=slot})

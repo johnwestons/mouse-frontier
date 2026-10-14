@@ -1,3 +1,4 @@
+local Accessibility=require("game.accessibility")
 -- Compact, combat-free off-stop area used by The Rookery Caravan.
 --
 -- This module deliberately owns only campsite geometry and presentation. The
@@ -544,7 +545,7 @@ end
 
 local function reducedMotion(session,context)
     if context and context.reducedMotion~=nil then return context.reducedMotion==true end
-    local settings=session and session.data and session.data.accessibility
+    local settings=session and session.data and Accessibility.ensure(session.data)
     return type(settings)=="table" and settings.reducedMotion==true
 end
 

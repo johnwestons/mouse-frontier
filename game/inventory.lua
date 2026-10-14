@@ -1,4 +1,5 @@
 local LootProgression = require("game.loot_progression")
+local Items = require("game.item_instances")
 local Inventory = {}
 
 function Inventory.inventorySlotRect(index)
@@ -32,8 +33,8 @@ function Inventory.scrapPrice(name,catalog)
     return LootProgression.itemPrice(catalog,name)
 end
 
-function Inventory.resalePrice(name,catalog,data)
-    local durability=data and data.weaponDurability and data.weaponDurability[name]
+function Inventory.resalePrice(name,catalog,data,ref)
+    local durability=Items.condition(data,name,ref)
     return LootProgression.resalePrice(catalog,name,durability)
 end
 
@@ -101,7 +102,8 @@ function Inventory.value(data,activeChest,ref)
     return data.inventory[ref.index]
 end
 
-function Inventory.setValue(data,activeChest,ref,value,wearableItems)
+function Inventory.setValue(data,activeChest,ref,value,wearableItems,instance)
+    Items.assign(data,activeChest,ref,value,instance)
     if ref.kind=="equipment" then data.equipment[ref.index]=value
     elseif ref.kind=="wearable" then
         data.wearables=data.wearables or {}
@@ -119,6 +121,9 @@ function Inventory.move(data,activeChest,source,target,weaponStats,ammoPickupAmo
     local moving=Inventory.value(data,activeChest,source)
     local displaced=Inventory.value(data,activeChest,target)
     if not moving then return false end
+    -- Taking a reward into an occupied slot would deposit the displaced item
+    -- back into the mailbox. Collection must preserve its one-way contract.
+    if activeChest and activeChest.mailbox and source.kind=="chest" and displaced then return false end
     if source.kind=="chest" and target.kind=="inventory" and ammoPickupAmounts[moving] and not displaced then
         data.ammo[moving]=(data.ammo[moving] or 0)+ammoPickupAmounts[moving]
         Inventory.setValue(data,activeChest,source,nil)
@@ -141,11 +146,15 @@ function Inventory.move(data,activeChest,source,target,weaponStats,ammoPickupAmo
     if relocationIndex then capacityDisplaced=nil end
     local capacityOk=Inventory.canChangeBackpack(data,nextBackpack,wearableItems,source,target,moving,capacityDisplaced)
     if not capacityOk then return false,"Free a backpack slot within the new capacity before changing wearables." end
-    Inventory.setValue(data,activeChest,target,moving,wearableItems)
+    local movingInstance=Items.get(data,activeChest,source)
+    local displacedInstance=Items.get(data,activeChest,target)
+    if Items.enabled(data) and ((Items.isGear(moving) and not movingInstance)
+        or (Items.isGear(displaced) and not displacedInstance)) then return false,"missing_item_identity" end
+    Inventory.setValue(data,activeChest,target,moving,wearableItems,movingInstance)
     if relocationIndex then
         Inventory.setValue(data,activeChest,source,nil,wearableItems)
-        Inventory.setValue(data,activeChest,{kind="inventory",index=relocationIndex},displaced,wearableItems)
-    else Inventory.setValue(data,activeChest,source,displaced,wearableItems) end
+        Inventory.setValue(data,activeChest,{kind="inventory",index=relocationIndex},displaced,wearableItems,displacedInstance)
+    else Inventory.setValue(data,activeChest,source,displaced,wearableItems,displacedInstance) end
     if source.kind=="wearable" or target.kind=="wearable" then syncBackpack(data,wearableItems) end
     return true
 end
@@ -159,7 +168,7 @@ function Inventory.quickTransfer(data,activeChest,ref,weaponStats,ammoPickupAmou
         Inventory.setValue(data,activeChest,ref,nil)
         return true
     end
-    if ref.kind=="inventory" then
+    if ref.kind=="inventory" or ref.kind=="equipment" then
         for index=1,(storageCapacities[activeChest.name] or 10) do
             local target={kind="chest",index=index}
             if not Inventory.value(data,activeChest,target) then

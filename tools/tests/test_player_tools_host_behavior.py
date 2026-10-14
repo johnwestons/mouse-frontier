@@ -84,6 +84,34 @@ class PlayerToolsHostBehaviorTests(unittest.TestCase):
             end
         ''')
 
+    def test_host_controls_editor_keeps_shared_update_and_local_input_capture(self) -> None:
+        self.lua.execute(r'''
+            context.runtime.session={networkMode='host'}; openEditor()
+            assert(context.ui.playerToolsOpen)
+            app.update(.1); assert(count('update')==1 and context.ui.playerToolsOpen)
+            assert(require('game.world_pause').isPaused(context.runtime,context.ui))
+            menu:close(); assert(not context.ui.playerToolsOpen); records={}; app.update(.1)
+            assert(count('update')==1 and not context.ui.playerToolsOpen)
+        ''')
+
+    def test_offline_controls_editor_retains_world_pause(self) -> None:
+        self.lua.execute(r'''
+            context.runtime.session={networkMode='offline'}; openEditor(); app.update(.1)
+            assert(count('update')==0 and context.ui.playerToolsOpen)
+        ''')
+
+    def test_pending_checkpoint_cannot_open_hidden_gameplay_tools_from_options(self) -> None:
+        self.lua.execute(r'''
+            context.runtime.session={checkpointPending=true}
+            assert(context.ui.openTouchControls()==false and not menu.open and #records==0)
+            app.keypressed('f2'); app.keyreleased('f2')
+            assert(not menu.open and #records==0)
+            context.runtime.session.checkpointPending=false; context.ui.checkpointBlocked=true
+            assert(context.ui.openTouchControls()==false and not menu.open and #records==0)
+            context.ui.checkpointBlocked=false
+            assert(context.ui.openTouchControls()==true and menu.open and menu.tab=='Controls')
+        ''')
+
     def test_touch_owner_ignores_other_touches_and_mouse_events(self) -> None:
         self.lua.execute(r'''
             openEditor()

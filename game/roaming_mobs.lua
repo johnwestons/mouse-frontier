@@ -1,4 +1,5 @@
 local LootProgression=require("game.loot_progression")
+local Items=require("game.item_instances")
 local RoamingMobs = {}
 
 local function distance(ax,ay,bx,by)
@@ -11,9 +12,10 @@ local function meleeWeapon(ctx)
     for i=1,2 do
         local name=ctx.data and ctx.data.equipment and ctx.data.equipment[i]
         local combat=name and ctx.catalog.weaponCombat and ctx.catalog.weaponCombat[name]
-        if name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged") then
-            local condition=LootProgression.weaponCondition(ctx.data.weaponDurability and ctx.data.weaponDurability[name])
-            if condition.multiplier>0 then return name,condition end
+        if (not ctx.weaponRef or ctx.weaponRef.index==i) and name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged") then
+            local ref={kind="equipment",index=i}
+            local condition=LootProgression.weaponCondition(Items.condition(ctx.data,name,ref))
+            if condition.multiplier>0 then return name,condition,nil,ref end
             broken=true
         end
     end
@@ -65,36 +67,65 @@ local function moveToward(ctx,saved,transient,targetX,targetY,speed,dt)
     return goalDistance<=2
 end
 
-local function alertPack(sys,ctx,definition)
+local function actors(ctx)
+    if ctx.actors then return ctx.actors end
+    return ctx.player and {{id='host',x=ctx.player.x,y=ctx.player.y}} or {}
+end
+local function eligible(actor)
+    return actor.ready~=false and (actor.id=='host' or actor.id=='companion') and type(actor.x)=='number' and type(actor.y)=='number'
+        and actor.x==actor.x and actor.y==actor.y and math.abs(actor.x)<100000 and math.abs(actor.y)<100000
+end
+local function targetFor(ctx,saved,lockedId,trackedId)
+    local best,bestDistance,tracked,trackedDistance
+    for _,actor in ipairs(actors(ctx)) do
+        if eligible(actor) and (not lockedId or actor.id==lockedId) then
+            local d=distance(saved.x,saved.y,actor.x,actor.y)
+            if actor.id==trackedId and d<=390 then tracked,trackedDistance=actor,d end
+            if (lockedId or d<=390 and canReach(ctx,saved.x,saved.y,actor.x,actor.y))
+                and (not bestDistance or d<bestDistance or d==bestDistance and actor.id=='host') then best,bestDistance=actor,d end
+        end
+    end
+    return best or tracked,bestDistance or trackedDistance or math.huge
+end
+local function alertPack(sys,ctx,definition,target)
+    target=target or {id=ctx.actorId or 'host',x=ctx.player.x,y=ctx.player.y}
     if not definition.packId then return end
     for _,other in ipairs(ctx.area.mobs or {}) do
         if other.packId==definition.packId and isActive(ctx,other) then
             local saved=ctx.areaState.mobs[other.id]
             if saved and not saved.dead then
-                local d=distance(saved.x,saved.y,ctx.player.x,ctx.player.y)
-                if d<=280 and canReach(ctx,saved.x,saved.y,ctx.player.x,ctx.player.y) then
+                local d=distance(saved.x,saved.y,target.x,target.y)
+                if d<=280 and canReach(ctx,saved.x,saved.y,target.x,target.y) then
                     local transient=transientFor(sys,ctx.area.id,other.id)
-                    if transient.state=="patrol" then transient.state="alert"; transient.timer=.32 end
+                    if transient.state=="patrol" then
+                        transient.state="alert"; transient.timer=.32; transient.targetId=target.id
+                        if ctx.onAlert then ctx.onAlert(other.id) end
+                    end
                 end
             end
         end
     end
 end
 
-local function participants(sys,ctx,striker)
+local function participants(sys,ctx,striker,target)
+    target=target or ctx.player
     local result={}
     for _,definition in ipairs(ctx.area.mobs or {}) do
         local saved=ctx.areaState.mobs[definition.id]
         local transient=transientFor(sys,ctx.area.id,definition.id)
         local active=definition.id==striker.id or transient.state=="alert" or transient.state=="chase" or transient.state=="windup" or transient.state=="recover" or transient.state=="stagger"
-        local d=saved and distance(saved.x,saved.y,ctx.player.x,ctx.player.y) or math.huge
+        local d=saved and distance(saved.x,saved.y,target.x,target.y) or math.huge
         if saved and not saved.dead and isActive(ctx,definition) and active and d<=330
-            and canReach(ctx,saved.x,saved.y,ctx.player.x,ctx.player.y) then
+            and canReach(ctx,saved.x,saved.y,target.x,target.y) then
             result[#result+1]={mobId=definition.id,file=definition.file,name=definition.name,hp=saved.hp,maxHp=saved.maxHp,
                 tier=definition.tier,boss=definition.boss==true,weapon="mob-claw"}
         end
     end
-    table.sort(result,function(a,b) return (a.mobId==striker.id and 0 or 1)<(b.mobId==striker.id and 0 or 1) end)
+    table.sort(result,function(a,b)
+        local left,right=a.mobId==striker.id and 0 or 1,b.mobId==striker.id and 0 or 1
+        return left<right or left==right and a.mobId<b.mobId
+    end)
+    while #result>6 do table.remove(result) end
     return result
 end
 
@@ -104,11 +135,11 @@ local function beginBattle(sys,ctx,striker)
     local mobFiles={}
     local boss=false
     for i,state in ipairs(enemyStates) do mobFiles[i]=state.file; boss=boss or state.boss end
-    ctx.beginEncounter({
+    local begun=ctx.beginEncounter({
         source="expedition",areaId=ctx.area.id,tier=striker.tier,boss=boss,mobFiles=mobFiles,enemyStates=enemyStates,
         returnContext={scene="expedition",areaId=ctx.area.id,x=ctx.player.x,y=ctx.player.y},
     })
-    return true
+    return begun~=false
 end
 
 function RoamingMobs.update(sys,ctx,dt)
@@ -121,17 +152,19 @@ function RoamingMobs.update(sys,ctx,dt)
         transient.healthTimer=math.max(0,(transient.healthTimer or 0)-dt)
         transient.staggerCooldown=math.max(0,(transient.staggerCooldown or 0)-dt)
         if not saved or not isActive(ctx,definition) then
-            transient.state="patrol"; transient.timer=0
+            transient.state="patrol"; transient.timer=0; transient.targetId=nil
         elseif saved.dead then
             transient.deathTimer=(transient.deathTimer or 0)+dt
         elseif not ctx.grace then
             local awareness=definition.awareness or 185
             local reach=definition.reach or 82
             local speed=definition.speed or 62
-            local d=distance(saved.x,saved.y,ctx.player.x,ctx.player.y)
+            local target,d=targetFor(ctx,saved,transient.state=='windup' and (transient.targetId or 'host') or nil,
+                transient.state~='patrol' and transient.targetId or nil)
+            if transient.state~='windup' then transient.targetId=target and target.id or nil end
             if transient.state=="patrol" then
-                if d<=awareness and canReach(ctx,saved.x,saved.y,ctx.player.x,ctx.player.y) then
-                    transient.state="alert"; transient.timer=.34; alertPack(sys,ctx,definition)
+                if target and d<=awareness then
+                    transient.state="alert"; transient.timer=.34; alertPack(sys,ctx,definition,target)
                 else
                     local patrol=definition.patrol or {{x=definition.x,y=definition.y}}
                     local target=patrol[transient.patrolIndex] or patrol[1]
@@ -141,23 +174,24 @@ function RoamingMobs.update(sys,ctx,dt)
                 end
             elseif transient.state=="alert" then
                 transient.timer=transient.timer-dt
-                if math.abs(ctx.player.x-saved.x)>.05 then transient.facing=ctx.player.x>saved.x and 1 or -1 end
-                if transient.timer<=0 then transient.state="chase" end
+                if target and math.abs(target.x-saved.x)>.05 then transient.facing=target.x>saved.x and 1 or -1 end
+                if not target then transient.state='patrol'; transient.timer=0
+                elseif transient.timer<=0 then transient.state="chase" end
             elseif transient.state=="chase" then
-                if d<=reach and canReach(ctx,saved.x,saved.y,ctx.player.x,ctx.player.y) then
+                if target and d<=reach and canReach(ctx,saved.x,saved.y,target.x,target.y) then
                     transient.state="windup"; transient.timer=definition.boss and .62 or .46
                 elseif d>390 then
                     transient.state="patrol"
                 else
-                    moveToward(ctx,saved,transient,ctx.player.x,ctx.player.y,speed,dt)
+                    moveToward(ctx,saved,transient,target.x,target.y,speed,dt)
                 end
             elseif transient.state=="windup" then
                 transient.timer=transient.timer-dt
                 if transient.timer<=0 then
-                    local hitDistance=distance(saved.x,saved.y,ctx.player.x,ctx.player.y)
-                    if hitDistance<=reach+(definition.boss and 20 or 8)
-                        and canReach(ctx,saved.x,saved.y,ctx.player.x,ctx.player.y)
-                        and beginBattle(sys,ctx,definition) then return "battle" end
+                    if target and d<=reach+(definition.boss and 20 or 8) and canReach(ctx,saved.x,saved.y,target.x,target.y) then
+                        if target.id=='host' and beginBattle(sys,ctx,definition) then return 'battle' end
+                        if target.id=='companion' and ctx.onContact and ctx.onContact(definition,target)==true then return 'pressure' end
+                    end
                     transient.state="recover"; transient.timer=definition.boss and .72 or .58
                 end
             elseif transient.state=="recover" then
@@ -174,7 +208,7 @@ end
 function RoamingMobs.attack(sys,ctx,targetX,targetY)
     -- A repeated press is not a dialogue: it must never pause the cooldown.
     if sys.attackTimer>0 then return false end
-    local weapon,condition,reason=meleeWeapon(ctx)
+    local weapon,condition,reason,weaponRef=meleeWeapon(ctx)
     if not weapon then message(sys,reason,2.4); return false,reason end
     local combat=ctx.catalog.weaponCombat[weapon] or {}
     local family=ctx.catalog.weaponFamily and ctx.catalog.weaponFamily(weapon) or combat.family or "melee"
@@ -213,16 +247,17 @@ function RoamingMobs.attack(sys,ctx,targetX,targetY)
     if ctx.onHostileAction then ctx.onHostileAction() end
     if ctx.onAction then ctx.onAction(weapon,sys.attackTimer) end
     if ctx.playSfx then ctx.playSfx("sword") end
-    LootProgression.wearWeapon(ctx.data,weapon,1)
+    LootProgression.wearWeapon(ctx.data,weapon,1,weaponRef)
     ctx.data.weaponProficiency=ctx.data.weaponProficiency or {}
     local uses=(ctx.data.weaponProficiency[family] or ctx.data.weaponProficiency.melee or 0)+1
     ctx.data.weaponProficiency[family]=uses
-    if not best then message(sys,"The swing misses.",1.2); return true end
+    local result={weapon=weapon,duration=sys.attackTimer,facing=ctx.player.facing,damage=0,dead=false,shellBroken=false}
+    if not best then message(sys,"The swing misses.",1.2); result.message=sys.message; return true,nil,result end
     local saved=ctx.areaState.mobs[best.id]
     local transient=transientFor(sys,ctx.area.id,best.id)
     local stats=ctx.catalog.weaponStats[weapon] or {min=2,max=4}
     local proficiency=math.min(5,math.floor(uses/10))
-    local damage=math.max(1,math.floor((love.math.random(stats.min or 2,stats.max or 4)+proficiency)*condition.multiplier))
+    local damage=math.max(1,math.floor(((ctx.rng or love.math.random)(stats.min or 2,stats.max or 4)+proficiency)*condition.multiplier))
     local remaining=saved.hp-damage
     -- The prototype's guardian always crosses into the authored boss battle.
     -- Field attacks can soften it to 1 HP but cannot bypass that encounter.
@@ -245,7 +280,36 @@ function RoamingMobs.attack(sys,ctx,targetX,targetY)
         sys.message="Melee hit for "..damage.." damage."
     end
     sys.messageTimer=1.6
-    return true
+    result.mobId=best.id; result.hitId=saved.entityId; result.damage=damage; result.dead=saved.dead==true
+    result.shellBroken=best.boss==true and remaining<=0
+    result.state=transient.state; result.timer=transient.timer; result.staggerCooldown=transient.staggerCooldown or 0
+    result.message=sys.message
+    return true,nil,result
+end
+
+-- Apply accepted visual facts; damage, costs and rewards have already been
+-- committed by the command authority. This never repeats the attack rules.
+function RoamingMobs.present(sys,areaId,result)
+    sys.message=result.message; sys.messageTimer=result.mobId and 1.6 or 1.2
+    for _,id in ipairs(result.alerts or {}) do
+        local transient=transientFor(sys,areaId,id)
+        transient.state="alert"; transient.timer=.32
+    end
+    if result.mobId then
+        local transient=transientFor(sys,areaId,result.mobId)
+        transient.hitTimer=.38; transient.healthTimer=3
+        transient.state=result.state; transient.timer=result.timer; transient.staggerCooldown=result.staggerCooldown
+        if result.dead then transient.deathTimer=0 end
+    end
+end
+
+function RoamingMobs.tickPresentation(sys,dt)
+    sys.messageTimer=math.max(0,(sys.messageTimer or 0)-dt)
+    for _,area in pairs(sys.transient) do for _,transient in pairs(area) do
+        transient.hitTimer=math.max(0,(transient.hitTimer or 0)-dt)
+        transient.healthTimer=math.max(0,(transient.healthTimer or 0)-dt)
+        transient.deathTimer=(transient.deathTimer or 0)+dt
+    end end
 end
 
 function RoamingMobs.challenge(sys,ctx,mobId)
@@ -261,6 +325,7 @@ function RoamingMobs.challenge(sys,ctx,mobId)
     end
     return false
 end
+RoamingMobs.participants=participants
 
 local function actionFor(saved,transient,moving)
     if saved.dead then return 5 end

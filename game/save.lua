@@ -59,34 +59,51 @@ function Save.read(slot)
     return nil
 end
 
-function Save.write(slot,data)
+local function writeValidated(slot,data)
     if not slot or type(data)~="table" then return false end
     local prepared,schemaError=SaveSchema.migrate(data)
     if not prepared then print("[SAVE] Schema rejected write: "..tostring(schemaError)); return false end
-    love.filesystem.createDirectory("saves")
+    if not love.filesystem.createDirectory("saves") then return false,"could not create save directory" end
     local path,temporaryPath,backupPath=Save.path(slot),Save.path(slot)..".tmp",Save.path(slot)..".bak"
     local payload="return "..serialize(prepared)
     local ok,errorMessage=love.filesystem.write(temporaryPath,payload)
     if not ok then print("[SAVE] Write failed: "..tostring(errorMessage)); return false end
-    local chunk,loadError=love.filesystem.load(temporaryPath)
-    local valid,decoded=false,nil
-    if chunk then valid,decoded=pcall(chunk) end
-    if not valid or type(decoded)~="table" then
-        love.filesystem.remove(temporaryPath)
-        print("[SAVE] Validation failed: "..tostring(loadError or decoded))
-        return false
-    end
     local contents=love.filesystem.read(temporaryPath)
-    local previous=love.filesystem.read(path)
-    if previous then love.filesystem.write(backupPath,previous) end
-    local replaced,replaceError=love.filesystem.write(path,contents)
-    local finalData= replaced and loadValidated(path) or nil
-    if not finalData then
-        if previous then love.filesystem.write(path,previous) end
-        print("[SAVE] Replace failed: "..tostring(replaceError or "final validation failed"))
+    local decoded,loadError=loadValidated(temporaryPath)
+    if contents~=payload or not decoded then
+        love.filesystem.remove(temporaryPath)
+        print("[SAVE] Validation failed: "..tostring(loadError or "temporary read-back differs"))
         return false
     end
-    love.filesystem.remove(temporaryPath)
+    local previous=love.filesystem.read(path)
+    -- Keep the existing recovery contract, but never replace a valid backup
+    -- with a corrupt primary or report a failed backup write as success.
+    if previous and loadValidated(path) then
+        if not love.filesystem.write(backupPath,previous) or love.filesystem.read(backupPath)~=previous then
+            return false,"could not verify recovery copy"
+        end
+    end
+    local callOk,replaced,replaceError=pcall(function()
+        local written,message=love.filesystem.write(path,contents)
+        if not written then return false,message end
+        if love.filesystem.read(path)~=payload or not loadValidated(path) then return false,"final read-back differs" end
+        return true
+    end)
+    if not callOk or not replaced then
+        if previous then pcall(love.filesystem.write,path,previous) end
+        print("[SAVE] Replace failed: "..tostring(callOk and replaceError or replaced))
+        return false
+    end
+    pcall(love.filesystem.remove,temporaryPath)
+    return true
+end
+
+function Save.write(slot,data)
+    local ok,result,message=pcall(writeValidated,slot,data)
+    if not ok or not result then
+        if not ok or message then print("[SAVE] Write failed: "..tostring(ok and message or result)) end
+        return false
+    end
     return true
 end
 

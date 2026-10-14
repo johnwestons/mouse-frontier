@@ -3,6 +3,7 @@ local Rules=require("game.battle_rules")
 local Viewport=require("game.viewport")
 local WorldView=require("game.world_view")
 local UIStyle=require("game.ui_layout")
+local Items=require("game.item_instances")
 
 local function required(context,name,kind)
     local value=context[name]
@@ -57,7 +58,7 @@ local function steps(context)
     end
     local function shoot(enemy)
         draw()
-        assert(game.battle.options[3]=="trail-slingshot","equipped ranged weapon missing from attack controls")
+        assert(game.battle.options[3]==game.saveData.itemSlots.equipment[2].id,"equipped ranged weapon missing from attack controls")
         control(ui.battleWeapons[3])
         assert(game.battle.phase=="target","weapon button did not enter targeting")
         board(enemy.q,enemy.r)
@@ -69,7 +70,7 @@ local function steps(context)
             radio=ui.radioOpen,mobileMenu=ui.mobileMenuOpen}
         local randomState=love.math.getRandomState()
         local ok,result=xpcall(function()
-            game.selectedSlot=nil
+            require("game.save").remove(99); game.selectedSlot=99
             ui.optionsOpen=false;ui.escMenuOpen=false;ui.radioOpen=false;ui.mobileMenuOpen=false
             love.math.setRandomSeed(seed)
             local data=newSave(character)
@@ -77,12 +78,13 @@ local function steps(context)
             enterGame(data)
             data=game.saveData
             data.maxHealth=40;data.health=options.health or 40
-            data.equipment={"frontier-short-sword","trail-slingshot"}
-            data.ammo.rocks=4;data.weaponDurability["trail-slingshot"]=100
+            Items.write(data,nil,{kind="equipment",index=1},"frontier-short-sword")
+            Items.write(data,nil,{kind="equipment",index=2},"trail-slingshot")
+            data.ammo.rocks=4
             local encounter={rolled=true,hasMob=true,resolved=false,tier="easy",
                 maxHP=options.enemyHP or 100,mobFiles={assert(catalog.mobTiers.easy[1])}}
             data.encounters["2"]=encounter
-            beginEncounter(encounter)
+            assert(require('game.coop_entities').ensure(data)); assert(beginEncounter(encounter))
             presentation.resetCamera(true)
             local battle=assert(game.battle)
             local player,enemy=battle.units[1],battle.units[2]
@@ -145,14 +147,14 @@ local function steps(context)
             local staleEnd=ui.battleEnd
             shoot(enemy)
             assert(enemy.hp<enemyHP and enemy.hp>0,"actual ranged attack did not damage the surviving target")
-            assert(data.ammo.rocks==3 and data.weaponDurability["trail-slingshot"]==99,"attack did not charge exactly one ammo and durability")
+            assert(data.ammo.rocks==3 and Items.condition(data,"trail-slingshot")==99,"attack did not charge exactly one ammo and durability")
             assert(data.weaponProficiency[family]==proficiency+1,"attack did not advance proficiency")
             assert(battle.projectile and Rules.activeUnit(battle)==enemy,"attack did not create a projectile and advance to enemy turn")
             control(staleEnd)
             assert(Rules.activeUnit(battle)==enemy,"stale player controls skipped the enemy turn")
             waitUntil(function() return Rules.activeUnit(battle)==player end,"enemy never completed its turn")
             assert(player.hp<beforeHP and player.hp>0 and data.health==player.hp,"enemy attack did not damage and synchronize player health")
-            assert(battle.round==2 and data.ammo.rocks==3 and data.weaponDurability["trail-slingshot"]==99,"turn cycle duplicated player attack costs")
+            assert(battle.round==2 and data.ammo.rocks==3 and Items.condition(data,"trail-slingshot")==99,"turn cycle duplicated player attack costs")
             return {damage=enemyHP-enemy.hp,enemyDamage=beforeHP-player.hp,ammoUsed=1,wear=1,round=battle.round}
         end),
         scenario("combat_invalid_attacks_are_free",403,{},function(data,battle,player,enemy)
@@ -161,15 +163,15 @@ local function steps(context)
                 assert(enemy.hp==hp and Rules.activeUnit(battle)==player and not battle.projectile,reason)
             end
             data.ammo.rocks=0;shoot(enemy);unchanged("empty ammo still performed an attack")
-            assert(data.ammo.rocks==0 and data.weaponDurability["trail-slingshot"]==100,"empty ammo charged wear")
-            data.ammo.rocks=4;data.weaponDurability["trail-slingshot"]=0
+            assert(data.ammo.rocks==0 and Items.condition(data,"trail-slingshot")==100,"empty ammo charged wear")
+            data.ammo.rocks=4;assert(Items.setCondition(data,"trail-slingshot",0))
             shoot(enemy);unchanged("broken weapon still performed an attack")
-            assert(data.ammo.rocks==4 and data.weaponDurability["trail-slingshot"]==0,"broken weapon charged ammo")
-            data.weaponDurability["trail-slingshot"]=100;enemy.q=7
+            assert(data.ammo.rocks==4 and Items.condition(data,"trail-slingshot")==0,"broken weapon charged ammo")
+            assert(Items.setCondition(data,"trail-slingshot",100));enemy.q=7
             shoot(enemy);unchanged("out of range attack damaged target")
             enemy.q=4;battle.obstacles["3:3"]={kind="dead-tree",q=3,r=3}
             shoot(enemy);unchanged("blocked line of sight attack damaged target")
-            assert(data.ammo.rocks==4 and data.weaponDurability["trail-slingshot"]==100,"rejected attack charged ammo or wear")
+            assert(data.ammo.rocks==4 and Items.condition(data,"trail-slingshot")==100,"rejected attack charged ammo or wear")
             return {emptyAmmo=true,broken=true,outOfRange=true,lineOfSight=true,uncharged=true}
         end),
         scenario("combat_victory_rewards_and_continue",404,{enemyHP=1},function(data,battle,_,enemy,encounter)

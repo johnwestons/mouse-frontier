@@ -1,4 +1,10 @@
 local Accessibility={}
+local Players=require("game.coop_players")
+local bindings=setmetatable({},{__mode="k"})
+
+function Accessibility.bind(data,settings,mode)
+    bindings[data]={settings=settings,mode=mode}
+end
 
 Accessibility.version=1
 Accessibility.textSizes={1,1.15,1.30}
@@ -18,8 +24,9 @@ end
 
 function Accessibility.ensure(data)
     data=data or {}
-    local settings=type(data.accessibility)=="table" and data.accessibility or {}
-    data.accessibility=settings
+    local binding=bindings[Players.campaignOf(data)]
+    local settings=binding and binding.settings or type(data.accessibility)=="table" and data.accessibility or {}
+    if not binding and not (data.coop and data.coop.preferencesDetached) then data.accessibility=settings end
     settings.version=Accessibility.version
     settings.textSize=math.max(1,math.min(#Accessibility.textSizes,math.floor(tonumber(settings.textSize) or Accessibility.defaults.textSize)))
     for _,name in ipairs({"highContrast","reducedMotion","controlHints","touchFeedback","largeTouchTargets"}) do
@@ -55,6 +62,8 @@ function Accessibility.enabled(data,name)
 end
 
 function Accessibility.motionSpeed(data)
+    local binding=bindings[Players.campaignOf(data)]
+    if binding and binding.mode and binding.mode()~="offline" then return 1 end
     return Accessibility.enabled(data,"reducedMotion") and 4 or 1
 end
 

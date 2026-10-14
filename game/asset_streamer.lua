@@ -14,6 +14,7 @@ function AssetStreamer.new(options)
         interiors=InteriorStreamer.new(options.interiorFiles),
         lastSettlement=nil,
         lastSignature=nil,
+        scenery=options.scenery,
     },AssetStreamer)
 end
 
@@ -34,7 +35,23 @@ local function add(keep,file)
     if type(file)=="string" and file~="" then keep[file]=true end
 end
 
-function AssetStreamer:update(state,scene,data,battle,npcActor,characterPreviewFile)
+function AssetStreamer:update(state,scene,data,battle,npcActor,characterPreviewFile,companionCharacter)
+    -- Drop the previous scene's images before any new interior, settlement or
+    -- actor sheet is uploaded. This also runs on guest replica preparations.
+    local portraits={}
+    if data then
+        add(portraits,data.character);add(portraits,companionCharacter)
+        if state=="ending" then
+            add(portraits,(data.npcRoster or {})[1]);add(portraits,(data.npcRoster or {})[2])
+        elseif state=="battle" and battle then
+            for _,unit in ipairs(battle.units or {})do add(portraits,unit.file)end
+        elseif scene=="train" then
+            for _,passenger in ipairs(data.passengers or {})do add(portraits,passenger.npc)end
+        elseif scene=="stop" or scene=="house" then add(portraits,data.currentNPC)
+        elseif scene=="lastStand" then add(portraits,"otter-scout.png")
+        elseif scene=="caravan" then add(portraits,"crow-merchant.png")end
+    elseif state=="characters" then add(portraits,characterPreviewFile)end
+    if self.scenery then Assets.retainResidentArt(self.scenery,{state=state,scene=scene,saveData=data,battle=battle},portraits,npcActor)end
     if not data then
         Settlements.release(self.settlements)
         local keep={}
@@ -64,7 +81,10 @@ function AssetStreamer:update(state,scene,data,battle,npcActor,characterPreviewF
 
     local keep={}
     add(keep,data.character)
-    if state=="battle" and battle then
+    add(keep,companionCharacter)
+    if state=='ending' then
+        add(keep,(data.npcRoster or {})[1]); add(keep,(data.npcRoster or {})[2])
+    elseif state=="battle" and battle then
         for _,unit in ipairs(battle.units or {}) do add(keep,unit.file) end
     elseif scene=="train" then
         for _,passenger in ipairs(data.passengers or {}) do add(keep,passenger.npc) end

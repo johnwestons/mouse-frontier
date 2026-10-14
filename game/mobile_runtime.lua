@@ -79,6 +79,7 @@ local function new(context)
       elseif kind=="shootingRange" then return "e","RANGE"
       elseif kind=="expedition" then
           if ui.interaction.action=="challenge" then return "e","CHALLENGE" end
+          if ui.interaction.action=="survey" then return "e","MARK" end
           local returning=ui.interaction.action=="returnStop" or (ui.interaction.label or ""):find("^RETURN")~=nil
           return "e",ui.interaction.action=="chest" and "OPEN" or (returning and "RETURN" or "ENTER")
       elseif kind=="crowCaravan" then
@@ -135,7 +136,7 @@ local function new(context)
               runtime.holdPickupIndex=nil; runtime.holdPickupTime=0
               ui.playSfx("menu")
           end,
-          accessibilityData=function() return runtime.saveData or {} end,
+          accessibilityData=function() return runtime.saveData or ui.menuSettings or {} end,
           primaryAction=primaryAction,
           secondaryAction=secondaryAction,
           pressKey=function(key) gameplayInput().keypressed(key) end,

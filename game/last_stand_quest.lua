@@ -1,3 +1,4 @@
+local Accessibility=require("game.accessibility")
 local WorldView=require("game.world_view")
 local Scene=require("game.last_stand_scene")
 local Shootout=require("game.last_stand_shootout")
@@ -6,6 +7,9 @@ local WorldPause=require("game.world_pause")
 local FirstPerson=require("game.first_person_shooting")
 local Tuning=require("game.last_stand_tuning")
 local CharacterMotion=require("game.character_motion")
+local Life=require('game.coop_last_stand_lifecycle')
+local AidState=require('game.coop_last_stand_aid_state')
+local PositionState=require('game.coop_last_stand_position_state')
 
 local Quest={}
 local VERSION=1
@@ -17,6 +21,18 @@ local OFFER_LINES={
     "Relay distance: 300 meters. Defense target: three minutes and reduced enemy morale.",
     "Loan weapon and ammunition available from Guard Fox. Press L to borrow during the shootout.",
 }
+
+local function offerPage(page)
+    if type(page)~='number' or page~=math.floor(page) or not OFFER_LINES[page] then return nil end
+    return {title='A LIGHT IN THE WINDOWS',text=OFFER_LINES[page],page=page,count=#OFFER_LINES}
+end
+
+local function aftermathSummary(quest)
+    if not quest or quest.rewardClaimed~=true or (quest.rewardScrap~=28 and quest.rewardScrap~=36) then return nil end
+    return {title='THE RELAY GOES QUIET',scrap=quest.rewardScrap,goodwill=3,food=2,
+        text='The gang has withdrawn. The defenders lower their weapons one by one. Reward: '
+            ..quest.rewardScrap..' scrap, 3 goodwill, and 2 food.'}
+end
 
 local VALID_STATES={
     waiting=true,
@@ -31,6 +47,7 @@ local VALID_STATES={
     complete=true,
 }
 
+local CoopProgression=require("game.coop_progression")
 local function required(context,name,expected)
     local value=context[name]
     assert(value~=nil,"last stand quest requires "..name)
@@ -77,6 +94,9 @@ local function ensureQuest(data)
     quest.loanAmmo=math.max(0,math.floor(tonumber(quest.loanAmmo) or 0))
     quest.loanActive=quest.loanActive==true
     quest.rewardClaimed=quest.rewardClaimed==true
+    Life.ensure(data)
+    AidState.prepare(data)
+    PositionState.prepare(data)
     return quest
 end
 
@@ -129,6 +149,81 @@ function Quest.new(context)
         return not Shootout.hasUsableFirearm(runtime.saveData,Catalog)
     end
 
+    local function sharedCommands() return context.submit and WorldPause.isSharedHost(runtime) end
+    local function hostInputPaused(state)
+        return state.paused==true or context.inputPaused and context.inputPaused() or false
+    end
+    local function makeScene(mode,quest)
+        local scene=Scene.new(mode,quest)
+        if runtime.saveData.players then Life.bind(scene.player,runtime.saveData,'host') end
+        return scene
+    end
+    local function bindCommands(shootout)
+        if context.submit then
+            Shootout.setCommands(shootout,function(name,args)
+                if WorldPause.isSharedHost(runtime) then return context.submit(name,args) end
+            end)
+        end
+    end
+    local function presentProgression(state,result)
+        local mode=result.mode
+        local residentNotice=state.pendingResidentNotice
+        state.pendingResidentNotice=nil
+        state.pendingProgression=nil
+        state.aimTouch=nil; state.aimTouchSession=nil; state.fireTouchSources=nil
+        if state.shootout then Shootout.setFireHeld(state.shootout,'keyboard',false); FirstPerson.release() end
+        Scene.release()
+        state.mode=mode; state.capture=mode~='approach' and mode~='complete'; state.clock=0
+        state.handoff=nil; state.notice=nil
+        if mode=='approach' then
+            if state.quest.state=='paused' then
+                runtime.lastStand=nil; releaseResources()
+                runtime.dialogue={speaker='Otter Scout',text='Defense paused. Return to the scout to resume.',timer=4}
+            else
+                state.manualOffer=true; state.arrival=1
+                runtime.dialogue={speaker='Otter Scout',text='Defense declined. The scout remains available.',timer=3}
+            end
+        elseif mode=='offer' then state.offerPage=1; state.arrival=1
+        elseif mode=='shootout' then
+            state.scene=nil
+            state.shootout=Shootout.new(state.quest,runtime.saveData,Catalog,state.quest.lastWindow,width,height)
+            bindCommands(state.shootout)
+            if result.action=='retry' then
+                state.shootout.notice={text='The defenders pull back, regroup, and reopen the firing line.',timer=3}
+            end
+        elseif mode=='backyard' or mode=='interior' or mode=='aftermath' then
+            state.scene=makeScene(mode=='aftermath' and 'interior' or mode,state.quest); state.shootout=nil
+            if result.action=='intermission' then state.notice={text=Tuning.phases[state.quest.intermission].line,timer=8}
+            elseif result.action=='retreat' then
+                local wounded=result.retreatReason=='wounded'; if wounded then state.woundFlash=.45 end
+                state.notice={text=wounded
+                    and 'Guard Fox pulls you below the window, badly wounded. Your health is still low. Return to the train to heal before trying again.'
+                    or 'The defenders pull you back. The current phase will restart; earlier progress and eliminations are safe.',timer=7}
+            elseif result.action=='victory' then state.notice={text='Enemies retreating. Check on a resident, then return to Guard Fox.',timer=8}
+            elseif result.action=='resident' then
+                state.notice={text=residentNotice or (mode=='backyard' and 'Resident checked. Return route: backyard gate.'
+                    or 'Resident checked. Defense complete.'),timer=5}
+            end
+        elseif mode=='complete' then
+            if runtime.player then runtime.player.x=result.returnX; runtime.player.y=result.returnY end
+            runtime.lastStand=nil; releaseResources()
+            runtime.dialogue={speaker='Otter Scout',text='Defense complete.',timer=4}
+        else state.scene=nil; state.shootout=nil end
+    end
+    local function transition(state,name,args)
+        if not sharedCommands() then return false end
+        if state.pendingProgression then return true,false end
+        local life=state.quest.lifecycle
+        args=args or {}; args.questId=life.entityId; args.revision=life.revision
+        local reply=context.submit(name,args)
+        if reply and reply.ok then
+            if reply.savePending then
+                state.pendingProgression={campaign=runtime.saveData,result=reply.result}
+            else presentProgression(state,reply.result) end
+        end
+        return true,reply and reply.ok==true
+    end
+
     local function beginApproach(quest)
         local player=runtime.player
         if not player then return false end
@@ -148,6 +243,9 @@ function Quest.new(context)
     end
 
     local function showOffer(state)
+        if transition(state,'lastStand.offer') then return end
+        if not CoopProgression.allowed(runtime,"lastStand.accept") then return false,"host_only" end
+        if not Life.move(state.quest,'offer') then return false,'phase_exhausted' end
         state.mode="offer"
         state.capture=true
         state.offerPage=state.offerPage or 1
@@ -155,23 +253,35 @@ function Quest.new(context)
     end
 
     local function enterScene(state,mode)
+        local action=mode=='interior' and 'interior' or state.quest.state=='paused' and 'resume'
+            or state.mode=='escort' and 'arrive' or 'backyard'
+        if transition(state,'lastStand.advance',{action=action}) then return end
+        if not CoopProgression.allowed(runtime,"lastStand.advance") then return false,"host_only" end
         state.aimTouch=nil; state.aimTouchSession=nil
         if state.mode~=mode then
-            if state.mode=="shootout" then FirstPerson.release() end
+            if state.mode=="shootout" then
+                if not require('game.coop_last_stand_state').advance(state.quest) then return false,'phase_exhausted' end
+                FirstPerson.release()
+            end
             Scene.release()
         end
         state.mode=mode
         state.capture=true
         state.scene=state.scene or Scene.new(mode,state.quest)
         Scene.change(state.scene,mode)
-        state.quest.state=mode
+        Life.move(state.quest,mode)
+        if runtime.saveData.players then
+            Life.ensure(runtime.saveData); Life.bind(state.scene.player,runtime.saveData,'host')
+        end
         state.notice=nil
         save()
     end
 
     local function accept(state)
+        if transition(state,'lastStand.accept') then return end
+        if not CoopProgression.allowed(runtime,"lastStand.accept") then return false,"host_only" end
         local quest=state.quest
-        quest.state="escort"
+        Life.move(quest,'escort')
         quest.originStop=runtime.saveData.location
         quest.returnX=runtime.player and runtime.player.x or width/2
         quest.returnY=runtime.player and runtime.player.y or height/2
@@ -179,12 +289,10 @@ function Quest.new(context)
         quest.kills=0
         quest.enemyMorale=100
         quest.positionIntegrity=100
-        quest.loanAmmo=0
-        quest.loanActive=false
+        require('game.coop_shooter_sessions').reset(quest)
         quest.rewardClaimed=false
-        quest.weaponSession=nil
-        quest.weaponSessions=nil
         quest.targets=nil
+        require('game.coop_last_stand_state').reset(quest)
         quest.impacts=nil
         quest.completedPhase=0
         quest.phaseCheckpoint=0
@@ -195,13 +303,15 @@ function Quest.new(context)
         state.mode="escort"
         state.capture=true
         state.clock=0
-        state.reducedMotion=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedMotion==true
+        state.reducedMotion=Accessibility.ensure(runtime.saveData) and Accessibility.ensure(runtime.saveData).reducedMotion==true
         save()
     end
 
     local function decline(state)
+        if transition(state,'lastStand.decline') then return end
+        if not CoopProgression.allowed(runtime,"quest.decline") then return false,"host_only" end
         local quest=state.quest
-        quest.state="declined"
+        Life.move(quest,'approach','declined')
         quest.declinedStop=runtime.saveData.location
         state.mode="approach"
         state.capture=false
@@ -211,6 +321,17 @@ function Quest.new(context)
     end
 
     local function grantLoan(state)
+        if sharedCommands() then
+            if state.pendingSupply then return end
+            local life=state.quest.lifecycle
+            local reply=context.submit('lastStand.supply',{mode='farmhouse',questId=life.entityId,revision=life.revision})
+            if reply and reply.ok then
+                if reply.savePending then
+                    state.pendingSupply={campaign=runtime.saveData,result=reply.result}
+                else state.notice={text='Loan supplies received. '..reply.result.loanAmmo..' rounds available.',timer=3.6} end
+            else state.notice={text='Supplies are currently unavailable. Stay near Guard Fox and try again.',timer=3.6} end
+            return
+        end
         local quest=state.quest
         local first=not quest.loanActive
         quest.loanActive=true
@@ -223,28 +344,120 @@ function Quest.new(context)
     end
 
     local function beginShootout(state,windowId)
+        if transition(state,'lastStand.start',{window=windowId}) then return end
+        if not CoopProgression.allowed(runtime,"lastStand.start") then return false,"host_only" end
+        if not require('game.coop_last_stand_state').open(state.quest) then return false,'phase_exhausted' end
         state.handoff=nil
         state.scene.handoff=nil
         Scene.release()
         state.quest.intermission=nil
         state.quest.lastWindow=windowId
-        state.quest.state="shootout"
+        Life.move(state.quest,'shootout')
         state.mode="shootout"
         state.capture=true
         state.shootout=Shootout.new(state.quest,runtime.saveData,Catalog,windowId,width,height)
+        bindCommands(state.shootout)
         save()
     end
 
     local function requestWindow(state,windowId)
-        if state.handoff or state.quest.victory then return end
+        if not CoopProgression.allowed(runtime,"lastStand.start") then return false,"host_only" end
+        if state.handoff or state.pendingPosition or state.quest.victory then return end
+        if sharedCommands() then
+            local life=state.quest.lifecycle
+            local reply=context.submit('lastStand.position',{questId=life.entityId,revision=life.revision,action='select',window=windowId})
+            if not reply or not reply.ok then
+                state.notice={text='That firing position is unavailable.',timer=2.5}; return
+            end
+            if reply.savePending then
+                state.pendingPosition={campaign=runtime.saveData,questId=life.entityId,revision=life.revision,window=windowId}; return
+            end
+        else
+            -- Standalone offline controllers still accept legacy data without
+            -- multiplayer actor records. Canonical campaigns retain their
+            -- checked personal window selection.
+            if runtime.saveData.players then
+                PositionState.ensure(runtime.saveData)
+                local owner=PositionState.owner(runtime.saveData,windowId)
+                if owner and owner~='host' then PositionState.release(runtime.saveData,owner) end
+                if not PositionState.claim(runtime.saveData,'host',windowId) then return end
+            end
+        end
         state.handoff={window=windowId,elapsed=0}
         state.scene.handoff=state.handoff
         state.notice={text=windowId=="wide" and "Wide firing position selected."
             or "Narrow firing position selected.",timer=2.5}
     end
 
+    local function presentTreatment(state,result,kind)
+        state.pendingTreatment=nil
+        if kind=='start' and result.session then
+            local campaign=runtime.saveData; local life=state.quest.lifecycle
+            state.treatment=FirstAid.bindCommands(result.session,function(_,args)
+                if runtime.saveData~=campaign or state.quest~=campaign.lastStand then return {ok=false,reason='wrong_campaign'} end
+                args.questId=life.entityId; args.revision=result.revision
+                local reply=context.submit('lastStand.aid',args)
+                state.treatmentReply=reply
+                return reply
+            end,result.leaseId)
+        else
+            state.treatment=nil
+            state.notice={text=result.completed and "The dressing holds. The defender can rest, and another pair of paws is free to help."
+                or result.inspected and result.treated and "The defender is resting comfortably. Your dressing is holding."
+                or 'Treatment paused. Your progress is saved.',timer=5}
+        end
+    end
+    local function treatmentReply(state,reply,kind)
+        if reply and reply.ok then
+            if reply.savePending then state.pendingTreatment={campaign=runtime.saveData,result=reply.result,kind=kind}
+            else presentTreatment(state,reply.result,kind) end
+        else
+            state.treatment=nil; state.notice={text='Treatment unavailable. Stay near the patient and try again.',timer=4}
+        end
+    end
+    local function beginTreatment(state)
+        if not sharedCommands() then return false end
+        if state.pendingTreatment then return true end
+        local life=state.quest.lifecycle
+        treatmentReply(state,context.submit('lastStand.aid',{questId=life.entityId,revision=life.revision,
+            action=state.quest.woundedTreated and 'inspect' or 'acquire'}),'start')
+        return true
+    end
     local function finishTreatment(state,result)
         if not result then return end
+        if state.treatment and state.treatment.command and not sharedCommands() then
+            state.treatment=nil; state.pendingAidComplete=nil; return
+        end
+        if sharedCommands() then
+            if not state.treatment or not state.treatment.command then return end
+            if result=='complete' then
+                local life=state.quest.lifecycle
+                if runtime.session and runtime.session.checkpointPending then
+                    state.pendingAidComplete={campaign=runtime.saveData,questId=life.entityId,revision=life.revision}
+                    return
+                end
+                local reply=context.submit('lastStand.aid',{questId=life.entityId,revision=life.revision,
+                    action='complete',leaseId=state.treatment.leaseId})
+                if not reply.ok and reply.reason=='lease_expired' then
+                    -- The global save barrier intentionally clears all activity locks.
+                    -- Reacquire the saved ready treatment before confirming its benefit.
+                    local resumed=context.submit('lastStand.aid',{questId=life.entityId,revision=life.revision,action='acquire'})
+                    treatmentReply(state,resumed,'start')
+                    if resumed.ok and resumed.result.session then
+                        state.pendingAidComplete={campaign=runtime.saveData,questId=life.entityId,revision=life.revision}
+                    end
+                else treatmentReply(state,reply,'finish') end
+            elseif result=='cancelled' then
+                local reply=state.treatmentReply
+                if not (reply and reply.ok and reply.result.outcome=='cancelled') then
+                    local life=state.quest.lifecycle
+                    reply=context.submit('lastStand.aid',{questId=life.entityId,revision=life.revision,
+                        action='pause',leaseId=state.treatment.leaseId})
+                end
+                treatmentReply(state,reply,'finish')
+            end
+            return
+        end
         if result=="complete" then
             state.quest.woundedTreated=true
             state.quest.positionIntegrity=math.min(100,state.quest.positionIntegrity+12)
@@ -258,6 +471,33 @@ function Quest.new(context)
     local function handleSceneAction(state)
         local action=Scene.action(state.scene,needsLoan(state.quest))
         if not action then return false end
+        local progressionActions={['enter-interior']="lastStand.advance",['exit-backyard']="lastStand.advance",['return-stop']="lastStand.withdraw"}
+        if state.quest.victory and (action.id=='talk-gecko' or action.id=='talk-scout' or action.id=='talk-fox') then
+            progressionActions[action.id]='lastStand.advance'
+        end
+        if progressionActions[action.id] and not CoopProgression.allowed(runtime,progressionActions[action.id]) then return false,"host_only" end
+        if sharedCommands() then
+            if action.id=='enter-interior' then transition(state,'lastStand.advance',{action='interior'}); return true
+            elseif action.id=='exit-backyard' then transition(state,'lastStand.advance',{action='backyard'}); return true
+            elseif action.id=='window-wide' then requestWindow(state,'wide'); return true
+            elseif action.id=='window-tall' then requestWindow(state,'tall'); return true
+            elseif action.id=='borrow-rifle' then grantLoan(state); return true
+            elseif action.id=='help-wounded' then beginTreatment(state); return true
+            elseif (action.id=='talk-gecko' or action.id=='talk-scout') and state.quest.victory then
+                if state.pendingProgression then return true end
+                state.pendingResidentNotice=action.id=='talk-gecko' and 'Resident checked. Defense complete.'
+                    or 'Resident checked. Return route: backyard gate.'
+                local _,accepted=transition(state,'lastStand.advance',{action='resident'})
+                if not accepted then state.pendingResidentNotice=nil end
+                return true
+            elseif action.id=='talk-fox' and state.quest.victory and not state.quest.rewardClaimed and state.quest.residentChecked then
+                transition(state,'lastStand.advance',{action='reward'}); return true
+            elseif action.id=='return-stop' and not state.quest.victory then
+                transition(state,'lastStand.withdraw'); return true
+            elseif action.id=='return-stop' and state.quest.rewardClaimed then
+                transition(state,'lastStand.advance',{action='returning'}); return true
+            end
+        end
         if action.id=="enter-interior" then enterScene(state,"interior")
         elseif action.id=="exit-backyard" then enterScene(state,"backyard")
         elseif action.id=="borrow-rifle" then grantLoan(state)
@@ -285,7 +525,7 @@ function Quest.new(context)
             if state.quest.woundedTreated then
                 state.notice={text="The defender is resting comfortably. Your dressing is holding.",timer=4}
             else
-                state.quest.treatmentProgress=state.quest.treatmentProgress or {}
+                AidState.ensure(runtime.saveData)
                 state.treatment=FirstAid.new({progress=state.quest.treatmentProgress,
                     location=state.quest.originStop,itemName="house medical supplies"})
             end
@@ -295,11 +535,8 @@ function Quest.new(context)
                 else state.notice={text="Check on a resident and speak to Guard Fox before leaving. They want to thank you.",timer=4} end
                 return true
             end
-            state.quest.state="paused"
-            state.quest.loanActive=false
-            state.quest.loanAmmo=0
-            if state.quest.weaponSession and state.quest.weaponSession.borrowed then state.quest.weaponSession=nil end
-            if state.quest.weaponSessions then state.quest.weaponSessions.loan=nil end
+            Life.move(state.quest,'approach','paused')
+            require('game.coop_shooter_sessions').reclaim(state.quest)
             runtime.lastStand=nil
             releaseResources()
             runtime.dialogue={speaker="Otter Scout",text="Defense paused. Return to the scout to resume.",timer=4}
@@ -312,6 +549,8 @@ function Quest.new(context)
     end
 
     awardVictory=function(state)
+        if transition(state,'lastStand.advance',{action='reward'}) then return end
+        if not CoopProgression.allowed(runtime,"lastStand.advance") then return false,"host_only" end
         local quest=state.quest
         if not quest.rewardClaimed then
             local bonus=quest.woundedTreated and quest.positionIntegrity>=40 and 8 or 0
@@ -322,11 +561,8 @@ function Quest.new(context)
             runtime.saveData.resources.food=math.max(0,tonumber(runtime.saveData.resources.food) or 0)+2
             quest.rewardClaimed=true
         end
-        quest.loanActive=false
-        quest.loanAmmo=0
-        quest.weaponSession=nil
-        quest.weaponSessions=nil
-        quest.state="aftermath"
+        require('game.coop_shooter_sessions').reset(quest)
+        Life.move(quest,'aftermath')
         state.mode="aftermath"
         state.capture=true
         state.scene=Scene.new("interior",quest)
@@ -336,7 +572,9 @@ function Quest.new(context)
     end
 
     beginReturn=function(state)
-        state.quest.state="returning"
+        if transition(state,'lastStand.advance',{action='returning'}) then return end
+        if not CoopProgression.allowed(runtime,"lastStand.advance") then return false,"host_only" end
+        Life.move(state.quest,'returning')
         state.mode="returning"
         state.capture=true
         state.clock=0
@@ -344,8 +582,10 @@ function Quest.new(context)
     end
 
     local function completeReturn(state)
+        if transition(state,'lastStand.advance',{action='complete'}) then return end
+        if not CoopProgression.allowed(runtime,"lastStand.advance") then return false,"host_only" end
         local quest=state.quest
-        quest.state="complete"
+        Life.move(quest,'complete')
         quest.completed=true
         quest.completedAtStop=runtime.saveData.location
         if runtime.player then
@@ -363,21 +603,24 @@ function Quest.new(context)
     end
 
     local function restore(quest)
-        local mode=quest.state
-        if mode=="escort" then mode="backyard" end
-        if mode=="shootout" then
-            mode="interior"
-            quest.state="interior"
+        local mode=sharedCommands() and quest.lifecycle.mode or quest.state
+        if not sharedCommands() then
+            if mode=='escort' then mode='backyard' end
+            if mode=='shootout' then mode='interior' end
+            if mode=='returning' then mode='aftermath' end
+            Life.move(quest,mode)
         end
-        if mode=="returning" then mode="aftermath"; quest.state="aftermath" end
         local state={
             mode=mode,
             capture=true,
             quest=quest,
             clock=0,
-            scene=(mode=="backyard" or mode=="interior" or mode=="aftermath") and Scene.new(mode=="aftermath" and "interior" or mode,quest) or nil,
+            scene=(mode=="backyard" or mode=="interior" or mode=="aftermath") and makeScene(mode=="aftermath" and "interior" or mode,quest) or nil,
         }
         runtime.lastStand=state
+        if mode=='shootout' then
+            state.shootout=Shootout.new(quest,runtime.saveData,Catalog,quest.lastWindow,width,height); bindCommands(state.shootout)
+        end
         return state
     end
 
@@ -390,14 +633,32 @@ function Quest.new(context)
         return true
     end
 
-    local controllerButtons={"a","b","x","y","start","back","leftshoulder","rightshoulder","rightstick"}
+    -- Every button accepted by the device binding editor must be polled here.
+    local controllerButtons={"a","b","x","y","start","back","guide","leftshoulder","rightshoulder",
+        "leftstick","rightstick","dpup","dpdown","dpleft","dpright"}
     local controllerHeld={}
     local controllerADS=false
     local controllerFire=false
     local controllerGun
+    local function neutralizeShooter(state,preserveButtons)
+        if state.shootout and state.shootout.gun then
+            state.shootout.fireHeldSources={}; state.shootout.gun.fireHeldSources={}; state.shootout.gun.fireHeld=false
+            Shootout.setADS(state.shootout,false)
+        end
+        state.aimTouch=nil; state.aimTouchSession=nil; state.fireTouchSources=nil
+        if not preserveButtons then controllerHeld={} end
+        controllerADS=false; controllerFire=false; controllerGun=nil
+        if state.scene then state.scene.axisX=0; state.scene.axisY=0 end
+    end
     local function pollController(dt)
         local state=runtime.lastStand
         if not state or not love.joystick then return end
+        if context.inputPaused and context.inputPaused() or runtime.session and runtime.session.checkpointPending then
+            neutralizeShooter(state); return
+        end
+        -- Internal pause still polls button edges so Start can resume. Aim and
+        -- fire remain neutral while the pause is open.
+        if state.paused then neutralizeShooter(state,true) end
         local pads=love.joystick.getJoysticks()
         local pad
         for _,candidate in ipairs(pads) do if candidate:isGamepad() then pad=candidate; break end end
@@ -417,13 +678,17 @@ function Quest.new(context)
             or "last_stand"
         for _,button in ipairs(controllerButtons) do
             local down=pad:isGamepadDown(button)
-            local key=controlBindings:translateButton(button,scope)
-            if key and down and not controllerHeld[button] then
-                service:keypressed(key)
-            elseif key and not down and controllerHeld[button] then
-                service:keyreleased(key)
+            local previous=controllerHeld[button]
+            if down and not previous then
+                local key=controlBindings:translateButton(button,scope)
+                if key then service:keypressed(key) end
+                controllerHeld[button]={key=key,scope=scope}
+            elseif not down and previous then
+                -- Release the pressed action, even if its physical binding was
+                -- changed while held. A different modal scope cannot inherit it.
+                if previous.key and previous.scope==scope then service:keyreleased(previous.key) end
+                controllerHeld[button]=nil
             end
-            controllerHeld[button]=down
         end
         state=runtime.lastStand
         if not state then return end
@@ -455,6 +720,60 @@ function Quest.new(context)
     end
 
     function service:update(dt)
+        -- A title-screen hosting intent must finish its checked connection or
+        -- be cancelled before ordinary offline restoration can change modes.
+        if context.hostSavedJourneyPending and context.hostSavedJourneyPending() then return self:isCapturing() end
+        local pendingState=runtime.lastStand
+        local treatment=pendingState and pendingState.pendingTreatment
+        if treatment and not (runtime.session and runtime.session.checkpointPending) then
+            local life=pendingState.quest.lifecycle
+            if treatment.campaign==runtime.saveData and runtime.saveData.lastStand==pendingState.quest
+                and life.entityId==treatment.result.questId and life.revision==treatment.result.revision then
+                presentTreatment(pendingState,treatment.result,treatment.kind)
+            else pendingState.pendingTreatment=nil; pendingState.treatment=nil end
+        end
+        local complete=pendingState and pendingState.pendingAidComplete
+        if complete and not (runtime.session and runtime.session.checkpointPending) then
+            pendingState.pendingAidComplete=nil
+            local life=pendingState.quest.lifecycle
+            if complete.campaign==runtime.saveData and pendingState.quest==runtime.saveData.lastStand
+                and life.entityId==complete.questId and life.revision==complete.revision then finishTreatment(pendingState,'complete') end
+        end
+        local supply=pendingState and pendingState.pendingSupply
+        if supply and not (runtime.session and runtime.session.checkpointPending) then
+            local life=pendingState.quest.lifecycle
+            if supply.campaign==runtime.saveData and runtime.saveData.lastStand==pendingState.quest
+                and life.entityId==supply.result.questId and life.revision==supply.result.revision then
+                pendingState.notice={text='Loan supplies received. '..supply.result.loanAmmo..' rounds available.',timer=3.6}
+            end
+            pendingState.pendingSupply=nil
+        end
+        local pending=pendingState and pendingState.pendingProgression
+        if pending and not (runtime.session and runtime.session.checkpointPending) then
+            local life=pendingState.quest.lifecycle
+            if pending.campaign==runtime.saveData and runtime.saveData.lastStand==pendingState.quest
+                and life.entityId==pending.result.questId and life.revision==pending.result.revision then
+                presentProgression(pendingState,pending.result)
+            else pendingState.pendingProgression=nil end
+        end
+        local position=pendingState and pendingState.pendingPosition
+        if position and not (runtime.session and runtime.session.checkpointPending) then
+            pendingState.pendingPosition=nil
+            local life=pendingState.quest.lifecycle
+            if position.campaign==runtime.saveData and runtime.saveData.lastStand==pendingState.quest
+                and life.entityId==position.questId and life.revision==position.revision
+                and PositionState.selected(runtime.saveData,'host')==position.window then
+                pendingState.handoff={window=position.window,elapsed=0}
+                if pendingState.scene then pendingState.scene.handoff=pendingState.handoff end
+            end
+        end
+        if not CoopProgression.allowed(runtime,"lastStand.advance") then
+            if runtime.lastStand then
+                neutralizeShooter(runtime.lastStand)
+                if runtime.lastStand.shootout then runtime.lastStand.shootout.effectsPaused=true end
+            end
+            return self:isCapturing()
+        end
         if runtime.state~="game" or not runtime.saveData then
             runtime.lastStand=nil
             releaseResources()
@@ -472,6 +791,7 @@ function Quest.new(context)
                 beginApproach(quest)
                 state=runtime.lastStand
                 state.manualOffer=quest.state=="declined" or quest.state=="paused"
+                if sharedCommands() and quest.lifecycle.mode=='offer' then state.mode='offer'; state.capture=true; state.offerPage=1; state.arrival=1 end
             else
                 return false
             end
@@ -479,8 +799,38 @@ function Quest.new(context)
         pollController(dt)
         state=runtime.lastStand
         if not state then return false end
+        if state.treatment and state.treatment.command and not sharedCommands() then state.treatment=nil end
         resourcesActive=true
-        if state.paused then return true end
+        local privatePaused=hostInputPaused(state)
+        if privatePaused then neutralizeShooter(state,true) end
+        local sharedFight=sharedCommands() and state.mode=='shootout'
+        if state.paused and not sharedFight then
+            if state.shootout then state.shootout.effectsPaused=true end
+            return true
+        end
+        if sharedFight and (runtime.session and runtime.session.checkpointPending
+            or context.globalSimulationBlocked and context.globalSimulationBlocked()) then
+            neutralizeShooter(state); state.shootout.effectsPaused=true; return true
+        end
+        if sharedFight then
+            state.positionReadyRetry=math.max(0,(state.positionReadyRetry or 0)-dt)
+            local status=context.positionStatus and context.positionStatus('host')
+            if not status then
+                neutralizeShooter(state)
+                if not privatePaused and state.positionReadyRetry<=0 and not state.shootout.result then
+                    local life=state.quest.lifecycle; local window=PositionState.selected(runtime.saveData,'host')
+                    if not window then
+                        if not PositionState.owner(runtime.saveData,'wide') then window='wide'
+                        elseif not PositionState.owner(runtime.saveData,'tall') then window='tall' end
+                    end
+                    if window then
+                        context.submit('lastStand.position',{questId=life.entityId,revision=life.revision,
+                            action='ready',window=window,phaseRevision=state.quest.combat.phaseRevision})
+                        state.positionReadyRetry=.6
+                    end
+                end
+            end
+        elseif privatePaused then return true end
         state.clock=(state.clock or 0)+dt
         state.woundFlash=math.max(0,(state.woundFlash or 0)-dt)
         if state.treatment then
@@ -516,8 +866,9 @@ function Quest.new(context)
             return true
         end
         if state.mode=="backyard" or state.mode=="interior" then
-            state.scene.reducedMotion=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedMotion==true
-            state.scene.reducedFlashes=runtime.saveData.accessibility and runtime.saveData.accessibility.reducedFlashes==true
+            if runtime.saveData.players then Life.bind(state.scene.player,runtime.saveData,'host') end
+            state.scene.reducedMotion=Accessibility.ensure(runtime.saveData) and Accessibility.ensure(runtime.saveData).reducedMotion==true
+            state.scene.reducedFlashes=Accessibility.ensure(runtime.saveData) and Accessibility.ensure(runtime.saveData).reducedFlashes==true
             local mobileX,mobileY=mobileMovement()
             local sprinting=love.keyboard.isDown("lshift","rshift") or controlBindings:actionDown("sprint") or mobileSprinting()
             local reports=Scene.update(state.scene,dt,{
@@ -533,16 +884,34 @@ function Quest.new(context)
             return true
         end
         if state.mode=="shootout" then
+            local ids
+            if sharedFight then
+                ids={}; local seen={}
+                for _,id in ipairs(context.participants and context.participants() or {}) do
+                    if not seen[id] and (id~='host' or not privatePaused) then ids[#ids+1]=id; seen[id]=true end
+                end
+                if #ids==0 and not state.shootout.result then state.shootout.effectsPaused=true; return true end
+            end
+            state.shootout.effectsPaused=false
             local healthBefore=runtime.saveData.health
-            local result=Shootout.update(state.shootout,dt,runtime.saveData,Catalog,width,height)
-            if runtime.saveData.health~=healthBefore then save() end
+            local companionBefore=runtime.saveData.players and runtime.saveData.players.companion and runtime.saveData.players.companion.health
+            local result=Shootout.update(state.shootout,dt,runtime.saveData,Catalog,width,height,ids)
+            local companionAfter=runtime.saveData.players and runtime.saveData.players.companion and runtime.saveData.players.companion.health
+            if runtime.saveData.health~=healthBefore or companionAfter~=companionBefore then save() end
+            if privatePaused and sharedFight then
+                state.saveTimer=(state.saveTimer or 0)+dt
+                if state.saveTimer>=5 then state.saveTimer=0; save() end
+                return true
+            end
             if result=="intermission" then
+                if transition(state,'lastStand.advance',{action='result'}) then return true end
                 local phase=state.shootout.stage
                 state.quest.intermission=phase
                 enterScene(state,"interior")
                 state.notice={text=Tuning.phases[phase].line,timer=8}
                 state.shootout=nil
             elseif result=="retreat" then
+                if transition(state,'lastStand.advance',{action='result'}) then return true end
                 local wounded=state.shootout.retreatReason=="wounded"
                 if wounded then state.woundFlash=.45 end
                 Shootout.retry(state.shootout)
@@ -554,11 +923,9 @@ function Quest.new(context)
                 state.shootout=nil
                 save()
             elseif result=="victory" then
+                if transition(state,'lastStand.advance',{action='result'}) then return true end
                 state.quest.victory=true
-                state.quest.loanActive=false
-                state.quest.loanAmmo=0
-                state.quest.weaponSession=nil
-                state.quest.weaponSessions=nil
+                require('game.coop_shooter_sessions').reset(state.quest)
                 enterScene(state,"interior")
                 state.notice={text="Enemies retreating. Check on a resident, then return to Guard Fox.",timer=8}
                 state.shootout=nil
@@ -570,7 +937,7 @@ function Quest.new(context)
         end
         if state.mode=="aftermath" then return true end
         if state.mode=="returning" then
-            if state.clock>=5 then completeReturn(state); return false end
+            if state.clock>=5 then completeReturn(state); return self:isCapturing() end
             return true
         end
         return state.capture==true
@@ -579,7 +946,12 @@ function Quest.new(context)
     function service:keypressed(key)
         local state=runtime.lastStand
         if not state then return false end
-        if state.capture and key=="p" then state.paused=not state.paused; save(); return true end
+        if context.inputPaused and context.inputPaused() then neutralizeShooter(state); return state.capture==true end
+        if runtime.session and runtime.session.checkpointPending then return state.capture==true end
+        if state.capture and key=="p" then
+            if sharedCommands() and state.treatment and state.treatment.command then finishTreatment(state,'cancelled') end
+            state.paused=not state.paused; save(); return true
+        end
         if state.paused then
             if key=="escape" or key=="return" then state.paused=false end
             return true
@@ -603,6 +975,7 @@ function Quest.new(context)
             elseif key=="q" then state.offerPage=4
             elseif key=="f" then state.offerPage=5
             elseif key=="return" or key=="space" then
+                if not CoopProgression.allowed(runtime,"lastStand.advance") then return true end
                 if state.offerPage<#OFFER_LINES then state.offerPage=state.offerPage+1 else accept(state) end
             end
             return true
@@ -623,13 +996,15 @@ function Quest.new(context)
         if state.mode=="shootout" then
             if key=="v" then Shootout.cycleFireMode(state.shootout); return true end
             if key=="escape" then
-                state.quest.state="interior"
+                if not CoopProgression.allowed(runtime,"lastStand.withdraw") then return true end
+                if transition(state,'lastStand.withdraw') then return true end
                 enterScene(state,"interior")
             elseif key=="r" then Shootout.reload(state.shootout,runtime.saveData)
             elseif key=="l" then Shootout.supply(state.shootout,runtime.saveData,Catalog)
             elseif key=="tab" then Shootout.cycleWeapon(state.shootout,runtime.saveData,Catalog)
             elseif key=="c" then Shootout.setCover(state.shootout,not state.shootout.ducking)
-            elseif key=="return" and state.shootout.result=="retreat" then Shootout.retry(state.shootout)
+            elseif key=="return" and state.shootout.result=="retreat" then
+                if CoopProgression.allowed(runtime,"lastStand.retry") and not transition(state,'lastStand.retry') then Shootout.retry(state.shootout) end
             elseif key=="space" then Shootout.setFireHeld(state.shootout,"keyboard",true,runtime.saveData,width,height,Catalog)
             end
             return true
@@ -653,6 +1028,8 @@ function Quest.new(context)
     function service:mousepressed(x,y,button,istouch,touchId)
         local state=runtime.lastStand
         if not state then return false end
+        if context.inputPaused and context.inputPaused() then neutralizeShooter(state); return state.capture==true end
+        if runtime.session and runtime.session.checkpointPending then return state.capture==true end
         if state.mode=="approach" and button==1 and state.arrival and state.arrival>0 and not busy() then
             x,y=WorldView.toWorld(x,y)
             if math.abs(x-state.scout.x)<95 and math.abs(y-state.scout.y+60)<100 then return self:keypressed("e") end
@@ -679,7 +1056,13 @@ function Quest.new(context)
             return true
         end
         if state.mode=="shootout" then
+            if sharedCommands() and state.shootout.result=='retreat' then
+                local rx,ry,rw,rh=Shootout.retryRect(width,height)
+                if button==1 and pointIn(x,y,rx,ry,rw,rh) then transition(state,'lastStand.retry') end
+                return true
+            end
             if istouch then
+                if state.shootout.result=="retreat" and not CoopProgression.allowed(runtime,"lastStand.retry") then return true end
                 local action=Shootout.touchAction(x,y,width,height)
                 if action then
                     if action=="fire" then
@@ -697,6 +1080,7 @@ function Quest.new(context)
                 Shootout.setTouchAim(state.shootout,x,y,width,height)
                 return true
             end
+            if state.shootout.result=="retreat" and not CoopProgression.allowed(runtime,"lastStand.retry") then return true end
             Shootout.setAim(state.shootout,x,y)
             return Shootout.mousepressed(state.shootout,x,y,button,runtime.saveData,Catalog,width,height)
         end
@@ -731,6 +1115,93 @@ function Quest.new(context)
         return runtime.lastStand and runtime.lastStand.capture==true or false
     end
 
+    function service:positionCommandState(id)
+        if id~='host' and id~='companion' then return nil end
+        local state=runtime.lastStand
+        local combat=runtime.saveData and runtime.saveData.lastStand and runtime.saveData.lastStand.combat
+        local owners=require('game.coop_last_stand_state')
+        if not state or state.mode~='shootout' or not state.shootout or not combat
+            or state.quest~=runtime.saveData.lastStand or owners.campaignOf(state.shootout)~=runtime.saveData
+            or owners.record(state.shootout)~=combat then return nil end
+        return {active=state.capture==true,paused=(id=='host' and (hostInputPaused(state) or state.treatment~=nil or state.handoff~=nil
+                or state.pendingPosition~=nil)) or context.globalSimulationBlocked and context.globalSimulationBlocked() or false,
+            encounterId=combat.entityId,phaseRevision=combat.phaseRevision}
+    end
+    function service:effectState()
+        local state=runtime.lastStand; local data=runtime.saveData
+        if not state or not data or state.quest~=data.lastStand or state.mode~='shootout' or not state.shootout
+            or require('game.coop_last_stand_state').campaignOf(state.shootout)~=data then return nil end
+        local result=Shootout.effectState(state.shootout); if not result then return nil end
+        result.paused=result.paused or runtime.session and runtime.session.checkpointPending
+            or context.globalSimulationBlocked and context.globalSimulationBlocked() or false
+        return result
+    end
+    function service:stageState()
+        local state=runtime.lastStand; local data=runtime.saveData
+        local life=state and state.quest and state.quest.lifecycle
+        if not state or state.capture~=true or not data or runtime.state~='game' or runtime.scene~='stop' or runtime.session
+            and runtime.session.networkMode=='client' or state.quest~=data.lastStand or not life
+            or state.mode~=life.mode or not ({offer=true,escort=true,aftermath=true,returning=true})[state.mode] then return nil end
+        local result={questId=life.entityId,lifeRevision=life.revision,mode=state.mode,clock=state.clock or 0,
+            paused=state.paused==true or context.inputPaused and context.inputPaused()
+                or runtime.session and runtime.session.checkpointPending
+                or context.globalSimulationBlocked and context.globalSimulationBlocked() or false}
+        if state.mode=='offer' then
+            local page=offerPage(state.offerPage or 1); if not page then return nil end
+            result.offerPage=page.page
+        end
+        if state.scout then
+            result.scout={x=state.scout.x,y=state.scout.y,walkDistance=state.walkDistance or 0,arrival=state.arrival or 0}
+        end
+        -- Only farmhouse scene poses use the logical stage viewport. Ordinary
+        -- stop coordinates can lie outside it and are not needed by these
+        -- passive cinematic views.
+        local pose=state.scene and state.scene.player
+        if pose then result.hostPose={x=pose.x,y=pose.y,facing=pose.facing==-1 and -1 or 1} end
+        return result
+    end
+    function service:commandState(id)
+        local result=self:positionCommandState(id); if not result then return nil end
+        if id=='host' and sharedCommands() then
+            local status=context.positionStatus and context.positionStatus(id)
+            local owner=runtime.saveData.lastStand.combat.defenders[id]
+            if not status or not owner or status.windowId~=owner.windowId
+                or PositionState.selected(runtime.saveData,id)~=owner.windowId
+                or (status.phaseRevision or status.domain and status.domain.phaseRevision)~=result.phaseRevision then return nil end
+            result.windowId=status.windowId; result.leaseId=status.leaseId or status.id
+        end
+        return result
+    end
+
+    function service:progressionState()
+        local state=runtime.lastStand
+        local data=runtime.saveData
+        local life=state and state.quest and state.quest.lifecycle
+        if not data or not life or state.quest~=data.lastStand then return nil end
+        local point=state.scene and state.scene.player
+        local action=state.scene and Scene.action(state.scene,needsLoan(state.quest))
+        local player=runtime.player
+        local scoutReady=state.arrival and state.arrival>0 and player and state.scout
+            and ((player.x-state.scout.x)^2+(player.y-state.scout.y)^2)<=10000
+        return {active=true,questId=life.entityId,revision=life.revision,mode=state.mode,
+            treatmentLeaseId=state.treatment and state.treatment.leaseId,
+            personalPaused=state.paused==true or context.inputPaused and context.inputPaused() or false,
+            paused=state.paused==true or state.treatment~=nil or context.inputPaused and context.inputPaused() or false,
+            blocked=runtime.battle~=nil and runtime.battle~=false or runtime.encounter~=nil and runtime.encounter~=false
+                or runtime.sleeping==true or runtime.firstAid~=nil and runtime.firstAid~=false
+                or runtime.shootingRange~=nil and runtime.shootingRange~=false or runtime.outfitCraftingOpen==true
+                or runtime.trainAmbush and runtime.trainAmbush.phase~='complete' or false,
+            x=point and point.x,y=point and point.y,action=action and action.id,scoutReady=scoutReady==true,
+            handoffWindow=state.handoff and state.handoff.window,handoffElapsed=state.handoff and state.handoff.elapsed}
+    end
+    function service:movementActor()
+        local state=runtime.lastStand; local data=runtime.saveData
+        if not sharedCommands() or not state or not state.scene or not data or state.quest~=data.lastStand
+            or not Life.walking(data) or state.mode~=data.lastStand.lifecycle.mode then return nil end
+        Life.bind(state.scene.player,data,'host',true)
+        return state.scene.player
+    end
+
     function service:isCapturing()
         return runtime.lastStand and runtime.lastStand.capture==true or false
     end
@@ -749,6 +1220,7 @@ function Quest.new(context)
     function service:touchpressed(id,x,y)
         local state=runtime.lastStand
         if not state then return false end
+        if runtime.session and runtime.session.checkpointPending then return state.capture==true end
         state.touchControls=true
         if state.mode=="shootout" then
             state.shootout.touchControls=true
@@ -846,7 +1318,8 @@ function Quest.new(context)
         end
         if state.mode=="escort" then Scene.drawTransition(state,width,height,false,playerVisual()); return end
         if state.mode=="backyard" or state.mode=="interior" then
-            Scene.draw(state.scene,width,height,playerVisual(),needsLoan(state.quest),state.touchControls,not state.paused)
+            local companion=context.companionSceneActor and context.companionSceneActor()
+            Scene.draw(state.scene,width,height,playerVisual(),needsLoan(state.quest),state.touchControls,not state.paused,companion and {companion})
             drawNotice(state)
             if state.treatment then
                 local assets={}
@@ -887,7 +1360,7 @@ function Quest.new(context)
     function service:draw()
         drawState()
         local state=runtime.lastStand
-        local accessibility=runtime.saveData and runtime.saveData.accessibility
+        local accessibility=runtime.saveData and Accessibility.ensure(runtime.saveData)
         if state and (state.woundFlash or 0)>0
             and not (accessibility and (accessibility.reducedFlashes or accessibility.reducedMotion)) then
             love.graphics.push("all")
@@ -903,4 +1376,4 @@ function Quest.new(context)
     return service
 end
 
-return {new=Quest.new,version=VERSION}
+return {new=Quest.new,version=VERSION,offerPage=offerPage,aftermathSummary=aftermathSummary}

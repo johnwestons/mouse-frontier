@@ -60,14 +60,14 @@ class BattleUIBehaviorTests(unittest.TestCase):
                 {id='ally1',team='ally',name='Companion',file='guard-fox.png',weapon='frontier-battle-axe',q=1,r=2,hp=12,maxHP=12,move=2,armor=1},
                 {id='enemy1',team='enemy',name='Enemy',file='sludge-bandit.png',q=9,r=3,hp=18,maxHP=18,move=2,armor=1}},
                 tiles={},tileVariants={},obstacles={},abilitiesUsed={}}
-            function keyboardFixture()
+            function keyboardFixture(commands)
                 local runtime={state='battle',saveData=ctx.saveData,battle=ctx.battle}
                 local calls={}
                 local function record(name)
                     return function(value) calls[#calls+1]={name=name,value=value} end
                 end
                 local inputContext=setmetatable({
-                    runtime=runtime,ui=ctx.ui,characters={},maintenanceSession={},scenery={},inventory=require('game.inventory'),catalog={},
+                    runtime=runtime,ui=ctx.ui,commands=commands,characters={},maintenanceSession={},scenery={},inventory=require('game.inventory'),catalog={},
                     controlBindings=require('game.control_bindings').new({getInfo=function() return nil end}),
                     mobileEnabled=function() return false end,
                     npcRelationships={},merchantTrade={},util=require('game.util'),engineUpgrades={},trainUpgradeBalance={},
@@ -83,8 +83,16 @@ class BattleUIBehaviorTests(unittest.TestCase):
         self.lua.execute(r'''
             ctx.battle.selected='ally1'
             UI.draw(ctx)
-            assert(ctx.battle.options[2]=='frontier-short-sword')
+            assert(ctx.battle.options[2]==ctx.saveData.itemSlots.equipment[1].id)
             assert(ctx.ui.battleEnd and #ctx.ui.battleWeapons==2)
+        ''')
+
+    def test_guest_result_clears_stale_continue_and_rejects_progression_click(self) -> None:
+        self.lua.execute('''
+            ctx.battle.finished='win'; UI.draw(ctx); local rect=ctx.ui.battleContinue; assert(rect)
+            ctx.hostControls=false; UI.draw(ctx); assert(not ctx.ui.battleContinue and not ctx.ui.battleRetreat)
+            ctx.ui.battleContinue=rect
+            assert(UI.handleMouse(ctx,rect.x+1,rect.y+1,false)=='handled')
         ''')
 
     def test_ally_walk_animation_receives_direction_and_traveled_distance(self) -> None:
@@ -102,12 +110,34 @@ class BattleUIBehaviorTests(unittest.TestCase):
                 'tactical walk phase must follow the eased distance already traveled')
         ''')
 
+    def test_host_can_retreat_during_guest_turn_without_guest_action_buttons(self):
+        self.lua.execute('''
+            ctx.canAct=function() return false end; ctx.battle.active=2; UI.draw(ctx)
+            local r=ctx.ui.battleRetreat; assert(r and not ctx.ui.battleMove and #ctx.ui.battleWeapons==0)
+            assert(UI.handleMouse(ctx,r.x+1,r.y+1,false)=='retreat')
+            ctx.hostControls=false; UI.draw(ctx); assert(not ctx.ui.battleRetreat)
+            ctx.ui.battleRetreat=r; assert(UI.handleMouse(ctx,r.x+1,r.y+1,false)=='handled')
+        ''')
+
+    def test_host_keyboard_does_not_change_connected_guest_preview_or_open_pack(self):
+        self.lua.execute('''
+            local bindings={companion=3}
+            local input,runtime,calls=keyboardFixture({authority=function() return {bindings=bindings} end})
+            runtime.saveData.tacticalBattle={}; runtime.battle.units[1].actorId='companion'
+            runtime.battle.options={'scratch'}
+            for _,key in ipairs({'m','i','1','space','h','g'}) do input.keypressed(key) end
+            assert(#calls==0 and runtime.battle.phase=='select' and not runtime.inventoryOpen)
+            input.keypressed('r'); assert(#calls==1 and calls[1].name=='finish' and calls[1].value=='retreat')
+            bindings.companion=nil; input.keypressed('m'); input.keypressed('i')
+            assert(calls[2].name=='prompt' and runtime.battle.phase=='move' and runtime.inventoryOpen)
+        ''')
+
     def test_inspecting_enemy_does_not_hide_player_actions(self) -> None:
         self.lua.execute(r'''
             ctx.battle.selected='enemy1'
             UI.draw(ctx)
             assert(ctx.ui.battleEnd and ctx.ui.battleAbility)
-            assert(ctx.battle.options[2]=='frontier-short-sword')
+            assert(ctx.battle.options[2]==ctx.saveData.itemSlots.equipment[1].id)
         ''')
 
     def test_inspecting_ally_cannot_expose_actions_during_enemy_turn(self) -> None:

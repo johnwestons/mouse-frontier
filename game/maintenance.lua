@@ -1,4 +1,5 @@
 local Maintenance = {}
+local Rules=require("game.maintenance_rules")
 local WheelAnimation = require("game.maintenance_wheel_animation")
 local PanelAnimation = require("game.maintenance_panel_animation")
 local EngineUpgrades = require("game.engine_upgrades")
@@ -8,9 +9,9 @@ local Accessibility = require("game.accessibility")
 local ASSET_ROOT = "assets/sprites/maintenance/oil-running-gear/"
 local BACKGROUND_Y = 90
 local TARGETS = {
-    {x = 313, y = 365, radius = 18, doses = 2},
-    {x = 493, y = 365, radius = 18, doses = 1},
-    {x = 675, y = 365, radius = 18, doses = 2},
+    {x = 313, y = 365, radius = 18, doses = Rules.DOSES[1]},
+    {x = 493, y = 365, radius = 18, doses = Rules.DOSES[2]},
+    {x = 675, y = 365, radius = 18, doses = Rules.DOSES[3]},
 }
 local LAMPS = {
     {x = 351, y = 545}, {x = 413, y = 545}, {x = 475, y = 545},
@@ -22,8 +23,8 @@ local TOTAL_DOSES = #LAMPS
 local OIL_PER_DROP = 1
 local CONDITION_SOURCE, DONE_SOURCE = PanelAnimation.sourceRects()
 local BASE_OIL_CAPACITY=20
-local SERVICE_OIL_COST=5
-local SERVICE_RESTORE=40
+local SERVICE_OIL_COST=Rules.OIL_COST
+local SERVICE_RESTORE=Rules.RESTORE
 
 local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
@@ -38,13 +39,7 @@ local function setSystemCursorVisible(visible)
 end
 
 function Maintenance.ensure(data)
-    data.maintenance = type(data.maintenance) == "table" and data.maintenance or {}
-    local state = data.maintenance
-    state.condition = clamp(tonumber(state.condition) or 72, 0, 100)
-    state.lastServicedStop = math.max(0, math.floor(tonumber(state.lastServicedStop) or 0))
-    state.totalServices = math.max(0, math.floor(tonumber(state.totalServices) or 0))
-    state.totalWear = math.max(0, math.floor(tonumber(state.totalWear) or 0))
-    return state
+    return Rules.ensure(data)
 end
 
 function Maintenance.condition(data)
@@ -52,9 +47,7 @@ function Maintenance.condition(data)
 end
 
 function Maintenance.oilSupply(data)
-    data.resources = type(data.resources) == "table" and data.resources or {}
-    data.resources.oil = math.max(0, math.floor(tonumber(data.resources.oil) or 0))
-    return data.resources.oil
+    return Rules.oilSupply(data)
 end
 
 local function ownsCar(data,id)
@@ -166,6 +159,8 @@ function Maintenance.new()
 end
 
 function Maintenance.release(session)
+    if session.commands and session.leaseId then session.commands("activity.release",{leaseId=session.leaseId},session.commandCampaign) end
+    session.leaseId=nil; session.commandCampaign=nil
     if session.assets then
         for _, image in pairs(session.assets) do releaseImage(image) end
         session.assets = nil
@@ -180,9 +175,7 @@ function Maintenance.close(session)
 end
 
 local function progressCount(session)
-    local total = 0
-    for i = 1, #TARGETS do total = total + clamp(session.targetDoses[i] or 0, 0, TARGETS[i].doses) end
-    return total
+    return Rules.progressCount(session)
 end
 
 function Maintenance.progressCount(session)
@@ -238,7 +231,13 @@ end
 
 function Maintenance.open(session, data)
     local state = Maintenance.ensure(data)
+    if session.commands then
+        local reply=session.commands("maintenance.acquire",{},data)
+        if not reply.ok then session.message="SERVICE UNAVAILABLE — FINISH THE CURRENT ACTIVITY"; return false end
+        session.leaseId=reply.result.leaseId; session.commandCampaign=data; session.keepAlive=0
+    end
     session.open = true
+    session.location=data.location or 1
     session.completed = state.lastServicedStop == (data.location or 1)
     session.targetDoses = {}
     for i, target in ipairs(TARGETS) do session.targetDoses[i] = session.completed and target.doses or 0 end
@@ -256,6 +255,14 @@ function Maintenance.open(session, data)
     session.message = session.completed and "RUNNING GEAR SERVICED AT THIS STOP" or "PLACE THE OIL-CAN NOZZLE ON A WHEEL HUB"
     session.assetError = nil
     session.pulse = 0
+    Maintenance.prepareArt(session)
+    session.cursorActive = not session.completed and session.assets and session.assets.oilCan ~= nil
+    setSystemCursorVisible(not session.cursorActive)
+    return session.assetError == nil
+end
+
+-- Shared authored art, independent of campaign normalization and service rules.
+function Maintenance.prepareArt(session)
     if not session.assets then
         local background, backgroundError = loadImage("minigame-background.png")
         local base, baseError = loadImage("minigame-base.png")
@@ -272,8 +279,6 @@ function Maintenance.open(session, data)
             serviceEffect = serviceEffect, conditionQuad = conditionQuad, doneQuad = doneQuad}
         session.assetError = backgroundError or baseError or oilCanError or oilDropError or serviceEffectError
     end
-    session.cursorActive = not session.completed and session.assets and session.assets.oilCan ~= nil
-    setSystemCursorVisible(not session.cursorActive)
     return session.assetError == nil
 end
 
@@ -293,7 +298,14 @@ function Maintenance.servicePoint(session, index, data)
         session.message = "NOT ENOUGH TRAIN OIL — FIND AN OIL CANISTER"
         return false
     end
-    session.targetDoses[index] = current + 1
+    if session.commands then
+        local reply=session.commands("maintenance.step",{leaseId=session.leaseId,target=index},data)
+        if not reply.ok or not reply.result.ok then session.message="SERVICE CHANGED — CLOSE AND REOPEN THE PANEL"; return false end
+        session.targetDoses=reply.result.targetDoses
+    else
+        local result=Rules.point(session,index,data)
+        if not result.ok then return false end
+    end
     local count = progressCount(session)
     session.targetMotion[index] = .42
     session.canPump = .22
@@ -319,17 +331,19 @@ function Maintenance.complete(session, data)
         session.message = session.completed and "RUNNING GEAR ALREADY SERVICED HERE" or "LIGHT ALL FIVE OIL LAMPS BEFORE FINISHING"
         return false
     end
-    local state = Maintenance.ensure(data)
-    local oilCost = Maintenance.serviceOilCost(data)
-    if Maintenance.oilSupply(data) < oilCost then
-        session.message = "NOT ENOUGH TRAIN OIL TO COMPLETE SERVICE"
+    local result
+    if session.commands then
+        local reply=session.commands("maintenance.complete",{leaseId=session.leaseId},data)
+        result=reply.ok and reply.result or {ok=false,reason=reply.reason}
+    else result=Rules.complete(session,data) end
+    if not result.ok then
+        session.message=result.reason=="oil" and "NOT ENOUGH TRAIN OIL TO COMPLETE SERVICE"
+            or result.reason=="already" and "RUNNING GEAR ALREADY SERVICED HERE" or "SERVICE CHANGED — CLOSE AND REOPEN THE PANEL"
         return false
     end
-    local before = state.condition
-    state.condition = clamp(state.condition + Maintenance.serviceRestore(data), 0, 100)
-    state.lastServicedStop = math.max(1, math.floor(tonumber(data.location) or 1))
-    state.totalServices = state.totalServices + 1
-    data.resources.oil = data.resources.oil - oilCost
+    local state=Maintenance.ensure(data)
+    local before,oilCost=result.before,result.cost
+    session.leaseId=nil
     session.completed = true
     session.cursorActive = false
     session.testMotion = WheelAnimation.duration()
@@ -348,6 +362,14 @@ end
 
 function Maintenance.update(session, dt)
     if not session.open then return end
+    if session.commands and session.leaseId then
+        session.keepAlive=(session.keepAlive or 0)+dt
+        if session.keepAlive>=10 then
+            session.keepAlive=0
+            local reply=session.commands("maintenance.step",{leaseId=session.leaseId,renew=true},session.commandCampaign)
+            if not reply.ok then Maintenance.close(session); return end
+        end
+    end
     session.pulse = (session.pulse + dt) % (math.pi * 2)
     session.canPump = math.max(0, session.canPump - dt)
     session.testMotion = math.max(0, session.testMotion - dt)

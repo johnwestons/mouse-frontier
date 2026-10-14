@@ -57,6 +57,7 @@ local function new(context)
 
   local battleRuntime,inventoryActions,journeyRules,eventRuntime
   battleRuntime=BattleRuntime.new({
+    commands=context.inventoryCommands,
     runtime=runtime,width=W,height=H,ui=ui,scenery=content.scenery,colors=colors,
     characterImages=content.characterImages,npcImages=content.npcImages,mobImages=content.mobImages,
     characterWalkImages=content.characterWalkImages,npcWalkImages=content.npcWalkImages,
@@ -73,11 +74,13 @@ local function new(context)
   })
 
   inventoryActions=InventoryActions.new({
+    commands=context.inventoryCommands,
     runtime=runtime,inventory=Inventory,catalog=Catalog,util=Util,trainUpgradeBalance=TrainUpgradeBalance,lootProgression=LootProgression,writeSave=writeSave,
     useBattleHealingItem=battleRuntime.useHealingItem,useBattlePotion=battleRuntime.usePotion,
   })
 
   journeyRules=JourneyRules.new({
+    commands=context.inventoryCommands,
     runtime=runtime,car=car,inventory=Inventory,catalog=Catalog,engineUpgrades=EngineUpgrades,
     progressionBalance=ProgressionBalance,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,
     questProgression=QuestProgression,lootProgression=LootProgression,battleRules=BattleRules,
@@ -90,6 +93,7 @@ local function new(context)
   })
 
   eventRuntime=EventRuntime.new({
+    commands=context.inventoryCommands,
     runtime=runtime,ui=ui,events=Events,eventUI=EventUI,catalog=Catalog,combatBalance=CombatBalance,eventBalance=EventBalance,trainUpgradeBalance=TrainUpgradeBalance,pointIn=Util.pointIn,
     writeSave=writeSave,beginEncounter=battleRuntime.beginEncounter,enterStop=journeyRules.enterStop,
   })

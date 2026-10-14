@@ -82,7 +82,7 @@ local function new(context)
       returnVisibleDuringGreeting=false,returnVisibleDuringTrade=false,returnVisibleAcrossOverlays=false,
       returnControlLarge=false,settingsClosed=false,overlaysCleared=false,returned=false,returnedDuringTrade=false,positionRestored=false}
     local original={
-      state=runtime.state,saveData=runtime.saveData,player=runtime.player,scene=runtime.scene,npcActor=runtime.npcActor,
+      state=runtime.state,saveData=runtime.saveData,player=runtime.player,scene=runtime.scene,npcActor=runtime.npcActor,selectedSlot=runtime.selectedSlot,
       dialogue=runtime.dialogue,tradeOpen=runtime.tradeOpen,tradeNPC=runtime.tradeNPC,
       tradeMerchantId=runtime.tradeMerchantId,tradeMessage=runtime.tradeMessage,tradeBuyPage=runtime.tradeBuyPage,tradeSellPage=runtime.tradeSellPage,
       inventoryOpen=runtime.inventoryOpen,mapOpen=runtime.mapOpen,chestOpen=runtime.chestOpen,activeChest=runtime.activeChest,
@@ -95,6 +95,7 @@ local function new(context)
       radioOpen=ui.radioOpen,mobileMenuOpen=ui.mobileMenuOpen,editSliderDrag=ui.editSliderDrag,
     }
     local ok,errorMessage=xpcall(function()
+      runtime.selectedSlot=99; Save.remove(99)
       local data=sessionBootstrap.newSave(characters[1])
       local stop=data.crowCaravans.scheduledStops[1]
       local player={x=480,y=600,facing=1,velocityX=0,velocityY=0,intentX=1,intentY=0}
@@ -126,6 +127,11 @@ local function new(context)
       local before=source and source.stock and source.stock[1] and source.stock[1].quantity
       local purchase=MerchantTrade.buy(data,Catalog,source,1)
       flow.purchased=purchase.ok==true and source.stock[1].quantity==before-1
+      local Items=require("game.item_instances")
+      local soldName="frontier-short-sword"
+      Items.write(data,nil,{kind="inventory",index=1},soldName)
+      local sold=Items.get(data,nil,{kind="inventory",index=1}); sold.durability=24
+      local soldId=sold.id
       views.gameplayHUD.draw()
       local saleControl=ui.tradeSell and ui.tradeSell[1]
       if saleControl then
@@ -137,7 +143,8 @@ local function new(context)
       local resaleCamp=data.crowCaravans.camps[tostring(stop)]
       local resale=resaleCamp.resaleStock and resaleCamp.resaleStock[1]
       local resaleId=resale and resale.id
-      flow.resaleStocked=data.inventory[1]==nil and resale and resale.item=="orange-rose-vase" and resale.quantity==1 or false
+      flow.resaleStocked=data.inventory[1]==nil and resale and resale.item==soldName and resale.quantity==1
+        and resale.instances[1].id==soldId and resale.instances[1].durability==24 or false
       views.gameplayHUD.draw()
       local nextControl=ui.tradeBuyNext
       if nextControl then
@@ -166,11 +173,15 @@ local function new(context)
           love.touchpressed("smoke-caravan-confirm",confirmX,confirmY); love.touchreleased("smoke-caravan-confirm",confirmX,confirmY)
         else input.gameplayInput.mousepressed(confirmX,confirmY,1,false,1) end
       end
-      flow.resalePurchased=data.inventory[1]=="orange-rose-vase" and resale.quantity==0
+      local repurchased=Items.get(data,nil,{kind="inventory",index=1})
+      flow.resalePurchased=data.inventory[1]==soldName and resale.quantity==0
+        and repurchased and repurchased.id==soldId and repurchased.durability==24
       local persistedData=assert(SaveSchema.copy(data))
       local persistedCamp=assert(CrowCaravans.ensureCamp(persistedData,Catalog,stop))
       local persistedResale=persistedCamp.resaleStock and persistedCamp.resaleStock[1]
-      flow.resalePersisted=persistedResale and persistedResale.id==resaleId and persistedResale.quantity==0 or false
+      local persistedItem=Items.get(persistedData,nil,{kind="inventory",index=1})
+      flow.resalePersisted=persistedResale and persistedResale.id==resaleId and persistedResale.quantity==0
+        and persistedItem and persistedItem.id==soldId and persistedItem.durability==24 or false
       runtime.inventoryOpen=true; runtime.mapOpen=true
       runtime.dialogue={speaker="Overlay audit",text="The exit must remain available.",timer=5}
       runtime.tradeOpen=true; runtime.trainUpgradeOpen=true; runtime.poseMenu=true
@@ -211,7 +222,9 @@ local function new(context)
       flow.returned=flow.returnedDuringTrade and runtime.scene=="stop"
       flow.positionRestored=math.abs(player.x-returnX)<.01 and math.abs(player.y-returnY)<.01
     end,debug.traceback)
+    Save.remove(99); runtime.selectedSlot=original.selectedSlot
     runtime.state=original.state; runtime.saveData=original.saveData; runtime.player=original.player; runtime.scene=original.scene
+    if ui.checkpointStatus then ui.checkpointStatus() end
     runtime.npcActor=original.npcActor; runtime.dialogue=original.dialogue; runtime.tradeOpen=original.tradeOpen
     runtime.tradeNPC=original.tradeNPC; runtime.tradeMerchantId=original.tradeMerchantId
     runtime.tradeMessage=original.tradeMessage; runtime.tradeBuyPage=original.tradeBuyPage; runtime.tradeSellPage=original.tradeSellPage
@@ -260,6 +273,7 @@ local function new(context)
       newSave=sessionBootstrap.newSave,enterGame=sessionBootstrap.enterGame,
       ensureStopLayout=worldScene.ensureStopLayout,setupNPC=worldScene.setupNPC,
       beginEncounter=battleRuntime.beginEncounter,consumeSelected=inventoryActions.consumeSelected,
+      attemptLeaveTrain=journeyRules.attemptLeaveTrain,
       balanceAudit=journeyRules.balanceAudit,combatBalanceAudit=battleRuntime.balanceAudit,upgradeBalanceAudit=journeyRules.upgradeBalanceAudit,
       battleGridAudit=battleRuntime.gridAudit,
       playerBalanceAudit=battleRuntime.playerBalanceAudit,
@@ -269,6 +283,7 @@ local function new(context)
       helpBalanceAudit=journeyRules.helpBalanceAudit,
       beginRandomEvent=eventRuntime.beginRandom,eventBalanceAudit=eventRuntime.balanceAudit,
       resolveEventChoice=eventRuntime.choose,advanceBattleTurn=battleRuntime.advanceTurn,
+      continueEvent=eventRuntime.continueEvent,
       battleAttack=battleRuntime.attack,resolveBattleAttack=battleRuntime.resolveAttack,
     })
   end

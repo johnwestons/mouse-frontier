@@ -50,7 +50,7 @@ local function new(context)
   local function currentContext()
       local battleMode=runtime.state=="battle"
       return {
-          data=runtime.saveData,
+          data=type(context.data)=='function' and context.data() or runtime.saveData,
           activeChest=runtime.activeChest,
           chestOpen=runtime.chestOpen,
           inventoryOpen=runtime.inventoryOpen,

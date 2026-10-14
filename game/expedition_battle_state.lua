@@ -97,10 +97,11 @@ function State.recover(data,catalog)
     end
     if not battle then return nil,false end
     if battle.finished then State.settle(data,catalog,battle,battle.finished); return nil,true end
+    local ownershipChanged=require("game.battle_weapon_ownership").restore(data,battle,catalog)
     local destination=battle.encounter.returnContext
     data.scene="expedition"; data.activeExpeditionArea=destination.areaId
     data.playerX,data.playerY=destination.x,destination.y
-    return battle,false
+    return battle,ownershipChanged
 end
 
 return State

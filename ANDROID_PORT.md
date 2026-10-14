@@ -2,6 +2,8 @@
 
 The Android edition uses the same Lua game and save schema as the Windows edition. There is no copied mobile gameplay tree to synchronize.
 
+The version 30 co-op candidate adds the shared **Local Play** menu with automatic LAN discovery, optional automatic joining, Wi-Fi, USB tether and manual connections. Follow [Local Play](docs/LOCAL_PLAY.md) and [co-op packaging](docs/COOP_PACKAGING.md) for controls, exact candidate evidence and limitations. Version 30 has been built and checked as an APK; Android runtime and separate-device networking have not yet been verified. The installed-build history below remains separate from that candidate.
+
 ## Current build
 
 Build `0.7.0-mobile.29` (`versionCode` 29) was packaged October 5, 2026 with the audio recovery changes committed in `2de25cb`.

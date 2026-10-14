@@ -1,10 +1,13 @@
 local UI=require("game.player_tools_ui")
 local Viewport=require("game.viewport")
 local UIStyle=require("game.ui_layout")
+local WorldPause=require("game.world_pause")
 local Host={}
 function Host.wrap(application,context)
     local original={}; for key,value in pairs(application) do original[key]=value end
+    local menu
     local function cancelInput()
+        context.ui.playerToolsOpen=menu and menu.open==true or false
         if context.ui.suspendOutfitWorkbench then context.ui.suspendOutfitWorkbench() end
         local controls=context.mobile.get(); if controls then controls:cancelAll() end
         context.presentation.endPan()
@@ -16,7 +19,7 @@ function Host.wrap(application,context)
         if runtime.state=="game" then return "game_"..tostring(runtime.scene or "train") end
         return tostring(runtime.state or "screen")
     end})
-    local menu=UI.new({filesystem=context.filesystem,ui=context.ui,controls=context.mobile.get,uiedit=layoutEditor,
+    menu=UI.new({filesystem=context.filesystem,ui=context.ui,controls=context.mobile.get,uiedit=layoutEditor,
         data=function()
             local state=context.runtime.state
             return (state=="game" or state=="battle" or state=="event" or state=="ending") and context.runtime.saveData or nil
@@ -29,11 +32,17 @@ function Host.wrap(application,context)
         local r=accessRect()
         return r and x>=r.x and x<=r.x+r.w and y>=r.y and y<=r.y+r.h
     end
-    local function show(tab) cancelInput(); menu:show(); if tab then menu.tab=tab end end
-    context.ui.openTouchControls=function() show("Controls") end
+    local function show(tab)
+        local session=context.runtime.session
+        if context.ui.checkpointBlocked or session and session.checkpointPending then return false end
+        cancelInput(); menu:show(); context.ui.playerToolsOpen=true; if tab then menu.tab=tab end
+        return true
+    end
+    context.ui.openTouchControls=function() return show("Controls") end
     local function position(x,y) return context.presentation.screenToGame(x,y) end
     function application.update(dt)
-        if menu.open then context.persistence.update(dt); return true end
+        context.ui.playerToolsOpen=menu.open==true
+        if menu.open and not WorldPause.isSharedHost(context.runtime) then context.persistence.update(dt); return true end
         return original.update(dt)
     end
     function application.draw()

@@ -1,4 +1,5 @@
 local LootProgression = {}
+local Items = require("game.item_instances")
 
 LootProgression.rarityOrder={"common","uncommon","rare","legendary"}
 LootProgression.rarityRank={common=1,uncommon=2,rare=3,legendary=4}
@@ -258,13 +259,11 @@ function LootProgression.weaponCondition(durability)
     return {durability=durability,label="sound",multiplier=1}
 end
 
-function LootProgression.wearWeapon(data,name,amount)
+function LootProgression.wearWeapon(data,name,amount,ref)
     if not name or name=="scratch" then return 100 end
-    data.weaponDurability=data.weaponDurability or {}
-    local before=data.weaponDurability[name]
-    if before==nil then before=100 end
-    data.weaponDurability[name]=math.max(0,before-math.max(0,math.floor(amount or 1)))
-    return data.weaponDurability[name]
+    local after=math.max(0,Items.condition(data,name,ref)-math.max(0,math.floor(amount or 1)))
+    if not Items.setCondition(data,name,after,ref) then return nil,"ownership" end
+    return after
 end
 
 function LootProgression.repairCost(catalog,name,durability)
@@ -314,6 +313,23 @@ function LootProgression.ownedWeapons(data,catalog)
     return owned
 end
 
+function LootProgression.repairChoices(data,catalog)
+    if not Items.enabled(data) then return LootProgression.ownedWeapons(data,catalog) end
+    local entries=Items.weapons(data,catalog)
+    local ranks={}
+    for index,name in ipairs(catalog.weaponProgression or {}) do ranks[name]=index end
+    table.sort(entries,function(a,b)
+        local ra,rb=ranks[a.name] or 0,ranks[b.name] or 0
+        if ra~=rb then return ra<rb end
+        if a.name~=b.name then return a.name<b.name end
+        if a.ref.kind~=b.ref.kind then return a.ref.kind<b.ref.kind end
+        return a.ref.index<b.ref.index
+    end)
+    local result={}
+    for _,entry in ipairs(entries) do result[#result+1]=entry.key end
+    return result
+end
+
 local function inventoryPartCount(data,catalog,partName)
     local count=0
     for index=1,(data.inventoryCapacity or 6) do
@@ -325,7 +341,14 @@ end
 
 function LootProgression.repairStatus(data,catalog,name)
     local candidate
-    if name then
+    if Items.identified(data) then
+        for _,entry in ipairs(Items.weapons(data,catalog)) do
+            local eligible=name and entry.key==name or (not name and entry.ref.kind=="equipment" and entry.durability<100)
+            if eligible and (not candidate or entry.durability<candidate.durability) then
+                candidate={name=entry.name,itemId=entry.id,ref=entry.ref,durability=entry.durability}
+            end
+        end
+    elseif name then
         if ownsWeapon(data,catalog,name) then
             candidate={name=name,durability=LootProgression.weaponCondition(data.weaponDurability and data.weaponDurability[name]).durability}
         end
@@ -362,16 +385,15 @@ function LootProgression.completeRepair(data,catalog,name,quality)
         restored=math.max(status.durability,restored)
     end
     if restored<=status.durability then return {ok=false,reason="precision",status=status} end
-    data.weaponDurability=data.weaponDurability or {}
+    if not Items.setCondition(data,status.itemId or status.name,restored,status.ref) then return {ok=false,reason="ownership",status=status} end
     data.scrap=data.scrap-status.cost
-    data.weaponDurability[status.name]=restored
     if status.major then
         for index=1,(data.inventoryCapacity or 6) do
             local item=data.inventory and data.inventory[index]
-            if item and canonicalRepairPart(catalog,item)==status.part then data.inventory[index]=nil; break end
+            if item and canonicalRepairPart(catalog,item)==status.part then Items.write(data,nil,{kind="inventory",index=index},nil); break end
         end
     end
-    return {ok=true,name=status.name,cost=status.cost,quality=quality,restored=restored,part=status.major and status.part or nil,
+    return {ok=true,name=status.name,itemId=status.itemId,cost=status.cost,quality=quality,restored=restored,part=status.major and status.part or nil,
         status=LootProgression.repairStatus(data,catalog,name)}
 end
 
@@ -387,16 +409,16 @@ function LootProgression.rollRepairPart(data,catalog,location,rng,options)
     end
     table.sort(all)
     if #all==0 then return nil end
-    local targeted,hasParts={},{}
+    local targeted,hasParts,targetedParts={},{},{}
     for index=1,(data.inventoryCapacity or 6) do
         local part=canonicalRepairPart(catalog,data.inventory and data.inventory[index])
         if part then hasParts[part]=(hasParts[part] or 0)+1 end
     end
-    for _,weapon in ipairs(LootProgression.ownedWeapons(data,catalog)) do
-        local durability=LootProgression.weaponCondition(data.weaponDurability and data.weaponDurability[weapon]).durability
+    for _,entry in ipairs(Items.weapons(data,catalog)) do
+        local weapon,durability=entry.name,entry.durability
         if durability<=25 then
             local part=LootProgression.repairPartFor(catalog,weapon)
-            if part and not hasParts[part] then targeted[#targeted+1]=part end
+            if part and not hasParts[part] and not targetedParts[part] then targeted[#targeted+1]=part; targetedParts[part]=true end
         end
     end
     if #targeted>0 then

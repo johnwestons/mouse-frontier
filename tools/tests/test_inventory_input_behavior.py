@@ -52,7 +52,8 @@ class InventoryInputBehaviorTests(unittest.TestCase):
     def test_double_tap_weapon_transfers_between_chest_and_backpack(self) -> None:
         self.lua.execute(r'''
             local data=assert(Schema.migrate({character='mouse-engineer.png'}))
-            local chest={name='travel-chest',storage={[1]='frontier-short-sword'}}
+            local chest={name='travel-chest',storage={}}
+            Inventory.setValue(data,chest,{kind='chest',index=1},'frontier-short-sword')
             local ctx=newInventoryContext(data,chest)
             InventoryUI.handleClick(ctx,60,240)
             setTime(.2)

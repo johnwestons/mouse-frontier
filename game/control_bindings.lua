@@ -55,7 +55,7 @@ local KEY_ACTIONS={
 }
 
 local BUTTON_ACTIONS={
-    {id="move_up",label="Move up",group="Movement",scope="game",token="w",default="dpadup"},
+    {id="move_up",label="Move up",group="Movement",scope="game",token="w",default="dpup"},
     {id="move_left",label="Move left",group="Movement",scope="game",token="a",default="dpleft"},
     {id="move_down",label="Move down",group="Movement",scope="game",token="s",default="dpdown"},
     {id="move_right",label="Move right",group="Movement",scope="game",token="d",default="dpright"},
@@ -75,6 +75,18 @@ local BUTTON_ACTIONS={
     {id="confirm",label="Confirm / continue",group="Menus",scope="menu",token="return",default="a"},
     {id="cancel",label="Back / cancel",group="Menus",scope="menu",token="escape",default="b"},
     {id="menu_pause",label="Pause / back",group="Menus",scope="menu",token="escape",default="start"},
+    {id="menu_page_up",label="Previous page",group="Menus",scope="menu",token="pageup",default="leftshoulder"},
+    {id="menu_page_down",label="Next page",group="Menus",scope="menu",token="pagedown",default="rightshoulder"},
+    {id="guest_actions",label="Companion action controls",group="Companion",scope="guest_world",token="guest-actions",default="back"},
+    {id="guest_workshop",label="Train workshop",group="Companion",scope="guest_world",token="u"},
+    {id="guest_service",label="Train maintenance",group="Companion",scope="guest_world",token="m"},
+    {id="guest_repair",label="Weapon repair bench",group="Companion",scope="guest_world",token="r"},
+    {id="guest_sewing",label="Sewing bench",group="Companion",scope="guest_world",token="c"},
+    {id="guest_fuel",label="Add train fuel",group="Companion",scope="guest_world",token="f"},
+    {id="guest_editor",label="Train decorations",group="Companion",scope="guest_world",token="o"},
+    {id="guest_pose",label="Character poses",group="Companion",scope="guest_world",token="pose"},
+    {id="guest_car_previous",label="Previous train car",group="Companion",scope="guest_world",token="["},
+    {id="guest_car_next",label="Next train car",group="Companion",scope="guest_world",token="]"},
     {id="battle_inventory",label="Open inventory",group="Battle",scope="battle",token="i",default="y"},
     {id="battle_heal",label="Heal",group="Battle",scope="battle",token="h",default="x"},
     {id="battle_move",label="Move",group="Battle",scope="battle",token="m",default="leftshoulder"},
@@ -100,6 +112,25 @@ local BUTTON_ACTIONS={
     {id="ls_scene_action",label="Scene action",group="Last Stand",scope="last_stand_world",token="e",default="a"},
     {id="ls_escort_continue",label="Continue escort",group="Last Stand",scope="last_stand_escort",token="space",default="a"},
     {id="ls_treatment_confirm",label="Confirm treatment",group="Last Stand",scope="last_stand_treatment",token="return",default="a"},
+    {id="ls_position_left",label="Choose wide window",group="Last Stand position",scope="last_stand_position",token="left",default="dpleft"},
+    {id="ls_position_right",label="Choose tall window",group="Last Stand position",scope="last_stand_position",token="right",default="dpright"},
+    {id="ls_position_ready",label="Confirm personal firing position",group="Last Stand position",scope="last_stand_position",token="return",default="a"},
+    {id="ls_position_release",label="Release personal firing position",group="Last Stand position",scope="last_stand_position",token="backspace",default="b"},
+    {id="ls_position_menu",label="Local Play menu",group="Last Stand position",scope="last_stand_position",token="f8",default="back"},
+    {id="range_up",label="Previous setup row",group="Shooting Range",scope="shooting_range",token="up",default="dpup"},
+    {id="range_down",label="Next setup row",group="Shooting Range",scope="shooting_range",token="down",default="dpdown"},
+    {id="range_left",label="Previous setup option",group="Shooting Range",scope="shooting_range",token="left",default="dpleft"},
+    {id="range_right",label="Next setup option",group="Shooting Range",scope="shooting_range",token="right",default="dpright"},
+    {id="range_confirm",label="Start / confirm range",group="Shooting Range",scope="shooting_range",token="return",default="a"},
+    {id="range_close",label="Close practice",group="Shooting Range",scope="shooting_range",token="e",default="b"},
+    {id="range_fire",label="Fire at range",group="Shooting Range",scope="shooting_range",token="space",default="x"},
+    {id="range_reload",label="Reload at range",group="Shooting Range",scope="shooting_range",token="r",default="y"},
+    {id="range_setup",label="Return to range setup",group="Shooting Range",scope="shooting_range",token="tab",default="leftshoulder"},
+    {id="range_mode",label="Range fire mode",group="Shooting Range",scope="shooting_range",token="v",default="rightshoulder"},
+    {id="range_monocular",label="Range monocular",group="Shooting Range",scope="shooting_range",token="o",default="rightstick"},
+    {id="range_ammo",label="Buy range ammunition",group="Shooting Range",scope="shooting_range",token="b",default="leftstick"},
+    {id="range_pause",label="Pause own range",group="Shooting Range",scope="shooting_range",token="p",default="start"},
+    {id="range_menu",label="Range Local Play menu",group="Shooting Range",scope="shooting_range",token="f8",default="back"},
 }
 
 local AXIS_ACTIONS={
@@ -143,6 +174,9 @@ function Bindings:load()
         if device=="key" then
             for _,entry in ipairs(KEY_ACTIONS) do if entry.id==id then self.keyboard[id]=value~="none" and value or nil end end
         elseif device=="button" then
+            -- Correct the formerly shipped default without replacing explicit
+            -- unbound choices or another custom controller assignment.
+            if id=="move_up" and value=="dpadup" then value="dpup" end
             for _,entry in ipairs(BUTTON_ACTIONS) do if entry.id==id then self.buttons[id]=validName(value,buttonNames) end end
         elseif device=="axis" then
             for _,entry in ipairs(AXIS_ACTIONS) do if entry.id==id then self.axes[id]=validName(value,axisNames) end end
@@ -255,12 +289,14 @@ function Bindings:translateKey(key)
 end
 
 function Bindings:translateButton(button,scope)
+    local specific={}
     for _,entry in ipairs(BUTTON_ACTIONS) do
+        if entry.scope==scope then specific[entry.token]=true end
         if entry.scope==scope and self.buttons[entry.id]==button then return entry.token,entry.id end
     end
     if type(scope)=="string" and scope:match("^last_stand_") then
         for _,entry in ipairs(BUTTON_ACTIONS) do
-            if entry.scope=="last_stand" and self.buttons[entry.id]==button then return entry.token,entry.id end
+            if entry.scope=="last_stand" and not specific[entry.token] and self.buttons[entry.id]==button then return entry.token,entry.id end
         end
     end
     return nil

@@ -39,13 +39,28 @@ function Balance.passengerLoad(data,count)
   return Balance.owns(data,"sleeper") and math.ceil(count/2) or count
 end
 
-function Balance.applyArrival(data)
+function Balance.applyArrival(data,participants)
   local result={food=0,health=0}
   if Balance.owns(data,"greenhouse") then result.food=Balance.addResource(data,"food",2) end
   if Balance.owns(data,"medical") then
-    local before=data.health or 0
-    data.health=math.min(data.maxHealth or before,before+3)
-    result.health=data.health-before
+    if participants then
+      result.actorHealth={}
+      local seen={}
+      for _,id in ipairs(participants) do
+        local actor=data.players and data.players[id]
+        if actor and not seen[id] then
+          seen[id]=true
+          local before=actor.health or 0
+          actor.health=math.min(actor.maxHealth or before,before+3)
+          result.actorHealth[id]=actor.health-before
+          if id=='host' then result.health=actor.health-before end
+        end
+      end
+    else
+      local before=data.health or 0
+      data.health=math.min(data.maxHealth or before,before+3)
+      result.health=data.health-before
+    end
   end
   return result
 end

@@ -1,6 +1,12 @@
 local Rules=require("game.train_ambush_rules")
+local CoopProgression=require("game.coop_progression")
 local Scene=require("game.train_ambush_scene")
 local Shooting=require("game.first_person_shooting")
+local Sessions=require('game.coop_shooter_sessions')
+local GunCommands=require('game.coop_guns')
+local ActorState=require('game.coop_ambush_state')
+local Players=require('game.coop_players')
+local WorldPause=require('game.world_pause')
 local Typography=require("game.typography")
 local Accessibility=require("game.accessibility")
 local Ambush={}
@@ -10,12 +16,15 @@ function Ambush.new(context)
     local w,h=context.width,context.height
     local save=context.writeSave
     local service={}
-    local bound,gun,data,impact
+    local bound,gun,data,impact,encounterId
     local held,touches={},{}
     local paused=false
     local saveClock=0
+    local settlementPending=false
     local controllerFire,controllerADS=false,false
     local controllerReady=false
+    local controllerPressed={}
+    local controllerDomain
     local actions={
         {label="FIRE\nLMB / SPACE",key="space"},{label="AIM\nRMB",key="aim"},{label="RELOAD\nR",key="r"},
         {label="COVER\nC",key="c"},{label="WEAPON\nTAB",key="tab"},{label="MODE\nV",key="v"},
@@ -33,22 +42,47 @@ function Ambush.new(context)
         local state=runtime.saveData and runtime.saveData.trainAmbush
         return runtime.state=="game" and type(state)=="table" and state.active==true
     end
-    function service:suspend()
+    function service:suspend(preserveButtons)
         held={}; touches={}; controllerFire=false; controllerADS=false; controllerReady=false
+        if not preserveButtons then controllerPressed={} end
         if gun then Shooting.setADS(gun,false) end
+    end
+    local function localPaused() return paused or context.inputPaused and context.inputPaused() or false end
+    function service:commandState(id)
+        local current=runtime.saveData and runtime.saveData.trainAmbush
+        if not self:isCapturing() or bound~=current then return nil end
+        if id=='companion' then
+            local ready=false
+            for _,participant in ipairs(context.participants and context.participants() or {}) do if participant==id then ready=true end end
+            if not ready then return nil end
+        end
+        return {active=true,encounterId=current.entityId,
+            paused=settlementPending or (id=='companion' and not WorldPause.isSharedHost(runtime)) or (id~='companion' and localPaused())}
     end
     local function bind()
         if not service:isCapturing() then return false end
+        if settlementPending then
+            if not context.checkpointPending or context.checkpointPending() then return false end
+            settlementPending=false
+        end
         data=runtime.saveData
         local state=Rules.start(data)
         if bound~=state then
+            if context.submit then
+                local reply=context.submit('ambush.start',{encounterId=state.entityId})
+                if not reply or not reply.ok or reply.savePending then service:suspend(); return false end
+            end
             service:suspend()
             bound=state
             gun=Shooting.new(data,catalog,state,w,h)
-            paused=false; saveClock=0; impact=nil
+            if encounterId~=state.entityId then paused=false end
+            encounterId=state.entityId; saveClock=0; impact=nil
             runtime.dialogue=nil
         end
         runtime.trainAmbush=state
+        local domain=tostring(state.entityId)..':'..state.phase
+        if controllerDomain and controllerDomain~=domain then service:suspend() end
+        controllerDomain=domain
         return true
     end
     local function aim(x,y,touch)
@@ -56,9 +90,31 @@ function Ambush.new(context)
         if touch then Shooting.setTouchAim(gun,x,y,w,h)
         else Shooting.setAim(gun,math.max(0,math.min(w,x)),math.max(0,math.min(h,y))) end
     end
+    local function command(name,args)
+        if not context.submit then return nil end
+        args=args or {}; args.mode='ambush'; args.encounterId=bound.entityId
+        if name~='gun.cover' then args.weaponId=args.weaponId or gun.itemId end
+        local reply=context.submit(name,args)
+        if reply.ok and bound.weaponSession and Sessions.record(gun)~=bound.weaponSession then
+            local x,y,ads=gun.aimX,gun.aimY,gun.ads
+            gun=Sessions.view(bound.weaponSession,w,h)
+            Shooting.setAim(gun,x,y); Shooting.setADS(gun,ads)
+        end
+        return reply
+    end
     local function fire()
-        if paused or bound.phase~="combat" or bound.cover or bound.coverProgress>0 then return end
+        if localPaused() or bound.phase~="combat" or bound.cover or bound.coverProgress>0 then return end
         if not Scene.pointOpen(bound,w,h,gun.aimX,gun.aimY) then return end
+        if context.submit then
+            local reply=command('gun.fire',{x=math.floor(gun.aimX/w*GunCommands.POINT+.5),y=math.floor(gun.aimY/h*GunCommands.POINT+.5)})
+            if not reply.ok then
+                if reply.reason=='reload' then command('gun.reload') end
+                return
+            end
+            if reply.result.hit then impact={x=gun.aimX,y=gun.aimY,time=.22} end
+            if reply.durable then Shooting.playReport(gun.weapon,catalog,data) end
+            return
+        end
         local fired,reason=Shooting.fire(gun,data,bound)
         if not fired then
             if reason=="reload" then Shooting.reload(gun,data,bound); save() end
@@ -82,12 +138,20 @@ function Ambush.new(context)
         end
         if #options==0 then return end
         local selected=0
-        for i,entry in ipairs(options) do if entry.name==gun.weapon then selected=i; break end end
+        for i,entry in ipairs(options) do if entry.name==gun.weapon and entry.itemId==gun.itemId then selected=i; break end end
         service:suspend()
-        gun=Shooting.chooseWeapon(gun,options[selected%#options+1],data,catalog,bound)
-        save()
+        if context.submit then command('gun.select',{weaponId=options[selected%#options+1].itemId})
+        else gun=Shooting.chooseWeapon(gun,options[selected%#options+1],data,catalog,bound); save() end
     end
     local function continueJourney()
+        if not CoopProgression.allowed(runtime,"ambush.continue") then return false,"host_only" end
+        if context.submit then
+            local reply=context.submit('ambush.continue',{encounterId=bound.entityId})
+            if not reply or not reply.ok then return false,reply and reply.reason or 'ambush_unavailable' end
+            service:suspend()
+            if not reply.savePending then bound=nil; gun=nil; runtime.trainAmbush=nil; Scene.release(); Shooting.release() end
+            return true
+        end
         bound.active=false
         runtime.trainAmbush=nil
         service:suspend()
@@ -108,12 +172,21 @@ function Ambush.new(context)
             return
         end
         if key=="withdraw" or key=="x" then
+            if not CoopProgression.allowed(runtime,"ambush.withdraw") then return false,"host_only" end
+            if context.submit then
+                local reply=context.submit('ambush.withdraw',{encounterId=bound.entityId})
+                if reply and reply.ok then service:suspend() end
+                return reply and reply.ok or false,reply and reply.reason
+            end
             if Rules.withdraw(data,bound) then service:suspend(); save() end
         elseif key=="c" then
-            bound.cover=not bound.cover; service:suspend(); save()
-        elseif key=="r" then Shooting.reload(gun,data,bound); save()
+            service:suspend()
+            if context.submit then command('gun.cover',{cover=not bound.cover}) else bound.cover=not bound.cover; save() end
+        elseif key=="r" then
+            if context.submit then command('gun.reload') else Shooting.reload(gun,data,bound); save() end
         elseif key=="tab" then cycleWeapon()
-        elseif key=="v" then Shooting.cycleFireMode(gun); save()
+        elseif key=="v" then
+            if context.submit then service:suspend(); command('gun.mode') else Shooting.cycleFireMode(gun); save() end
         elseif key=="aim" and not bound.cover then Shooting.setADS(gun,not gun.ads)
         elseif key=="space" then fireHeld("keyboard",true) end
     end
@@ -183,47 +256,83 @@ function Ambush.new(context)
     end
     function service:gamepadpressed(_,button)
         if not bind() then return false end
-        if button=="start" then action("p")
-        elseif bound.phase=="result" and button=="a" then action("return")
-        elseif button=="b" then action("withdraw")
-        else
-            local key=context.controlBindings:translateButton(button,"last_stand_shootout")
-            if key then action(key) end
-        end
+        if controllerPressed[button] or context.inputPaused and context.inputPaused() then return true end
+        local key,id=context.controlBindings:translateButton(button,"last_stand_shootout")
+        if id~='ls_pause' and (bound.phase=='result' or paused) then
+            key=context.controlBindings:translateButton(button,'menu')
+            if key~='return' then key=nil end
+        elseif key=='escape' then key='withdraw' end
+        if not key then return true end
+        local domain=controllerDomain
+        if key=='space' then fireHeld('gamepad:'..button,true) else action(key) end
+        -- Actions can suspend or replace the scene. Never retain a hold from
+        -- an obsolete encounter; pause still requires release before toggling.
+        if bound and controllerDomain==domain then controllerPressed[button]={key=key,domain=domain} end
         return true
     end
     function service:gamepadreleased(_,button)
         if not self:isCapturing() then return false end
-        local key=context.controlBindings:translateButton(button,"last_stand_shootout")
-        if key=="space" then fireHeld("keyboard",false) end
+        local previous=controllerPressed[button]; controllerPressed[button]=nil
+        if previous and previous.key=='space' then fireHeld('gamepad:'..button,false) end
         return true
     end
     function service:focus(focused)
         if not focused and self:isCapturing() then paused=true; self:suspend(); save() end
     end
     function service:update(dt)
+        if not CoopProgression.allowed(runtime,"ambush.continue") then return self:isCapturing() end
         if not bind() then
             if bound then self:suspend(); bound=nil; gun=nil; runtime.trainAmbush=nil; Scene.release(); Shooting.release() end
             return false
         end
         dt=math.min(dt,.1)
-        if paused or bound.phase=="result" then return true end
+        local shared=WorldPause.isSharedHost(runtime)
+        local inputPaused=localPaused()
+        if inputPaused then self:suspend(paused and not (context.inputPaused and context.inputPaused())) end
+        if not shared and inputPaused or bound.phase=="result" then return true end
+        local ids=context.participants and context.participants() or {'host'}
+        if shared then
+            local readyIds={}
+            for _,id in ipairs(ids) do
+                if id~='host' or not inputPaused then readyIds[#readyIds+1]=id end
+            end
+            ids=readyIds
+            -- A private host menu must leave a ready friend playing, while
+            -- admission/restart with nobody ready must not consume the convoy
+            -- or its personal timers behind inaccessible controls.
+            if #ids==0 then self:suspend(); return true end
+        end
+        for _,id in ipairs(ids) do
+            if id=='companion' and data.players and data.players.companion then
+                ActorState.owner(bound,id,true)
+                local own=Players.forActor(data,id); local scope=Sessions.scope(own,bound)
+                if not scope.weaponSession then Shooting.new(own,catalog,bound,w,h) end
+            end
+        end
         local bindings=context.controlBindings
-        local dx,dy=bindings:axisValue("aim_x"),bindings:axisValue("aim_y")
+        local dx,dy=0,0
+        if not inputPaused then dx,dy=bindings:axisValue("aim_x"),bindings:axisValue("aim_y") end
         if dx~=0 or dy~=0 then aim(gun.aimX+dx*340*dt,gun.aimY+dy*340*dt) end
-        local firing,ads=bindings:axisValue("fire")>.4,bindings:axisValue("ads")>.4
+        local firing,ads=false,false
+        if not inputPaused then firing,ads=bindings:axisValue("fire")>.4,bindings:axisValue("ads")>.4 end
         if not firing and not ads then controllerReady=true end
         if controllerReady then
             if firing~=controllerFire then fireHeld("controller",firing) end
             if ads~=controllerADS and not bound.cover then Shooting.setADS(gun,ads) end
             controllerFire,controllerADS=firing,ads
         end
-        Shooting.update(gun,dt,data,bound,w,h)
+        if data.players then ActorState.updateGuns(data,bound,dt,w,h) else Shooting.update(gun,dt,data,bound,w,h) end
         if gun.fireMode=="auto" and next(held) then fire() end
         if impact then impact.time=impact.time-dt end
+        local previousOutcome=bound.outcome
         local changed=Rules.update(data,bound,dt,function()
             Shooting.playReport("frontier-22-lever-rifle",catalog,data,true)
-        end)
+        end,ids)
+        if not previousOutcome and bound.outcome and context.checkpointSettlement then
+            settlementPending=context.checkpointSettlement()~=true
+            self:suspend()
+            if settlementPending then return true end
+        end
         saveClock=saveClock+dt
         if changed or saveClock>=1 then saveClock=0; save() end
         return true
@@ -233,7 +342,7 @@ function Ambush.new(context)
         local g=love.graphics
         g.push("all")
         g.setFont(Typography.font(g))
-        Scene.draw(bound,w,h,data.accessibility,impact)
+        Scene.draw(bound,w,h,Accessibility.ensure(data),impact)
         if bound.coverProgress==0 and bound.phase~="result" then
             Shooting.draw(gun,w,h)
             g.setColor(1,.94,.75,1)
@@ -270,7 +379,8 @@ function Ambush.new(context)
             g.setColor(1,.89,.68,1)
             if paused then
                 label("PAUSED",100,h*.3,w-200,60,1.3)
-                label("P / START to resume. Tap to resume.",100,h*.45,w-200,55)
+                label(WorldPause.isSharedHost(runtime) and "Your controls are paused. Your friend can keep playing.\nP / START to resume. Tap to resume."
+                    or "P / START to resume. Tap to resume.",100,h*.45,w-200,55)
             else
                 local won=bound.outcome=="disabled" or bound.outcome=="crew"
                 label(won and "BANDITS DRIVEN OFF" or "ENCOUNTER ENDED",90,h*.27,w-180,60,1.25)

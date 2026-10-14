@@ -4,6 +4,7 @@ local FirstPersonWeaponManifest=require("game.first_person_weapon_manifest")
 local WeaponActions=require("game.first_person_weapon_actions")
 local MobileAim=require("game.mobile_weapon_aim")
 local Typography=require("game.typography")
+local Items=require("game.item_instances")
 local Range={}
 
 local function text(value,x,y,w,h,scale,minimum,align,singleLine)
@@ -36,14 +37,15 @@ local lanes={
     {x=470,y=255,scale=.26,radius=27},
 }
 
-local function shotgunPellets(weapon)
+local function shotgunPellets(weapon,rng)
+    rng=rng or math.random
     local radius=weapon=="sawed-off-shotgun" and 18 or 14
     local pellets={}
     for index=1,7 do
         local x,y
         for attempt=1,24 do
-            local angle=math.random()*math.pi*2
-            local distance=math.sqrt(math.random())*radius
+            local angle=rng()*math.pi*2
+            local distance=math.sqrt(rng())*radius
             x,y=math.cos(angle)*distance,math.sin(angle)*distance
             local separated=true
             for _,previous in ipairs(pellets) do
@@ -107,14 +109,20 @@ local function distanceProgress(distance)
 end
 
 local function weaponDurability(data,name)
-    local value=data and data.weaponDurability and data.weaponDurability[name]
+    local value=Items.condition(data,name)
     return math.max(0,math.min(100,math.floor(tonumber(value) or 100)))
 end
 
 local function weaponIssue(data,catalog,name)
+    local selector=name
+    if Items.identified(data) then
+        local entry=Items.selection(data,selector,catalog)
+        if not entry then return "WEAPON NO LONGER AVAILABLE" end
+        name=entry.name
+    end
     local combat=name and catalog.weaponCombat[name]
     if not combat or combat.kind~="ranged" then return "NOT A RANGED WEAPON" end
-    if weaponDurability(data,name)<=0 then return "THIS WEAPON IS BROKEN" end
+    if weaponDurability(data,selector)<=0 then return "THIS WEAPON IS BROKEN" end
     if availableAmmo(data,combat)<=0 then return "THIS WEAPON NEEDS AMMO" end
     return nil
 end
@@ -160,6 +168,13 @@ function Range.scoreMultiplier(session)
 end
 
 function Range.ownedWeapons(data,catalog)
+    if Items.identified(data) then
+        local result={}
+        for _,entry in ipairs(Items.weapons(data,catalog)) do
+            if catalog.weaponCombat[entry.name] and catalog.weaponCombat[entry.name].kind=="ranged" then result[#result+1]=entry.key end
+        end
+        return result
+    end
     local result,seen={},{}
     local function add(name)
         local combat=name and catalog.weaponCombat[name]
@@ -208,18 +223,19 @@ end
 
 local function applyWeaponViewSequenceStep(session)
     local sequence=session.weaponViewSequence
-    local step=sequence and sequence.definition.steps[sequence.index]
+    local definition=sequence and (sequence.definition or FirstPersonWeaponManifest.shotSequenceFor(session.weapon))
+    local step=definition and definition.steps[sequence.index]
     if not step then return false end
     session.weaponViewState=step.state
     session.weaponViewPlacement=step.placement
     return true
 end
 
-local function startWeaponViewSequence(session)
+local function startWeaponViewSequence(session,canonical)
     local definition=FirstPersonWeaponManifest.shotSequenceFor(session.weapon)
     clearWeaponViewSequence(session)
     if not definition then return false end
-    session.weaponViewSequence={definition=definition,index=1,elapsed=0}
+    session.weaponViewSequence={definition=not canonical and definition or nil,index=1,elapsed=0}
     return applyWeaponViewSequenceStep(session)
 end
 
@@ -228,7 +244,8 @@ local function updateWeaponViewSequence(session,dt)
     if not sequence then return end
     local remaining=dt
     while sequence do
-        local step=sequence.definition.steps[sequence.index]
+        local definition=sequence.definition or FirstPersonWeaponManifest.shotSequenceFor(session.weapon)
+        local step=definition and definition.steps[sequence.index]
         if not step or step.duration==nil then return end
         local untilNext=step.duration-sequence.elapsed
         if remaining<untilNext then
@@ -241,7 +258,7 @@ local function updateWeaponViewSequence(session,dt)
         if applyWeaponViewSequenceStep(session) then
             sequence=session.weaponViewSequence
         else
-            local restoresLoaded=sequence.definition.restoresLoaded==true
+            local restoresLoaded=definition.restoresLoaded==true
             clearWeaponViewSequence(session)
             if restoresLoaded then
                 session.loaded=session.capacity or 1
@@ -254,7 +271,12 @@ local function updateWeaponViewSequence(session,dt)
 end
 
 local function loadWeapon(session,data,catalog)
-    session.weapon=session.weapons[session.selected]
+    local selector=session.weapons[session.selected]
+    if Items.enabled(data) then
+        local entry=Items.selection(data,selector,catalog)
+        if not entry then session.message="WEAPON NO LONGER AVAILABLE"; return false end
+        session.weapon,session.itemId=entry.name,entry.id
+    else session.weapon=selector end
     local combat=catalog.weaponCombat[session.weapon]
     session.ammoType=combat.ammo
     session.capacity=math.max(1,math.floor(combat.capacity or 1))
@@ -267,6 +289,7 @@ local function loadWeapon(session,data,catalog)
     WeaponActions.finish(session)
     clearWeaponViewSequence(session)
     MobileAim.refresh(session,session.weapon,session.aimMode)
+    return true
 end
 
 function Range.new(data,spot,catalog,options)
@@ -293,7 +316,7 @@ function Range.new(data,spot,catalog,options)
     return session
 end
 
-local function spawnTarget(session)
+local function spawnTarget(session,canonical)
     session.spawnIndex=session.spawnIndex+1
     local lane=lanes[((session.spawnIndex-1)%#lanes)+1]
     local moving=session.motion=="moving" or (session.motion=="mixed" and session.spawnIndex%2==0)
@@ -312,10 +335,13 @@ local function spawnTarget(session)
     session.targets[#session.targets+1]={
         x=x,y=y,baseX=x,scale=lane.scale*sizeScale,material=material,sprite=sprite,
         radius=lane.radius*sizeScale,points=points,
-        life=(material=="sectioned" or session.targetPattern=="stay-up") and math.huge or (moving and 3.4 or 2.8),age=0,
+        life=(material=="sectioned" or session.targetPattern=="stay-up") and (canonical and 0 or math.huge) or (moving and 3.4 or 2.8),age=0,
+        permanent=canonical and (material=="sectioned" or session.targetPattern=="stay-up") or nil,
+        id=canonical and session.spawnIndex or nil,
         velocity=moving and direction*(48+session.spawnIndex%4*8)*positionScale or 0,hit=false,impacts={},
         sections=material=="sectioned" and {} or nil,
     }
+    if canonical then session.targets[#session.targets].permanent=(material=="sectioned" or session.targetPattern=="stay-up") end
 end
 
 local SECTION_RINGS={
@@ -448,7 +474,8 @@ local function resetRound(session,data,catalog)
     loadWeapon(session,data,catalog)
 end
 
-function Range.update(session,dt,data,catalog)
+function Range.update(session,dt,data,catalog,options)
+    options=options or {}
     if not session or session.phase~="play" then return nil end
     dt=math.min(.08,math.max(0,dt or 0))
     session.clock=session.clock+dt; session.time=math.max(0,session.time-dt)
@@ -485,12 +512,12 @@ function Range.update(session,dt,data,catalog)
     end
     session.nextSpawn=session.nextSpawn-dt
     if session.nextSpawn<=0 and #session.targets<(session.material=="sectioned" and 1 or 4) then
-        spawnTarget(session)
+        spawnTarget(session,options.canonical)
         session.nextSpawn=.8+(session.spawnIndex%3)*.18
     end
     for index=#session.targets,1,-1 do
         local target=session.targets[index]
-        target.age=target.age+dt; target.life=target.life-dt
+        target.age=target.age+dt; if not target.permanent then target.life=target.life-dt end
         if target.breaking then target.breaking=target.breaking+dt end
         if target.sections then
             local allBroken=true
@@ -503,16 +530,16 @@ function Range.update(session,dt,data,catalog)
                 if not section or not section.broken then allBroken=false end
             end
             if allBroken and not target.clearing then
-                target.clearing=true
+                target.clearing=true; target.permanent=false
                 target.life=.55
             end
         end
         target.x=target.x+target.velocity*dt
         if target.x<145 or target.x>830 then target.velocity=-target.velocity end
-        if target.life<=0 then table.remove(session.targets,index) end
+        if not target.permanent and target.life<=0 then table.remove(session.targets,index) end
     end
     local autoOutcome
-    if session.fireHeld and session.fireMode=="auto" and data and catalog and session.cooldown<=0 and session.time>0 then
+    if not options.canonical and session.fireHeld and session.fireMode=="auto" and data and catalog and session.cooldown<=0 and session.time>0 then
         autoOutcome=shoot(session,data,catalog,session.aimX,session.aimY)
     end
     if session.time<=0 and not session.completed then session.completed=true; return "complete" end
@@ -525,7 +552,11 @@ function Range.sway(session,catalog)
     return 0,0
 end
 
-shoot=function(session,data,catalog,x,y)
+shoot=function(session,data,catalog,x,y,options)
+    options=options or {}
+    local rng=options.rng or math.random
+    local issue=weaponIssue(data,catalog,session.itemId or session.weapon)
+    if issue then session.message=issue; return "dry" end
     local combat=catalog.weaponCombat[session.weapon]
     if FirstPersonWeaponManifest.fireModeValid(session.weapon,session.fireMode) then
         if session.fireMode=="safe" then session.message="SAFE"; return "safe" end
@@ -547,20 +578,20 @@ shoot=function(session,data,catalog,x,y)
     end
     session.loaded=session.loaded-1; session.shots=session.shots+1
     session.needsReload=session.loaded<=0 and combat.ammo~=nil
-    startWeaponViewSequence(session)
+    startWeaponViewSequence(session,options.canonical)
     if FirstPersonWeaponManifest.fireModeValid(session.weapon,session.fireMode) then
         session.cooldown=FirstPersonWeaponManifest.fireCooldownFor(session.weapon,session.fireMode)
         WeaponActions.beginFire(session)
     end
     local swayX,swayY=Range.sway(session,catalog)
     local shotX,shotY=(x or session.aimX)+swayX,(y or session.aimY)+swayY
-    shotX,shotY=WorldView.toWorld(shotX,shotY)
-    local magnification=Range.magnification(session)
+    if not options.canonical then shotX,shotY=WorldView.toWorld(shotX,shotY) end
+    local magnification=options.canonical and 1 or Range.magnification(session)
     if magnification>1 then
         shotX=MONOCULAR_CENTER.x+(shotX-MONOCULAR_CENTER.x)/magnification
         shotY=MONOCULAR_CENTER.y+(shotY-MONOCULAR_CENTER.y)/magnification
     end
-    local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon) or {{x=0,y=0}}
+    local pellets=combat.ammo=="12-gauge" and shotgunPellets(session.weapon,rng) or {{x=0,y=0}}
     local struck={}
     local struckSections={}
     local missedPellets={}
@@ -593,10 +624,11 @@ shoot=function(session,data,catalog,x,y)
                 local previous=struck[best]
                 if not previous or bestDistance<previous then struck[best]=bestDistance end
                 if best.material=="clay" then
-                    if not best.hit then best.breaking=.001; best.life=math.min(best.life,.48) end
+                    if not best.hit then best.breaking=.001; best.life=best.permanent and .48 or math.min(best.life,.48); best.permanent=false end
                 else
                     best.impacts[#best.impacts+1]={offsetX=pelletX-best.x,offsetY=pelletY-best.y,
                         variant=(session.shots+pelletIndex-2)%4+1,material=best.material}
+                    if options.canonical and #best.impacts>16 then table.remove(best.impacts,1) end
                 end
             end
         else
@@ -629,11 +661,12 @@ shoot=function(session,data,catalog,x,y)
         if newlyHit>0 then session.hits=session.hits+1; session.sectionsHit=session.sectionsHit+newlyHit end
     end
     if #missedPellets>0 then
-        local miss=missedPellets[math.random(1,#missedPellets)]
+        local miss=missedPellets[rng(1,#missedPellets)]
         local rangeScale=distanceScale(session.distance)
         session.dirtImpacts=session.dirtImpacts or {}
         session.dirtImpacts[#session.dirtImpacts+1]={x=miss.x,y=miss.y,variant=5,
             age=0,duration=.85,size=72*rangeScale,lift=19*rangeScale}
+        if options.canonical and #session.dirtImpacts>8 then table.remove(session.dirtImpacts,1) end
     end
     if hitTarget then
         session.message=session.needsReload and "RELOAD REQUIRED" or "HIT"; return "shot"
@@ -643,6 +676,7 @@ end
 
 function Range.reload(session,data,catalog)
     if session.phase~="play" then return false end
+    if weaponIssue(data,catalog,session.itemId or session.weapon) then return false end
     local combat=catalog.weaponCombat[session.weapon]
     if not combat.ammo then
         session.needsReload=false
@@ -696,8 +730,16 @@ end
 
 function Range.select(session,data,catalog,direction)
     if session.phase~="lobby" and session.phase~="results" then return false end
+    if Items.enabled(data) then
+        local current=session.itemId
+        session.weapons=Range.ownedWeapons(data,catalog)
+        if #session.weapons==0 then session.message="WEAPON NO LONGER AVAILABLE"; return false end
+        session.selected=0
+        for index,id in ipairs(session.weapons) do if id==current then session.selected=index; break end end
+    end
     session.selected=((session.selected-1+(direction or 1))%#session.weapons)+1
-    loadWeapon(session,data,catalog); session.message=nil
+    if not loadWeapon(session,data,catalog) then return false end
+    session.message=nil
     return true
 end
 
@@ -821,8 +863,8 @@ function Range.mousepressed(session,x,y,data,catalog,button)
             local purchased=Range.buyAmmo(session,data,catalog); return purchased and "purchase" or "dry"
         end
         if hit({x=500,y=542,w=275,h=54},x,y) then
-            if weaponReady(data,catalog,session.weapon) then resetRound(session,data,catalog); return "start" end
-            session.message=weaponIssue(data,catalog,session.weapon); return "dry"
+            if weaponReady(data,catalog,session.itemId or session.weapon) then resetRound(session,data,catalog); return "start" end
+            session.message=weaponIssue(data,catalog,session.itemId or session.weapon); return "dry"
         end
         if hit({x=800,y=654,w=130,h=42},x,y) then return "close" end
     elseif session.phase=="play" then
@@ -842,8 +884,8 @@ function Range.mousepressed(session,x,y,data,catalog,button)
         return shoot(session,data,catalog,session.aimX,session.aimY)
     elseif session.phase=="results" then
         if hit({x=238,y=548,w=150,h=58},x,y) then
-            if weaponReady(data,catalog,session.weapon) then resetRound(session,data,catalog); return "start" end
-            session.message=weaponIssue(data,catalog,session.weapon); return "dry"
+            if weaponReady(data,catalog,session.itemId or session.weapon) then resetRound(session,data,catalog); return "start" end
+            session.message=weaponIssue(data,catalog,session.itemId or session.weapon); return "dry"
         end
         if hit({x=405,y=548,w=150,h=58},x,y) then session.phase="lobby"; session.message=nil; return "setup" end
         if hit({x=572,y=548,w=150,h=58},x,y) then return "close" end
@@ -859,8 +901,8 @@ function Range.keypressed(session,key,data,catalog)
         if key=="right" or key=="d" then Range.changeSetup(session,data,catalog,lobbyRows[session.menuRow].kind,1); return "select" end
         if key=="b" then local purchased=Range.buyAmmo(session,data,catalog); return purchased and "purchase" or "dry" end
         if key=="return" or key=="space" then
-            if weaponReady(data,catalog,session.weapon) then resetRound(session,data,catalog); return "start" end
-            session.message=weaponIssue(data,catalog,session.weapon); return "dry"
+            if weaponReady(data,catalog,session.itemId or session.weapon) then resetRound(session,data,catalog); return "start" end
+            session.message=weaponIssue(data,catalog,session.itemId or session.weapon); return "dry"
         end
     elseif session.phase=="play" then
         if key=="o" then return Range.toggleMonocular(session) and "monocular" or nil end
@@ -996,7 +1038,8 @@ function Range.releaseWeaponViews(assets)
 end
 
 function Range.draw(session,data,assets,ui,catalog,mobile)
-    WorldView.begin()
+    local canonicalView=session.canonicalView==true
+    if not canonicalView then WorldView.begin() end
     local magnification=Range.magnification(session)
     if magnification>1 then
         love.graphics.push()
@@ -1048,7 +1091,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             end
         end
         if magnification>1 then love.graphics.pop() end
-        WorldView.finish()
+        if not canonicalView then WorldView.finish() end
         love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
         text("DISTANCE  "..session.distance.." M",355,18,250,27,.92,.80,"center",true)
@@ -1113,13 +1156,13 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         return
     end
 
-    WorldView.finish()
+    if not canonicalView then WorldView.finish() end
     love.graphics.setColor(.055,.04,.03,.91); love.graphics.rectangle("fill",154,92,652,544,12,12)
     love.graphics.setColor(.87,.65,.25); love.graphics.rectangle("line",154,92,652,544,12,12)
     if session.phase=="lobby" then
         love.graphics.setColor(1,.86,.58); text("COMMUNITY TARGET RANGE",180,118,600,33,1.35,1.1)
         love.graphics.setColor(.92,.86,.72); text("Live ammo is used. Buy more below.",220,155,520,23,.95,.85)
-        local combat=catalog.weaponCombat[session.weapon]; local reserve=availableAmmo(data or {},combat); local durability=weaponDurability(data,session.weapon)
+        local combat=catalog.weaponCombat[session.weapon]; local reserve=availableAmmo(data or {},combat); local durability=weaponDurability(data,session.itemId or session.weapon)
         for index,row in ipairs(lobbyRows) do
             local selected=session.menuRow==index
             love.graphics.setColor(selected and 1 or .74,selected and .77 or .70,selected and .28 or .62)
@@ -1139,7 +1182,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         text("SCORE MULTIPLIER x"..string.format("%.2f",Range.scoreMultiplier(session)),300,516,360,22,.86,.78)
         local ammoLabel=offer and ("BUY "..offer.amount.." "..string.upper(offer.ammo).."\n"..offer.cost.." SCRAP"..(mobile and "" or "  [B]")) or "NO AMMO NEEDED"
         drawButton(ammoLabel,{x=185,y=542,w=290,h=54},offer~=nil and scrap>=offer.cost)
-        drawButton("START COURSE",{x=500,y=542,w=275,h=54},weaponReady(data,catalog,session.weapon))
+        drawButton("START COURSE",{x=500,y=542,w=275,h=54},weaponReady(data,catalog,session.itemId or session.weapon))
         drawButton("LEAVE",{x=800,y=654,w=130,h=42},true)
     else
         local result=session.result
@@ -1154,7 +1197,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         love.graphics.setColor(.52,1,.57); text(reward,230,410,500,40,1,.85)
         love.graphics.setColor(.82,.78,.68); text(string.upper(session.motion).."  •  "..string.upper(session.material)
             .."  •  "..string.upper(session.targetPattern).."  •  "..validDistance(session.distance).." M  •  "..session.stageLength.." SEC  •  SCORE x"..string.format("%.2f",Range.scoreMultiplier(session)),220,464,520,36,.92,.78)
-        drawButton("REPLAY",{x=238,y=548,w=150,h=58},weaponReady(data,catalog,session.weapon))
+        drawButton("REPLAY",{x=238,y=548,w=150,h=58},weaponReady(data,catalog,session.itemId or session.weapon))
         drawButton("SETUP",{x=405,y=548,w=150,h=58},true)
         drawButton("DONE",{x=572,y=548,w=150,h=58},true)
     end
@@ -1248,6 +1291,194 @@ function Range.audit(catalog)
         movingMultiplier=movingMultiplier,targetPattern=session.targetPattern,stageLength=stageTime,ammoPurchased=purchased,scrapAfterAmmo=data.scrap,
         calibratedViews=calibration.calibrated,provisionalViews=calibration.provisional,
         modes=#Range.motionModes,targetTypes=#Range.targetTypes,assignedSounds=soundAudit.assigned,version=Range.version}
+end
+
+-- The server uses the same authored range rules with logical canvas aim,
+-- injected randomness, and finite, detached records. Device pose never enters
+-- these records; presentation reconstructs it from the local controls.
+local gunFields={"weapon","itemId","ammoType","capacity","loaded","needsReload","cooldown","reloadTimer",
+    "fireMode","weaponAction","weaponActionElapsed","weaponReloadDuration","tubeReloadTotalRounds",
+    "tubeReloadRemaining","tubeReloadCompleted","tubeReloadRoundTimer","weaponViewSequence",
+    "weaponViewState","weaponViewPlacement"}
+local privateFields={"spot","npc","aimX","aimY","aimMode","touchAim","fireHeld","hasMonocular","monocularActive","menuRow","reloadPulse"}
+local function copy(value)
+    if type(value)~="table" then return value end
+    local result={}; for key,entry in pairs(value) do result[key]=copy(entry) end; return result
+end
+local function stripPrivate(session)
+    for _,key in ipairs(privateFields) do session[key]=nil end
+    if session.weaponViewSequence then session.weaponViewSequence.definition=nil end
+    return session
+end
+function Range.serverCache(session)
+    local key=session.itemId or session.weapon
+    if not key then return end
+    session.weaponSessions=session.weaponSessions or {}
+    local gun={}; for _,field in ipairs(gunFields) do gun[field]=copy(session[field]) end
+    if gun.weaponViewSequence then gun.weaponViewSequence.definition=nil end
+    session.weaponSessions[key]=gun
+end
+local function restoreCache(session)
+    local gun=session.weaponSessions and session.weaponSessions[session.itemId or session.weapon]
+    if not gun then return true end
+    if gun.weapon~=session.weapon or gun.itemId~=session.itemId then return false end
+    for _,field in ipairs(gunFields) do session[field]=copy(gun[field]) end
+    return true
+end
+function Range.serverNew(data,spot,catalog,options)
+    local detachedSpot=copy(spot)
+    local session,message=Range.new(data,detachedSpot,catalog,options)
+    if not session then return nil,message end
+    if options and options.previous and options.previous.itemId then
+        for index,id in ipairs(session.weapons) do
+            if id==options.previous.itemId then session.selected=index; loadWeapon(session,data,catalog); break end
+        end
+    end
+    if options and options.previous and options.previous.weaponSessions then
+        session.weaponSessions=copy(options.previous.weaponSessions)
+        if not restoreCache(session) then return nil,"invalid_gun_cache" end
+    end
+    stripPrivate(session); Range.serverCache(session)
+    return session
+end
+function Range.serverRestore(session,data,catalog)
+    local selector=session.itemId or session.weapon
+    local entry=Items.enabled(data) and Items.selection(data,selector,catalog) or nil
+    if Items.enabled(data) and (not entry or entry.name~=session.weapon) then return false,"weapon_missing" end
+    if not catalog.weaponCombat[session.weapon] then return false,"weapon_missing" end
+    if not restoreCache(session) then return false,"invalid_gun_cache" end
+    session.loaded=math.min(session.loaded,availableAmmo(data,catalog.weaponCombat[session.weapon]))
+    stripPrivate(session)
+    return true
+end
+function Range.serverStart(session,data,catalog)
+    if session.phase~="lobby" and session.phase~="results" then return false,"wrong_phase" end
+    if not weaponReady(data,catalog,session.itemId or session.weapon) then return false,"weapon_unavailable" end
+    Range.serverCache(session)
+    session.spot={preferences={}}
+    resetRound(session,data,catalog)
+    restoreCache(session); stripPrivate(session); Range.serverCache(session)
+    return true
+end
+function Range.serverConfigure(session,data,catalog,kind,direction)
+    if direction~=1 and direction~=-1 then return false,"invalid_direction" end
+    Range.serverCache(session)
+    session.spot={preferences={}}
+    local ok=Range.changeSetup(session,data,catalog,kind,direction)
+    if ok and kind=="weapon" then restoreCache(session) end
+    stripPrivate(session); Range.serverCache(session)
+    return ok
+end
+function Range.serverSetup(session)
+    Range.serverCache(session)
+    if session.phase=="results" then session.phase="lobby"; session.message=nil
+    elseif not Range.returnToSetup(session) then return false end
+    restoreCache(session); stripPrivate(session); Range.serverCache(session); return true
+end
+function Range.serverMode(session,direction)
+    local mode=Range.cycleFireMode(session,direction)
+    stripPrivate(session); Range.serverCache(session); return mode~=nil
+end
+function Range.serverUpdate(session,dt,data,catalog,rng)
+    local outcome=Range.update(session,dt,data,catalog,{canonical=true,rng=rng})
+    stripPrivate(session); Range.serverCache(session); return outcome
+end
+function Range.serverFire(session,data,catalog,x,y,rng)
+    if session.phase~="play" or session.time<=0 then return false,"wrong_phase" end
+    if type(rng)~="function" then return false,"missing_rng" end
+    if type(x)~="number" or type(y)~="number" or x~=x or y~=y or x<0 or x>960 or y<0 or y>720 then return false,"invalid_aim" end
+    local outcome=shoot(session,data,catalog,x,y,{canonical=true,rng=rng})
+    stripPrivate(session); Range.serverCache(session)
+    return outcome=="shot",outcome
+end
+function Range.serverReload(session,data,catalog)
+    local ok=Range.reload(session,data,catalog)
+    stripPrivate(session); Range.serverCache(session); return ok
+end
+function Range.serverBuyAmmo(session,data,catalog)
+    local ok,offer=Range.buyAmmo(session,data,catalog)
+    stripPrivate(session); Range.serverCache(session); return ok,offer
+end
+function Range.serverComplete(session,data,spot,stopHelp)
+    return Range.complete(session,data,spot,stopHelp)
+end
+function Range.presentation(session,pose)
+    if not session then return nil end
+    local result=copy(session); result.weaponSessions=nil
+    result.canonicalView=true
+    pose=pose or {}
+    result.aimX=pose.aimX or 480; result.aimY=pose.aimY or 330
+    result.aimMode=pose.aimMode=="sights" and "sights" or "hip"
+    result.hasMonocular=pose.hasMonocular==true; result.monocularActive=pose.monocularActive==true
+    result.menuRow=pose.menuRow or 1; result.reloadPulse=pose.reloadPulse or 0
+    result.fireHeld=false
+    result.touchAim=copy(pose.touchAim)
+    MobileAim.refresh(result,result.weapon,result.aimMode)
+    return result
+end
+function Range.canonicalAim(session,x,y)
+    local zoom=Range.magnification(session)
+    if zoom>1 then x=480+(x-480)/zoom; y=330+(y-330)/zoom end
+    return x,y
+end
+function Range.updatePresentation(session,dt)
+    -- Only authored sprite clocks advance on a copied model. The returned
+    -- boomerang pose cannot refill the authoritative loaded projectile.
+    dt=math.min(.08,math.max(0,tonumber(dt) or 0))
+    local loaded,needsReload,message=session.loaded,session.needsReload,session.message
+    updateWeaponViewSequence(session,dt); WeaponActions.update(session,dt)
+    session.loaded,session.needsReload,session.message=loaded,needsReload,message
+    session.reloadPulse=(session.reloadPulse or 0)+dt
+end
+-- Input decoding contains no spending, target simulation, or campaign writes.
+function Range.inputIntent(session,kind,a,b,c)
+    if not session then return nil end
+    local phase=session.phase
+    if kind=="keyreleased" or kind=="mousereleased" then return {action="releaseHeld"} end
+    if kind=="mousemoved" then return {action="pointer",x=a,y=b,touch=c==true} end
+    if kind=="keypressed" then
+        local key=a
+        if key=="escape" or key=="e" then return {action="release"} end
+        if phase=="lobby" then
+            if key=="up" or key=="w" then return {action="row",direction=-1} end
+            if key=="down" or key=="s" then return {action="row",direction=1} end
+            if key=="left" or key=="a" or key=="right" or key=="d" then
+                return {action="configure",kind=lobbyRows[session.menuRow or 1].kind,direction=(key=="left" or key=="a") and -1 or 1}
+            end
+            if key=="b" then return {action="ammo"} end
+            if key=="return" or key=="space" then return {action="start"} end
+        elseif phase=="play" then
+            local actions={o="monocular",r="reload",v="mode",tab="setup",lshift="aim",rshift="aim",space="fire"}
+            if actions[key] then return {action=actions[key]} end
+        elseif phase=="results" and (key=="return" or key=="space") then return {action="setup"} end
+        return nil
+    end
+    if kind~="mousepressed" then return nil end
+    local x,y,button=a,b,c or 1
+    if phase=="lobby" then
+        for index,row in ipairs(lobbyRows) do
+            if hit({x=218,y=row.y-21,w=62,h=46},x,y) then return {action="configure",kind=row.kind,direction=-1,row=index} end
+            if hit({x=680,y=row.y-21,w=62,h=46},x,y) then return {action="configure",kind=row.kind,direction=1,row=index} end
+        end
+        if hit({x=185,y=542,w=290,h=54},x,y) then return {action="ammo"} end
+        if hit({x=500,y=542,w=275,h=54},x,y) then return {action="start"} end
+        if hit({x=800,y=654,w=130,h=42},x,y) then return {action="release"} end
+    elseif phase=="play" then
+        if session.hasMonocular and hit(MONOCULAR_BUTTON,x,y) and button~=2 then return {action="monocular"} end
+        if button==2 then return {action="aim",value=true} end
+        if hit(DESKTOP_MODE_BUTTON,x,y) then return {action="mode"} end
+        if hit({x=18,y=654,w=126,h=42},x,y) then return {action="reload"} end
+        if hit({x=154,y=654,w=126,h=42},x,y) then return {action="aim"} end
+        if hit({x=680,y=654,w=126,h=42},x,y) then return {action="setup"} end
+        if hit({x=816,y=654,w=126,h=42},x,y) then return {action="release"} end
+        if button==5 or (button==4 and hit(MOBILE_FIRE_BUTTON,x,y)) then return {action="fire"} end
+        if button==4 then return {action="pointer",x=x,y=y,touch=true} end
+        return {action="fire",x=x,y=y}
+    elseif phase=="results" then
+        if hit({x=238,y=548,w=150,h=58},x,y) then return {action="start"} end
+        if hit({x=405,y=548,w=150,h=58},x,y) then return {action="setup"} end
+        if hit({x=572,y=548,w=150,h=58},x,y) then return {action="release"} end
+    end
 end
 
 return Range

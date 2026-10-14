@@ -1,8 +1,9 @@
 local WorkbenchUI=require("game.outfit_crafting_ui")
 local Viewport=require("game.viewport")
+local WorldPause=require("game.world_pause")
 local Host={}
 
--- The bench owns input and pauses the world while a saved sewing project is open.
+-- The bench owns local input. A co-op host keeps the shared world running.
 function Host.wrap(application,context)
     local original={}; for key,value in pairs(application) do original[key]=value end
     local runtime,ui=context.runtime,context.ui
@@ -10,6 +11,24 @@ function Host.wrap(application,context)
     local touchOwner,mouseOwner,openedData,origin
     local swallowedTouchMouse=false
     local bench
+    local lease,leasedData,renewAt
+    local function clock() return context.commands and context.commands.clock and context.commands.clock() or runtime.animationClock or 0 end
+    local function command(action,args)
+        args=args or {}; args.action=action
+        if action~="acquire" then
+            if not lease or leasedData~=runtime.saveData then return {ok=false,reason="lease_expired",message="Reopen the sewing bench to continue."} end
+            args.leaseId=lease
+        end
+        local reply=context.commands.submit("outfit.craft",args)
+        if not reply.ok then return {ok=false,reason=reply.reason,message="Sewing unavailable. Close the bench and try again."} end
+        if action=="acquire" then lease=reply.result.leaseId; leasedData=runtime.saveData end
+        renewAt=clock()+10
+        return reply.result
+    end
+    local function release()
+        if lease and leasedData==runtime.saveData then context.commands.submit("activity.release",{leaseId=lease}) end
+        lease=nil; leasedData=nil; renewAt=nil
+    end
     local function cancelInput()
         local controls=context.mobile.get(); if controls then controls:cancelAll() end
         context.presentation.endPan()
@@ -36,6 +55,8 @@ function Host.wrap(application,context)
         return true
     end
     bench=WorkbenchUI.new({
+        clock=clock,
+        command=context.commands and command or nil,
         data=function() return runtime.saveData end,
         save=function()
             if context.persistence.schedule()==false then return false end
@@ -44,6 +65,7 @@ function Host.wrap(application,context)
         mobileEnabled=context.mobile.isEnabled,
         cancelInput=cancelInput,
         onClose=function()
+            release()
             local restore=runtime.outfitCraftingOpen and runtime.saveData==openedData and runtime.state=="game"
             runtime.outfitCraftingOpen=false
             touchOwner=nil; mouseOwner=nil
@@ -56,12 +78,21 @@ function Host.wrap(application,context)
     })
     ui.canOpenOutfitWorkbench=allowed
     ui.suspendOutfitWorkbench=function()
-        bench:suspend()
+        if context.commands and bench:isOpen() then bench:close() else bench:suspend() end
         touchOwner=nil; mouseOwner=nil
     end
     ui.openOutfitWorkbench=function()
         if not allowed() then return false end
         if bench:isOpen() then return true end
+        if ui.cancelWeaponRepair then ui.cancelWeaponRepair() end
+        if ui.closeDecoration then ui.closeDecoration() end
+        if context.commands then
+            local result=command("acquire",{})
+            if not result.ok then
+                runtime.dialogue={speaker="WORKBENCH",text=result.message,timer=5,inventoryResult=true}
+                return false
+            end
+        end
         openedData=runtime.saveData
         origin=runtime.trainUpgradeOpen and "workshop" or "inventory"
         cancelInput()
@@ -84,7 +115,17 @@ function Host.wrap(application,context)
     local function position(x,y) return context.presentation.screenToGame(x,y) end
     function application.update(dt)
         if active() then
+            local sharedHost=WorldPause.isSharedHost(runtime)
+            if not sharedHost then runtime.animationClock=(runtime.animationClock or 0)+math.min(dt or 0,.1) end
+            if context.commands and clock()>=(renewAt or 0) then
+                if not command("renew",{}).ok then
+                    bench:close()
+                    if sharedHost then return original.update(dt) end
+                    return true
+                end
+            end
             bench:update(dt)
+            if sharedHost then return original.update(dt) end
             context.persistence.update(dt)
             if context.audio then context.audio.update() end
             return true
@@ -220,10 +261,14 @@ function Host.wrap(application,context)
     end
     function application.focus(focused)
         if not focused and active() then
-            if bench.suspend then bench:suspend() end
+            if context.commands then bench:close() elseif bench.suspend then bench:suspend() end
             mouseOwner=nil; touchOwner=nil
         end
         return original.focus(focused)
+    end
+    function application.quit(...)
+        if active() then bench:close() end
+        if original.quit then return original.quit(...) end
     end
     return application
 end

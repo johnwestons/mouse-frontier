@@ -5,6 +5,8 @@ local outputRoot=assert(os.getenv("EXPEDITION_PREVIEW_OUTPUT"),"EXPEDITION_PREVI
 package.path=repoRoot.."/?.lua;"..repoRoot.."/?/init.lua;"..package.path
 
 local app,ctx,game,ui,services,Areas
+local Fixture=require('tools.expedition-integration-preview.fixture')
+local commands
 local stages,index,prepared,captureQueued,captureComplete={},1,false,false,false
 local report={}
 local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1"
@@ -57,7 +59,7 @@ end
 
 local function enter(areaId,spawn)
     clearOverlays()
-    check(services.worldScene.activateExpeditionInteraction({kind="expedition",action="enterArea",targetArea=areaId,spawn=spawn}),"enter "..areaId)
+    check(Fixture.enter(game,services.worldScene,position,areaId,spawn),"enter "..areaId.." through authored reachable gate")
     game.dialogue=nil
     check(game.scene=="expedition" and game.saveData.activeExpeditionArea==areaId,"scene and area agree")
     game.expeditionGraceTimer=100
@@ -78,7 +80,7 @@ local function installStages()
     stages={
         {name="01-stop-trailhead",setup=function()
             clearOverlays(); game.scene="stop"; game.saveData.activeExpeditionArea=nil
-            position(790,420)
+            local gate=assert(Areas.entrance(game.saveData.location)); position(gate.x,gate.y)
         end},
         {name="02-surface-exploration",setup=function()
             enter(Areas.SURFACE_ID,"town")
@@ -123,7 +125,7 @@ local function installStages()
             for _,id in ipairs({"dungeon-bandit-a","dungeon-bandit-b"}) do state.mobs[id].dead=true; state.mobs[id].hp=0 end
             check(Areas.updateGates(game.saveData,Areas.DUNGEON_ID).bossGateOpen,"defeating both wardens opens gate")
             position(1320,475)
-            state.mobs["sludge-badger-boss"].hp=37
+            Areas.state(game.saveData,Areas.DUNGEON_ID).mobs["sludge-badger-boss"].hp=37
             local selected=services.worldScene.currentExpeditionInteraction()
             check(selected and selected.action=="challenge","boss exposes deliberate challenge interaction")
         end},
@@ -139,8 +141,7 @@ local function installStages()
             check(not game.battle.intro,"battle intro finishes through normal updates")
         end},
         {name="11-battle-victory",setup=function()
-            for _,unit in ipairs(game.battle.units) do if unit.team=="enemy" then unit.hp=0 end end
-            services.battleRuntime.advanceTurn()
+            Fixture.resolveStagedBattle(game,commands,require('game.catalog'),'win')
             check(game.battle.finished=="win","real battle completion resolves victory")
         end},
         {name="12-victory-return",setup=function()
@@ -156,14 +157,14 @@ local function installStages()
             check(services.worldScene.activateExpeditionInteraction(selected),"victory vault opens")
         end},
         {name="14-defeat-return-train",setup=function()
-            enter(Areas.SURFACE_ID,"town")
+            enter(Areas.SURFACE_ID,"dungeonReturn")
             local mob=Areas.state(game.saveData,Areas.SURFACE_ID).mobs["surface-bandit-a"]
-            services.battleRuntime.beginEncounter({source="expedition",areaId=Areas.SURFACE_ID,tier="easy",mobFiles={"sludge-bandit.png"},
+            position(mob.x,mob.y)
+            check(services.battleRuntime.beginEncounter({source="expedition",areaId=Areas.SURFACE_ID,tier="easy",mobFiles={"sludge-bandit.png"},
                 enemyStates={{mobId="surface-bandit-a",file="sludge-bandit.png",name="Sludge-Taken Bandit",hp=mob.hp,maxHp=mob.maxHp,weapon="mob-claw"}},
-                returnContext={scene="expedition",areaId=Areas.SURFACE_ID,x=game.player.x,y=game.player.y}})
+                returnContext={scene="expedition",areaId=Areas.SURFACE_ID,x=game.player.x,y=game.player.y}}),"reachable saved field enemy starts canonical defeat preview")
             for _=1,40 do app.update(.05) end
-            for _,unit in ipairs(game.battle.units) do if unit.team=="ally" then unit.hp=0 end end
-            services.battleRuntime.advanceTurn()
+            Fixture.resolveStagedBattle(game,commands,require('game.catalog'),'loss')
             check(game.battle.finished=="loss","real battle completion resolves defeat")
             drawAndClick("battleContinue")
             check(game.state=="game" and game.scene=="train" and game.saveData.activeExpeditionArea==nil,"defeat returns to train and clears area")
@@ -193,10 +194,18 @@ function love.load()
         if not love.filesystem.getInfo("assets") then love.filesystem.mount(repoRoot,"",true) end
         assert(love.filesystem.getInfo("assets"),"project assets must be mounted or linked into the isolated preview directory")
         love.math.setRandomSeed(6102026)
+        Fixture.installSaveTripwires(require('game.save'))
         local Modules=require("game.systems")
         local original=Modules.smokeComposition.new
         Modules.smokeComposition.new=function(context) ctx=context; return original(context) end
+        local CommandRuntime=require('game.coop_inventory_runtime')
+        local originalCommands=CommandRuntime.new
+        CommandRuntime.new=function(context)
+            commands=Fixture.commands(originalCommands,context,love.filesystem.getIdentity)
+            return commands
+        end
         app=require("game.application_composition").new({engine=love})
+        CommandRuntime.new=originalCommands
         Modules.smokeComposition.new=original
         app.load()
         game,ui,services=ctx.state.runtime,ctx.state.ui,ctx.services
@@ -207,6 +216,7 @@ function love.load()
         check(services.sessionBootstrap.enterGame(data),"fresh isolated journey loads in full application")
         check(game.selectedSlot==nil,"QA journey remains unslotted")
         check(love.filesystem.getIdentity()=="mouse-frontier-expedition-integration-qa","QA uses isolated save identity")
+        record("Staged render QA; nonpersistent Authority checkpoint=nil; not natural-play or campaign-persistence evidence")
         record("Full application renderer; "..prefix.." "..love.graphics.getWidth().."x"..love.graphics.getHeight())
         installStages()
     end,debug.traceback)
@@ -216,6 +226,7 @@ end
 function love.update()
     if failed or not app then return end
     local ok,message=xpcall(function()
+        Fixture.assertIsolated(game,ctx.state.session,love.filesystem.getIdentity)
         if captureComplete then
             index=index+1; prepared=false; captureQueued=false; captureComplete=false
         end

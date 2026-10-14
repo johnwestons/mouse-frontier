@@ -22,6 +22,9 @@ except ImportError as exc:
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.audit_coop_package import audit_love, contract, source_files
 CONFIG_PATH = ROOT / "mobile" / "config.json"
 OUTPUT_ROOT = ROOT / "output" / "mobile"
 STAGE_ROOT = OUTPUT_ROOT / "stage"
@@ -437,6 +440,7 @@ def build(args: argparse.Namespace) -> Path:
         "versionName": config["versionName"],
         "versionCode": config["versionCode"],
         "loveVersion": config["loveVersion"],
+        "network": contract({name: path.read_bytes() for name, path in source_files(ROOT).items()}),
         "sourceCommit": git_value("rev-parse", "HEAD"),
         "sourceDirty": bool(git_value("status", "--porcelain")),
         "assetCounts": {key: totals[key] for key in ("images", "audio", "other")},
@@ -458,9 +462,13 @@ def build(args: argparse.Namespace) -> Path:
             compressed = source.suffix.lower() not in {".png", ".ogg", ".jpg", ".jpeg"}
             archive.write(source, relative, zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED)
     temporary_package.replace(package)
+    audited_package = audit_love(package)
+    if audited_package["network"] != manifest["network"]:
+        raise RuntimeError("Packaged Local Play identity differs from the source manifest")
     manifest["package"] = str(package)
     manifest["packageBytes"] = package.stat().st_size
     manifest["packageSha256"] = sha256_file(package)
+    manifest["sharedLuaFilesVerified"] = audited_package["luaFilesVerified"]
     report = output_root / "build-report.json"
     report.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     if include_android_build_manifest(output_root):

@@ -1,7 +1,10 @@
+local Preferences=require("game.local_preferences")
 local WeaponViews=require("game.first_person_weapon_views")
 local WeaponActions=require("game.first_person_weapon_actions")
 local WeaponManifest=require("game.first_person_weapon_manifest")
 local MobileAim=require("game.mobile_weapon_aim")
+local Items=require("game.item_instances")
+local Sessions=require('game.coop_shooter_sessions')
 
 local Shooting={}
 local viewCache
@@ -20,42 +23,17 @@ local function firearmStats(name,Catalog)
     return stats
 end
 
-local function scanWeapons(container,limit,Catalog,data,seen)
-    local fallback
-    local names={}
-    for _,name in pairs(container or {}) do
-        if type(name)=="string" then names[#names+1]=name end
-    end
-    table.sort(names)
-    for _,name in ipairs(names) do
-        if name and not seen[name] then
-            seen[name]=true
-            local stats=firearmStats(name,Catalog)
-            local durability=tonumber(data.weaponDurability and data.weaponDurability[name]) or 100
-            if stats and durability>0 then
-                fallback=fallback or name
-                if math.max(0,tonumber(data.ammo and data.ammo[stats.ammo]) or 0)>0 then
-                    return name,fallback
-                end
-            end
-        end
-    end
-    return nil,fallback
-end
-
 function Shooting.playerWeapon(data,Catalog)
     data=data or {}
-    local seen={}
-    local equipped,fallback=scanWeapons(data.equipment,12,Catalog,data,seen)
-    if equipped then return equipped end
-    local inventory,inventoryFallback=scanWeapons(
-        data.inventory,
-        math.max(24,math.floor(tonumber(data.inventoryCapacity) or 0)),
-        Catalog,
-        data,
-        seen
-    )
-    return inventory or fallback or inventoryFallback
+    local fallback
+    for _,entry in ipairs(Items.weapons(data,Catalog)) do
+        local stats=firearmStats(entry.name,Catalog)
+        if stats and entry.durability>0 then
+            fallback=fallback or entry
+            if math.max(0,tonumber(data.ammo and data.ammo[stats.ammo]) or 0)>0 then return entry.name,entry.id end
+        end
+    end
+    if fallback then return fallback.name,fallback.id end
 end
 
 function Shooting.hasUsableFirearm(data,Catalog)
@@ -73,8 +51,9 @@ local function stagedTubeReload(profile)
     return profile and (profile.style=="tubeLever" or profile.style=="pumpTube")
 end
 
-local function configure(state,name,stats,borrowed,data,quest)
+local function configure(state,name,stats,borrowed,data,quest,itemId)
     state.weapon=name
+    state.itemId=itemId
     state.ammoType=stats and stats.ammo or "22lr"
     state.capacity=math.max(1,math.floor(tonumber(stats and stats.capacity) or 1))
     state.borrowed=borrowed==true
@@ -86,17 +65,21 @@ local function configure(state,name,stats,borrowed,data,quest)
 end
 
 function Shooting.new(data,Catalog,quest,width,height)
-    local saved=quest.weaponSession
-    if type(saved)=="table" and firearmStats(saved.weapon,Catalog) then
+    quest=Sessions.scope(data,quest)
+    local function restore(saved)
+        if type(saved)~="table" or not firearmStats(saved.weapon,Catalog) then return end
         local owned=saved.borrowed and quest.loanActive
-        for _,container in ipairs({data.equipment or {},data.inventory or {}}) do
-            for _,name in pairs(container) do if name==saved.weapon then owned=true end end
+        if not saved.borrowed then
+            local selector=Items.enabled(data) and saved.itemId or saved.weapon
+            local entry=Items.selection(data,selector,Catalog)
+            owned=entry and entry.name==saved.weapon
         end
-        local durability=saved.borrowed and 100 or tonumber(data.weaponDurability and data.weaponDurability[saved.weapon]) or 100
-        if owned and durability>0 then
+        local durability=saved.borrowed and 100 or Items.condition(data,saved.itemId or saved.weapon)
+        if owned and durability>0 and (saved.actorId==nil or Sessions.owned(saved,data)) then
             saved.capacity=Catalog.weaponCombat[saved.weapon].capacity or 1
             saved.ammoType=Catalog.weaponCombat[saved.weapon].ammo
             saved.magazine=math.max(0,math.min(tonumber(saved.magazine) or 0,saved.capacity,totalRounds(saved,data,quest)))
+            saved=Sessions.bind(Sessions.view(saved,width,height),data)
             saved.ads=false
             saved.touchAim=nil
             saved.fireHeld=false
@@ -105,7 +88,17 @@ function Shooting.new(data,Catalog,quest,width,height)
             return saved
         end
     end
-    local state={
+    local restored=restore(quest.weaponSession)
+    if restored then return restored end
+    local name,itemId=Shooting.playerWeapon(data,Catalog)
+    -- Loan reclaim can remove the current borrowed record while retaining the
+    -- exact owned gun history. Resume that history before configuring a gun.
+    local cached=quest.weaponSessions and quest.weaponSessions[itemId or name]
+    if type(cached)=="table" and not cached.borrowed and cached.weapon==name and cached.itemId==itemId then
+        restored=restore(cached)
+        if restored then quest.weaponSession=Sessions.record(restored); return restored end
+    end
+    local state=Sessions.bind(Sessions.view({
         aimX=(width or 960)/2,
         aimY=(height or 720)/2,
         weaponX=(width or 960)*.68,
@@ -113,19 +106,18 @@ function Shooting.new(data,Catalog,quest,width,height)
         ads=false,
         cooldown=0,
         reloadTimer=0,
-    }
-    local name=Shooting.playerWeapon(data,Catalog)
+    },width,height),data)
     local stats=firearmStats(name,Catalog)
     local rounds=stats and math.max(0,tonumber(data.ammo and data.ammo[stats.ammo]) or 0) or 0
     if stats and rounds>0 then
-        configure(state,name,stats,false,data,quest)
+        configure(state,name,stats,false,data,quest,itemId)
     elseif quest.loanActive and math.max(0,tonumber(quest.loanAmmo) or 0)>0 then
         local loanStats=assert(firearmStats("frontier-22-lever-rifle",Catalog))
         configure(state,"frontier-22-lever-rifle",loanStats,true,data,quest)
     elseif stats then
-        configure(state,name,stats,false,data,quest)
+        configure(state,name,stats,false,data,quest,itemId)
     end
-    quest.weaponSession=state
+    quest.weaponSession=Sessions.record(state)
     return state
 end
 
@@ -134,30 +126,28 @@ function Shooting.useLoan(state,data,Catalog,quest)
 end
 
 function Shooting.weaponOptions(data,Catalog)
-    local result,seen={},{}
-    for _,container in ipairs({data.equipment or {},data.inventory or {}}) do
-        for _,name in pairs(container) do
-            if type(name)=="string" and not seen[name] and firearmStats(name,Catalog)
-                and (tonumber(data.weaponDurability and data.weaponDurability[name]) or 100)>0 then
-                seen[name]=true
-                result[#result+1]={name=name,borrowed=false}
-            end
+    local result={}
+    for _,entry in ipairs(Items.weapons(data,Catalog)) do
+        if firearmStats(entry.name,Catalog) and entry.durability>0 then
+            result[#result+1]={name=entry.name,itemId=entry.id,ref=entry.ref,borrowed=false}
         end
     end
-    table.sort(result,function(a,b) return a.name<b.name end)
+    table.sort(result,function(a,b) return a.name==b.name and (a.itemId or "")<(b.itemId or "") or a.name<b.name end)
     result[#result+1]={name="frontier-22-lever-rifle",borrowed=true}
     return result
 end
 
 function Shooting.chooseWeapon(state,option,data,Catalog,quest)
+    if not Sessions.owned(state,data) then return state end
+    quest=Sessions.scope(data,quest)
     local allowed=false
     for _,entry in ipairs(Shooting.weaponOptions(data,Catalog)) do
-        if entry.name==option.name and entry.borrowed==option.borrowed then allowed=true end
+        if entry.name==option.name and entry.borrowed==option.borrowed and entry.itemId==option.itemId then allowed=true end
     end
     if not allowed then return state end
     quest.weaponSessions=quest.weaponSessions or {}
-    if state.weapon then quest.weaponSessions[state.borrowed and "loan" or state.weapon]=state end
-    local key=option.borrowed and "loan" or option.name
+    if state.weapon then quest.weaponSessions[state.borrowed and "loan" or state.itemId or state.weapon]=Sessions.record(state) end
+    local key=option.borrowed and "loan" or option.itemId or option.name
     local selected=quest.weaponSessions[key]
     local supplied=false
     if option.borrowed and (quest.loanAmmo or 0)<=0 then
@@ -166,17 +156,18 @@ function Shooting.chooseWeapon(state,option,data,Catalog,quest)
     end
     if option.borrowed then quest.loanActive=true end
     if not selected then
-        selected={aimX=state.aimX,aimY=state.aimY,weaponX=state.weaponX,weaponY=state.weaponY,ads=false}
-        configure(selected,option.name,firearmStats(option.name,Catalog),option.borrowed,data,quest)
-        quest.weaponSessions[key]=selected
+        selected=Sessions.bind(Sessions.view({},960,720),data)
+        configure(selected,option.name,firearmStats(option.name,Catalog),option.borrowed,data,quest,option.itemId)
+        quest.weaponSessions[key]=Sessions.record(selected)
     end
+    selected=Sessions.view(selected)
     selected.aimX,selected.aimY=state.aimX,state.aimY
     selected.ads=state.ads
     selected.touchAim=state.touchAim
     MobileAim.refresh(selected,selected.weapon,selected.ads and "sights" or "hip")
     if supplied then selected.magazine=math.min(selected.capacity,totalRounds(selected,data,quest)) end
     selected.magazine=math.min(selected.magazine,totalRounds(selected,data,quest))
-    quest.weaponSession=selected
+    quest.weaponSession=Sessions.record(selected)
     return selected
 end
 
@@ -199,7 +190,7 @@ function Shooting.playReport(name,Catalog,data,distant)
     if source then
         source:stop()
         source:setPitch(profile.pitch*(distant and .92 or 1))
-        local volume=tonumber(data and data.audio and data.audio.sfxVolume) or .55
+        local volume=tonumber(data and Preferences.audio(data) and Preferences.audio(data).sfxVolume) or .55
         source:setVolume((profile.volume or .8)*volume*(distant and .22 or 1))
         source:play()
     end
@@ -217,11 +208,14 @@ function Shooting.release()
 end
 
 function Shooting.rounds(state,data,quest)
-    if not state or not state.weapon then return 0 end
+    if not state or not state.weapon or not Sessions.owned(state,data) then return 0 end
+    quest=Sessions.scope(data,quest)
     return totalRounds(state,data,quest)
 end
 
 function Shooting.needsSupply(state,data,quest)
+    if not Sessions.owned(state,data) then return true end
+    quest=Sessions.scope(data,quest)
     return not state.weapon or (state.magazine<=0 and totalRounds(state,data,quest)<=0)
 end
 
@@ -258,6 +252,13 @@ function Shooting.cycleFireMode(state,direction)
 end
 
 function Shooting.reload(state,data,quest)
+    if not Sessions.owned(state,data) then return false end
+    quest=Sessions.scope(data,quest)
+    if not state.borrowed and Items.enabled(data) then
+        local item=Items.owned(data,state.itemId)
+        if not item or item.name~=state.weapon then return false end
+    end
+    if not state.borrowed and Items.condition(data,state.itemId or state.weapon)<=0 then return false end
     if not state.weapon or state.reloadTimer>0 or totalRounds(state,data,quest)<=0 then return false end
     local profile=WeaponManifest.reloadProfileFor(state.weapon)
     local rounds
@@ -278,8 +279,16 @@ function Shooting.reload(state,data,quest)
 end
 
 function Shooting.fire(state,data,quest)
+    if not Sessions.owned(state,data) then return false,'ownership' end
+    quest=Sessions.scope(data,quest)
     if state.fireMode=="safe" then return false,"safe" end
     if not state.weapon or state.reloadTimer>0 or state.cooldown>0 then return false,"busy" end
+    if not state.borrowed and Items.enabled(data) then
+        local item=Items.owned(data,state.itemId)
+        if not item or item.name~=state.weapon then return false,"ownership" end
+    end
+    if not state.borrowed and Items.condition(data,state.itemId or state.weapon)<=0 then return false,"broken" end
+    if totalRounds(state,data,quest)<=0 then return false,"empty" end
     if state.magazine<=0 then return false,totalRounds(state,data,quest)>0 and "reload" or "empty" end
     state.magazine=state.magazine-1
     if state.borrowed then
@@ -294,6 +303,8 @@ function Shooting.fire(state,data,quest)
 end
 
 function Shooting.update(state,dt,data,quest,width,height)
+    if not Sessions.owned(state,data) then return false,'ownership' end
+    quest=Sessions.scope(data,quest)
     WeaponActions.update(state,dt)
     state.cooldown=math.max(0,(state.cooldown or 0)-dt)
     if state.reloadTimer and state.reloadTimer>0 then

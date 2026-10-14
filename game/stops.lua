@@ -1,4 +1,5 @@
 local Stops = {}
+local Random = require("game.coop_random")
 local LootProgression = require("game.loot_progression")
 local QuestProgression = require("game.quest_progression")
 local StopHelpProgression = require("game.stop_help_progression")
@@ -9,26 +10,29 @@ local props={"pine-tree","fir-tree","small-broadleaf-tree","large-broadleaf-tree
 local wildlife={"gray-rabbit","brown-rabbit","young-deer","adult-deer","sparrow","crow","owl","blue-butterfly","orange-butterfly","small-lizard","field-mouse","perched-songbird"}
 local decorationSpots={{65,535},{215,590},{335,660},{515,600},{690,670},{825,575},{920,650}}
 
-local function offerRoll(location) return QuestProgression.rollOffer(location) end
+local function offerRoll(location,rng) return QuestProgression.rollOffer(location,rng) end
 
-local function stock(catalog,location) return LootProgression.tradeStock(catalog,location) end
+local function stock(catalog,location,rng) return LootProgression.tradeStock(catalog,location,rng) end
 
-local function differentNpc(roster,outside)
+local function differentNpc(roster,outside,rng)
+    local random=Random.range(rng)
     if #roster<=1 then return outside end
     local inside
-    repeat inside=roster[love.math.random(#roster)] until inside~=outside
+    repeat inside=roster[random(#roster)] until inside~=outside
     return inside
 end
 
-local function generatedInteriorIndex(stop)
+local function generatedInteriorIndex(stop,rng)
+    local random=Random.range(rng)
     -- The legacy five interiors occupy slots 1-5. Generated stop interiors
     -- follow them in five-image groups, one group per stop.
     local first=6+((math.max(1,math.min(50,stop))-1)*5)
-    return first+love.math.random(0,4)
+    return first+random(0,4)
 end
 
-function Stops.ensureDoor(data,catalog,doorIndex)
-    local layout=Stops.ensure(data,catalog,"house")
+function Stops.ensureDoor(data,catalog,doorIndex,rng)
+    local random=Random.range(rng)
+    local layout=Stops.ensure(data,catalog,"house",rng)
     local door=math.max(1,doorIndex or 1)
     layout.houseDoors=layout.houseDoors or {}
     local key=tostring(door); local home=layout.houseDoors[key]
@@ -39,7 +43,7 @@ function Stops.ensureDoor(data,catalog,doorIndex)
         local candidates={}
         for _,npc in ipairs(roster) do if not used[npc] and npc~=layout.npcOutside then candidates[#candidates+1]=npc end end
         if #candidates==0 then for _,npc in ipairs(roster) do if npc~=layout.npcOutside then candidates[#candidates+1]=npc end end end
-        home={interior=generatedInteriorIndex(data.location or 1),npc=(#candidates>0 and candidates[love.math.random(#candidates)] or layout.npcInside or layout.npcOutside),door=door}
+        home={interior=generatedInteriorIndex(data.location or 1,rng),npc=(#candidates>0 and candidates[random(#candidates)] or layout.npcInside or layout.npcOutside),door=door}
         layout.houseDoors[key]=home
     end
     layout.activeHouseDoor=door
@@ -48,16 +52,17 @@ function Stops.ensureDoor(data,catalog,doorIndex)
     return layout
 end
 
-function Stops.ensure(data,catalog,scene)
+function Stops.ensure(data,catalog,scene,rng)
+    local random=Random.range(rng)
     local key=tostring(data.location); local layout=data.stopLayouts[key]; local roster=data.npcRoster or {}
     if not layout then
-        layout={houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7),interior=generatedInteriorIndex(data.location or 1)}
-        if #roster>0 then layout.npcOutside=roster[love.math.random(#roster)]; layout.npcInside=differentNpc(roster,layout.npcOutside); layout.npc=layout.npcOutside end
-        layout.offer=offerRoll(data.location); data.stopLayouts[key]=layout
+        layout={houseX=random(390,700),treeA=random(110,250),treeB=random(760,860),house=random(1,8),tree=random(1,7),interior=generatedInteriorIndex(data.location or 1,rng)}
+        if #roster>0 then layout.npcOutside=roster[random(#roster)]; layout.npcInside=differentNpc(roster,layout.npcOutside,rng); layout.npc=layout.npcOutside end
+        layout.offer=offerRoll(data.location,rng); data.stopLayouts[key]=layout
     end
-    if (data.location or 1)<=5 and (not layout.interior or layout.interior<=5) then layout.interior=generatedInteriorIndex(data.location or 1) end
-    layout.interior=layout.interior or generatedInteriorIndex(data.location or 1); layout.npcOutside=layout.npcOutside or layout.npc or roster[1]
-    layout.npcInside=layout.npcInside or differentNpc(roster,layout.npcOutside); layout.npc=layout.npcOutside
+    if (data.location or 1)<=5 and (not layout.interior or layout.interior<=5) then layout.interior=generatedInteriorIndex(data.location or 1,rng) end
+    layout.interior=layout.interior or generatedInteriorIndex(data.location or 1,rng); layout.npcOutside=layout.npcOutside or layout.npc or roster[1]
+    layout.npcInside=layout.npcInside or differentNpc(roster,layout.npcOutside,rng); layout.npc=layout.npcOutside
     -- A stop now has one ordinary request opportunity rather than giving
     -- every resident an independent roll. Merchants retain their trade role.
     layout.npcOffers=layout.npcOffers or {}; layout.helpRequests=layout.helpRequests or {}
@@ -73,11 +78,11 @@ function Stops.ensure(data,catalog,scene)
     end
     if (layout.offerPolicyVersion or 0)<StopHelpProgression.policyVersion then
         layout.npcOffers={}; layout.helpRequests=layout.helpRequests or {}
-        assignOffer(layout.npcOutside,offerRoll(data.location)); assignOffer(layout.npcInside,"none")
+        assignOffer(layout.npcOutside,offerRoll(data.location,rng)); assignOffer(layout.npcInside,"none")
         if layout.npcOffers[layout.npcOutside]=="dialogue" then data.questAsked[tostring(data.location)..":"..tostring(layout.npcOutside)]=nil end
         layout.offerPolicyVersion=StopHelpProgression.policyVersion
     else
-        if layout.npcOffers[layout.npcOutside]==nil then assignOffer(layout.npcOutside,offerRoll(data.location)) end
+        if layout.npcOffers[layout.npcOutside]==nil then assignOffer(layout.npcOutside,offerRoll(data.location,rng)) end
         if layout.npcOffers[layout.npcInside]==nil then assignOffer(layout.npcInside,"none") end
         for npc,kind in pairs(layout.npcOffers) do
             if kind=="item" or kind=="aid" then StopHelpProgression.ensureRequest(layout,npc,kind,data.location,data) end
@@ -85,21 +90,24 @@ function Stops.ensure(data,catalog,scene)
         end
     end
     layout.offer=layout.npcOffers[layout.npcOutside] or layout.offer or "none"
-    if not layout.npcWeapon then layout.npcWeapon=LootProgression.rollWeapon(catalog,data.location,"common") end
-    if layout.offer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=layout.tradeNpc or layout.npc end
+    local recruited=layout.coopOffers and layout.coopOffers[layout.npcOutside]
+    if not layout.npcWeapon and not (recruited and recruited.kind=='ride' and recruited.status=='accepted') then
+        layout.npcWeapon=LootProgression.rollWeapon(catalog,data.location,"common",rng)
+    end
+    if layout.offer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location,rng); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=layout.tradeNpc or layout.npc end
     if not layout.decorations then
         layout.decorations={}
-        for index=1,love.math.random(5,7) do local spot=decorationSpots[index]; local name=props[love.math.random(#props)]; local tall=name:find("tree") or name:find("birch"); layout.decorations[#layout.decorations+1]={kind="prop",name=name,x=spot[1]+love.math.random(-18,18),y=spot[2]+love.math.random(-12,12),scale=tall and .52 or (.27+love.math.random()*.12)} end
-        local spot=decorationSpots[love.math.random(#decorationSpots)]; layout.decorations[#layout.decorations+1]={kind="wildlife",name=wildlife[love.math.random(#wildlife)],x=spot[1]+love.math.random(-25,25),y=spot[2]-15,scale=.24+love.math.random()*.08}
+        for index=1,random(5,7) do local spot=decorationSpots[index]; local name=props[random(#props)]; local tall=name:find("tree") or name:find("birch"); layout.decorations[#layout.decorations+1]={kind="prop",name=name,x=spot[1]+random(-18,18),y=spot[2]+random(-12,12),scale=tall and .52 or (.27+random()*.12)} end
+        local spot=decorationSpots[random(#decorationSpots)]; layout.decorations[#layout.decorations+1]={kind="wildlife",name=wildlife[random(#wildlife)],x=spot[1]+random(-25,25),y=spot[2]-15,scale=.24+random()*.08}
     end
     data.currentNPC=(scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
     -- Additional house doors can introduce NPCs beyond the two legacy slots.
     -- Give those residents their own independent offer as well.
     if data.currentNPC and layout.npcOffers[data.currentNPC]==nil then assignOffer(data.currentNPC,"none") end
-    Conversations.assign(data,layout)
+    Conversations.assign(data,layout,random)
     local currentOffer=layout.npcOffers[data.currentNPC]
     layout.offer=currentOffer or layout.offer or "none"
-    if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end
+    if currentOffer=="trade" then layout.tradeStock=layout.tradeStock or stock(catalog,data.location,rng); layout.tradeBudget=layout.tradeBudget or (10+math.floor((data.location or 1)*1.8)); layout.tradeNpc=data.currentNPC end
     if layout.tradeStock then LootProgression.ensureCraftingStock(layout,catalog,data.location) end
     return layout
 end
