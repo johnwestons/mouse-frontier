@@ -813,7 +813,8 @@ local function new(context)
           ui.npcIdentityCard=require('game.npc_identity_ui').draw({data=runtime.saveData,reference=personReference,images=npcImages,characterImages=context.characterImages,
               key=mobile and 'TAP' or controlBindings:hasGamepad() and controlBindings:display('button','interact') or controlBindings:display('key','interact')})
       end
-      if Home.isHome(runtime.saveData) and not WorldPause.isPaused(runtime,ui,maintenanceSession) then
+      local actionMenuOpen=ui.actionMenusEnabled==true and ui.mobileMenuOpen==true
+      if Home.isHome(runtime.saveData) and not WorldPause.isPaused(runtime,ui,maintenanceSession,{allowActionMenu=actionMenuOpen}) then
           local x,y,w,h=20,mobile and 214 or (runtime.scene=="train" and 276 or 112),mobile and (Home.isOffice(runtime.saveData) and 430 or 610) or 470,134
           local sidebar=ui.sideHudLayout
           local compact=sidebar or runtime.scene=="stop"

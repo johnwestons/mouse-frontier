@@ -11,9 +11,10 @@ local secondary={'upgrade','maintenance','decorate','journal','settings','editor
 local labels={poses='POSES',leave='LEAVE TRAIN',travel='TRAVEL',backpack='BACKPACK',map='MAP',more='MORE',
     idle='STAND',sit='SIT',lay='LAY DOWN',use='USE',upgrade='UPGRADES',maintenance='MAINTENANCE',
     decorate='MOVE / SCALE',journal='JOURNAL',settings='SETTINGS',editor='GUI EDITOR',pause='PAUSE',localPlay='LOCAL PLAY',launcher='ACTIONS',close='CLOSE'}
-local function text(value,r,scale)
+local function text(value,r,scale,singleLine)
     love.graphics.setColor(1,.94,.79,1)
-    Typography.drawText(love.graphics,value,r.x,r.y,r.w,r.h,{scale=scale or .85,minScale=.68,align='center',valign='center'})
+    Typography.drawText(love.graphics,value,r.x,r.y,r.w,r.h,
+        {scale=scale or .85,minScale=singleLine and .52 or .68,align='center',valign='center',singleLine=singleLine})
 end
 function Menu.element(layout,page,id) return 'actions_'..layout..'_'..page..(id and '_'..id or '') end
 function Menu.editorElements()
@@ -68,12 +69,12 @@ function Menu:tile(layout,page,id,r,frame)
         local a=self.actions[id];local disabled=a and a.enabled==false
         local selected=self.focus and self.selected==#self.targets+1
         Art.frame(frame or 'tile',r,selected,disabled)
-        local iconSize=frame=='center' and r.w*.34 or math.min(r.w*.65,r.h*.54)
+        local iconSize=frame=='center' and math.min(r.w,r.h)*.34 or math.min(r.w*.50,r.h*.40)
         Art.icon(id,r.x+r.w/2,r.y+r.h*(frame=='center' and .38 or .34),iconSize,disabled)
         local label=a and a.label or labels[id]
         if page=='dock' and id=='leave' and label=='LEAVE TRAIN' then label='LEAVE' end
         if page=='dock' and id=='backpack' then label='PACK' end
-        text(label,{x=r.x+6,y=r.y+r.h*.55,w=r.w-12,h=r.h*.34},.85)
+        text(label,{x=r.x+4,y=r.y+r.h*.55,w=r.w-8,h=r.h*.34},.85,true)
         self:target(id,r,frame=='center' and function(x,y)
             local dx,dy=(x-r.x-r.w/2)/(r.w/2),(y-r.y-r.h/2)/(r.h/2)
             return dx*dx+dy*dy<=1
@@ -135,45 +136,65 @@ end
 function Menu:draw(canvas,preview)
     local layout=self:layout()
     if layout~=self.lastLayout then self.lastLayout=layout; self:close(); self:cancelInput() end
+    local previouslySelected=self.targets[self.selected]
+    local previouslySelectedId=previouslySelected and previouslySelected.id
     self.visible=true; self.actions=self.options.actions and self.options.actions() or {}; self.targets={}
-    local right,bottom=canvas.right-18,canvas.bottom-14
+    local right=canvas.right-18
+    local sidebar=self.options.rightHudX and self.options.rightHudX()
+    -- Wide play screens reserve a right gutter for the home objective. Keep
+    -- the controls just left of that gutter; compact screens use the full
+    -- available width instead.
+    local safeRight=sidebar and math.min(right,sidebar-51) or right
+    local warning=self.notice
+    if not warning and self.focus then
+        local action=previouslySelectedId and self.actions[previouslySelectedId]
+        warning=action and action.enabled==false and action.reason
+    end
     local page=preview or self.page
     if page=='closed' then page=nil end
-    local width=math.min(500,(canvas.right-canvas.left)*.55)
-    local tile=(width-32)/5
-    local dock={x=right-width,y=bottom-86,w=width,h=86}
+    local buttonW,buttonH,gap=60,50,5
+    local dockY=canvas.bottom-116
+    local dockWidth=layout=='dock' and buttonW*5+gap*4 or buttonW*2+gap
+    local dock={x=safeRight-dockWidth,y=dockY,w=dockWidth,h=buttonH}
     Style.scope(Menu.element(layout,'dock'),dock,function()
         if layout=='dock' then
             for i,id in ipairs({'poses','leave','travel','backpack','more'}) do
-                self:tile(layout,'dock',id,{x=dock.x+(i-1)*(tile+8),y=dock.y,w=tile,h=86})
+                self:tile(layout,'dock',id,{x=dock.x+(i-1)*(buttonW+gap),y=dock.y,w=buttonW,h=buttonH})
             end
         else
-            self:tile(layout,'dock','launcher',{x=right-106,y=bottom-86,w=106,h=86})
-            self:tile(layout,'dock','backpack',{x=right-220,y=bottom-86,w=106,h=86})
+            self:tile(layout,'dock','backpack',{x=dock.x,y=dock.y,w=buttonW,h=buttonH})
+            self:tile(layout,'dock','launcher',{x=dock.x+buttonW+gap,y=dock.y,w=buttonW,h=buttonH})
         end
     end)
-    self:tile(layout,'dock','pause',{x=right-92,y=canvas.top+18,w=92,h=68})
+    self:tile(layout,'dock','pause',{x=canvas.right-102,y=canvas.top+6,w=84,h=64})
     if page=='main' and layout=='radial' or page=='poses' and layout~='drawer' then
-        self:wheel(layout,page,page=='poses' and poses or primary,right-190,bottom-294,174)
+        local radius=120
+        self:wheel(layout,page,page=='poses' and poses or primary,safeRight-radius-4,dockY-12-radius,radius)
     elseif page then
         local list=page=='poses' and poses or page=='more' and secondary or primary
-        local rows=math.ceil(#list/2);local height=96+rows*92
-        local r={x=right-350,y=math.max(canvas.top+100,bottom-110-height),w=350,h=height}
+        local rows=math.ceil(#list/2);local panelWidth=216;local panelHeight=64+rows*56
+        local warningHeight=warning and 36 or 0
+        local panelBottom=dockY-2-warningHeight
+        local r={x=safeRight-panelWidth,y=math.max(canvas.top+12,panelBottom-panelHeight),w=panelWidth,h=panelHeight}
         Style.scope(Menu.element(layout,page),r,function()
             Art.frame('panel',r)
-            text(page=='poses' and 'POSES' or page=='more' and 'MORE ACTIONS' or 'ACTIONS',{x=r.x+16,y=r.y+24,w=206,h=48},.95)
-            self:tile(layout,page,'close',{x=r.x+r.w-104,y=r.y+24,w=88,h=54})
+            text(page=='poses' and 'POSES' or page=='more' and 'MORE ACTIONS' or 'ACTIONS',{x=r.x+12,y=r.y+8,w=124,h=36},.82,true)
+            self:tile(layout,page,'close',{x=r.x+r.w-72,y=r.y+10,w=60,h=36})
             for i,id in ipairs(list) do
-                self:tile(layout,page,id,{x=r.x+16+(i-1)%2*162,y=r.y+84+math.floor((i-1)/2)*92,w=156,h=84})
+                self:tile(layout,page,id,{x=r.x+12+(i-1)%2*104,y=r.y+52+math.floor((i-1)/2)*56,w=96,h=50})
             end
         end)
+        if warning then
+            local noticeRect={x=safeRight-panelWidth,y=dockY-34,w=panelWidth,h=28}
+            Art.frame('panel',noticeRect);text(warning,noticeRect,.62)
+        end
     end
-    if self.notice then
-        local r={x=right-440,y=bottom-122,w=440,h=34}
-        Art.frame('panel',r);text(self.notice,r,.65)
-    elseif self.focus then
-        local t=self.targets[self.selected];local a=t and self.actions[t.id]
-        if a and a.enabled==false and a.reason then text(a.reason,{x=right-440,y=bottom-122,w=440,h=34},.65) end
+    if warning and page and (layout=='radial' and (page=='main' or page=='poses')) then
+        local r={x=safeRight-216,y=dockY-12-240-34,w=216,h=28}
+        Art.frame('panel',r);text(warning,r,.62)
+    elseif warning and not page then
+        local r={x=safeRight-216,y=dockY-34,w=216,h=28}
+        Art.frame('panel',r);text(warning,r,.62)
     end
 end
 function Menu:hide()

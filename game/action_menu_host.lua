@@ -40,6 +40,7 @@ function Host.wrap(application,c)
         if not states[runtime] then
             local s={runtime=runtime,ui=ui,guest=v}
             s.menu=Menu.new({actions=function() return v and guestActions(v,c.ui) or c.ui.quickActions and c.ui.quickActions() or {} end,
+                rightHudX=function() return ui.sideHudLayout and ui.sideHudLayout.rightX end,
                 changed=function(page)
                     ui.mobileMenuOpen=page~=nil
                     if page then

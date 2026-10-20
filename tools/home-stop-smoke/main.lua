@@ -87,6 +87,32 @@ local function run()
             expect(hint.x+hint.w<=panel.x or hint.x>=panel.x+panel.w or hint.y+hint.h<=panel.y or hint.y>=panel.y+panel.h,"home instructions cover the action hint")
         end
     end
+    local function checkObjectiveDuringActions()
+        local style=require("game.ui_layout").manager()
+        local previousLayout=style:menuLayout()
+        style:setMenuLayout("drawer",false)
+        ui.actionMenusEnabled=true
+        ui.mobileMenuOpen=false
+        step(.025);draw()
+        ui.mobileMenuOpen=true
+        step(.05);draw()
+        local menu=ui.actionMenu
+        expect(menu and menu.page=="main","Actions drawer did not open over the home yard")
+        expect(ui.homeStopObjective and ui.homeStopActionBounds,"Actions drawer hid the home instructions or action card")
+        checkObjectiveSidebar()
+        for _,target in ipairs(menu.targets) do
+            for _,card in ipairs({ui.homeStopObjective,ui.homeStopActionBounds}) do
+                local r=target.rect
+                local overlap=r.x<card.x+card.w and r.x+r.w>card.x and r.y<card.y+card.h and r.y+r.h>card.y
+                expect(not overlap,"menu control overlaps home HUD: "..target.id)
+            end
+        end
+        capture("actions-objective-overlay")
+        ui.mobileMenuOpen=false
+        step(.05);draw()
+        style:setMenuLayout(previousLayout,false)
+        step(.025);draw()
+    end
     local function reload(stage,line)
         held={}
         if controls then controls:cancelAll() end
@@ -179,6 +205,7 @@ local function run()
     expect(not ui.travel and not ui.leaveTrain,"train controls leaked into the opening")
     capture("01-opening")
     checkObjectiveSidebar()
+    checkObjectiveDuringActions()
     gate("briefing")
     local Fox=require("game.home_stop_fox")
     local actor=Fox.actor(data)

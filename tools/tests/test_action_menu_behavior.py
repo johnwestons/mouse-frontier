@@ -15,10 +15,11 @@ class ActionMenuTests(unittest.TestCase):
             end}
             love.graphics.stencil=function(fn) fn() end
             love.graphics.polygon=noop;love.graphics.setStencilTest=noop;love.graphics.draw=noop
-            Menu=require('game.action_menu');count=0;allowed=true
-            menu=Menu.new({actions=function() return {travel={enabled=allowed,reason='Stop first',run=function()count=count+1;return true end}} end})
-            function drawMenu()
-                manager:beginFrame();menu:draw({left=0,top=0,right=960,bottom=720})
+            Menu=require('game.action_menu');count=0;allowed=true;hudRight=810
+            menu=Menu.new({actions=function() return {travel={enabled=allowed,reason='Stop first',run=function()count=count+1;return true end}} end,
+                rightHudX=function() return hudRight end})
+            function drawMenu(canvas)
+                manager:beginFrame();menu:draw(canvas or {left=0,top=0,right=960,bottom=720})
             end
             function target(id)
                 for _,t in ipairs(menu.targets) do if t.id==id then
@@ -63,6 +64,59 @@ class ActionMenuTests(unittest.TestCase):
             end
             local x,y=target('close');assert(menu:at(x,y).id=='close')
             assert(menu:key('escape') and not menu.page)
+        ''')
+
+    def test_controls_and_drawer_tiles_share_clean_aligned_geometry(self):
+        self.lua.execute('''
+            local function closeTo(actual,expected)
+                assert(math.abs(actual-expected)<.000001,tostring(actual)..' ~= '..tostring(expected))
+            end
+            for _,layout in ipairs({'dock','drawer','radial'}) do
+                manager:setMenuLayout(layout,false);menu.lastLayout=layout;menu:setPage(nil);drawMenu()
+                local controls={}
+                for _,id in ipairs(layout=='dock' and {'poses','leave','travel','backpack','more'} or {'backpack','launcher'}) do
+                    local _,_,r=target(id);controls[#controls+1]=r
+                    assert(r.w==60 and r.h==50,'bottom controls use one touch size')
+                    assert(r.y==604,'bottom controls share one baseline')
+                end
+                for i=2,#controls do
+                    closeTo(controls[i].x-(controls[i-1].x+controls[i-1].w),5)
+                end
+                closeTo(controls[#controls].x+controls[#controls].w,759)
+                if layout=='drawer' then
+                    menu:setPage('main');drawMenu()
+                    local _,_,first=target('poses');local _,_,second=target('leave')
+                    assert(first.w==96 and first.h==50 and second.w==96 and second.h==50)
+                    closeTo(second.x-(first.x+first.w),8)
+                    closeTo(first.y,second.y)
+                    closeTo(second.x+second.w,755)
+                    local _,_,close=target('close')
+                    assert(close.w==60 and close.h==36,'panel close button remains compact')
+                end
+            end
+            hudRight=970;manager:setMenuLayout('drawer',false);menu.lastLayout='drawer';menu:setPage(nil)
+            drawMenu({left=-160,top=0,right=1120,bottom=720})
+            local _,_,pack=target('backpack');local _,_,actions=target('launcher')
+            closeTo(actions.x+actions.w,919,'controls stop before the wide-screen objective gutter')
+            assert(pack.w==60 and actions.w==60 and pack.y==actions.y)
+            hudRight=nil;drawMenu()
+            local _,_,compactActions=target('launcher')
+            closeTo(compactActions.x+compactActions.w,942,'compact screen uses its available width')
+        ''')
+
+    def test_action_menu_can_preserve_hud_without_unpausing_other_modals(self):
+        self.lua.execute('''
+            local Pause=require('game.world_pause')
+            local runtime={state='game'};local ui={mobileMenuOpen=true};local maintenance={}
+            assert(Pause.isPaused(runtime,ui,maintenance),'action menu still pauses gameplay by default')
+            assert(not Pause.isPaused(runtime,ui,maintenance,{allowActionMenu=true}),
+                'HUD-only allowance did not exclude the action menu pause')
+            ui.optionsOpen=true
+            assert(Pause.isPaused(runtime,ui,maintenance,{allowActionMenu=true}),
+                'action-menu allowance must not bypass other modal screens')
+            ui.optionsOpen=nil;runtime.inventoryOpen=true
+            assert(Pause.isPaused(runtime,ui,maintenance,{allowActionMenu=true}),
+                'action-menu allowance must not bypass inventory')
         ''')
 
     def test_independent_presets_round_trip_and_undo(self):

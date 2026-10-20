@@ -14,7 +14,8 @@ function WorldPause.isPaused(runtime,ui,maintenanceSession,options)
         or maintenanceSession.open==true
         or runtime.inventoryOpen==true or runtime.mapOpen==true or runtime.journeyLogOpen==true or runtime.editMode==true
         or runtime.tradeOpen==true or runtime.trainUpgradeOpen==true or runtime.poseMenu==true or runtime.outfitCraftingOpen==true
-        or ui.optionsOpen==true or ui.escMenuOpen==true or ui.radioOpen==true or ui.mobileMenuOpen==true or ui.playerToolsOpen==true
+        or ui.optionsOpen==true or ui.escMenuOpen==true or ui.radioOpen==true
+        or ui.mobileMenuOpen==true and not options.allowActionMenu or ui.playerToolsOpen==true
         or ui.localPlay and (ui.localPlay.menuOpen==true or WorldPause.isSharedHost(runtime) and ui.localPlay.focused==false)
         or runtime.firstAid~=nil and runtime.firstAid~=false
         or runtime.shootingRange~=nil and runtime.shootingRange~=false

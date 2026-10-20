@@ -18,7 +18,7 @@ $oldAppData = $env:APPDATA
 $modes = if ($Mode -eq 'Both') { @('Desktop','Mobile') } else { @($Mode) }
 $process = $null
 $reports = @()
-$expectedScreenshots = @('01-opening.png','02-office.png','02-briefing.png','03-supplies.png','04-repaired.png','05-farewell.png','06-train.png','07-arrival.png','fox-supplies.png','fox-workbench.png','fox-near-engine.png','fox-far-engine.png','fox-talk.png','fox-talk-prompt.png','office-walkmask.png','office-upper-floor.png')
+$expectedScreenshots = @('01-opening.png','actions-objective-overlay.png','02-office.png','02-briefing.png','03-supplies.png','04-repaired.png','05-farewell.png','06-train.png','07-arrival.png','fox-supplies.png','fox-workbench.png','fox-near-engine.png','fox-far-engine.png','fox-talk.png','fox-talk-prompt.png','office-walkmask.png','office-upper-floor.png')
 if ($Scenario -eq 'Identity') { $expectedScreenshots = @('sender-card.png','mail-task.png','named-journal.png','passenger-card.png','recipient-directions.png','recipient-map.png','recipient-card.png','deliveries-complete.png') }
 
 try {
