@@ -1,9 +1,11 @@
 local Editor={}
 local Viewport=require("game.viewport")
+local ActionMenu=require('game.action_menu')
 local WIDTH,HEIGHT=304,480
 local elements={"journeyHud","resourceHud","mobileControls","sceneControls","returnTrain","returnStop","exitHome","expeditionHud","journeyMenu","journeyLog","inventory","map","dialogue","travelConfirm","event","trainUpgrades","trade","options","pauseMenu","confirmation","exitPrompt","poseMenu","radio","firstAid","maintenance","shootingRange","lastStand","battle","slots","characters","ending"}
 local names={journeyHud="Journey HUD",resourceHud="Resource bars",mobileControls="Touch controls",sceneControls="Scene controls",returnTrain="Return to train",returnStop="Return to stop",exitHome="Exit home",expeditionHud="Expedition HUD",journeyMenu="Journey menu",journeyLog="Journey log",inventory="Inventory",map="Map",dialogue="Dialogue",travelConfirm="Travel panel",event="Event choices",trainUpgrades="Train workshop",trade="Trading panel",options="Options panel",pauseMenu="Pause menu",confirmation="Confirmation panel",exitPrompt="Exit prompt",poseMenu="Pose menu",radio="Radio panel",firstAid="First aid panel",maintenance="Maintenance panel",shootingRange="Shooting range",lastStand="Last Stand",battle="Battle screen",slots="Journey slots",characters="Traveler select",ending="Ending screen"}
 local function clamp(value,low,high) return math.max(low,math.min(high,value)) end
+for _,entry in ipairs(ActionMenu.editorElements()) do elements[#elements+1]=entry.id;names[entry.id]=entry.label end
 local function hit(r,x,y) return r and x>=r.x and y>=r.y and x<=r.x+r.w and y<=r.y+r.h end
 local function same(a,b)
     if type(a)~=type(b) then return false end
@@ -203,8 +205,8 @@ function Editor.attach(self,context,widgets)
         end
         self:button("SAVE",x+228,y+110,64,32,function() self:finishDrag(); self:saveUi() end)
         if self.uiPicker then self:drawUiPicker(x,y); return end
-        for i,section in ipairs({"Layout","Color","Art"}) do
-            self:button(section:upper(),x+12+(i-1)*96,y+150,88,34,function()
+        for i,section in ipairs({"Layout","Color","Art","Menus"}) do
+            self:button(section:upper(),x+12+(i-1)*72,y+150,66,34,function()
                 self:finishDrag(); self.uiPanel.section=section; self.uiResetConfirm=false
             end,self.uiPanel.section==section)
         end
@@ -223,6 +225,20 @@ function Editor.attach(self,context,widgets)
             self:uiSlider("SATURATION","saturation",x+20,y+250,264,0,2,style.saturation,.01)
             self:uiSlider("COLOR TINT","colorTint",x+20,y+306,264,0,1,style.colorTint,.01)
             text("Tint adds color to pale UI. Hue chooses the color.",x+12,y+362,280,30,.6)
+        elseif self.uiPanel.section=='Menus' then
+            for i,layout in ipairs(ActionMenu.layouts) do
+                self:button(layout.label,x+12,y+194+(i-1)*40,280,36,function()
+                    self:finishDrag();local before=manager:snapshotSlot()
+                    manager:setMenuLayout(layout.id,false);self:rememberUi(before);self:saveUi()
+                    context.ui.actionMenuPreview='main';self.uiElement=ActionMenu.element(layout.id,'main')
+                end,manager:menuLayout()==layout.id)
+            end
+            for i,page in ipairs({'closed','main','poses','more'}) do
+                self:button(page:upper(),x+12+(i-1)%2*144,y+320+math.floor((i-1)/2)*36,136,32,function()
+                    context.ui.actionMenuPreview=page
+                    self:selectUiPart(ActionMenu.element(manager:menuLayout(),page=='closed' and 'dock' or page))
+                end,context.ui.actionMenuPreview==page)
+            end
         else
             local fontLabel=not style.fontOverride and "AUTO" or style.font:upper()
             self:button("FONT: "..fontLabel,x+12,y+194,136,36,function()
@@ -236,6 +252,9 @@ function Editor.attach(self,context,widgets)
             end
             table.sort(frames)
             self:button("FRAME: "..(style.frame==0 and "AUTO" or style.frame),x+156,y+194,136,36,function()
+                local part=self.uiElement
+                local wheel=part:match('^actions_radial_main_') or part:match('^actions_radial_poses_') or part:match('^actions_dock_poses_')
+                if wheel and not part:match('_close$') then self.message='Wheel slices use their authored ring art. Color and icon size can be edited.';return end
                 if #frames<2 then self.message="No alternate frame art is loaded."; return end
                 local index=1; for i,id in ipairs(frames) do if id==style.frame then index=i end end
                 self:editUi({frame=frames[index%#frames+1]})

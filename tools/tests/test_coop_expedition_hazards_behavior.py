@@ -11,8 +11,14 @@ class FloodPartyTests(unittest.TestCase):
             setup(); Areas=require('game.expedition_areas'); Hazards=require('game.coop_expedition_hazards')
             data.location=5; data.scene='expedition'; data.activeExpeditionArea=Areas.BADLANDS_BASIN_ID
             Areas.ensure(data); state=data.expeditions[data.activeExpeditionArea]
-            state.environmentPhase='flooded'; state.environmentClock=14.01
-            actors={{id='host',x=780,y=500},{id='companion',x=806,y=500}}
+            local environment=Areas.definition(data.activeExpeditionArea).environment
+            state.environmentPhase='flooded'; state.environmentClock=environment.floodAt+.01
+            zone=environment.floodZone
+            local first,second=zone.points[1],zone.points[2]
+            local dx,dy=second.x-first.x,second.y-first.y
+            local length=math.sqrt(dx*dx+dy*dy)
+            floodedHost={x=first.x,y=first.y}; floodedGuest={x=first.x+dx/length*26,y=first.y+dy/length*26}
+            actors={{id='host',x=floodedHost.x,y=floodedHost.y},{id='companion',x=floodedGuest.x,y=floodedGuest.y}}
             function plan() return Hazards.plan(data,data.activeExpeditionArea,actors) end
         ''')
 
@@ -26,15 +32,16 @@ class FloodPartyTests(unittest.TestCase):
             end
             assert((points.host.x-points.companion.x)^2+(points.host.y-points.companion.y)^2>=24^2)
             assert(data.coop.sceneEpoch==epoch and data.scene=='expedition' and host.health==health)
-            assert(actors[1].x==780 and actors[2].x==806)
+            assert(actors[1].x==floodedHost.x and actors[1].y==floodedHost.y)
+            assert(actors[2].x==floodedGuest.x and actors[2].y==floodedGuest.y)
         ''')
 
     def test_safe_actor_reserves_the_nearest_bank_for_flooded_companion(self):
         self.flood()
         self.lua.execute('''
-            actors[1].x,actors[1].y=690,515
+            local bank=zone.safeBanks[1]; actors[1].x,actors[1].y=bank.x,bank.y
             local points=assert(plan()); assert(not points.host and points.companion)
-            assert((points.companion.x-690)^2+(points.companion.y-515)^2>=24^2)
+            assert((points.companion.x-bank.x)^2+(points.companion.y-bank.y)^2>=24^2)
         ''')
 
     def test_legacy_single_host_lands_at_existing_nearest_bank(self):
@@ -56,7 +63,9 @@ class FloodPartyTests(unittest.TestCase):
         self.lua.execute('''
             local original=Areas.isWalkable; Areas.isWalkable=function() return false end
             local points,reason=plan(); Areas.isWalkable=original
-            assert(not points and reason=='bank_unavailable' and actors[1].x==780 and actors[2].x==806)
+            assert(not points and reason=='bank_unavailable')
+            assert(actors[1].x==floodedHost.x and actors[1].y==floodedHost.y)
+            assert(actors[2].x==floodedGuest.x and actors[2].y==floodedGuest.y)
         ''')
 
     def test_invalid_or_duplicate_actor_claims_are_rejected(self):
@@ -64,7 +73,7 @@ class FloodPartyTests(unittest.TestCase):
         self.lua.execute('''
             actors[2].id='host'; assert(not plan())
             actors[2].id='companion'; actors[2].x=math.huge; assert(not plan())
-            actors[2].x=806; actors[2].id='claimed'; assert(not plan())
+            actors[2].x=floodedGuest.x; actors[2].id='claimed'; assert(not plan())
         ''')
 
 

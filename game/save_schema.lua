@@ -7,7 +7,7 @@ local ItemInstances = require("game.item_instances")
 local ReplicaOwnership = require("game.replica_ownership")
 
 local SaveSchema = {
-    CURRENT_VERSION = 44,
+    CURRENT_VERSION = 46,
     LEGACY_VERSION = 1,
 }
 
@@ -20,7 +20,7 @@ local STRUCTURAL_TABLES = {
     "lootRolls", "nextBattlePotions", "npcOffers", "npcWeapons", "audio", "trainCars",
     "stats", "inventory", "equipment", "ammo", "encounters", "choices", "npcRoster",
     "maintenance", "eventCategoryHistory", "helpHistory", "relationships", "accessibility", "finale", "helpQuestSessions", "expeditions", "crowCaravans", "lastStand", "conversations",
-    "supplyDeliveryCycle", "trainAmbush", "wearables", "outfitCrafting",
+    "supplyDeliveryCycle", "trainAmbush", "wearables", "outfitCrafting", "homeStop", "npcIdentities",
 }
 
 local SUPPLY_DELIVERY_KINDS={food=true,water=true,medicine=true,repair=true,ammunition=true,recovery=true}
@@ -63,6 +63,12 @@ local function validateShape(data)
     if data.scene~=nil and type(data.scene)~="string" then return false,"scene must be text" end
     if data.activeHelpQuestId~=nil and type(data.activeHelpQuestId)~="string" then return false,"activeHelpQuestId must be text" end
     if data.activeExpeditionArea~=nil and type(data.activeExpeditionArea)~="string" then return false,"activeExpeditionArea must be text" end
+    local homeValid,homeError=require('game.home_stop').validate(data)
+    if not homeValid then return false,homeError end
+    local peopleValid,peopleError=require('game.npc_identity').validate(data)
+    if not peopleValid then return false,peopleError end
+    local targetsValid,targetsError=require('game.npc_targets').validate(data)
+    if not targetsValid then return false,targetsError end
     if not require('game.coop_quest_decisions').validateOffers(data) then return false,'invalid saved quest offer' end
     if not require('game.coop_events').validateCurrent(data) then return false,'invalid saved event' end
     if not require('game.coop_finale').validate(data) then return false,'invalid saved finale' end
@@ -356,6 +362,8 @@ function SaveSchema.migrate(data)
     end
     ensureRootTables(migrated)
     CoopPlayers.normalize(migrated)
+    require('game.npc_identity').prepare(migrated)
+    require('game.npc_targets').prepare(migrated)
     require('game.coop_last_stand_lifecycle').prepare(migrated)
     require('game.coop_last_stand_aid_state').prepare(migrated)
     require('game.coop_last_stand_position_state').prepare(migrated)

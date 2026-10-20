@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "character": "raccoon-heart",
+  "animations": {
+    "idle": {
+      "path": "assets/sprites/character-animations/raccoon-heart/idle.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 2,
+      "role": "preserved_legacy_motion",
+      "loop": true,
+      "fps": 0.7
+    },
+    "walk": {
+      "path": "assets/sprites/character-animations/raccoon-heart/walk.png",
+      "frame_width": 512,
+      "frame_height": 512,
+      "frame_count": 6,
+      "role": "preserved_legacy_motion",
+      "loop": true,
+      "fps": 5.2
+    },
+    "sweep": {
+      "path": "output/resident-chores/raccoon-heart/runtime/sweep.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 4,
+      "role": "stationary_chore",
+      "loop": true,
+      "fps": 3
+    },
+    "carry": {
+      "path": "output/resident-chores/raccoon-heart/runtime/carry.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 4,
+      "role": "stationary_chore",
+      "loop": true,
+      "fps": 2
+    },
+    "tend": {
+      "path": "output/resident-chores/raccoon-heart/runtime/tend.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 4,
+      "role": "stationary_chore",
+      "loop": true,
+      "fps": 3
+    }
+  },
+  "preserved_legacy_motion": true,
+  "directions": {
+    "east": {
+      "walk_animation": "walk",
+      "idle_animation": "idle",
+      "mirror_x": false
+    },
+    "west": {
+      "walk_animation": "walk",
+      "idle_animation": "idle",
+      "mirror_x": true
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "baseline_tolerance": 12,
+    "center_tolerance": 20,
+    "center_metric": "core"
+  },
+  "chore_contract": {
+    "actions": [
+      "sweep",
+      "carry",
+      "tend"
+    ],
+    "locomotion": "existing directional walk strips",
+    "carry": "stationary lift and unload; walking uses the existing gait",
+    "frame_width": 512,
+    "frame_height": 256,
+    "core_x": 256,
+    "body_extent": 256,
+    "baseline": 228
+  }
+}

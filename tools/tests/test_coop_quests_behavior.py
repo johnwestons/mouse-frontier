@@ -223,7 +223,7 @@ class CoopQuestTests(unittest.TestCase):
             assert(result.result.reward.item==expected.item and data.coop.randomState==before.coop.randomState)
         ''')
 
-    def test_full_pack_reward_uses_mailbox_then_local_crate_with_unique_gear(self):
+    def test_full_pack_reward_uses_mailbox_then_fixed_storage_with_unique_gear(self):
         self.lua.execute('''
             for slot=1,data.players.companion.inventoryCapacity do put('companion',slot,'cowboy-hat') end
             local mailbox={name='mailbox-reward',scene='train',x=10,y=20,storage={}}
@@ -235,10 +235,11 @@ class CoopQuestTests(unittest.TestCase):
                 Items.write(data,mailbox,{kind='chest',index=slot},'cowboy-hat')
             end
             local second=deliver('companion',addQuest('mail'))
-            assert(second.ok and second.result.reward.delivery=='local supply crate')
-            local crate=data.droppedItems[#data.droppedItems]
-            assert(crate.name=='supply-crate' and crate.location==4 and crate.storage[1]=='frontier-short-sword')
-            assert(crate.storageInstances[1].id~=identity and crate.entityId and Schema.validate(data))
+            assert(second.ok and second.result.reward.delivery=='house storage')
+            local storage=data.droppedItems[#data.droppedItems]
+            assert(storage.name=='house-storage' and storage.location==4 and storage.storage[1]=='frontier-short-sword')
+            assert(storage.permanent and storage.houseStorageHotspot)
+            assert(storage.storageInstances[1].id~=identity and storage.entityId and Schema.validate(data))
         ''')
 
     def test_saved_rng_continues_after_reload_and_invalid_state_is_rejected(self):

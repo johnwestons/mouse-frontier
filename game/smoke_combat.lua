@@ -75,7 +75,7 @@ local function steps(context)
             love.math.setRandomSeed(seed)
             local data=newSave(character)
             data.location=2;data.scene="train";data.passengers={}
-            enterGame(data)
+            assert(enterGame(data),"combat fixture campaign did not load")
             data=game.saveData
             data.maxHealth=40;data.health=options.health or 40
             Items.write(data,nil,{kind="equipment",index=1},"frontier-short-sword")

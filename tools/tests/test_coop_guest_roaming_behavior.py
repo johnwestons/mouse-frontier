@@ -62,15 +62,19 @@ class GuestFieldTests(unittest.TestCase):
             view.elapsed=view.elapsed+1; assert(panel:presentation('host').actionTimer==0)
         ''')
 
-    def test_wrong_scene_and_input_capture_do_not_send_and_missing_weapon_is_explained(self):
+    def test_wrong_scene_and_input_capture_do_not_send_and_unarmed_attack_is_authoritative(self):
         self.guest_view()
         self.lua.execute('''
             view.runtime.scene='train'; assert(not panel:attack() and sent==0)
             view.runtime.scene='expedition'; view.inputAllowed=function() return false end
             assert(not panel:attack() and sent==0)
             view.inputAllowed=function() return true end
-            view.runtime.saveData.itemSlots.equipment[1].durability=0
-            assert(not panel:attack() and sent==0 and panel.notice=='Equip a working melee weapon in your pack.')
+            guest.itemSlots.equipment[1].durability=0; project()
+            assert(panel:attack(a.x,a.y) and sent==1)
+            assert(network.request.args.weaponId=='scratch')
+            project(); panel:update()
+            assert(panel.lastOutcome.ok and panel:presentation('companion').actionKind=='melee')
+            assert(panel:presentation('companion').actionHeldItem==nil)
         ''')
 
     def test_command_rejection_clears_pending_without_local_costs(self):

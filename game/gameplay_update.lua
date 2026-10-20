@@ -4,6 +4,9 @@ local CoopProgression=require("game.coop_progression")
 local CharacterMotion=require("game.character_motion")
 local WorldPause=require("game.world_pause")
 local Assets=require("game.assets")
+local Home=require("game.home_stop")
+local HomeDialogue=require("game.home_stop_dialogue")
+local SceneNPCs=require("game.scene_npcs")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -68,13 +71,17 @@ local function new(context)
 
   local function moveInCurrentScene(oldX,oldY,newX,newY)
       if runtime.scene=="train" then return clampToTrainFloor(newX,newY) end
-      if runtime.scene=="stop" then return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY) end
+      if runtime.scene=="stop" then
+          if Home.isHome(runtime.saveData) then return Home.move(oldX,oldY,newX,newY,runtime.saveData) end
+          return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY)
+      end
       if runtime.scene=="expedition" then return moveExpedition(oldX,oldY,newX,newY) end
       if runtime.scene=="caravan" then return moveCaravan(oldX,oldY,newX,newY) end
       return Util.clampHouseFloor(newX,newY)
   end
 
   local function updateInteraction(pointerX,pointerY)
+      if not Home.isHome(runtime.saveData) then SceneNPCs.refresh(runtime,SceneNPCs.locked(runtime)) end
       local mx,my
       if type(pointerX)=="number" and type(pointerY)=="number" then
           mx,my=screenToGame(pointerX,pointerY)
@@ -100,51 +107,31 @@ local function new(context)
   end
   ui.refreshWorldInteraction=updateInteraction
 
-  local heldPatient
   local function updateSharedActors(dt)
-    local patientBusy=runtime.firstAid or ui.coopPatientBusy and ui.coopPatientBusy()
-    if heldPatient and (heldPatient.actor~=runtime.npcActor or not patientBusy) then
-        if heldPatient.actor==runtime.npcActor then
-            runtime.npcActor.targetX,runtime.npcActor.targetY=heldPatient.x,heldPatient.y
-        end
-        heldPatient=nil
-    end
-    if runtime.npcActor and patientBusy then
-        if not heldPatient then heldPatient={actor=runtime.npcActor,x=runtime.npcActor.targetX,y=runtime.npcActor.targetY} end
-        runtime.npcActor.targetX=nil; runtime.npcActor.moving=false
-        runtime.npcActor.velocityX,runtime.npcActor.velocityY=0,0
-        runtime.npcActor.intentX,runtime.npcActor.intentY=0,0
-    elseif runtime.npcActor then
-        Family.update(runtime.npcActor,dt,function(oldX,oldY,newX,newY)
-            if runtime.scene=="stop" then return Settlements.move(runtime.saveData.location,oldX,oldY,newX,newY) end
-            if runtime.scene=="house" then return Util.clampHouseFloor(newX,newY) end
-            return newX,newY
-        end)
-        runtime.npcActor.wait=(runtime.npcActor.wait or 1)-dt
-        if runtime.npcActor.wait<=0 then
-            local angle=love.math.random()*math.pi*2
-            local distance=love.math.random(18,58)
-            runtime.npcActor.targetX=runtime.npcActor.homeX+math.cos(angle)*distance
-            runtime.npcActor.targetY=runtime.npcActor.homeY+math.sin(angle)*distance*.55
-            runtime.npcActor.wait=love.math.random(3,7)
-        end
-        if runtime.npcActor.targetX then
-            if runtime.scene=="house" then runtime.npcActor.targetX,runtime.npcActor.targetY=Util.clampHouseFloor(runtime.npcActor.targetX,runtime.npcActor.targetY)
-            elseif runtime.scene=="stop" then runtime.npcActor.targetX,runtime.npcActor.targetY=Settlements.clamp(runtime.npcActor.targetX,runtime.npcActor.targetY,runtime.saveData.location) end
-            local nx,ny=runtime.npcActor.targetX-runtime.npcActor.x,runtime.npcActor.targetY-runtime.npcActor.y; local len=math.sqrt(nx*nx+ny*ny)
-            if len<2 then runtime.npcActor.targetX=nil else
-                local npcProfile=CharacterMotion.profileFor(runtime.saveData.currentNPC)
-                if npcProfile then
-                    local arrived=CharacterMotion.moveToward(runtime.npcActor,runtime.npcActor.targetX,runtime.npcActor.targetY,dt,{
-                        profile=npcProfile,speed=32,stopDistance=2,move=moveInCurrentScene,
-                    })
-                    if arrived then runtime.npcActor.targetX=nil end
-                else
-                if math.abs(nx)>.1 then runtime.npcActor.facing=nx>0 and 1 or -1 end
-                local step=math.min(len,32*dt); runtime.npcActor.x=runtime.npcActor.x+nx/len*step; runtime.npcActor.y=runtime.npcActor.y+ny/len*step
-                end
+    if runtime.npcActor and Home.isHome(runtime.saveData) then
+        runtime.npcActor.targetX=nil; runtime.npcActor.targetY=nil
+        runtime.npcActor.moving=false; runtime.npcActor.velocityX=0; runtime.npcActor.velocityY=0
+        runtime.npcActor.intentX=0; runtime.npcActor.intentY=0
+    elseif runtime.scene=='stop' or runtime.scene=='house' then
+        local selected=runtime.saveData.currentNPC
+        local locked=SceneNPCs.locked(runtime)
+        local story=runtime.saveData.conversations and runtime.saveData.conversations.active
+        local companion=ui.coopCompanion and ui.coopCompanion()
+        SceneNPCs.update(runtime.saveData,dt,{interiorFiles=scenery.interiorFiles,held=function(actor)
+            if locked and actor.file==selected then return true end
+            if story and story.phase=='prompt' and story.npc==actor.file then return true end
+            if ui.coopPatientBusy and ui.coopPatientBusy(actor.file) then return true end
+            -- A resident gives an approaching second traveler their attention.
+            -- This also holds a guest's selected merchant while their local
+            -- panel is open, without trusting any guest-authored NPC state.
+            if companion and actor.scene==runtime.scene
+                and (actor.scene~='house' or actor.homeDoor==(runtime.saveData.activeHouseDoor or 1))
+                and companion.x and companion.y then
+                return (companion.x-actor.x)^2+(companion.y-actor.y)^2<105^2
             end
-        end
+            return false
+        end})
+        SceneNPCs.refresh(runtime,locked)
     end
     if runtime.scene=="train" then for _,passenger in ipairs(runtime.saveData.passengers or {}) do
         passenger.carIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {1}),passenger.carIndex or 1)); passenger.wait=(passenger.wait or 1)-dt
@@ -208,6 +195,11 @@ local function new(context)
       if runtime.shootingRange then
           if not sharedHost then
               local outcome=ShootingRange.update(runtime.shootingRange,dt,runtime.saveData,Catalog)
+              if outcome=="shot" then
+                  local profile=ShootingRange.soundProfile(runtime.shootingRange,Catalog)
+                  if profile and ui.playSfxPath then ui.playSfxPath(profile.path,profile)
+                  elseif ui.playSfx then ui.playSfx(ShootingRange.sound(runtime.shootingRange,Catalog)) end
+              end
               if outcome then handleShootingRange(outcome) end
               return
           end
@@ -279,8 +271,11 @@ local function new(context)
               end
           end
       end
-      if (runtime.scene=="stop" or runtime.scene=="house") and not runtime.npcActor then setupNPC() end
-      if runtime.dialogue then runtime.dialogue.timer=runtime.dialogue.timer-dt; if runtime.dialogue.timer<=0 then runtime.dialogue=nil end end
+      if (runtime.scene=="stop" or runtime.scene=="house") and not runtime.npcActor and not SceneNPCs.hasResidents(runtime.saveData) then setupNPC() end
+      if Home.isOffice(runtime.saveData) and runtime.saveData.homeStop.dialogueLine and not runtime.dialogue then
+          runtime.dialogue={speaker=require('game.npc_identity').title(runtime.saveData,'homeStop:conductor'),text=HomeDialogue[runtime.saveData.homeStop.dialogueLine],homeStop=true}
+      end
+      if runtime.dialogue and runtime.dialogue.timer then runtime.dialogue.timer=runtime.dialogue.timer-dt; if runtime.dialogue.timer<=0 then runtime.dialogue=nil end end
       if runtime.scene=="train" then
           local sceneryDistance=18*dt
           runtime.sceneryOffset=runtime.sceneryOffset+sceneryDistance*(landscape.trackSpeed or 1)
@@ -331,7 +326,8 @@ local function new(context)
           if runtime.scene=="train" then
               runtime.player.x,runtime.player.y=clampToTrainFloor(runtime.player.x,runtime.player.y)
           elseif runtime.scene=="stop" then
-              runtime.player.x,runtime.player.y=Settlements.move(runtime.saveData.location,oldX,oldY,runtime.player.x,runtime.player.y)
+              if Home.isHome(runtime.saveData) then runtime.player.x,runtime.player.y=Home.move(oldX,oldY,runtime.player.x,runtime.player.y,runtime.saveData)
+              else runtime.player.x,runtime.player.y=Settlements.move(runtime.saveData.location,oldX,oldY,runtime.player.x,runtime.player.y) end
           elseif runtime.scene=="expedition" then
               runtime.player.x,runtime.player.y=moveExpedition(oldX,oldY,runtime.player.x,runtime.player.y)
           elseif runtime.scene=="caravan" then

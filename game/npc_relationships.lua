@@ -1,4 +1,5 @@
 local Relationships={}
+local Identity=require('game.npc_identity')
 
 Relationships.version=1
 Relationships.tiers={
@@ -113,7 +114,7 @@ end
 
 function Relationships.ensure(data,npc)
     local records=Relationships.ensureData(data)
-    npc=type(npc)=="string" and npc or "unknown-traveler"
+    npc=Identity.key(data,npc) or "unknown-traveler"
     local record=records[npc]
     if type(record)~="table" then
         record={version=Relationships.version,goodwillEarned=0,helpCount=0,gifts=0,uniqueGifts={},rides=0,talks=0,trades=0}
@@ -131,6 +132,7 @@ function Relationships.ensure(data,npc)
 end
 
 function Relationships.status(data,npc,readOnly)
+    npc=Identity.key(data,npc)
     local record=readOnly and (type(data.relationships)=="table" and data.relationships[npc] or {}) or Relationships.ensure(data,npc)
     record=type(record)=="table" and record or {}
     local function count(key) return math.max(0,math.floor(tonumber(record[key]) or 0)) end
@@ -143,6 +145,7 @@ function Relationships.status(data,npc,readOnly)
 end
 
 function Relationships.recordHelp(data,npc,amount,kind,location)
+    npc=Identity.key(data,npc,location)
     if type(npc)~="string" or npc=="" then return nil end
     local record=Relationships.ensure(data,npc)
     local gained=math.max(0,math.floor(tonumber(amount) or 0))
@@ -210,11 +213,11 @@ function Relationships.npcDialogue(data,npc,fallbackLines,rng)
 end
 
 function Relationships.passengerDialogue(data,passenger,fallbackLines,rng)
-    local record=Relationships.ensure(data,passenger.npc); record.talks=record.talks+1
+    local record=Relationships.ensure(data,passenger); record.talks=record.talks+1
     passenger.relationshipTalks=math.max(0,math.floor(tonumber(passenger.relationshipTalks) or 0))+1
     local lines=type(fallbackLines)=="table" and fallbackLines or {}
     local line=dialogueLine(record,lines,rng)
-    return line,Relationships.status(data,passenger.npc)
+    return line,Relationships.status(data,passenger)
 end
 
 function Relationships.audit()

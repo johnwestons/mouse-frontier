@@ -75,7 +75,7 @@ function Panel:draw()
     g.setColor(0,0,0,.78); g.rectangle('fill',0,0,960,720)
     Style.scope('guest-quests',{x=80,y=50,w=800,h=620},function()
         self.view.inventory:frame(80,50,800,620,1,1); g.setColor(self.c.colors.cream)
-        text('QUEST HELP / '..Util.titleFromFile(self.parent.npc),110,70,740,40,1.1,'center')
+        text('QUEST HELP / '..require('game.npc_identity').name(self.runtime.saveData,self.parent.npc),110,70,740,40,1.1,'center')
         text(self.notice or 'Help with tasks already accepted by the host.',110,120,740,98,.82,'center')
         local recipient=self:recipient(); self.drawn=recipient and Access.offers(self.runtime.saveData,recipient,self.c.catalog) or {}
         local pages=math.max(1,math.ceil(#self.drawn/4)); self.page=math.min(self.page,pages-1)

@@ -12,6 +12,8 @@ local Items=require('game.item_instances')
 local Random=require('game.coop_random')
 local P=require('game.net.protocol')
 local Catalog=require('game.catalog')
+local Identity=require('game.npc_identity')
+local Targets=require('game.npc_targets')
 local Decisions={}
 local kinds={mail=true,ride=true,supplies=true,trade=true,item=true,aid=true}
 local function key(data,npc) return tostring(data.location)..':'..npc end
@@ -120,6 +122,7 @@ function Decisions.install(authority,context)
         local offer=layout.coopOffers and layout.coopOffers[args.npc]
         if kind~=args.kind or not offer or offer.kind~=kind or offer.status~='offered'
             or recruit and kind~='ride' then return nil,'offer_changed' end
+        if not decline and kind=='ride' and Targets.pending(data,args.npc) then return nil,'recipient_has_delivery' end
         local request,quest
         if kind=='item' or kind=='aid' then
             request,quest=helpRequest(data,layout,args.npc,kind)
@@ -128,7 +131,8 @@ function Decisions.install(authority,context)
         local scopes={'entity:'..args.targetId,'story:questOffers','world:quests'}
         if quest then scopes[#scopes+1]='quest:'..quest.id end
         if not decline and (kind=='mail' or kind=='ride' or kind=='supplies') then scopes[#scopes+1]='rng' end
-        if not decline and kind=='mail' then scopes[#scopes+1]='world:stops' end
+        if not decline and (kind=='mail' or kind=='supplies' or kind=='ride') then scopes[#scopes+1]='people:identities' end
+        if not decline and (kind=='mail' or kind=='supplies') then scopes[#scopes+1]='world:stops' end
         if not decline and kind=='ride' then scopes[#scopes+1]='relationships'; scopes[#scopes+1]='resources' end
         return {scopes=scopes,apply=function()
             data.questAsked=data.questAsked or {}; data.questAsked[key(data,args.npc)]=true
@@ -149,19 +153,14 @@ function Decisions.install(authority,context)
                 if destination<=data.location or destination>50 then return nil,'destination_unavailable' end
                 local record
                 if kind=='mail' then
-                    local stop=data.stopLayouts[tostring(destination)]
-                    if not stop then
-                        stop={houseX=rng(390,700),treeA=rng(110,250),treeB=rng(760,860),house=rng(1,8),tree=rng(1,7)}
-                        data.stopLayouts[tostring(destination)]=stop
-                    end
-                    local roster=data.npcRoster or {}
-                    stop.npc=stop.npc or roster[rng(math.max(1,#roster))] or args.npc
-                    record={sender=args.npc,recipient=stop.npc,origin=data.location,destination=destination,complete=false}
-                    data.mailQuests[#data.mailQuests+1]=record; result.recipient=stop.npc
+                    record={sender=args.npc,origin=data.location,destination=destination,complete=false}
+                    Targets.bind(data,record,rng)
+                    data.mailQuests[#data.mailQuests+1]=record; result.recipient=record.recipient
                 elseif kind=='supplies' then
                     if not Progression.deliveryIndex[offer.deliveryKind] then return nil,'offer_changed' end
-                    record={origin=data.location,destination=destination,amount=Progression.deliveryProfile(offer.deliveryKind).amount,
+                    record={sender=args.npc,origin=data.location,destination=destination,amount=Progression.deliveryProfile(offer.deliveryKind).amount,
                         cargoKind=offer.deliveryKind,complete=false}
+                    Targets.bind(data,record,rng)
                     data.supplyQuests[#data.supplyQuests+1]=record; result.deliveryKind=offer.deliveryKind
                 else
                     local car=context.car
@@ -169,13 +168,15 @@ function Decisions.install(authority,context)
                     local x,y=car.x+225+#data.passengers*85,car.y+285
                     if x>=100000 or y>=100000 then return nil,'passenger_spawn_unavailable' end
                     if Items.enabled(data) then assert(Items.ensure(data)) end
-                    record={npc=args.npc,origin=data.location,destination=destination,x=x,y=y,homeX=x,homeY=y,wait=1,
+                    local person=Identity.get(data,args.npc) or Identity.ensure(data,args.npc,data.location,1)
+                    record={npc=args.npc,characterId=person.id,origin=data.location,destination=destination,x=x,y=y,homeX=x,homeY=y,wait=1,
                         job=Passengers.jobFor(args.npc),pose='idle',weapon=layout.npcWeapon}
                     if Items.enabled(data) then
                         record.weaponInstance=layout.npcWeaponInstance; layout.npcWeapon=nil; layout.npcWeaponInstance=nil
                     end
                     data.passengers[#data.passengers+1]=record
-                    Relationships.recordRide(data,args.npc); result.job=record.job
+                    Identity.board(data,record)
+                    Relationships.recordRide(data,person.id); result.job=record.job
                 end
                 assert(Entities.ensure(data)); result.entityId=record.entityId; result.destination=destination
                 result.reward=Progression.rewardProfile(kind=='supplies' and offer.deliveryKind or kind,distance,data.trait,destination)

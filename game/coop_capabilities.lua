@@ -21,10 +21,11 @@ declare("shared_assistance","combat","lastStand.aid lastStand.position lastStand
 declare("shared_assistance","requests","progression.request")
 declare("host_progression","scenes","scene.leaveTrain scene.returnTrain scene.enterHouse scene.exitHouse scene.expedition scene.caravan scene.rangeEnter scene.rangeExit")
 declare("host_progression","story","travel.depart travel.arrive travel.finish event.begin event.choose event.continue quest.offer quest.accept quest.decline quest.storyHandIn passenger.recruit passenger.dismiss conversation.begin conversation.choose conversation.end family.choose finale.choose")
+declare("host_progression","story","home.advance")
 declare("host_progression","combat","encounter.roll battle.begin battle.enemyTurn battle.continue battle.retreat battle.retry lastStand.offer lastStand.decline lastStand.accept lastStand.advance lastStand.start lastStand.retry lastStand.withdraw ambush.start ambush.continue ambush.retry ambush.withdraw")
 declare('host_progression','combat','roaming.pressure')
 declare("host_admin","session","session.host session.end session.enroll session.rebind session.replace session.kick save.select save.write save.reset debug.grant")
-declare("local_presentation","presentation","camera.move camera.zoom settings.change inventory.inspect map.inspect quest.inspect session.inspect session.leave")
+declare("local_presentation","presentation","camera.move camera.zoom settings.change inventory.inspect map.inspect scene.inspect quest.inspect session.inspect session.leave")
 
 -- Domain implementation does not imply network/UI guest readiness. Only
 -- explicitly connected capabilities are marked network_implemented below.
@@ -52,6 +53,7 @@ for _,name in ipairs({"scene.returnTrain","scene.enterHouse","scene.exitHouse","
     Capabilities.commands[name].status="domain_implemented"
 end
 Capabilities.commands["scene.leaveTrain"].status="resolved_destination_commit"
+Capabilities.commands["home.advance"].status="domain_implemented"
 for _,name in ipairs({'conversation.begin','conversation.choose','conversation.end'}) do
     Capabilities.commands[name].status='domain_implemented'
 end
@@ -108,8 +110,9 @@ Capabilities.commands['progression.request'].status='network_transient_travel_re
 -- Their integration status does not imply physical-device verification.
 Capabilities.commands['settings.change'].status='device_local_guest'
 Capabilities.commands['map.inspect'].status='read_only_guest'
+Capabilities.commands['scene.inspect'].status='read_only_guest'
 Capabilities.commands['quest.inspect'].status='read_only_guest'
-for _,name in ipairs({"session.host","session.enroll","session.rebind"}) do
+for _,name in ipairs({"session.host","session.enroll","session.rebind","session.replace","session.kick"}) do
     Capabilities.commands[name].status="domain_implemented"
 end
 for _,name in ipairs({"maintenance.acquire","maintenance.step","maintenance.complete","firstAid.acquire","firstAid.step","firstAid.complete"}) do
@@ -122,6 +125,7 @@ end
 -- World affordances can expose multiple commands with different permissions:
 -- talking to a resident never implicitly authorizes their story branch.
 Capabilities.interactions={
+    stopInspect={"scene.inspect"},
     item={"loot.pickup"},chest={"storage.transfer","loot.pickup"},mailbox={"mailbox.collect","storage.transfer"},
     radio={"radio.station"},carPrev={"player.car"},carNext={"player.car"},fire={"train.fuel"},
     returnTrain={"scene.returnTrain"},house={"scene.enterHouse"},houseExit={"scene.exitHouse"},
@@ -130,6 +134,8 @@ Capabilities.interactions={
     passenger={"passenger.chatter","passenger.equip","passenger.dismiss"},
     expedition={"scene.expedition","battle.begin","expedition.survey","expedition.cache"},
     crowCaravan={"scene.caravan","merchant.buy","merchant.sell"},
+    homeStop={"home.advance","scene.returnTrain"},
+    homeFox={"npc.chatter"},
 }
 
 function Capabilities.requireInteraction(kind)

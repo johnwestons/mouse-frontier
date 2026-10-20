@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Private defender controls. The host owns enemy simulation and story progress.
 local Schema=require('game.save_schema')
 local Players=require('game.coop_players')
@@ -11,13 +12,14 @@ local Life=require('game.coop_last_stand_lifecycle')
 local Shootout=require('game.last_stand_shootout')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
+local ShooterPad=require('game.mobile_shooter_controls')
 local Panel={}; Panel.__index=Panel
 local controls={{key='space',label='FIRE\nLMB / SPACE'},{key='aim',label='AIM\nRMB'},
     {key='r',label='RELOAD\nR'},{key='c',label='COVER\nC'},{key='tab',label='WEAPON\nTAB'},
     {key='v',label='MODE\nV'},{key='l',label='SUPPLIES\nL'},{key='p',label='PAUSE\nP'},
     {key='menu',label='LOCAL PLAY\nF8'}}
 local function inside(r,x,y) return x>=r.x and y>=r.y and x<=r.x+r.w and y<=r.y+r.h end
-function Panel.new(view,c,parent) return setmetatable({view=view,c=c,parent=parent,held={},touches={}},Panel) end
+function Panel.new(view,c,parent) return setmetatable({view=view,c=c,parent=parent,held={},touches={},aimPad=ShooterPad.new()},Panel) end
 function Panel:state()
     local data=self.view.runtime.saveData; local life=Life.active(data)
     return life and life.mode=='shootout' and data.lastStand and data.lastStand.combat and data.lastStand or nil
@@ -45,6 +47,7 @@ function Panel:checkedPosition()
 end
 function Panel:canAct() return self:readyToRequest() and self:checkedPosition() and not self.choosing end
 function Panel:suspend()
+    self.aimPad:cancel()
     self.held={}; self.touches={}; self.aimTouch=nil; self.fireTouch=nil; self.controllerReady=false
     self.controllerFire=false; self.controllerADS=false
     if self.gun then Shooting.setADS(self.gun,false) end
@@ -255,6 +258,11 @@ function Panel:update(dt)
             self:requestPosition('ready',self.position.windowId); return
         end
     end
+    if self.gun and v.ready and v.focused and not v.controller.menuOpen and not self.parent.paused
+        and self:checkedPosition() and not self.choosing and not q.combat.result then
+        local px,py=self.aimPad:step(dt,self.gun,960,720)
+        if px then self:aim(px,py) end
+    end
     if self:canAct() and self.gun then
         local bindings=self.c.bindings
         local x,y=bindings:axisValue('aim_x'),bindings:axisValue('aim_y')
@@ -310,6 +318,17 @@ function Panel:gamepadreleased(button)
 end
 function Panel:touchpressed(id,x,y)
     if self:pointerAction(x,y) then return true end
+    if ShooterPad.hit(x,y,960,720) then
+        local q=self:state(); local v=self.view
+        if not self.gun or not q or q.combat.result or not self:checkedPosition() or self.choosing
+            or self.parent.paused or not v.ready or not v.focused or v.controller.menuOpen then return true end
+        local action=self.aimPad:press(id,x,y,960,720)
+        if action then
+            if action=='aim' then self.aimTouch=id; self.gun.touchAim=nil
+            elseif action=='fire' then self:fireHeld('pad',true) end
+            return true
+        end
+    end
     for index,control in ipairs(controls) do if inside(self:rect(index),x,y) then
         if control.key=='space' then
             if not self.fireTouch then self.fireTouch=id; self.touches[id]='space'; self:fireHeld('touch',true) end
@@ -319,8 +338,17 @@ function Panel:touchpressed(id,x,y)
     if self:canAct() and not self.aimTouch then self.aimTouch=id; self.touches[id]='aim'; self:aim(x,y,true) end
     return true
 end
-function Panel:touchmoved(id,x,y) if self.aimTouch==id then self:aim(x,y,true) end; return true end
+function Panel:touchmoved(id,x,y)
+    if self.aimPad:move(id,x,y,960,720) then return true end
+    if self.aimTouch==id then self:aim(x,y,true) end; return true
+end
 function Panel:touchreleased(id)
+    local action=self.aimPad:release(id)
+    if action then
+        if action=='fire' then self:fireHeld('pad',false) end
+        if self.aimTouch==id then self.aimTouch=nil end
+        return true
+    end
     if self.fireTouch==id then self.fireTouch=nil; self:fireHeld('touch',false) end
     if self.aimTouch==id then self.aimTouch=nil end; self.touches[id]=nil; return true
 end
@@ -340,21 +368,22 @@ function Panel:draw()
         g.setColor(1,.89,.68,1)
         Typography.drawText(g,value,x,y,w,h,{scale=(scale or .8)*Accessibility.textScale(data),minScale=.6,align='center',valign='center'})
     end
-    g.setColor(.055,.038,.025,.95); g.rectangle('fill',350,16,260,45,6,6)
+    g.setColor(.055,.038,.025,.95); GuiArt.frame(350,16,260,45)
     text('POSITION: '..(Selection.selected(data,'companion') or 'CHOOSE'):upper()..'  [1 / 2]',354,20,252,37,.7)
     if not self:checkedPosition() or self.choosing then
-        g.setColor(.035,.025,.02,.85); g.rectangle('fill',100,275,760,280,8,8)
+        g.setColor(.035,.025,.02,.85); GuiArt.frame(100,275,760,280)
         text('Choose your firing position',125,290,710,46)
         text('The host starts each defense. Choose a free window to assist.',125,345,710,40,.72)
         for _,window in ipairs({'wide','tall'}) do
             local r=self:positionRect(window); local owner=Selection.owner(data,window)
-            g.setColor(.18,.12,.075,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,6,6)
+            g.setColor(.18,.12,.075,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
             text(window:upper()..' WINDOW  ['..(window=='wide' and '1' or '2')..']'
                 ..(owner=='host' and ' — HOST' or owner=='companion' and ' — YOURS' or ' — FREE'),r.x+4,r.y+4,r.w-8,r.h-8,.7)
         end
-        g.setColor(.18,.12,.075,.96); g.rectangle('fill',350,480,260,52,6,6)
+        g.setColor(.18,.12,.075,.96); GuiArt.frame(350,480,260,52)
         text('Release your position [BACKSPACE]',355,484,250,44,.65)
     end
+    if v.mobile and v.mobile.enabled and self:checkedPosition() and not self.choosing and not self.parent.paused and not q.combat.result then self.aimPad:draw(960,720) end
     g.setColor(.035,.025,.02,.95); g.rectangle('fill',0,580,960,140)
     text(self.notice or self.parent.paused and 'Your controls are paused. P / START to resume.'
         or q.combat.result and 'The host controls the next phase, retry and return.'
@@ -364,7 +393,7 @@ function Panel:draw()
         or q.combat.defenders.companion and q.combat.defenders.companion.ducking and 'IN COVER — protected. Press COVER / C to return to the window.'
         or 'Help defend the farmhouse. Story decisions stay with the host.',25,590,910,42,.7)
     for index,control in ipairs(controls) do
-        local r=self:rect(index); g.setColor(.12,.075,.035,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,5,5)
+        local r=self:rect(index); g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
         text(control.label,r.x+2,r.y+2,r.w-4,r.h-4,.65)
     end
 end

@@ -192,7 +192,7 @@ function Authority:_prepare(actorId,name,args,draft,activities)
         and not ({['inventory.swap']=true,['inventory.equip']=true,['inventory.consume']=true,['weapon.select']=true})[name] then
         return nil,'modal_scene'
     end
-    if draft.roamingEncounter and name~='battle.begin' and name~='scene.returnTrain' then return nil,'encounter_pending' end
+    if draft.roamingEncounter and name~='battle.begin' and name~='scene.returnTrain' and name~='session.kick' then return nil,'encounter_pending' end
     local handler=self.handlers[name]
     if not handler then return nil,"not_implemented" end
     local operation,prepareError=handler(draft,actorId,args,activities)

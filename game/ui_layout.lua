@@ -116,7 +116,7 @@ end
 
 local function profile()
     local slots = {}
-    for i=1,SLOT_COUNT do slots[i]={name="Preset "..i,elements={}} end
+    for i=1,SLOT_COUNT do slots[i]={name="Preset "..i,elements={},menuLayout="dock"} end
     return slots
 end
 
@@ -261,7 +261,7 @@ function UIStyle.new(options)
                 lx,ly=inversePoint(ancestor.bounds,ancestor.style,lx,ly)
             end
             lx,ly=inversePoint(region.bounds,region.style,lx,ly)
-            if contains(region.bounds,lx,ly) then return true,region end
+            if contains(region.bounds,lx,ly) and (not region.shape or region.shape(lx,ly)) then return true,region end
         end
         return false
     end
@@ -274,11 +274,14 @@ function UIStyle.new(options)
         return dx,dy
     end
     function manager:snapshotSlot()
-        return copyElements(self.slots[self.activeSlot].elements)
+        local snapshot=copyElements(self.slots[self.activeSlot].elements)
+        snapshot._menuLayout=self:menuLayout()
+        return snapshot
     end
     function manager:restoreSlot(snapshot,persist)
         if type(snapshot)~="table" then return false end
         self.slots[self.activeSlot].elements=copyElements(snapshot)
+        if snapshot._menuLayout then self:setMenuLayout(snapshot._menuLayout,false) end
         self.dirty=true
         if persist==false then return true end
         return self:save()
@@ -313,6 +316,13 @@ function UIStyle.new(options)
         self.dirty=true
         return self:save()
     end
+    function manager:menuLayout() return self.slots[self.activeSlot].menuLayout or "dock" end
+    function manager:setMenuLayout(value,persist)
+        if value~="radial" and value~="dock" and value~="drawer" then return false,"Unknown menu layout." end
+        self.slots[self.activeSlot].menuLayout=value; self.dirty=true
+        if persist==false then return true end
+        return self:save()
+    end
     function manager:load()
         local ok,source=pcall(self.filesystem.read,PATH)
         if not ok or type(source)~="string" then return false end
@@ -323,6 +333,10 @@ function UIStyle.new(options)
             if activeValue then activeSlot=math.floor(clamp(activeValue,1,SLOT_COUNT,1)) end
             local slot,name=line:match("^SLOT%s+(%d+)%s+([%w_-]+)$")
             if slot and slots[tonumber(slot)] then slots[tonumber(slot)].name=token(name,"Preset "..slot) end
+            local layoutSlot,layout=line:match("^MENU_LAYOUT%s+(%d+)%s+(%w+)$")
+            if layoutSlot and slots[tonumber(layoutSlot)] and (layout=="radial" or layout=="dock" or layout=="drawer") then
+                slots[tonumber(layoutSlot)].menuLayout=layout
+            end
             local values={}
             for word in line:gmatch("%S+") do values[#values+1]=word end
             if values[1]=="ELEMENT" and #values>=15 then
@@ -342,6 +356,7 @@ function UIStyle.new(options)
         local rows={"ACTIVE "..self.activeSlot}
         for index,slot in ipairs(self.slots) do
             rows[#rows+1]="SLOT "..index.." "..token(slot.name,"Preset_"..index)
+            rows[#rows+1]="MENU_LAYOUT "..index.." "..(slot.menuLayout or "dock")
             local keys={}
             for key in pairs(slot.elements) do keys[#keys+1]=key end
             table.sort(keys)
@@ -516,5 +531,23 @@ function UIStyle.transformRectFor(element,bounds,rect)
 end
 
 function UIStyle.manager() return active end
+
+-- Capture the complete transform chain at draw time. Hit tests must follow
+-- rotated/scaled child controls, not their enlarged axis-aligned bounding box.
+function UIStyle.inputRegion(bounds,shape)
+    local chain={}
+    for _,entry in ipairs(scopes) do chain[#chain+1]={bounds=entry.bounds,style=entry.style} end
+    local scope=scopes[#scopes]
+    if shape and scope then
+        local regions=scope.manager.liveRegions[scope.manager:elementKey(scope.element,scope.screen)]
+        if regions and regions[#regions] then regions[#regions].shape=shape end
+    end
+    local result=UIStyle.transformRect(bounds)
+    function result:contains(x,y)
+        for _,entry in ipairs(chain) do x,y=inversePoint(entry.bounds,entry.style,x,y) end
+        return contains(bounds,x,y) and (not shape or shape(x,y))
+    end
+    return result
+end
 
 return UIStyle

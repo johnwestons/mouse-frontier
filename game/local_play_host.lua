@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Outermost application boundary: networking runs before modal/save/workbench
 -- early returns. A pending checkpoint retains priority over the LAN panel.
 local Panel=require('game.local_play_panel')
@@ -5,6 +6,8 @@ local Viewport=require('game.viewport')
 local WorldPause=require('game.world_pause')
 local Pose=require('game.coop_player_pose')
 local Typography=require('game.typography')
+local AimCursor=require('game.aim_cursor')
+local Attack=require('game.character_attack')
 local Host={}
 local launcher={x=752,y=652,w=190,h=50}
 local function inside(x,y) return x>=launcher.x and x<=launcher.x+launcher.w and y>=launcher.y and y<=launcher.y+launcher.h end
@@ -24,7 +27,7 @@ function Host.wrap(application,context)
         if motion and motion.generation and motion.actor and controller.campaign then
             local cue=context.runtime.companionFieldAction; local pose
             if cue and cue.epoch==controller.campaign.coop.sceneEpoch then
-                pose={actionTimer=math.max(0,cue.untilTime-(context.runtime.animationClock or 0)),actionKind='melee',actionHeldItem=cue.weapon,facing=cue.facing}
+                pose={actionTimer=math.max(0,cue.untilTime-(context.runtime.animationClock or 0)),actionDuration=cue.duration,actionKind=Attack.action(cue.weapon),actionHeldItem=Attack.heldItem(cue.weapon),facing=cue.facing}
             end
             if context.commands.poseState then pose=Pose.presentation(context.commands.poseState('companion'),pose) end
             return motion.actor,controller.campaign.players.companion,pose
@@ -87,7 +90,7 @@ function Host.wrap(application,context)
         if controller.finishFrame then controller:finishFrame() end
         return result
     end
-    function application.draw(...)
+    local function draw(...)
         context.ui.localPlayLauncher=nil
         if blocked() then panel:stopTextInput(); return original.draw(...) end
         local settings=guestSettings(); if settings then return settings:draw() end
@@ -99,23 +102,32 @@ function Host.wrap(application,context)
         if travelNotice then
             local g=love.graphics;g.push('all');g.origin()
             local ox,oy,sx,sy=Viewport.transform(960,720);g.translate(ox,oy);g.scale(sx,sy)
-            g.setColor(.08,.055,.035,.97);g.rectangle('fill',226,78,510,66,8,8)
+            g.setColor(.08,.055,.035,.97);GuiArt.frame(226,78,510,66)
             g.setColor(.96,.88,.69,1)
             Typography.drawText(g,'Companion requested departure to Stop '..travelNotice.to..'.',240,86,454,24,
                 {scale=.85,minScale=.65,align='center',valign='center'})
             Typography.drawText(g,'Host decides. Food '..travelNotice.food..' / Water '..travelNotice.water..' / Coal '..travelNotice.coal,240,112,454,24,
                 {scale=.75,minScale=.60,align='center',valign='center'})
-            g.rectangle('line',dismissRect.x,dismissRect.y,dismissRect.w,dismissRect.h,4,4)
+            GuiArt.frame(dismissRect.x,dismissRect.y,dismissRect.w,dismissRect.h)
             g.printf('X',dismissRect.x,dismissRect.y+5,dismissRect.w,'center');g.pop()
         end
         if available() then
             context.ui.localPlayLauncher=launcher
             local g=love.graphics; g.push('all'); g.origin()
             local ox,oy,sx,sy=Viewport.transform(960,720); g.translate(ox,oy); g.scale(sx,sy)
-            g.setColor(.18,.14,.09,1); g.rectangle('fill',launcher.x,launcher.y,launcher.w,launcher.h,8,8)
-            g.setColor(.9,.77,.5,1); g.rectangle('line',launcher.x,launcher.y,launcher.w,launcher.h,8,8)
-            g.printf('LOCAL PLAY  [F8]',launcher.x+6,launcher.y+16,launcher.w-12,'center'); g.pop()
+            g.setColor(.18,.14,.09,1); GuiArt.frame(launcher.x,launcher.y,launcher.w,launcher.h)
+            g.setColor(1,.93,.78,1)
+            Typography.drawText(g,'LOCAL PLAY  [F8]',launcher.x+8,launcher.y+6,launcher.w-16,launcher.h-12,{scale=.8,minScale=.65,align='center',valign='center'}); g.pop()
         end
+        return result
+    end
+    function application.draw(...)
+        AimCursor.beginFrame()
+        local result=draw(...)
+        local ui,runtime=context.ui,context.runtime
+        AimCursor.endFrame(not not (blocked() or guestSettings() or controller:captures()
+            or ui.escMenuOpen or ui.optionsOpen or ui.playerToolsOpen or runtime.exitPrompt
+            or runtime.pendingConfirmation or controller.menuOpen or controller.focused==false))
         return result
     end
     function application.keypressed(key,...)
@@ -218,12 +230,14 @@ function Host.wrap(application,context)
         end
     end
     function application.focus(focused,...)
+        if not focused then AimCursor.restore() end
         controller.focused=focused~=false
         if not focused then panel:stopTextInput() end
         if client() then return guestEvent('focus',focused,...) end
         return original.focus(focused,...)
     end
     function application.quit(...)
+        AimCursor.restore()
         local cancelled=original.quit(...)
         if cancelled~=true then panel:stopTextInput(); controller:stop('application_closed') end
         return cancelled

@@ -175,6 +175,17 @@ class ExpeditionWalkMaskBehaviorTests(unittest.TestCase):
             assert(not Areas.isWalkable(dungeon,dungeonArea.id,1200,700))
         ''')
 
+    def test_navigation_does_not_approve_a_pixel_that_stops_movement(self) -> None:
+        self.lua.execute(r'''
+            local image=mask(1672,941)
+            local data,area=fixture(Areas.SURFACE_ID,image)
+            image:setPixel(1018,600,0,0,0,1)
+            local x,y=Areas.move(data,area.id,1000,600,1060,600)
+            assert(x<1060 and y==600,'the foot clearance must encounter the painted obstruction')
+            assert(not Areas.canReach(data,area.id,1000,600,1060,600),
+                'navigation must reject painted obstructions encountered during movement')
+        ''')
+
 
 if __name__ == "__main__":
     unittest.main()

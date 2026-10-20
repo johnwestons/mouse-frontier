@@ -1,5 +1,15 @@
 # Dialogue review and author-only policy
 
+### October 16, 2026: home-stop introduction approved
+
+The user explicitly requested a draft and approved all six conductor lines in chat. Their exact text is recorded in [home-stop-approved.txt](dialogue-review/home-stop-approved.txt) and implemented verbatim in `game/home_stop_dialogue.lua`. The tortoise conductor explains the lost family contact, dangerous western route, his failing strength, and the apprentice's responsibility for the train. Lines 1–5 open the preparation sequence; line 6 follows supply loading and the initial service. Each displayed line and its acknowledgement persist. No player speech, refusal branch, extra barks, or letters were added. Controls and preparation results are neutral UI instructions. The October 17 scene revision moves these same lines inside the train office.
+
+October 19: the user supplied replacement wording for all six conductor lines. The approval record and runtime content now contain that replacement verbatim, preserving the supplied wording, capitalization, spelling, and punctuation. The rich-text trailing-space entity after line 3 is formatting rather than spoken content. The five opening lines and post-preparation farewell keep their existing sequence and saved acknowledgement behavior.
+
+Replacement validation: all six runtime lines match the updated approval record. Eight introduction progression tests pass. Native desktop and touch playthroughs pass 256 and 263 checks, respectively, reading all six replacement lines, reloading eight times, and arriving at Stop 2. The longer farewell was visually checked in both layouts. The smoke runner now locates Travel in the current action-menu dock as well as the legacy toolbar. The 32 captures are in `.stabilization/home-stop-smoke-screenshots/f59da5ddbf944be5896b40cb68c8712a`.
+
+October 19: the adult Tinker Fox now offers nearby Talk in the yard. It uses only the 33 existing user-approved regular lines from `Catalog.dialogueLines`, verbatim; no new fox speech or player reply was invented. Talk pauses his work locally and resumes it when dismissed, without completing preparation or conductor dialogue. A custom fox-specific repair lesson, family remark, question/reply branch, or departure speech still requires the user's exact wording or approval; ordinary Talk is already functional.
+
 September 14, 2026
 
 ### September 19 correction: regular Talk restored

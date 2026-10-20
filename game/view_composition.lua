@@ -106,7 +106,7 @@ local function new(context)
     runtime=runtime,width=W,height=H,ui=ui,colors=colors,maintenanceSession=maintenanceSession,
     holdPickupSeconds=holdPickupSeconds,getCloudLayer=function() return startup.startupRuntime.cloudLayer() end,
     mobileEnabled=platform.mobileRuntime.isEnabled,engineUpgrades=EngineUpgrades,trainUpgradeBalance=TrainUpgradeBalance,clouds=Clouds,maintenance=Maintenance,util=Util,train=Train,
-    firstAid=FirstAid,shootingRange=ShootingRange,lastStand=LastStand,scenery=content.scenery,npcImages=content.npcImages,catalog=Catalog,
+    firstAid=FirstAid,shootingRange=ShootingRange,lastStand=LastStand,scenery=content.scenery,npcImages=content.npcImages,characterImages=content.characterImages,catalog=Catalog,
     button=screenUI.button,drawMenuFrame=screenUI.drawMenuFrame,drawTrade=screenUI.drawTrade,
     isFurnitureItem=content.isFurnitureItem,containerValue=adventure.inventoryActions.containerValue,
     travelStatus=adventure.journeyRules.travelStatus,

@@ -145,7 +145,7 @@ class DefenderAidTests(unittest.TestCase):
             facts.progress={phase=6}; assert(not Results.valid(facts))
             local legacy=assert(Schema.copy(data)); legacy.version=41; legacy.lastStand.treatmentVersion=nil
             legacy.lastStand.treatmentProgress={stage=4,rubDistance=77,ointmentTrail={{x=480,y=370}}}
-            local migrated=assert(Schema.migrate(legacy)); assert(migrated.version==44 and migrated.lastStand.treatmentProgress.phase==4)
+            local migrated=assert(Schema.migrate(legacy)); assert(migrated.version==Schema.CURRENT_VERSION and migrated.lastStand.treatmentProgress.phase==4)
             assert(migrated.lastStand.treatmentProgress.rubDistance==77 and Schema.validate(migrated))
             migrated.lastStand.treatmentProgress.stage=3; assert(not Schema.validate(migrated) and not Schema.migrate(migrated))
         ''')

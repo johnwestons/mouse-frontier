@@ -1,0 +1,38 @@
+October 19, 2026. Tool: built-in image_gen.imagegen; transparent_background=true.
+
+Reference 1: assets/sprites/character-animations/tinker-fox/idle.png (adult identity).
+Reference 2: the matching adult idle direction in the same directory.
+No young-tinker-fox or Picture Shop worker image was used as an input.
+
+Eight source sheets are retained in art-source/home-stop/adult-tinker-fox.
+Their runtime strips and normalized copies of the adult idles/carry action are
+in assets/sprites/home-stop/adult-tinker-fox. Existing wrench/oil frames retain
+their original artwork. tools/prepare_home_stop_adult_fox.py packs the sheets
+into 512px cells without repainting poses. It uses one scale per strip, a
+shared 458px foot baseline, and a 385px median standing height. The adult carry
+strip keeps its authored crouch/stand proportions. Sources remain unchanged.
+
+Exact generation prompt template (substitute the direction values below):
+
+Use case: identity-preserve. Asset type: production game sprite animation, adult Tinker Fox walk {id}.
+Input reference 1 is the approved ADULT fox identity. Input reference 2 is the exact {id} camera view and costume placement to match. Create an eight-pose walk cycle of THIS ADULT character. Preserve his mature stocky body, broad adult muzzle, ear/head-to-torso ratio, brass goggles, red scarf, cream rolled sleeves with red shoulder patch, olive mechanic overalls, brown gloves, tool belt, orange pouches and dangling silver chain. Do not use the slimmer younger tinker fox proportions.
+MANDATORY CAMERA: {view}. SAME camera and body orientation in ALL eight cells; no turn-around or changing direction within cycle. Feet walk along that direction.
+Composition: clean transparent sprite sheet, FOUR columns and TWO rows, exactly EIGHT uniform square 512x512 cells (2048x1024 canvas). No gutters, labels or grid lines. Row-major order:
+1 left contact (left foot forward), 2 left weight-down, 3 right passing (right foot under body), 4 right knee-up / propulsion, 5 right contact (right foot forward), 6 right weight-down, 7 left passing (left foot under body), 8 left knee-up / propulsion.
+Each frame is a different authored motion pose; both legs, knees and swinging arms must read as a coherent alternating walk. Preserve the same character body size in every frame: adult standing height approximately 385px in 512px cell, center x256, ground foot baseline y458. Keep feet near shared baseline, small natural knee bend. Fixed head size, stable adult torso, consistent costume details and palette, stable side-specific tool placement. Whole fox and tail visible inside each own cell with padding. Match the reference's detailed painted pixel game art and warm light. Actual alpha transparency outside character. No scenery, floor, shadows, tools in hands, hands from other characters, speech, text, panels, matte or checkerboard.
+
+Direction substitutions:
+east / idle.png / EAST / screen RIGHT, strict side view, muzzle points right
+northeast / idle_northeast.png / NORTHEAST / screen UPPER RIGHT, rear three-quarter view; back of head and back/side of overalls visible, muzzle points diagonally upper-right
+north / idle_north.png / NORTH / straight AWAY from camera, centered rear view; back of head and overall back visible, no face
+northwest / idle_northwest.png / NORTHWEST / screen UPPER LEFT, rear three-quarter view; back of head and back/side of overalls visible, muzzle points diagonally upper-left
+west / idle_west.png / WEST / screen LEFT, strict side view, muzzle points left
+southwest / idle_southwest.png / SOUTHWEST / screen LOWER LEFT, front three-quarter view; face and front of overalls visible, muzzle points diagonally lower-left
+south / idle_south.png / SOUTH / straight TOWARD camera, centered front view
+southeast / idle_southeast.png / SOUTHEAST / screen LOWER RIGHT, front three-quarter view; face and front of overalls visible, muzzle points diagonally lower-right
+
+Actual generated source dimensions are 1774x887. Cell boundaries are rounded
+from the 4x2 grid before import; no source pixels are stretched to fit a cell.
+The importer conservatively removes only tiny disconnected background debris
+outside the main character's bounds when the main component contains >98% of
+the silhouette; detached costume/character details remain intact.

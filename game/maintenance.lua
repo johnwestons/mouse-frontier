@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local Maintenance = {}
 local Rules=require("game.maintenance_rules")
 local WheelAnimation = require("game.maintenance_wheel_animation")
@@ -416,12 +417,9 @@ end
 local function drawConditionPanel(session, data)
     local condition = session.conditionMotion > 0 and
         PanelAnimation.conditionValue(session.conditionFrom, session.conditionTo, session.conditionMotion) or Maintenance.condition(data)
-    local source, quad = session.assets and session.assets.background, session.assets and session.assets.conditionQuad
-    if not PanelAnimation.drawCondition(source, quad, session.conditionMotion) then
-        love.graphics.setColor(.035, .027, .023, .97); love.graphics.rectangle("fill", 20, 483, 276, 123, 7, 7)
-    end
-    -- The original frame and label remain sprite art; only the instrument's
-    -- inner reading is live so saved wear is represented accurately.
+    GuiArt.frame(20,483,276,123)
+    love.graphics.setColor(1,.93,.78,1)
+    Typography.drawText(love.graphics,"CONDITION",36,492,155,36,{scale=.9,minScale=.75,valign="center"})
     love.graphics.setColor(.08, .055, .04, .97); love.graphics.rectangle("fill", 54, 531, 215, 31, 3, 3)
     local meterColor = condition < 25 and {.88, .20, .12} or (condition < 50 and {.95, .55, .12} or {.34, .78, .34})
     love.graphics.setColor(meterColor); love.graphics.rectangle("fill", 58, 536, 207 * condition / 100, 20, 2, 2)
@@ -440,7 +438,7 @@ local function drawTargetState(session, index, target)
         love.graphics.setColor(1, .75, .20, .18); love.graphics.circle("fill", target.x, target.y, target.radius)
         love.graphics.setColor(1, .82, .35, .90); love.graphics.setLineWidth(2); love.graphics.circle("line", target.x, target.y, target.radius); love.graphics.setLineWidth(1)
     end
-    love.graphics.setColor(.08, .055, .04, .96); love.graphics.rectangle("fill",target.x-27,target.y-70,54,32,8,8)
+    love.graphics.setColor(.08, .055, .04, .96); GuiArt.frame(target.x-27,target.y-70,54,32)
     love.graphics.setColor(1, .84, .42, 1); Typography.drawText(love.graphics,current.."/"..target.doses,target.x-25,target.y-69,50,30,{scale=1,minScale=.9,align="center",valign="center"})
 end
 
@@ -452,9 +450,11 @@ local function targetMotionAngle(session, index)
 end
 
 local function drawDoneSprite(session)
-    local source, quad = session.assets and session.assets.background, session.assets and session.assets.doneQuad
-    local hover = pointInRect(session.mouseX or -1000, session.mouseY or -1000, DONE_RECT)
-    PanelAnimation.drawDone(source, quad, session.donePress, hover, allOiled(session) and not session.completed)
+    local hover=pointInRect(session.mouseX or -1000,session.mouseY or -1000,DONE_RECT)
+    local ready=allOiled(session) and not session.completed
+    GuiArt.frame(DONE_RECT.x,DONE_RECT.y,DONE_RECT.w,DONE_RECT.h,{selected=hover or session.donePress>0,disabled=not ready})
+    love.graphics.setColor(1,.93,.78,ready and 1 or .6)
+    Typography.drawText(love.graphics,"DONE",DONE_RECT.x+8,DONE_RECT.y+6,DONE_RECT.w-16,DONE_RECT.h-12,{scale=1,minScale=.9,align="center",valign="center"})
 end
 
 local function drawTitle(session)
@@ -563,17 +563,13 @@ function Maintenance.draw(session, data)
     local textScale=Accessibility.textScale(data)
     local platform=love and love.system and love.system.getOS and love.system.getOS()
     local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1" or platform=="Android" or platform=="iOS"
-    love.graphics.setColor(.035, .027, .023, .96); love.graphics.rectangle("fill",690,578,240,58,5,5)
+    love.graphics.setColor(.035, .027, .023, .96); GuiArt.frame(690,578,240,58)
     love.graphics.setColor(.96, .82, .48, 1)
     Typography.drawText(love.graphics,"OIL "..Maintenance.oilSupply(data).." / "..Maintenance.oilCapacity(data).."\nSERVICE COST "..Maintenance.serviceOilCost(data),700,582,220,50,{scale=.95*textScale,minScale=.85,align="center",valign="center"})
 
-    if allOiled(session) and not session.completed then
-        love.graphics.setColor(1, .70, .12, .22); love.graphics.rectangle("fill", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8)
-        love.graphics.setColor(1, .84, .32, 1); love.graphics.setLineWidth(2); love.graphics.rectangle("line", DONE_RECT.x, DONE_RECT.y, DONE_RECT.w, DONE_RECT.h, 8, 8); love.graphics.setLineWidth(1)
-    end
-    love.graphics.setColor(.08, .055, .04, .94); love.graphics.rectangle("fill", CLOSE_RECT.x, CLOSE_RECT.y, CLOSE_RECT.w, CLOSE_RECT.h, 5, 5)
+    love.graphics.setColor(.08, .055, .04, .94); GuiArt.frame(CLOSE_RECT.x,CLOSE_RECT.y,CLOSE_RECT.w,CLOSE_RECT.h)
     love.graphics.setColor(.96, .86, .64, 1); Typography.drawText(love.graphics,"X",CLOSE_RECT.x,CLOSE_RECT.y,CLOSE_RECT.w,CLOSE_RECT.h,{scale=1,minScale=.9,align="center",valign="center"})
-    love.graphics.setColor(.035, .027, .023, .96); love.graphics.rectangle("fill",300,574,378,62,5,5)
+    love.graphics.setColor(.035, .027, .023, .96); GuiArt.frame(300,574,378,62)
     love.graphics.setColor(.96, .86, .64, 1); Typography.drawText(love.graphics,session.message or "",310,579,358,52,{scale=.95*textScale,minScale=.85,align="center",valign="center"})
     local instructions=mobile and "Oil three hubs. Tap DONE when all five lamps are lit."
         or "OIL THREE HUBS  •  ENTER: DONE  •  ESC: CLOSE"

@@ -460,7 +460,7 @@ class LuaArchitectureTests(unittest.TestCase):
         self.assertNotIn('drawButton(self.primary,"FIRE"', mobile_controls)
         self.assertIn("button==1 or button==2 or button==4", gameplay_input)
         self.assertIn('if button==4 then return "aimPointer" end', shooting_range)
-        self.assertIn('"HOLD THE GRIP • SECOND TOUCH / FIRE"', shooting_range)
+        self.assertIn('"LEFT STICK TO AIM • RIGHT BUTTON TO FIRE"', shooting_range)
         self.assertIn('name="shared_shooting_range_playable"', smoke_playthrough)
         self.assertIn('name="mobile_shooting_range_aim_then_fire"', smoke_playthrough)
         self.assertIn('Range.hostStops={2,8,14,20,26,32,38,44,50}', shooting_range)

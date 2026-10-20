@@ -59,6 +59,7 @@ local function new(context)
           inventoryDragActive=runtime.inventoryDragActive,
           giftOpen=runtime.giftOpen,
           giftNPC=runtime.giftNPC,
+          giftName=runtime.giftOpen and require('game.npc_identity').name(runtime.saveData,runtime.giftCharacterId or runtime.giftNPC),
           giftSlot=runtime.giftSlot,
           lastClick=lastClick,
           lastClickTime=lastClickTime,

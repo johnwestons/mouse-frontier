@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local Rules=require("game.train_ambush_rules")
 local CoopProgression=require("game.coop_progression")
 local Scene=require("game.train_ambush_scene")
@@ -9,6 +10,7 @@ local Players=require('game.coop_players')
 local WorldPause=require('game.world_pause')
 local Typography=require("game.typography")
 local Accessibility=require("game.accessibility")
+local ShooterPad=require("game.mobile_shooter_controls")
 local Ambush={}
 
 function Ambush.new(context)
@@ -18,6 +20,8 @@ function Ambush.new(context)
     local service={}
     local bound,gun,data,impact,encounterId
     local held,touches={},{}
+    local aimPad=ShooterPad.new()
+    local touchControls=false
     local paused=false
     local saveClock=0
     local settlementPending=false
@@ -43,6 +47,7 @@ function Ambush.new(context)
         return runtime.state=="game" and type(state)=="table" and state.active==true
     end
     function service:suspend(preserveButtons)
+        aimPad:cancel()
         held={}; touches={}; controllerFire=false; controllerADS=false; controllerReady=false
         if not preserveButtons then controllerPressed={} end
         if gun then Shooting.setADS(gun,false) end
@@ -232,7 +237,15 @@ function Ambush.new(context)
     end
     function service:touchpressed(id,x,y)
         if not bind() then return false end
+        if context.inputPaused and context.inputPaused() then self:suspend(); return true end
+        touchControls=true
         if paused or bound.phase=="result" then return self:mousepressed(x,y,1,false) end
+        local padAction=aimPad:press(id,x,y,w,h)
+        if padAction then
+            if padAction=='aim' then gun.touchAim=nil
+            elseif padAction=='fire' then fireHeld('pad',true) end
+            return true
+        end
         for i,item in ipairs(actions) do
             if inside(rect(i),x,y) then
                 touches[id]=item.key
@@ -245,11 +258,14 @@ function Ambush.new(context)
     end
     function service:touchmoved(id,x,y)
         if not self:isCapturing() then return false end
+        if aimPad:move(id,x,y,w,h) then return true end
         if touches[id]=="aimdrag" and not paused then aim(x,y,true) end
         return true
     end
     function service:touchreleased(id)
         if not self:isCapturing() then return false end
+        local padAction=aimPad:release(id)
+        if padAction then if padAction=='fire' then fireHeld('pad',false) end; return true end
         if touches[id]=="space" then fireHeld("touch:"..tostring(id),false) end
         touches[id]=nil
         return true
@@ -310,6 +326,10 @@ function Ambush.new(context)
             end
         end
         local bindings=context.controlBindings
+        if not inputPaused then
+            local x,y=aimPad:step(dt,gun,w,h)
+            if x then aim(x,y) end
+        end
         local dx,dy=0,0
         if not inputPaused then dx,dy=bindings:axisValue("aim_x"),bindings:axisValue("aim_y") end
         if dx~=0 or dy~=0 then aim(gun.aimX+dx*340*dt,gun.aimY+dy*340*dt) end
@@ -345,12 +365,14 @@ function Ambush.new(context)
         Scene.draw(bound,w,h,Accessibility.ensure(data),impact)
         if bound.coverProgress==0 and bound.phase~="result" then
             Shooting.draw(gun,w,h)
-            g.setColor(1,.94,.75,1)
-            local x,y=gun.aimX,gun.aimY
-            g.line(x-9,y,x-3,y); g.line(x+3,y,x+9,y); g.line(x,y-9,x,y-3); g.line(x,y+3,x,y+9)
+            if not gun.ads then
+                g.setColor(1,.94,.75,1)
+                local x,y=gun.aimX,gun.aimY
+                g.line(x-9,y,x-3,y); g.line(x+3,y,x+9,y); g.line(x,y-9,x,y-3); g.line(x,y+3,x,y+9)
+            end
         end
         -- All interface elements are drawn after the window and weapon art.
-        g.setColor(.035,.025,.02,.94); g.rectangle("fill",16,12,w-32,54,6,6)
+        g.setColor(.035,.025,.02,.94); GuiArt.frame(16,12,w-32,54)
         g.setColor(1,.89,.68,1)
         label("HEALTH "..math.ceil(data.health or 20).." / "..(data.maxHealth or 20),22,17,205,42)
         label("CARRIAGE "..bound.protection.." / "..bound.maxProtection,232,17,235,42)
@@ -370,10 +392,11 @@ function Ambush.new(context)
         label(hint,30,h-111,w-60,30,.72)
         for i,item in ipairs(actions) do
             local r=rect(i)
-            g.setColor(.12,.075,.035,.96); g.rectangle("fill",r.x,r.y,r.w,r.h,5,5)
-            g.setColor(.73,.49,.22,1); g.rectangle("line",r.x,r.y,r.w,r.h,5,5)
+            g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
+            g.setColor(.73,.49,.22,1);
             g.setColor(1,.89,.68,1); label(item.label,r.x+2,r.y+2,r.w-4,r.h-4,.69)
         end
+        if not paused and bound.phase~='result' and (touchControls or context.mobileEnabled and context.mobileEnabled()) then aimPad:draw(w,h) end
         if paused or bound.phase=="result" then
             g.setColor(0,0,0,.8); g.rectangle("fill",0,0,w,h)
             g.setColor(1,.89,.68,1)
@@ -386,7 +409,7 @@ function Ambush.new(context)
                 label(won and "BANDITS DRIVEN OFF" or "ENCOUNTER ENDED",90,h*.27,w-180,60,1.25)
                 local text=string.format("Salvage: %d scrap\nHealth lost: %d   Train condition lost: %d\nShots fired: %d",bound.reward or 0,bound.playerDamage,bound.trainDamage,bound.shots)
                 label(text,120,h*.37,w-240,120,.95)
-                g.setColor(.22,.13,.06,1); g.rectangle("fill",w/2-130,h*.61,260,58,6,6)
+                g.setColor(.22,.13,.06,1); GuiArt.frame(w/2-130,h*.61,260,58)
                 g.setColor(1,.89,.68,1); label("CONTINUE  [ENTER / A]",w/2-125,h*.61,250,58,.85)
             end
         end

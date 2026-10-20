@@ -1,7 +1,9 @@
+local GuiArt=require('game.gui_art')
 local Model=require("game.player_tools_model")
 local Layout=require("game.control_layout")
 local Typography=require("game.typography")
 local Editor=require("game.player_ui_editor")
+local ActionMenu=require('game.action_menu')
 local UI={}
 local function hit(r,x,y) return r and x>=r.x and x<=r.x+r.w and y>=r.y and y<=r.y+r.h end
 local function text(value,x,y,w,h,scale,opacity)
@@ -9,11 +11,7 @@ local function text(value,x,y,w,h,scale,opacity)
     Typography.drawText(love.graphics,tostring(value),x,y,w,h,{scale=scale or .8,minScale=.58,valign="center"})
 end
 local function panel(x,y,w,h,selected,opacity)
-    opacity=opacity or 1
-    love.graphics.setColor(selected and .28 or .10,selected and .23 or .085,selected and .14 or .065,opacity)
-    love.graphics.rectangle("fill",x,y,w,h,7,7)
-    love.graphics.setColor(.64,.46,.24,opacity)
-    love.graphics.rectangle("line",x,y,w,h,7,7)
+    GuiArt.frame(x,y,w,h,{selected=selected,alpha=opacity or 1,override=false})
 end
 function UI.new(context)
     local self={open=false,tab="Items",query="",category="All",rarity="All",page=1,quantity="1",resourcePage=1,buttons={},message="",context=context,opacity=1,opacityExplicit=false}
@@ -37,6 +35,7 @@ function UI.new(context)
         self.uiEditorScreen=nil; self.uiPicker=false; self.uiResetConfirm=false
     end
     function self:close()
+        context.ui.actionMenuPreview=nil
         self:finishDrag(); self.open=false; self:focus(nil); self.buttons={}; self.hover=nil
         context.cancelInput()
     end
@@ -126,7 +125,8 @@ function UI.new(context)
         self:button("ADD",836,614,92,44,function() if self.selected then self:saveResult(Model.grantItem(context.data(),self.selected,self.quantity)) end end)
     end
     function self:drawResources()
-        text("Add supplies, scrap, and every ammunition type to the current journey.",34,132,880,42)
+        text("Add supplies, scrap and ammunition.",34,132,570,42)
+        self:button('PLAY MINIGAMES',654,132,274,44,function() self.cheatPage='minigames';self:focus(nil) end)
         local entries=Model.resources(context.data())
         for row=1,7 do
             local entry=entries[(self.resourcePage-1)*7+row]
@@ -144,14 +144,48 @@ function UI.new(context)
         text("Quantity to add",696,582,228,24,.7); self:quantityControls(696,614)
         for i,value in ipairs({1,10,100,1000}) do self:button(tostring(value),36+(i-1)*106,628,96,36,function() self.quantity=tostring(value) end) end
     end
+    function self:drawMinigames()
+        self:button('SUPPLIES / RESOURCES',32,132,288,44,function() self.cheatPage=nil end)
+        self:button('TEST SUPPLIES: '..(self.testSupplies==false and 'OFF' or 'ON'),590,132,338,44,function() self.testSupplies=self.testSupplies==false end,self.testSupplies~=false)
+        text('Launch in this save. Location and rewards can change. Test supplies add health, ammo and materials.',32,180,896,42,.76)
+        local service=context.minigames
+        if not service then text('Activity launcher unavailable.',32,240,880,60);return end
+        local available,reason=service:available()
+        local entries=service:entries();local page=self.activityPage or 1;local pages=math.max(1,math.ceil(#entries/6))
+        for index=1,6 do local entry=entries[(page-1)*6+index]
+            if entry then
+                local x=32+(index-1)%2*452;local y=236+math.floor((index-1)/2)*116
+                self:button(entry.label,x,y,436,56,function()
+                    local allowed,message=service:available()
+                    if not allowed then self.message=message;return end
+                    self:close()
+                    local ok,notice=service:launch(entry.id,self.testSupplies~=false)
+                    if not ok then self:show();self.tab='Cheats';self.cheatPage='minigames';self.message=notice;context.ui.playerToolsOpen=true end
+                end)
+                text(entry.detail,x+8,y+60,420,42,.7)
+            end
+        end
+        self:button('PREVIOUS',32,602,180,46,function() self.activityPage=math.max(1,page-1) end)
+        text(page..' / '..pages,418,602,120,46)
+        self:button('NEXT',748,602,180,46,function() self.activityPage=math.min(pages,page+1) end)
+        if not available then text(reason,32,650,896,24,.72) end
+    end
     function self:controlPreview()
         local w,h=love.graphics.getDimensions()
-        local scale=math.min(888/w,412/h)
-        return {x=480-w*scale/2,y=192+(412-h*scale)/2,w=w*scale,h=h*scale}
+        local scale=math.min(888/w,330/h)
+        return {x=480-w*scale/2,y=270+(330-h*scale)/2,w=w*scale,h=h*scale}
     end
     function self:drawControls()
         text("Drag controls to move them. Positions and opacity save on this device.",34,132,630,42)
         self:button("ADVANCED UI EDITOR",682,132,246,38,function() self:finishDrag(); self.tab="UI Editor"; self.hover=nil end)
+        for i,layout in ipairs(ActionMenu.layouts) do
+            self:button(layout.label,36+(i-1)*300,184,288,48,function()
+                self:finishDrag()
+                local ok=context.uiedit:setMenuLayout(layout.id)
+                self.message=ok and (layout.label..' saved to GUI preset '..context.uiedit.activeSlot..'.') or 'Layout changed; save pending.'
+            end,context.uiedit and context.uiedit:menuLayout()==layout.id)
+        end
+        text('Choose a base menu. Advanced editor: MENUS previews each panel; tap individual controls to edit.',36,236,888,26,.66)
         local p=self:controlPreview(); panel(p.x,p.y,p.w,p.h)
         self.controlRects={}
         for _,key in ipairs(Layout.order) do
@@ -185,7 +219,9 @@ function UI.new(context)
             for i,tab in ipairs({"Items","Cheats","Controls","UI Editor"}) do
                 self:button(tab:upper(),32+(i-1)*226,80,218,42,function() self:finishDrag(); self.tab=tab; self.hover=nil; self:focus(nil) end,self.tab==tab)
             end
-            if self.tab=="Items" then self:drawItems() elseif self.tab=="Cheats" then self:drawResources() else self:drawControls() end
+            if self.tab=="Items" then self:drawItems() elseif self.tab=="Cheats" then
+                if self.cheatPage=='minigames' then self:drawMinigames() else self:drawResources() end
+            else self:drawControls() end
         end
         local data=context.data()
         if self.tab~="UI Editor" then
@@ -257,7 +293,10 @@ function UI.new(context)
     end
     function self:wheel(delta)
         if self.tab=="Items" then self.page=math.max(1,math.min(math.max(1,math.ceil(#self.filtered/6)),self.page+(delta<0 and 1 or -1))); self.hover=nil
-        elseif self.tab=="Cheats" then self.resourcePage=math.max(1,math.min(math.ceil(#Model.resources(context.data())/7),self.resourcePage+(delta<0 and 1 or -1))) end
+        elseif self.tab=="Cheats" then
+            if self.cheatPage=='minigames' and context.minigames then self.activityPage=math.max(1,math.min(math.ceil(#context.minigames:entries()/6),(self.activityPage or 1)+(delta<0 and 1 or -1)))
+            else self.resourcePage=math.max(1,math.min(math.ceil(#Model.resources(context.data())/7),self.resourcePage+(delta<0 and 1 or -1))) end
+        end
     end
     Editor.attach(self,context,{text=text,panel=panel})
     return self

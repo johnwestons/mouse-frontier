@@ -1,9 +1,11 @@
+local GuiArt=require('game.gui_art')
 -- Private practice controls. Targets, ammunition and rewards belong to the host.
 local Range=require('game.shooting_range')
 local Shooting=require('game.first_person_shooting')
 local Life=require('game.coop_last_stand_lifecycle')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
+local ShooterPad=require('game.mobile_shooter_controls')
 local Panel={}; Panel.__index=Panel
 local menuRect={x=764,y=100,w=180,h=38}
 local pauseRect={x=20,y=104,w=170,h=40}
@@ -11,7 +13,7 @@ local retryAcquire={rate_limited=true,stale_revision=true,not_ready=true,scene_n
     range_not_ready=true,lease_expired=true,lease_owner=true}
 local function inside(r,x,y) return x>=r.x and y>=r.y and x<=r.x+r.w and y<=r.y+r.h end
 function Panel.new(view,c)
-    return setmetatable({view=view,c=c,held={},touches={},pose={aimX=480,aimY=330,aimMode='hip',menuRow=1}},Panel)
+    return setmetatable({view=view,c=c,held={},touches={},aimPad=ShooterPad.new(),pose={aimX=480,aimY=330,aimMode='hip',menuRow=1}},Panel)
 end
 function Panel:now() return self.c.clock and self.c.clock() or self.view.elapsed or 0 end
 function Panel:state()
@@ -51,6 +53,7 @@ function Panel:commandState()
         roundRevision=s.roundRevision,paused=self:desiredPaused() or self.serverPaused~=false} or nil
 end
 function Panel:suspend()
+    self.aimPad:cancel()
     self.held={}; self.touches={}; self.aimTouch=nil; self.fireTouch=nil; self.controllerReady=false
     self.controllerFire=false; self.controllerADS=false; self.controllerKeys={}
 end
@@ -214,6 +217,10 @@ function Panel:update(dt)
     end
     if self:desiredPaused() or self.serverPaused~=false then self:suspend(); return end
     if self.model then Range.updatePresentation(self.model,math.min(.08,dt)) end
+    if self.model and self.model.phase=='play' and v.ready and self:checkedLease() then
+        local px,py=self.aimPad:step(dt,self.pose,960,720,{left=30,top=55,right=930,bottom=625})
+        if px then self:aim(px,py,false) end
+    end
     if s and self:canAct() and s.phase=='play' and s.time<=0 then self:configure('complete'); return end
     if not self:canAct() then return end
     local bindings=self.c.bindings
@@ -271,6 +278,15 @@ function Panel:touchpressed(id,x,y)
     if inside(pauseRect,x,y) then return self:keypressed('p') end
     if not self.model or self.paused then return true end
     local intent=Range.inputIntent(self.model,'mousepressed',x,y,4)
+    if self.model.phase=='play' and ShooterPad.hit(x,y,960,720) then
+        if not self.view.ready or self:desiredPaused() or not self:checkedLease() or self.serverPaused~=false then return true end
+        local action=self.aimPad:press(id,x,y,960,720)
+        if action then
+            if action=='aim' then self.aimTouch=id; self.pose.touchAim=nil; self.model.touchAim=nil
+            elseif action=='fire' then self.held.pad=true; self:fire() end
+            return true
+        end
+    end
     if intent and intent.action=='pointer' and self.model.phase=='play' then
         if not self.aimTouch then self.aimTouch=id; self.touches[id]='aim'; self:intent(intent)
         elseif id~=self.aimTouch and not self.fireTouch and self:canAct() then self.fireTouch=id; self.touches[id]='fire'; self.held.touch=true; self:fire() end
@@ -279,8 +295,17 @@ function Panel:touchpressed(id,x,y)
     else self:intent(intent) end
     return true
 end
-function Panel:touchmoved(id,x,y) if id==self.aimTouch then self:aim(x,y,true) end; return true end
+function Panel:touchmoved(id,x,y)
+    if self.aimPad:move(id,x,y,960,720) then return true end
+    if id==self.aimTouch then self:aim(x,y,true) end; return true
+end
 function Panel:touchreleased(id)
+    local action=self.aimPad:release(id)
+    if action then
+        if action=='fire' then self.held.pad=nil end
+        if self.aimTouch==id then self.aimTouch=nil end
+        return true
+    end
     if id==self.aimTouch then self.aimTouch=nil; self.pose.touchAim=nil end
     if id==self.fireTouch then self.fireTouch=nil; self.held.touch=nil end
     self.touches[id]=nil; return true
@@ -289,18 +314,19 @@ function Panel:draw()
     local g=love.graphics
     if self.model then Range.draw(self.model,self.view.runtime.saveData,self.c.rangeAssets and self.c.rangeAssets(),self.view.ui,self.c.catalog,self.view.mobile.enabled)
     else g.setColor(.055,.038,.025,1); g.rectangle('fill',0,0,960,720) end
-    g.setColor(.055,.038,.025,.96); g.rectangle('fill',menuRect.x,menuRect.y,menuRect.w,menuRect.h,6,6)
+    if self.model and self.model.phase=='play' and self.view.mobile.enabled and not self:desiredPaused() then self.aimPad:draw(960,720) end
+    g.setColor(.055,.038,.025,.96); GuiArt.frame(menuRect.x,menuRect.y,menuRect.w,menuRect.h)
     g.setColor(1,.89,.68,1)
     Typography.drawText(g,'LOCAL PLAY  [F8]',menuRect.x+4,menuRect.y+2,menuRect.w-8,menuRect.h-4,{scale=.8,minScale=.6,align='center',valign='center'})
-    g.setColor(.18,.12,.075,.98); g.rectangle('fill',pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h,6,6)
-    g.setColor(.88,.70,.43,1); g.rectangle('line',pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h,6,6)
+    g.setColor(.18,.12,.075,.98); GuiArt.frame(pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h)
+    g.setColor(.88,.70,.43,1);
     g.setColor(1,.93,.76,1)
     local pauseLabel=self.paused and 'RESUME' or 'PAUSE'
     if not self.view.mobile.enabled then pauseLabel=pauseLabel..'  [P]' end
     Typography.drawText(g,pauseLabel,pauseRect.x+4,pauseRect.y+2,pauseRect.w-8,pauseRect.h-4,
         {scale=.8*Accessibility.textScale(self.view.runtime.saveData),minScale=.6,align='center',valign='center'})
     if self.notice or self.paused then
-        g.setColor(.055,.038,.025,.96); g.rectangle('fill',190,145,580,46,6,6); g.setColor(1,.89,.68,1)
+        g.setColor(.055,.038,.025,.96); GuiArt.frame(190,145,580,46); g.setColor(1,.89,.68,1)
         Typography.drawText(g,self.paused and 'Your controls are paused. P / START to resume.' or self.notice,
             198,148,564,40,{scale=.8*Accessibility.textScale(self.view.runtime.saveData),minScale=.6,align='center',valign='center'})
     end

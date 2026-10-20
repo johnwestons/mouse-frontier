@@ -1,0 +1,280 @@
+{
+  "sources": [
+    {
+      "file": "botanist-frog_conductor-cat.png",
+      "characters": [
+        "botanist-frog",
+        "conductor-cat"
+      ],
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Two exact approved character identities from input images: Image1 botanist-frog (olive frog in cloak); Image2 conductor-cat (brown cat in gold-trim dark conductor uniform). Preserve each exact species, face, costume, proportions, pixel-art style and right-facing side camera. Temporarily replace carried equipment with the chore tool. Layout exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate sprites with generous transparent margin per cell. No labels/grid/scenery/shadows. Consistent character scale and foot baseline within each row. Every frame differs through real arm articulation. Rows1-3 ONLY frog; rows4-6 ONLY cat. Rows1 and4 SWEEP: four phases ready, push broom forward, long sweeping follow-through, draw broom back. Both hands hold wooden straw broom, feet planted. Rows2 and5 CARRY LOAD/UNLOAD: feet PLANTED, bend to lift small wooden crate, raise crate to waist, hold crate in both hands, lower crate. Do NOT depict walking in these rows. Rows3 and6 TEND: four hand poses lift tin cup, wipe with cloth, rotate cup, lower cup. All figures right-facing. No identity mixing, no extras, no clipped tools/ears/tails. Genuinely transparent alpha, no colored outline fringe or painted background.",
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-982ccb5d-e0d3-48c5-9291-4c3307bbf7a6.png"
+    },
+    {
+      "file": "courier-lizard_cowboy-mouse-no-skull.png",
+      "characters": [
+        "courier-lizard",
+        "cowboy-mouse-no-skull"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-cf4af758-4dd1-402c-8a83-adf6e9b4faa7.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nIdentity binding: Image1=courier-lizard, Image2=cowboy-mouse-no-skull."
+    },
+    {
+      "file": "cowboy-mouse-on-skull_crow-merchant.png",
+      "characters": [
+        "cowboy-mouse-on-skull",
+        "crow-merchant"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-2d7cafad-da83-4b9a-b1b1-2c5e5106b989.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nIdentity binding: Image1=cowboy-mouse-on-skull, Image2=crow-merchant."
+    },
+    {
+      "file": "engineer-frog_ferret-engineer.png",
+      "characters": [
+        "engineer-frog",
+        "ferret-engineer"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-56329406-039d-430b-b403-5f1e190409ee.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nIdentity binding: Image1=engineer-frog, Image2=ferret-engineer."
+    },
+    {
+      "file": "cook-frog_cook-mouse.png",
+      "characters": [
+        "cook-frog",
+        "cook-mouse"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-2f0d2160-9f57-40c8-85b7-766a01e90adb.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=cook-frog, Image2=cook-mouse."
+    },
+    {
+      "file": "ferret-medic_ferret-scout.png",
+      "characters": [
+        "ferret-medic",
+        "ferret-scout"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-49ffdcfc-0c61-431b-82c2-addd19e7ea0e.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=ferret-medic, Image2=ferret-scout."
+    },
+    {
+      "file": "ferret-trapper_gardener-lizard.png",
+      "characters": [
+        "ferret-trapper",
+        "gardener-lizard"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-86e540c2-86ac-413f-b66d-eb13b110ca3e.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=ferret-trapper, Image2=gardener-lizard."
+    },
+    {
+      "file": "gecko-courier_gecko-herbalist.png",
+      "characters": [
+        "gecko-courier",
+        "gecko-herbalist"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-224ba57e-04cf-4cfe-84d4-c60884c45cb3.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=gecko-courier, Image2=gecko-herbalist."
+    },
+    {
+      "file": "gecko-mechanic_gecko-ranger.png",
+      "characters": [
+        "gecko-mechanic",
+        "gecko-ranger"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-f76762a5-6a99-4e78-8934-fc0f3e94691e.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=gecko-mechanic, Image2=gecko-ranger."
+    },
+    {
+      "file": "guard-fox_hedgehog-botanist.png",
+      "characters": [
+        "guard-fox",
+        "hedgehog-botanist"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-b98dd2cd-8e0e-4cfc-abf4-1e9e1f1fa682.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=guard-fox, Image2=hedgehog-botanist."
+    },
+    {
+      "file": "herbalist-hedgehog_homesteader-cat.png",
+      "characters": [
+        "herbalist-hedgehog",
+        "homesteader-cat"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-5bc82b0c-e129-43be-8575-fc4b6e38965d.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=herbalist-hedgehog, Image2=homesteader-cat."
+    },
+    {
+      "file": "jackrabbit-courier_lizard-cook.png",
+      "characters": [
+        "jackrabbit-courier",
+        "lizard-cook"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-9cc2427c-29a0-4791-913b-e4d78fcbcd66.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=jackrabbit-courier, Image2=lizard-cook."
+    },
+    {
+      "file": "mail-mouse_mechanic-hedgehog.png",
+      "characters": [
+        "mail-mouse",
+        "mechanic-hedgehog"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-4a2642bb-823e-4ce9-8d74-89e383ae29b8.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=mail-mouse, Image2=mechanic-hedgehog."
+    },
+    {
+      "file": "mechanic-raccoon_medic-cat.png",
+      "characters": [
+        "mechanic-raccoon",
+        "medic-cat"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-0fc118b3-1715-4a32-b61a-2caabd51b2a3.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=mechanic-raccoon, Image2=medic-cat."
+    },
+    {
+      "file": "medic-fox_merchant-raccoon.png",
+      "characters": [
+        "medic-fox",
+        "merchant-raccoon"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-95bcc190-59d9-478a-a9b4-79f2362e4352.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=medic-fox, Image2=merchant-raccoon."
+    },
+    {
+      "file": "mole-prospector_mouse-engineer.png",
+      "characters": [
+        "mole-prospector",
+        "mouse-engineer"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-908c77b0-3d00-4c51-aff2-ffede832aee7.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=mole-prospector, Image2=mouse-engineer."
+    },
+    {
+      "file": "musician-hedgehog_opossum-medic.png",
+      "characters": [
+        "musician-hedgehog",
+        "opossum-medic"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-514842a8-b52d-4864-96fd-697c280eb2a3.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=musician-hedgehog, Image2=opossum-medic."
+    },
+    {
+      "file": "otter-scout_prairie-dog-mechanic.png",
+      "characters": [
+        "otter-scout",
+        "prairie-dog-mechanic"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-47e4c79e-5acb-4b81-95cd-c7ab46aa0255.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=otter-scout, Image2=prairie-dog-mechanic."
+    },
+    {
+      "file": "prospector-lizard_raccoon-cape.png",
+      "characters": [
+        "prospector-lizard",
+        "raccoon-cape"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-0b20e067-34f8-449f-acc0-369a320940da.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=prospector-lizard, Image2=raccoon-cape."
+    },
+    {
+      "file": "raccoon-heart_raccoon-witch.png",
+      "characters": [
+        "raccoon-heart",
+        "raccoon-witch"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-8cec84fb-6155-4b84-905f-510af6cab9fc.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=raccoon-heart, Image2=raccoon-witch."
+    },
+    {
+      "file": "radio-cat_red-hood-mouse.png",
+      "characters": [
+        "radio-cat",
+        "red-hood-mouse"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-6864e2e8-dd75-47e5-9343-364d522538a2.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=radio-cat, Image2=red-hood-mouse."
+    },
+    {
+      "file": "river-raccoon_scavenger-mouse.png",
+      "characters": [
+        "river-raccoon",
+        "scavenger-mouse"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-6a07a776-0f3d-493a-a08f-9a235a8bfd9d.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=river-raccoon, Image2=scavenger-mouse."
+    },
+    {
+      "file": "scholar-mouse_scout-frog.png",
+      "characters": [
+        "scholar-mouse",
+        "scout-frog"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-adf3a32e-8075-46bc-83b8-0b399961ddaf.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=scholar-mouse, Image2=scout-frog."
+    },
+    {
+      "file": "scout-lizard_shield-mouse.png",
+      "characters": [
+        "scout-lizard",
+        "shield-mouse"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-a4bd20e6-0e77-4266-9603-d404ff0b2c69.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=scout-lizard, Image2=shield-mouse."
+    },
+    {
+      "file": "raccoon-witch-tend-repair.png",
+      "characters": [
+        "raccoon-witch"
+      ],
+      "actions": [
+        "tend"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-e2b4bd2b-9fed-47cf-94a5-5143af5fe24d.png",
+      "prompt": "Use case: identity-preserve. Transparent game sprite strip: exactly FOUR complete FULL-BODY poses of this exact RACCOON WITCH character. Single horizontal row, 4columns, square cells, wide canvas4:1. Orange pointed floppy hat, black-and-white raccoon face mask, yellow scarf, red shirt, orange trousers, gray paw feet, stripedtail. Keep exact reference style and silhouette. Both LEGS AND FEET fully visible in ALL FOUR cells, feet planted at identical baseline, lots of transparent space ABOVE hat and BELOW feet. Tending chore fourposes: lift metal cup; polish cup with cloth; rotate cup while wiping; lower cup. Hands and arms articulate differently eachpose, rightfacing slightthreequarters consistently. Never crop torso or cut feet. No extra copies, no grid/labels/scenery/shadows. Truealpha transparency."
+    },
+    {
+      "file": "signal-hedgehog_tinker-fox.png",
+      "characters": [
+        "signal-hedgehog",
+        "tinker-fox"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-64b847c8-c70e-40c4-8fb1-19f2f595fdde.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=signal-hedgehog, Image2=tinker-fox."
+    },
+    {
+      "file": "vampire-mouse_watch-raccoon.png",
+      "characters": [
+        "vampire-mouse",
+        "watch-raccoon"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-761c58f7-acc9-46ae-bc1a-7ecf90faea31.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=vampire-mouse, Image2=watch-raccoon."
+    },
+    {
+      "file": "tortoise-conductor_trail-fox.png",
+      "characters": [
+        "tortoise-conductor",
+        "trail-fox"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-18147f7e-a464-4b38-9a90-750451bc038e.png",
+      "prompt": "Use case: identity-preserve. Production transparent pixel-art NPC chore animation atlas. Match two exact character identities from references, including their distinct art style, species, face, body proportions, costume colors and accessories. Right-facing side camera for every pose. Temporarily stow held weapons/items and replace with chore tool. Exactly FOUR COLUMNS by SIX ROWS, 24 full-body separate poses in evenly spaced cells, generous padding, no clipping, no text/grid/scenery/shadows. Rows1-3 ONLY Image1 character, rows4-6 ONLY Image2 character. Rows1 and4 SWEEP, four articulated poses: ready with broom near feet; push straw broom forward; long sweep follow-through; pull broom back. Feet planted. Rows2 and5 LIFT/LOWER CRATE, four articulated stationary poses: crouch to grasp small wooden crate on ground; lifting; stand holding crate at waist with both hands; lowering. Feet planted, never walking. Rows3 and6 TEND WORK: lift tin cup, polish cup with cloth, rotate cup while wiping, lower cup. Clearly different hands/arms in every frame. Consistent character size and foot baseline across all frames. Preserve identity separately, do not mix costumes/species. Genuinely transparent RGBA, no background fringe.\nCRITICAL LAYOUT: portrait canvas aspect ratio2:3 (1024x1536). FOURcolumns x SIXrows. Each figure contained strictly inside its own square cell with 20px transparent gutter ALL sides, especially ABOVE hat and BELOW feet. No silhouettes from different rows can touch or overlap. Consistent192px tall upright figure in256px tall cells. Background must be fully transparent alpha0.\nIdentity binding Image1=tortoise-conductor, Image2=trail-fox."
+    },
+    {
+      "file": "young-tinker-fox.png",
+      "characters": [
+        "young-tinker-fox"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-cf356a5c-5108-425e-aee8-86d9106214dd.png",
+      "prompt": "Use case: identity-preserve. Exact YOUNG TINKER FOX from attached reference, orange fox, enormous ears, brassgoggles, creamshirt, redneckscarf, brown shorts toolbelt, orange white-tip bushytail. Preserve existing proportions, costume and pixel-art style. Transparent background. FOURCOLUMNS x THREEROWS spriteatlas,12 distinct FULL-BODY poses, generous transparent gaps and absolutely no silhouettes touching neighboring cells. Portraitnotrequired, canvas4:3. Row1 SWEEP fourdifferent articulated armposes ready/push/sweep/recover withstrawbroom, plantedfeet. Row2 CARRYLOAD fourstationary poses bendto grasp woodcrate/lift/hold waist high/lower; legs planted, no walking. Row3 TEND tin cup polish lift/wipe/rotate/lower withcloth. ALL figures face RIGHT, ALL have full head ears legs and FEET, same scale baseline andbody proportions. No labels/grid/scenery/shadows. Preserve reference style and identity."
+    },
+    {
+      "file": "red-hood-mouse-carry-repair.png",
+      "characters": [
+        "red-hood-mouse"
+      ],
+      "actions": [
+        "carry"
+      ],
+      "generatedPath": "C:\\Users\\johnw\\.codex\\generated_images\\01a1477a-347a-7d41-93ff-c949e80dc551\\exec-2a499284-2ce6-48ce-8e35-33e6f9336c7c.png",
+      "prompt": "Use case: identity-preserve. Four FULL-BODY animation poses of the exact RED HOOD MOUSE in attached image. Gray mouse, redeyes, whiskers, pinkpawfeet and pinktail, full red hooded outfit with floppy hoodtop and yellow throat, preserve pixel-art style and exact costume. Widesprite strip FOURCOLUMNS ONE ROW; generous gaps; allfigures fullyvisible from hoodtop tofeet. Stationary load/unloadsmallwoodencrate sequence: crouch grasp crate, partiallylift crate, stand holdwaisthigh, lowercrate. Critical invariant EVERYframe crate on VIEWER RIGHT of body and tail extending to VIEWER LEFT. Body facing RIGHT in eachpose, NEVER mirror or flip a single frame. Feetoncommonbaseline, coherent limb articulation, consistent bodyscale. Transparentalpha background, no scenery/grid/labels/shadows."
+    }
+  ],
+  "mode": "built-in ImageGen",
+  "version": 1,
+  "notes": "Later action-specific entries replace only that action; original source atlases remain immutable. Artwork normalized and reviewed before installation."
+}

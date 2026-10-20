@@ -14,7 +14,8 @@ class GuestExpeditionTests(unittest.TestCase):
                 sent=sent+1; local request=assert(service:prepareRequest('companion',name,args)); request.expected=expected; request.sceneEpoch=epoch
                 self.request=request; self.lastCommandResult=service:execute('companion',1,request); return request.requestId
             end}
-            view={elapsed=0,epoch=data.coop.sceneEpoch,runtime={scene='expedition',player={x=750,y=110}},controller={network=network},
+            local x,y=positionAt('north-cairn')
+            view={elapsed=0,epoch=data.coop.sceneEpoch,runtime={scene='expedition',player={x=x,y=y}},controller={network=network},
                 inputAllowed=function() return true end,actionsAllowed=function() return true end,neutralize=function() neutral=neutral+1 end,
                 inventory={openContainer=function(self,id) opened=opened+1; openedId=id; return true end}}
             function project() view.runtime.saveData=Players.forActor(assert(Schema.copy(source)),'companion') end
@@ -35,7 +36,7 @@ class GuestExpeditionTests(unittest.TestCase):
     def test_empty_cache_panel_opens_once_after_save_retry_and_projection(self):
         self.view()
         self.lua.execute('''
-            states.companion.x,states.companion.y=360,180; view.runtime.player.x,view.runtime.player.y=360,180
+            states.companion.x,states.companion.y=positionAt('western-stash'); view.runtime.player.x,view.runtime.player.y=positionAt('western-stash')
             local chest=area.chests['western-stash']; chest.storage={}; chest.storageInstances={}; project()
             failSave=true; assert(panel:interact()); panel:update(); assert(panel.pending and opened==0)
             project(); panel:update(); assert(panel.pending and opened==0)
@@ -58,7 +59,7 @@ class GuestExpeditionTests(unittest.TestCase):
     def test_cache_receipt_waits_through_delayed_motion_unpause_without_resending(self):
         self.view()
         self.lua.execute('''
-            states.companion.x,states.companion.y=360,180; view.runtime.player.x,view.runtime.player.y=360,180
+            states.companion.x,states.companion.y=positionAt('western-stash'); view.runtime.player.x,view.runtime.player.y=positionAt('western-stash')
             assert(panel:interact()); project(); view.actionsAllowed=function() return false end
             panel:update(); panel:update(); assert(panel.pending and opened==0 and sent==1)
             view.actionsAllowed=function() return true end; panel:update()

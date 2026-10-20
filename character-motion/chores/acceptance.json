@@ -1,0 +1,2983 @@
+{
+  "characters": {
+    "botanist-frog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/botanist-frog/carry.png",
+          "sha256": "1aa860b8b6175f111e9ca5f2b9ef29ca61ee0d8dc944a0a1569181f8d0ff2931"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/botanist-frog/sweep.png",
+          "sha256": "66f2fd049dac612360f892b01f426d355e17c822d8d55def5e20d81601770691"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/botanist-frog/tend.png",
+          "sha256": "4ee85ccb4b06c2f8223a69101a9dabe2584b8a6abc8a7ea207e96a2fb8ea327a"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/botanist-frog/audit/report.json",
+          "sha256": "cf918cdceb9e5213e3c795821a3220706f227745d220436c82ea53f197b6b644"
+        },
+        "build_report": {
+          "path": "output/resident-chores/botanist-frog/build-report.json",
+          "sha256": "670a9f8bf5f7b13c2a4486c01602ab4398eef53aa23095b4f053e198f8a9b51d"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/botanist-frog/contact-backgrounds.png",
+          "sha256": "b2184354cab59eb142073df728d5052de37996ba3954f07be9f4c22f38dab7c7"
+        },
+        "spec": {
+          "path": "character-motion/chores/botanist-frog.json",
+          "sha256": "ba5b7ff043d25e45778a3fefc7a23c3c074c6b26e649edc10e393bbf70b26430"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.760738+00:00",
+      "sources": [
+        {
+          "file": "botanist-frog_conductor-cat.png",
+          "sha256": "b366a8bfec80c104c86da2bfc2b516e36e0f2dcb2e9c125b7aa1980f83bc7f22"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "conductor-cat": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/conductor-cat/carry.png",
+          "sha256": "912ef2e463ebc93dfa075a83f03cf5a791e3f0fcfc4aac50fa307be91939e4ba"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/conductor-cat/sweep.png",
+          "sha256": "8afeee5daf39f64b66b30e2a7f9ab7f10adf77d3d4549005d7282ef184460e20"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/conductor-cat/tend.png",
+          "sha256": "08ea3814dc91fbb977516ca9baa0551ce6d547e451f0868c581ea1567a9f5bde"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/conductor-cat/audit/report.json",
+          "sha256": "1e958e1b10d7188491b2fc626af3f87efadd3626758493acce63666ab06b7154"
+        },
+        "build_report": {
+          "path": "output/resident-chores/conductor-cat/build-report.json",
+          "sha256": "66b0319ec5bb73be8787a7e32896cc09f3a1494c19c5db9db4cc063253bf5caf"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/conductor-cat/contact-backgrounds.png",
+          "sha256": "6e05255119a9eba7adb5acab54cfcc8a2d6ac515aad19789f896818119559821"
+        },
+        "spec": {
+          "path": "character-motion/chores/conductor-cat.json",
+          "sha256": "c7393877885fe0e9544f8e9781a1fd60527d513196027e10a95db75f50ca7a78"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.777617+00:00",
+      "sources": [
+        {
+          "file": "botanist-frog_conductor-cat.png",
+          "sha256": "b366a8bfec80c104c86da2bfc2b516e36e0f2dcb2e9c125b7aa1980f83bc7f22"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "cook-frog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/cook-frog/carry.png",
+          "sha256": "2cde0b3ec2b3368ad0405830b8161c3964c25f95886a0b9cded352c809ed314a"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cook-frog/sweep.png",
+          "sha256": "965d848bd07c2dd60f802d819edcd58e95e8d13d1414499827b75f1dfdfc3092"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cook-frog/tend.png",
+          "sha256": "c273fa174da2b3de2f1971ccdb3ab7bcccfd39c35b9d9f876eb964282864072e"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/cook-frog/audit/report.json",
+          "sha256": "57df110bc5982ecc044ff6eeda18dbfaf2ba0d6fad24d74b7ac6a516d26e1a07"
+        },
+        "build_report": {
+          "path": "output/resident-chores/cook-frog/build-report.json",
+          "sha256": "7074c7102ed447635fbcbfa2c6bdcfa587c9b7ec6bf01921e1a36cfee7e87398"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/cook-frog/contact-backgrounds.png",
+          "sha256": "6f658bad2f5cd6ad61bfea052b52b1769aae838b1038b4dfc9f30f9372b82df9"
+        },
+        "spec": {
+          "path": "character-motion/chores/cook-frog.json",
+          "sha256": "54d474df17b1ab7e2824be39456fa5629ef45943f020de4e84d3f515703e01fc"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.797000+00:00",
+      "sources": [
+        {
+          "file": "cook-frog_cook-mouse.png",
+          "sha256": "18f7ba3f6ba4a2009fe8b2feca7e8bb842963adafbb9e838a8416d1e87ad8f21"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "cook-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/cook-mouse/carry.png",
+          "sha256": "657d3d3cee7ec3211b8b4826fc3204d4fd6acbed7194208ad67580dd69a725f8"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cook-mouse/sweep.png",
+          "sha256": "b4446e88d04304165311587eab40e84d648dc60db58b5a1b4b1e0b38bbc14e34"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cook-mouse/tend.png",
+          "sha256": "e0b8b3e4a9711e6cba9cc6b8cb335988cb18d13fc08d81e3e29e83aa50c80a53"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/cook-mouse/audit/report.json",
+          "sha256": "46b3f19150bfc3e02280a7e925d79e63b8216cb2acf7f08b3251c6527db9b4bc"
+        },
+        "build_report": {
+          "path": "output/resident-chores/cook-mouse/build-report.json",
+          "sha256": "8a3fda9dd5801d35091edee77fb6e1eecb68620d9f6bec76030de6496ea41b8c"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/cook-mouse/contact-backgrounds.png",
+          "sha256": "6c180a103ae31913f0f8953280afbcc605f4e4e630982d23eace3730b0878382"
+        },
+        "spec": {
+          "path": "character-motion/chores/cook-mouse.json",
+          "sha256": "b79238ed5d4080e0906fe95b19432604f4166f2186d5ed0a471b64dc00318783"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.816144+00:00",
+      "sources": [
+        {
+          "file": "cook-frog_cook-mouse.png",
+          "sha256": "18f7ba3f6ba4a2009fe8b2feca7e8bb842963adafbb9e838a8416d1e87ad8f21"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "courier-lizard": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/courier-lizard/carry.png",
+          "sha256": "5b184e24055b3db0e5342baf4b5527c82196fc073cd65151c38a6580f9ac70cd"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/courier-lizard/sweep.png",
+          "sha256": "c95176e9694c061298d19ef40405597e306e4d0e7c1fe6e4b942ad4806fca0b3"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/courier-lizard/tend.png",
+          "sha256": "1cf6a528a26f1c3cba33bd6af1cb036000a208ba31a600b5034f35f21f57015e"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/courier-lizard/audit/report.json",
+          "sha256": "500b3c5e8f08b4d359eaed9c9f79b2fe185d802f01b9790aed09aa9926bd7035"
+        },
+        "build_report": {
+          "path": "output/resident-chores/courier-lizard/build-report.json",
+          "sha256": "b182136f2923230725ca25b17c1324c51e315d8ed78d7f4c0849a97bb3e6a5e9"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/courier-lizard/contact-backgrounds.png",
+          "sha256": "b447597a775a9136acbe9761043de9e638518bad282aa97551756801cc63f9dd"
+        },
+        "spec": {
+          "path": "character-motion/chores/courier-lizard.json",
+          "sha256": "96f8091f1118da69cda4bec2084ed96b02444e03f1dbe171fb60e4f141579d4f"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.834308+00:00",
+      "sources": [
+        {
+          "file": "courier-lizard_cowboy-mouse-no-skull.png",
+          "sha256": "0eac914ee67d0d4cf77ef551db73da24e5df4d3f789dce0b8eeb7a403473f2a1"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "cowboy-mouse-no-skull": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/cowboy-mouse-no-skull/carry.png",
+          "sha256": "7c5cbc4e2d728d1f4a7489c670816bef33575a791cd2335efb291ed7c495a95d"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cowboy-mouse-no-skull/sweep.png",
+          "sha256": "28a676490609aa7f1c742acc1b1dc1194cb7038dec830f417895b233a105872c"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cowboy-mouse-no-skull/tend.png",
+          "sha256": "e23f29f2f029a20d1b478c08938c29b01560c1e8d46cd847606a8a11e2b622ff"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/cowboy-mouse-no-skull/audit/report.json",
+          "sha256": "bb0493a5088d820d91614f1b02fee53b8658bc41651c7ee8854e9eb094b8441b"
+        },
+        "build_report": {
+          "path": "output/resident-chores/cowboy-mouse-no-skull/build-report.json",
+          "sha256": "c6935d47306942b4124a896b327c7d57e9100e7215c832f2af61c05db283097b"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/cowboy-mouse-no-skull/contact-backgrounds.png",
+          "sha256": "10f0fe0333181fe459d2ee16333253dffe148e983d0a786b57d305131428b96c"
+        },
+        "spec": {
+          "path": "character-motion/chores/cowboy-mouse-no-skull.json",
+          "sha256": "f88f2290b7a88f80fc58c4bbbca185089011e862a574ba591d7db5dba64f72fa"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.850903+00:00",
+      "sources": [
+        {
+          "file": "courier-lizard_cowboy-mouse-no-skull.png",
+          "sha256": "0eac914ee67d0d4cf77ef551db73da24e5df4d3f789dce0b8eeb7a403473f2a1"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "cowboy-mouse-on-skull": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/cowboy-mouse-on-skull/carry.png",
+          "sha256": "46515bfe3d89347b830a3290fb43e1dddbcd4b91d8830e0c0d52cefe602ebbd1"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cowboy-mouse-on-skull/sweep.png",
+          "sha256": "5a2b8ebf540ae6b6cad0720001a17b6312a02ad36691cafefcb090c908868cb5"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/cowboy-mouse-on-skull/tend.png",
+          "sha256": "16dda682cd3d2971b1bda300284c97c259b9939664be6572d7a844e0764516ba"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/cowboy-mouse-on-skull/audit/report.json",
+          "sha256": "2272c25459f7307689c489b92a675c20b5aa6e13aa633f92afed58de7462a4e3"
+        },
+        "build_report": {
+          "path": "output/resident-chores/cowboy-mouse-on-skull/build-report.json",
+          "sha256": "1a5274dc6be457abf203cf7afd4e2c8ca11f40c031985086a78b31f478bc94e7"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/cowboy-mouse-on-skull/contact-backgrounds.png",
+          "sha256": "9bc5f855b72a43c2fb363b53fde66ffe846630c078a76ec792d8c8e22cbd6ee2"
+        },
+        "spec": {
+          "path": "character-motion/chores/cowboy-mouse-on-skull.json",
+          "sha256": "e56bbe417158e46db847e5fb20f82c05d946aea8129fd1486347fa3baa5336e3"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:42:18.520224+00:00",
+      "sources": [
+        {
+          "file": "cowboy-mouse-on-skull_crow-merchant.png",
+          "sha256": "85c9bf83a4ea7f244e6c02129ee3bd8f5b03c7305e618df83177d89f425284e8"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "crow-merchant": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/crow-merchant/carry.png",
+          "sha256": "82565e859b74a6a686ed1ba457597bbcfbf2643d425319459bbeee041f1a196e"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/crow-merchant/sweep.png",
+          "sha256": "71eef5bf595532ccc3fff95d6e0f28ad1fdd5fd8bf3f9c698858a201e9a0ba29"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/crow-merchant/tend.png",
+          "sha256": "7872bb4a6ccd0be16c707d3df2a827c5b713806cdd79cbbfa07d9d51ca58d831"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/crow-merchant/audit/report.json",
+          "sha256": "d1f8d8462c5b889237837a460156a79755d6b559848ff504db4ff27878800e73"
+        },
+        "build_report": {
+          "path": "output/resident-chores/crow-merchant/build-report.json",
+          "sha256": "4836835e58488aed3fe3b2a9ae4719dc6f5f5b6ef6ebce2a94d728c0a0235e97"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/crow-merchant/contact-backgrounds.png",
+          "sha256": "ba3961bd13fb9225ce5f2888f80751b6e2ce07a328b5ed70516d37acc43b2de9"
+        },
+        "spec": {
+          "path": "character-motion/chores/crow-merchant.json",
+          "sha256": "f5ddf4a6b3867d25ecbeee29cbe48a8f0a43c2faa239f7df8d70bd9ce4bf700e"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:42:18.552330+00:00",
+      "sources": [
+        {
+          "file": "cowboy-mouse-on-skull_crow-merchant.png",
+          "sha256": "85c9bf83a4ea7f244e6c02129ee3bd8f5b03c7305e618df83177d89f425284e8"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "engineer-frog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/engineer-frog/carry.png",
+          "sha256": "99ff466cfb81c54bdb0bf865ec10689eeb9a1d14da4cdf948ef81add1991856b"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/engineer-frog/sweep.png",
+          "sha256": "01d94f2bf9c9b412c2f217e15bf8b82f0d57cce6e1eb0e99a8ff87c253be068c"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/engineer-frog/tend.png",
+          "sha256": "43963be99374fa5840399b088e1a1e29573365ccc59f0e6bcd16b23ab13216bf"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/engineer-frog/audit/report.json",
+          "sha256": "3e5e8af87a415b5d47cfe80ab05ecb82d64ff6f70465cb5dc1799674580d1ed6"
+        },
+        "build_report": {
+          "path": "output/resident-chores/engineer-frog/build-report.json",
+          "sha256": "43ff2a5880c247549724e87f047a01599a84cf61d2efdfe21d029a2b16c33450"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/engineer-frog/contact-backgrounds.png",
+          "sha256": "c573d5d80e27eba548c017eb2d74fd7a80667223596b3d7dc0db457778de113b"
+        },
+        "spec": {
+          "path": "character-motion/chores/engineer-frog.json",
+          "sha256": "dd5da9654dc83017da47a3804ea337898b00790d4d1f6fcc17c6f133a56ebdfb"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.867600+00:00",
+      "sources": [
+        {
+          "file": "engineer-frog_ferret-engineer.png",
+          "sha256": "05bed00fcefcf15044db511228d8f4e153971050b0573fa7e2d76dfafc6c0212"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "ferret-engineer": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/ferret-engineer/carry.png",
+          "sha256": "36a490f15641919032b59a13261ba68d1376ab2d79ec01059b54fc0a9a6d7065"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-engineer/sweep.png",
+          "sha256": "281ce4cbe8963cf5c0606efc45b1e6ce20f4edfd68a8b8826a3eb3b207fd2426"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-engineer/tend.png",
+          "sha256": "dd4e9a75d4d388301d4d88398c926f835733f8045616226d3e655ebd677cd9c3"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/ferret-engineer/audit/report.json",
+          "sha256": "9ec6615ad048b79ef311a840c2cd8ab4fdfb0d891b8d92fc67954f503e1d89f6"
+        },
+        "build_report": {
+          "path": "output/resident-chores/ferret-engineer/build-report.json",
+          "sha256": "24aa942a3adfaa0520441b56ab1c8e9a49eff6de0c586f440b23d240742ca0d1"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/ferret-engineer/contact-backgrounds.png",
+          "sha256": "a24a6daf3695c5ea75f7c4a87bb83826d9392b34444fd6c009dbae7654f4865c"
+        },
+        "spec": {
+          "path": "character-motion/chores/ferret-engineer.json",
+          "sha256": "3fd26745459d29461660cf0677cc6cee65773ae90aea7edd7eb3d880d86af90c"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.885473+00:00",
+      "sources": [
+        {
+          "file": "engineer-frog_ferret-engineer.png",
+          "sha256": "05bed00fcefcf15044db511228d8f4e153971050b0573fa7e2d76dfafc6c0212"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "ferret-medic": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/ferret-medic/carry.png",
+          "sha256": "4b1973e08554da463f3c52c673b0f03ea935c8c06717f6dab91e1b0aad52ceda"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-medic/sweep.png",
+          "sha256": "112142215c5a0f88c06af47744d9dc3c37de394eab58e9e350fbbb6dfaf87e35"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-medic/tend.png",
+          "sha256": "e4e65b2e4b1f2d9a6c5de0eef5304e03399d25ffae816c67094a839dc312e378"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/ferret-medic/audit/report.json",
+          "sha256": "a372f1b4ce22e12e858639d808b56b479adf6b1225aa0e24993e832aedb3f040"
+        },
+        "build_report": {
+          "path": "output/resident-chores/ferret-medic/build-report.json",
+          "sha256": "9e291041e23cce35f74aa92dff8c6e4b2ff29acc704c7f6b1cf19740d6721bad"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/ferret-medic/contact-backgrounds.png",
+          "sha256": "8a033a949c09b357974c9811ef075297f9bdf77d71a1b03e365d9dabcf8bb387"
+        },
+        "spec": {
+          "path": "character-motion/chores/ferret-medic.json",
+          "sha256": "0ee31759985dbe6b3a76ee2b4a2a10a3c7de4a717f7d7c8c250d197ee700dfca"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.904665+00:00",
+      "sources": [
+        {
+          "file": "ferret-medic_ferret-scout.png",
+          "sha256": "2adabdb9ff3a9c455304b6ee93d6c6297acdbc9d43b7bb55973e036515870819"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "ferret-scout": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/ferret-scout/carry.png",
+          "sha256": "2d358d949f7ae564b1dcc7b442b6fefe4837df823f24302b8475e2b14682c34c"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-scout/sweep.png",
+          "sha256": "a73a9ac4897cfa57748260ff85019ec17409807f85621d11dce5ced1d898e688"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-scout/tend.png",
+          "sha256": "d372f75048d9e01d94ac9eb24c58d4843338788e60ed3d56f2f608124e96874f"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/ferret-scout/audit/report.json",
+          "sha256": "95aacbd772adf3d2477fe7777b82319b94b2e4d3fb07e164f6c8a4b87b27fa4c"
+        },
+        "build_report": {
+          "path": "output/resident-chores/ferret-scout/build-report.json",
+          "sha256": "3c9c788abcd61f1b7078415d9538125c0e992e727ef32374f00f99e4e3643167"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/ferret-scout/contact-backgrounds.png",
+          "sha256": "f74d945336ebfbb93ed074d9a05f849eb3b7c723a4e3e175215b36864627966f"
+        },
+        "spec": {
+          "path": "character-motion/chores/ferret-scout.json",
+          "sha256": "44e3357aa8cc2ec1ea7e7c93e1866ad6aa3400d63cab5cc7a80a7e0a95bedde3"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.931748+00:00",
+      "sources": [
+        {
+          "file": "ferret-medic_ferret-scout.png",
+          "sha256": "2adabdb9ff3a9c455304b6ee93d6c6297acdbc9d43b7bb55973e036515870819"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "ferret-trapper": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/ferret-trapper/carry.png",
+          "sha256": "1026d6d42ff7802e47bcfac269f40e4d98accd7da6a4765fe535fb7cceacb82f"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-trapper/sweep.png",
+          "sha256": "9200d2cac291743c48663f78971dad9aa8b299f3ed4dc0f17b2de5f3e83cbe77"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/ferret-trapper/tend.png",
+          "sha256": "e2a3e7d20447cc50fa9f922e0e267fea789d2cdc4d3ead55165b3a85eba04b7b"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/ferret-trapper/audit/report.json",
+          "sha256": "1e8f7fa5fc03967b6fe753ef3e24ed14ca1a13a9884422e4b4e5869472d4d190"
+        },
+        "build_report": {
+          "path": "output/resident-chores/ferret-trapper/build-report.json",
+          "sha256": "4017ee7f250723039cfec56e0738b5e89ae9b3b13c7b8529fb5d5977ae6529ab"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/ferret-trapper/contact-backgrounds.png",
+          "sha256": "6f0be9865f81bef7f1a8ad9614f08736951841d39891f810b5f362fc7d98d8c8"
+        },
+        "spec": {
+          "path": "character-motion/chores/ferret-trapper.json",
+          "sha256": "92776822d7b90fbf8d2a0916bccf41263c15ca10fe5a49344aed675262dff701"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 3
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.960470+00:00",
+      "sources": [
+        {
+          "file": "ferret-trapper_gardener-lizard.png",
+          "sha256": "c6a37f21730460e62b6a0414767088735174a72b1c106782e8c45b8bff6e2370"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "gardener-lizard": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/gardener-lizard/carry.png",
+          "sha256": "50131f3bbb861a4cf777088988c361e70c7e915b5b5bcab4924d9b669b0fcbaf"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gardener-lizard/sweep.png",
+          "sha256": "89b9f01e7871c4b92ebf1d1950d6c8eac3c71f0559295b70b25ece65a06470dc"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gardener-lizard/tend.png",
+          "sha256": "bf70b76cbb3aa9f80cc80cd2ba54c551ffbf746ed1b8a20201f9cff8b303903b"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/gardener-lizard/audit/report.json",
+          "sha256": "c8e324185a681e974f2f34d216e2058b018e5263176a47c5fbf421f0630f44cd"
+        },
+        "build_report": {
+          "path": "output/resident-chores/gardener-lizard/build-report.json",
+          "sha256": "258577ac905a29f23fbd70aafc2117cbc2771a5741a54bd427e68b7ef3c55b44"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/gardener-lizard/contact-backgrounds.png",
+          "sha256": "99907495f6ccdddf8d0de8b41a6e2559d087c2f5bde01944349a6a47aa63f757"
+        },
+        "spec": {
+          "path": "character-motion/chores/gardener-lizard.json",
+          "sha256": "686533cfbfccb3f0255572fdb8b351ba75feb81bcb0ab90478561306755e9dc5"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 3
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:58.988264+00:00",
+      "sources": [
+        {
+          "file": "ferret-trapper_gardener-lizard.png",
+          "sha256": "c6a37f21730460e62b6a0414767088735174a72b1c106782e8c45b8bff6e2370"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "gecko-courier": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/gecko-courier/carry.png",
+          "sha256": "e18aaf9c702adab2a9f156b845a365e3cbdf259161e2d960e74b308722512ae6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-courier/sweep.png",
+          "sha256": "a2947a072897a6bb1a650cca462aa2aacc0a43b783026777c7f7d6b4b363967a"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-courier/tend.png",
+          "sha256": "eec338d3091456f3d42d738c9407b7b04f1f223dcc9bb7b5a3ebf0dc9c080715"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/gecko-courier/audit/report.json",
+          "sha256": "a3e43cef35a1f7f384a826b1eedcc0a437cb8693d9a0ba046ecc14f1bf76cd9d"
+        },
+        "build_report": {
+          "path": "output/resident-chores/gecko-courier/build-report.json",
+          "sha256": "e8fb80a3db69ae40ddf2cc7aa6e0f236e9711dc7dfca3851ef1cbc50bbb6b443"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/gecko-courier/contact-backgrounds.png",
+          "sha256": "2fc111f77b481c52ba9018979f790f5b97178704b8047689006922e4785309cd"
+        },
+        "spec": {
+          "path": "character-motion/chores/gecko-courier.json",
+          "sha256": "d195bed68339554f70bc49df10cb26cff748d3b65aa58f91cbb50d77cbbdca31"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:59.007396+00:00",
+      "sources": [
+        {
+          "file": "gecko-courier_gecko-herbalist.png",
+          "sha256": "121738804fcba8002a19c08af78b1a9f7c06ee8f7f7b5078709f26f14f6bc5c8"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "gecko-herbalist": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/gecko-herbalist/carry.png",
+          "sha256": "80a88247fc4c1e56515257bf034c2ce7c4e76dfcf261d104c495bf1729ca7321"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-herbalist/sweep.png",
+          "sha256": "55fe4b9478f690271c6b84bf5527ca2744998b69ad9d64cab178be3907c12a2e"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-herbalist/tend.png",
+          "sha256": "e0fb8cd7ca302bdf1fb4d64992a2d92ec340524ff7e26863000abb53a6548904"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/gecko-herbalist/audit/report.json",
+          "sha256": "bdef2a3ce426036269269079f0069936483d6a3a13c3b71f2c2ee970fde11133"
+        },
+        "build_report": {
+          "path": "output/resident-chores/gecko-herbalist/build-report.json",
+          "sha256": "643a5cc45b9ee482b4ff01055bb60cf40a0370a4a581bc9ddb7df55b5593c073"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/gecko-herbalist/contact-backgrounds.png",
+          "sha256": "75dc9cbfcc82808eeaebef33382c7c21eae0125ac057108399423f4fe70dc8a1"
+        },
+        "spec": {
+          "path": "character-motion/chores/gecko-herbalist.json",
+          "sha256": "69eb4f5402d309df42763869846f8072f74ac836e794e0ab099f72ed2f5769c5"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:33:59.026686+00:00",
+      "sources": [
+        {
+          "file": "gecko-courier_gecko-herbalist.png",
+          "sha256": "121738804fcba8002a19c08af78b1a9f7c06ee8f7f7b5078709f26f14f6bc5c8"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "gecko-mechanic": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/gecko-mechanic/carry.png",
+          "sha256": "973eaa4c8e25ae95e732b0eb1a41bddf70c7124f690d2e6e7c02820751244469"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-mechanic/sweep.png",
+          "sha256": "f33fc09ec64a6170cb615d6ebfdd45c25242805702125dbfffadcc2dc5e98f18"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-mechanic/tend.png",
+          "sha256": "6997cc477994b4b90a90d41cb7169330ab6722ec5f588a871d40913bc0a700fe"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/gecko-mechanic/audit/report.json",
+          "sha256": "16adbe4a766c7be330096a26143b2cce68a2b4c6959d4ce49bf2b3b95b4dc02a"
+        },
+        "build_report": {
+          "path": "output/resident-chores/gecko-mechanic/build-report.json",
+          "sha256": "0fc2cf8e9898aa6bb9340ae39b43efd48f20a334c4aa158b2a41f6946c4f8447"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/gecko-mechanic/contact-backgrounds.png",
+          "sha256": "f376f7d7a390257fd64d00d7c5664b6c5bb28844da7793d59767931db6cc0faa"
+        },
+        "spec": {
+          "path": "character-motion/chores/gecko-mechanic.json",
+          "sha256": "79b5d6b4e11ac3470457eb981d55f0d44d0c1adf19db300f579efa84c8334b0b"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:45:54.193343+00:00",
+      "sources": [
+        {
+          "file": "gecko-mechanic_gecko-ranger.png",
+          "sha256": "0141dfb09cc245f0f39abd2b15f2e9a5fd1d54f1ce7317a3330e2decaad57ead"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "gecko-ranger": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/gecko-ranger/carry.png",
+          "sha256": "5d697f7acd490d9611e1148fd602d240a931c3105611c0a022690a44c53eae9e"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-ranger/sweep.png",
+          "sha256": "9024a9c9a1bcc132704b4e70a01f2b3bf93aaed8f39d44d9ef662ed6000e1316"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/gecko-ranger/tend.png",
+          "sha256": "d9c201babd814c256a0b2d3e4b29f07acb075f01380c739c1c59993f8cdb4130"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/gecko-ranger/audit/report.json",
+          "sha256": "f60a87824f617ea7ccbdcbeaf169f8ed77e639f4e4ba4c0f662e50e460fbe61d"
+        },
+        "build_report": {
+          "path": "output/resident-chores/gecko-ranger/build-report.json",
+          "sha256": "3cccb668cc3e7a376f78b93442d7d630014d801e1f49479b0a54e554253f8249"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/gecko-ranger/contact-backgrounds.png",
+          "sha256": "4b6ec1c03d072177f2147ef7354e088bf6cbae79a89164df220fae772b1e80aa"
+        },
+        "spec": {
+          "path": "character-motion/chores/gecko-ranger.json",
+          "sha256": "41172b6ba61a645f345372796b174f4ef5f7ba8c2d47b50609c36a7fe449ddef"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:45:54.216990+00:00",
+      "sources": [
+        {
+          "file": "gecko-mechanic_gecko-ranger.png",
+          "sha256": "0141dfb09cc245f0f39abd2b15f2e9a5fd1d54f1ce7317a3330e2decaad57ead"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "guard-fox": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/guard-fox/carry.png",
+          "sha256": "6c9c2b3409c7b2241333e659f75dda90c6e9f3671dd733b9cd620e3272a508c6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/guard-fox/sweep.png",
+          "sha256": "f6560af2ec6572f9be3638093ed14127bcbe16949679123af6cdd15cdd03e028"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/guard-fox/tend.png",
+          "sha256": "10cc7ec4fdcaffc73e978d1032746b3b1cb0bd8368229180d70b35ea22d3b5bb"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/guard-fox/audit/report.json",
+          "sha256": "2d8f1ebf39d9104e08cb233eb598c691303a8dedc685fc829d08ff87fa20b4b1"
+        },
+        "build_report": {
+          "path": "output/resident-chores/guard-fox/build-report.json",
+          "sha256": "b7b0cb51f1dc4aa6c0f2474e702b5313eb0ce941ab30b9a32d3fd23a10db93da"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/guard-fox/contact-backgrounds.png",
+          "sha256": "bb9179857d0f8c2e7aff6cab6b0067aa14664ecc2bef90b1c445bec8b3eb5711"
+        },
+        "spec": {
+          "path": "character-motion/chores/guard-fox.json",
+          "sha256": "de0d7f23fa394dff2fc63559617282656a611da34f57ef93dde53bad80e97353"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:45:54.244394+00:00",
+      "sources": [
+        {
+          "file": "guard-fox_hedgehog-botanist.png",
+          "sha256": "d50c720012053c009983a6413d00018d2992864d04b19fef9267b1d71455e1c0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "hedgehog-botanist": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/hedgehog-botanist/carry.png",
+          "sha256": "9806e8518b627c5740cd0428d93b319643fd54cf5c4de10d36c0663856a1e456"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/hedgehog-botanist/sweep.png",
+          "sha256": "25dc57bb7bcdcdad4a1343420ad11b3f11d3a1af2825f147dc63dd7897d47dd9"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/hedgehog-botanist/tend.png",
+          "sha256": "aff566e4deec742a9ccfdad2caf6c4b45c600ebabd6bdb1e40c9fb2855b687e2"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/hedgehog-botanist/audit/report.json",
+          "sha256": "a649983547621ea2e51b1474b187e9051bf09ae9ceb0e3eb6f84f5f2ec384d20"
+        },
+        "build_report": {
+          "path": "output/resident-chores/hedgehog-botanist/build-report.json",
+          "sha256": "694812b0c38934408088dde78a0a85beeabab77171f9646ca302733c2fa6e88b"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/hedgehog-botanist/contact-backgrounds.png",
+          "sha256": "9d91908a0ca2db78dffec0bc85e8f34daebcfc5dd330bdc56273d8213d7f5b6b"
+        },
+        "spec": {
+          "path": "character-motion/chores/hedgehog-botanist.json",
+          "sha256": "8c4dbc2f005b2bea2686d766e651ea2e236c3ebac6a3c96c4dfce4d440e6840c"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:45:54.259948+00:00",
+      "sources": [
+        {
+          "file": "guard-fox_hedgehog-botanist.png",
+          "sha256": "d50c720012053c009983a6413d00018d2992864d04b19fef9267b1d71455e1c0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "herbalist-hedgehog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/herbalist-hedgehog/carry.png",
+          "sha256": "d33ba234ad9437586005368c25f84e625d0535cc8387d625f48494013efa9bf6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/herbalist-hedgehog/sweep.png",
+          "sha256": "86ced9d2c3df2cf0f3d661c6d35cfebbf9fd74e2fe1abe60296481d3c9e0d5bf"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/herbalist-hedgehog/tend.png",
+          "sha256": "267bdbc79bc887a41d7117be19c1e8f91d859f0e3d528ccc1d03b5e3585c720e"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/herbalist-hedgehog/audit/report.json",
+          "sha256": "5d4661587af28a362a9bf9210463ce7f515c80fddc12180bda48fab306b10b5a"
+        },
+        "build_report": {
+          "path": "output/resident-chores/herbalist-hedgehog/build-report.json",
+          "sha256": "0d51453b560811ed30388639614d4b34ec7cfbf1e8d205ce0d3710807b70a54c"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/herbalist-hedgehog/contact-backgrounds.png",
+          "sha256": "88846ac30bb2affa3a3a8c9e3c6cd9d19ffef7b8e104ba4bd4ea9ee8d8f41933"
+        },
+        "spec": {
+          "path": "character-motion/chores/herbalist-hedgehog.json",
+          "sha256": "cd742157e836024c381279479a551fbb29527412690c3472a94f6801234632d0"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:46:40.317927+00:00",
+      "sources": [
+        {
+          "file": "herbalist-hedgehog_homesteader-cat.png",
+          "sha256": "dffb3b4022b6b1dcbd3308ffebe0b23e1cf045d24cfc19ba34f7a9ac4d71fa89"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "homesteader-cat": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/homesteader-cat/carry.png",
+          "sha256": "d30b94390e1aadb1cec2715ab570298bc417d4c512e51016d45a154e9bd468f2"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/homesteader-cat/sweep.png",
+          "sha256": "18fb1136c5fdad3f42b5ab836d4ce9b98b63c31aed05bcf253ed0623fe525299"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/homesteader-cat/tend.png",
+          "sha256": "95c003e892e4479134aa90b1c16849366c91de8ec8e547b7e8ef38b98aa22a1a"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/homesteader-cat/audit/report.json",
+          "sha256": "b54f410c6e2071561cc3debd64029d7f10054886e837cff0a5b2568508e8af94"
+        },
+        "build_report": {
+          "path": "output/resident-chores/homesteader-cat/build-report.json",
+          "sha256": "41d33978a732abdf4cf12673f712c687f5234a254a44870032c1dd9a9bd224af"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/homesteader-cat/contact-backgrounds.png",
+          "sha256": "ba891b0291b5502c22414be054120e91269e410041899a438ca3b312ec5e1abb"
+        },
+        "spec": {
+          "path": "character-motion/chores/homesteader-cat.json",
+          "sha256": "f12059f91aba7a17910fa23ae884aac67045bb0cc657687082f0c5d8132ba73e"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:46:40.334072+00:00",
+      "sources": [
+        {
+          "file": "herbalist-hedgehog_homesteader-cat.png",
+          "sha256": "dffb3b4022b6b1dcbd3308ffebe0b23e1cf045d24cfc19ba34f7a9ac4d71fa89"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "jackrabbit-courier": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/jackrabbit-courier/carry.png",
+          "sha256": "9f0c6e5900dd4804ac7b510c7424b62f22e1d1822a9bc0908205ae3439c96599"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/jackrabbit-courier/sweep.png",
+          "sha256": "24ff4ed03dc41659fc47b6a2ad37eca8b41eeb840005aded0505eec6dd05d2e6"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/jackrabbit-courier/tend.png",
+          "sha256": "21b579810ea6ee551908be9e044f9c8822dee8009c6ce10f83c7c66426590cca"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/jackrabbit-courier/audit/report.json",
+          "sha256": "ad9ce7ead47e8b184edd0cb9ca5425ea0698aafbc7ba1d143c317b4ef890aadf"
+        },
+        "build_report": {
+          "path": "output/resident-chores/jackrabbit-courier/build-report.json",
+          "sha256": "d29c591dd3dc2673d899c0319510c2f6004d15b1d347fbcce459671d11a7f608"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/jackrabbit-courier/contact-backgrounds.png",
+          "sha256": "e63f7f5f9a0a5e3b4ce651962037244eace681e7d5ec3f4e7c8fc959a8d50a2c"
+        },
+        "spec": {
+          "path": "character-motion/chores/jackrabbit-courier.json",
+          "sha256": "3feee40ea722d37f4283f80672f11f1d4c4dfc7a680aec7ffd25e10b6e55e26f"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 3
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:47:57.943628+00:00",
+      "sources": [
+        {
+          "file": "jackrabbit-courier_lizard-cook.png",
+          "sha256": "67477339ae743cbbe860f17633d4a52b225ef34cf9d4f07057b312ebaf1f5de0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "lizard-cook": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/lizard-cook/carry.png",
+          "sha256": "7fcefca005ac610186921e327fb3d32d4baf4dad8228e9e253c670b712dd1dda"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/lizard-cook/sweep.png",
+          "sha256": "690ffac0ebd6742deb0e4643d8cfe9a1ef0861f227ce888564474f5968aa2c95"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/lizard-cook/tend.png",
+          "sha256": "1a77ebf6b3cb16a55e039ed40b42326581862d0889e0e5824e5a2accec848196"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/lizard-cook/audit/report.json",
+          "sha256": "ba3b3b47466eec33fae320d37e89d53a36c720fd1f8a735ef2caa5a666a0917e"
+        },
+        "build_report": {
+          "path": "output/resident-chores/lizard-cook/build-report.json",
+          "sha256": "50d06e14af7b867f73ec92ff8f29101761adbfb6a2eed6ce800b9987d9e9ad0d"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/lizard-cook/contact-backgrounds.png",
+          "sha256": "3d0b86cdbe07309b158360d8be1bd972535c3a2b956f4dc9378ee737d83e2c65"
+        },
+        "spec": {
+          "path": "character-motion/chores/lizard-cook.json",
+          "sha256": "b5ece3bcaead1c524fcf99b4a9ac0e52995293164d5358730aecbbe7ebb15014"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:47:57.958303+00:00",
+      "sources": [
+        {
+          "file": "jackrabbit-courier_lizard-cook.png",
+          "sha256": "67477339ae743cbbe860f17633d4a52b225ef34cf9d4f07057b312ebaf1f5de0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "mail-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/mail-mouse/carry.png",
+          "sha256": "9972fc7b1ac37e8e6e321b961799100d4d5ee2d3599cb841047812266c94125f"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mail-mouse/sweep.png",
+          "sha256": "7163f73b440cf88ef83ce50a62a0de26904bb452bb07b22b2397817beca4a67a"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mail-mouse/tend.png",
+          "sha256": "b7c67d64f3820bbf0ebece756de28fbd18b044406a66f68b659611a48b5e109f"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/mail-mouse/audit/report.json",
+          "sha256": "f98308afe1164d2d6bac7f077cf5d2dfb849406d898a7fc519a2f604d8121e54"
+        },
+        "build_report": {
+          "path": "output/resident-chores/mail-mouse/build-report.json",
+          "sha256": "ecb37a4f4e2083f39c9b702266460d92e89d74064c9f3264f0fe5d4f97443882"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/mail-mouse/contact-backgrounds.png",
+          "sha256": "ce2bb9a4f4315a770c6c8bbd19106b52b75180da64d914149de210ab7b23d4a7"
+        },
+        "spec": {
+          "path": "character-motion/chores/mail-mouse.json",
+          "sha256": "9a8de77e30d58c55af7a67439a4151f5756018e84967d5f9fc5960ae3c0af432"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 3
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:52:27.323721+00:00",
+      "sources": [
+        {
+          "file": "mail-mouse_mechanic-hedgehog.png",
+          "sha256": "33d5556e393613a343bfd964c985d2b44ee9041ace8918b3da3ce9b4e5803ad4"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "mechanic-hedgehog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/mechanic-hedgehog/carry.png",
+          "sha256": "98d58de018d89197f0d5c5a8d1935a898e6664d15093646ebd4019137ac77dad"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mechanic-hedgehog/sweep.png",
+          "sha256": "4fd1f62132b1e0c2f8cfb97c96383fc4ecf78f8c3bac5ab0da2136a2a41a3c4e"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mechanic-hedgehog/tend.png",
+          "sha256": "7d90d995094f572a54761c4558c6d3644840181aa5bfdb86420a9f0bfd4cf0d0"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/mechanic-hedgehog/audit/report.json",
+          "sha256": "1854a89cd6e2ed11b2866abc83821950d77a3b2f62852a43c37fe96ceb70de3e"
+        },
+        "build_report": {
+          "path": "output/resident-chores/mechanic-hedgehog/build-report.json",
+          "sha256": "11201473b006ce7e8d2b182518442ba9c6b832a60544254c5c7c712a9accb069"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/mechanic-hedgehog/contact-backgrounds.png",
+          "sha256": "84bbee51175650bc021a9d2310c2bf02dfeaa26a6a7e9a914baf69089122a76f"
+        },
+        "spec": {
+          "path": "character-motion/chores/mechanic-hedgehog.json",
+          "sha256": "60868b5fdcfb9b2b0aa1f50bddc84e454f5ede116d6a15686efa1dfec068aef0"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:52:27.342135+00:00",
+      "sources": [
+        {
+          "file": "mail-mouse_mechanic-hedgehog.png",
+          "sha256": "33d5556e393613a343bfd964c985d2b44ee9041ace8918b3da3ce9b4e5803ad4"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "mechanic-raccoon": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/mechanic-raccoon/carry.png",
+          "sha256": "1913a831885ba97271ea8874efe3517ea079298c4a17fdaa25d4ac12e38e3a1e"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mechanic-raccoon/sweep.png",
+          "sha256": "c6ed01944842246ad54db5d522e19c9aed8f6c7c3b23e13fe15743854e0cd11d"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mechanic-raccoon/tend.png",
+          "sha256": "e1ceda186b54c113ad6c4fab680ab859c507f577ffb546cb23707e7a44cdd0c0"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/mechanic-raccoon/audit/report.json",
+          "sha256": "1f95914e9e104bb3da2e2b90f3763c5e0f18c4284fc30d73a0fd83a563acab5d"
+        },
+        "build_report": {
+          "path": "output/resident-chores/mechanic-raccoon/build-report.json",
+          "sha256": "b6e9b61fb8264a62a5c75e96487e3f1590e80802a6f7487ddd44dc9299e639c0"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/mechanic-raccoon/contact-backgrounds.png",
+          "sha256": "bc783f235504c54a600de374cca7336ac03f25e525af2c4020216fa9fd111a0c"
+        },
+        "spec": {
+          "path": "character-motion/chores/mechanic-raccoon.json",
+          "sha256": "466828b43224af93497304eee1991823417a656a5dd09a315b353db95e554ccd"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:54:13.330965+00:00",
+      "sources": [
+        {
+          "file": "mechanic-raccoon_medic-cat.png",
+          "sha256": "e75bdecefcef51ca4bb31edbfc6ec0a3d87508a52fd8cd8cbc9bf149e017ee87"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "medic-cat": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/medic-cat/carry.png",
+          "sha256": "2bc95151f4ed0b3489a7f6a111d9b866f20e9a88ce277411a0c5b8ca19d03487"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/medic-cat/sweep.png",
+          "sha256": "8bc57698566401775452062eb8a15ee29b00f368f1996c0fd24da04dbfbdd925"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/medic-cat/tend.png",
+          "sha256": "7e9723d2f0c7891b0d572284734601a1fcb1dcaf5968027fdce227f1b7056cf3"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/medic-cat/audit/report.json",
+          "sha256": "b000de8b6f661aec68ada33dd91b70ef97cfc024e208c27676d0354595dd3b24"
+        },
+        "build_report": {
+          "path": "output/resident-chores/medic-cat/build-report.json",
+          "sha256": "9bcddda85905d6e00d455940697632807a0fce9b03c1c4f67a4699a8bdcc28be"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/medic-cat/contact-backgrounds.png",
+          "sha256": "527514cb2ccc4a78a57c41e65ce37a78533eca254b4fa5a92508624a9f2ad1a0"
+        },
+        "spec": {
+          "path": "character-motion/chores/medic-cat.json",
+          "sha256": "50cc748243cced73bc36b4b96c4e8b587678896c22207c62a8687594cddcf789"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:54:13.355915+00:00",
+      "sources": [
+        {
+          "file": "mechanic-raccoon_medic-cat.png",
+          "sha256": "e75bdecefcef51ca4bb31edbfc6ec0a3d87508a52fd8cd8cbc9bf149e017ee87"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "medic-fox": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/medic-fox/carry.png",
+          "sha256": "47934062cab26866f500f9f0f83c69ffb1f7ea9661c319bad0e59ba2466e847c"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/medic-fox/sweep.png",
+          "sha256": "6666d60e2ad896d214bcc2e27c4fe46c0773c3bd7a4279e87de8e6439838883d"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/medic-fox/tend.png",
+          "sha256": "619de8b6c623eb252c7a3519b9f4ad4ae164d676fb75592ffd27a100ccb6c2de"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/medic-fox/audit/report.json",
+          "sha256": "3e4736daa6dbbe68d554cd7d32e76fc1059e26e53650a2096e15aadbdda329b4"
+        },
+        "build_report": {
+          "path": "output/resident-chores/medic-fox/build-report.json",
+          "sha256": "1e024f5c79ceb919ad0546cf63e8be741ae9fb20bdd5cae829f3b27b168faffb"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/medic-fox/contact-backgrounds.png",
+          "sha256": "8eb9ac246be2d15c89c6c5f5782ee37b5638ddb504a402123378d6149e53e37b"
+        },
+        "spec": {
+          "path": "character-motion/chores/medic-fox.json",
+          "sha256": "1c3ee3d134089175a1e2f11f232faf09e75aed2541fba909263bda0073f019a0"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:54:13.370357+00:00",
+      "sources": [
+        {
+          "file": "medic-fox_merchant-raccoon.png",
+          "sha256": "663fa2ad7c7d4c6e20cebd6658050abb50710ca34d6f2697dafc77353b2cb907"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "merchant-raccoon": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/merchant-raccoon/carry.png",
+          "sha256": "ada6441d489984a9af5c2af0c420f95bf6d0fe3d30841b288ae2cda552a73775"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/merchant-raccoon/sweep.png",
+          "sha256": "6fcc762e6257aae5cd630c6fd94edef6cd8dcd5fe1c036e6bf7d346cc390a7a2"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/merchant-raccoon/tend.png",
+          "sha256": "bf7e8fa0e14fe926f6204075c1484921c574523d1169df1fe62ffd01ab031208"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/merchant-raccoon/audit/report.json",
+          "sha256": "560c1220c5fd52f6c7dceff3ddc69670618949fc74c08f1401f16496bd108e79"
+        },
+        "build_report": {
+          "path": "output/resident-chores/merchant-raccoon/build-report.json",
+          "sha256": "17258f2b27b19fc98cf99c44e0a6e22c7c644d119154976f5618549af4a2625c"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/merchant-raccoon/contact-backgrounds.png",
+          "sha256": "3cad265d893631495e46da5c86c450783fdbb23058e3d7595795b88a4d28e8be"
+        },
+        "spec": {
+          "path": "character-motion/chores/merchant-raccoon.json",
+          "sha256": "4be3777069c7e875cbb36f595f0e83d9c1e3354366bfb17e8da1fd4ce4e9d0b3"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:54:13.384769+00:00",
+      "sources": [
+        {
+          "file": "medic-fox_merchant-raccoon.png",
+          "sha256": "663fa2ad7c7d4c6e20cebd6658050abb50710ca34d6f2697dafc77353b2cb907"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "mole-prospector": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/mole-prospector/carry.png",
+          "sha256": "de6e721909cc0622f3f3f331a65b7944191bf58864a1b5bbbca71d2f107f522a"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mole-prospector/sweep.png",
+          "sha256": "c65d192797220475f9a12f5240bccea4a11e20ba2fcfedf8c48c92d65404fec3"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mole-prospector/tend.png",
+          "sha256": "5f216a7057f6b83171be0b820210515e9af9eac74a2374b00bab506369d547ca"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/mole-prospector/audit/report.json",
+          "sha256": "2f668ba072bde65f1bb73e1ce211ebc0621d841a0b49f3e7ede2065ec169a5ef"
+        },
+        "build_report": {
+          "path": "output/resident-chores/mole-prospector/build-report.json",
+          "sha256": "bff118e09d699eba27c2cd8441b86479c0f74358a319a8f9ae586e4ca9a956d4"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/mole-prospector/contact-backgrounds.png",
+          "sha256": "2773603a1fef3c7ef0a2f07ef85a8deac5c5c689bfa4241b9e30a31979902a55"
+        },
+        "spec": {
+          "path": "character-motion/chores/mole-prospector.json",
+          "sha256": "2e836072250f6d69ace345124a4b8406f3266faf4e336234b0652125987e327c"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:56:09.924281+00:00",
+      "sources": [
+        {
+          "file": "mole-prospector_mouse-engineer.png",
+          "sha256": "d644e12312c50333b13612539d684f7b79f56b604d6a491b4f49aca3f4d6a7df"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "mouse-engineer": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/mouse-engineer/carry.png",
+          "sha256": "850024058d4f036fd4ab174ba06445a470deb2ea5a993934c568eee87f582f73"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mouse-engineer/sweep.png",
+          "sha256": "03a2be7149ca5ceb6a25aae974797f20141b9e6179ea1ba17752faf5e1f3ec64"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/mouse-engineer/tend.png",
+          "sha256": "79bb5efa27a4c4e2442eda58a94dd5fb2ccd8879f81c284b81a5faedbff45430"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/mouse-engineer/audit/report.json",
+          "sha256": "42bd0ded1e0f0773858999c366de11ce897a18c55653eb562ceae973080495ca"
+        },
+        "build_report": {
+          "path": "output/resident-chores/mouse-engineer/build-report.json",
+          "sha256": "0e308c9c0c8008f294d08be1ed6d1b32d6e2aea5cf90bc2e89d35bb18568d3ef"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/mouse-engineer/contact-backgrounds.png",
+          "sha256": "eecd09438a70c6d7513eb435274bef244685193326ef1c78df88e84379ef2cc8"
+        },
+        "spec": {
+          "path": "character-motion/chores/mouse-engineer.json",
+          "sha256": "971f48ea60765271adf34f86791b8ce9642fb67299ddc14ec599635e72f7329b"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T04:56:09.940971+00:00",
+      "sources": [
+        {
+          "file": "mole-prospector_mouse-engineer.png",
+          "sha256": "d644e12312c50333b13612539d684f7b79f56b604d6a491b4f49aca3f4d6a7df"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "musician-hedgehog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/musician-hedgehog/carry.png",
+          "sha256": "78c7241717921d9e45600bbde3ad136dca842c06836b3d5591a1355fb1207eff"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/musician-hedgehog/sweep.png",
+          "sha256": "cd0defb3441316b06f59b11640165ea9eb37b3b2ce1ada2eb642f9651adad469"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/musician-hedgehog/tend.png",
+          "sha256": "c7a84f5d79ad5c1514a101f329bf903a483c0e1274a286ad6c06d2340cdb366b"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/musician-hedgehog/audit/report.json",
+          "sha256": "937e703e4aa980ee507c5ab48df9c4268566ac250bf7bde49faef0ed0d7c1702"
+        },
+        "build_report": {
+          "path": "output/resident-chores/musician-hedgehog/build-report.json",
+          "sha256": "3f96e0340a5596e5e9aa14002acf83f04a17ef371cd62fb9386efeb456942366"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/musician-hedgehog/contact-backgrounds.png",
+          "sha256": "9fa9558c5796b7d68e35e604634e22032bfb739bb2cea6fd9ab8a6592f4c9115"
+        },
+        "spec": {
+          "path": "character-motion/chores/musician-hedgehog.json",
+          "sha256": "be57a0345267d0fb3a27ac7623882ee118b2af2f7cda17853105d9f010e6ba2b"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:04:17.147739+00:00",
+      "sources": [
+        {
+          "file": "musician-hedgehog_opossum-medic.png",
+          "sha256": "b10e061fd018193d1b0e5994e364cac996742f732aa60a85738d95c0c3388358"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "opossum-medic": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/opossum-medic/carry.png",
+          "sha256": "6ec80d01eb371673c7b26d8bb6aa5970a285a07aa32d83bce2f0bb57d22aa20f"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/opossum-medic/sweep.png",
+          "sha256": "f2d63862a42bf04a1ff5b678a1d314d2fff9610e2846ae173e1e66fbe15e1126"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/opossum-medic/tend.png",
+          "sha256": "56acb515e942704a250240c26adcef581975dc361ef9c5a6d6d28a153921b7b8"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/opossum-medic/audit/report.json",
+          "sha256": "507a5d2f8ea5fdf843c91c8b15c559c5c183bee1a815e4a63201e4924faeca31"
+        },
+        "build_report": {
+          "path": "output/resident-chores/opossum-medic/build-report.json",
+          "sha256": "19727a333853f34813aba59abbaea7210f82cab70cf10dd887a7149ce8aa9a2e"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/opossum-medic/contact-backgrounds.png",
+          "sha256": "bde9f2b4b1ec83cff2561edb80f7297f5084c6ade0cf1b85499cf920e5d4644c"
+        },
+        "spec": {
+          "path": "character-motion/chores/opossum-medic.json",
+          "sha256": "1864ea0f79e6010b95e643e0971f5d2c80b777f2aa40911fced0c8492cc00da2"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:04:17.172343+00:00",
+      "sources": [
+        {
+          "file": "musician-hedgehog_opossum-medic.png",
+          "sha256": "b10e061fd018193d1b0e5994e364cac996742f732aa60a85738d95c0c3388358"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "otter-scout": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/otter-scout/carry.png",
+          "sha256": "c12d9130c41790d40d041feb0523702e42b0521719309fa93a07780912b87cd6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/otter-scout/sweep.png",
+          "sha256": "927fda70cd485f364c94fac5aa8ed779034ad7d4a78ad106aee8ef38c15721cc"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/otter-scout/tend.png",
+          "sha256": "0cff24fb6db8a1d9c972022c3e8ec8be7eccd661d5a387a1c9bcb19ca89bdc42"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/otter-scout/audit/report.json",
+          "sha256": "985479d28b83d56ba4a415723de1777401d963e542c16ff1f0422e52469b9f08"
+        },
+        "build_report": {
+          "path": "output/resident-chores/otter-scout/build-report.json",
+          "sha256": "70e82dcbf75bab03c58ab965f674ac244a85d1242a49839cba8787dbe79498ee"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/otter-scout/contact-backgrounds.png",
+          "sha256": "f5a74e43d2a965ca365da8351bb437eb9999a91f4b93c5398c80fabbff72d759"
+        },
+        "spec": {
+          "path": "character-motion/chores/otter-scout.json",
+          "sha256": "36fdde4efcf1f8364152056541cc3ec62a7e9158cda43b2245c5bb9c33d016a4"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:06:32.816448+00:00",
+      "sources": [
+        {
+          "file": "otter-scout_prairie-dog-mechanic.png",
+          "sha256": "68d786707c3164d2bf1f3aa076aaaba9d3f865a843930344b6785b18e9cc49ab"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "prairie-dog-mechanic": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/prairie-dog-mechanic/carry.png",
+          "sha256": "38bc587bdaf2147b565b171acbfa51f3fbb64e9058b65ca0e0951f6ee4c46c04"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/prairie-dog-mechanic/sweep.png",
+          "sha256": "fe0976a80327d3d0add7e01182f6eb8e1a7466016530316507d463d1bc315cc7"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/prairie-dog-mechanic/tend.png",
+          "sha256": "91129ca22e24c6170ee8ca94711a9d99cb61dd1dc93e32b97cc4289810966d77"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/prairie-dog-mechanic/audit/report.json",
+          "sha256": "5c6c2f516781302d4b8e872f0200b7124169a0574b9b56759f04a288606c876e"
+        },
+        "build_report": {
+          "path": "output/resident-chores/prairie-dog-mechanic/build-report.json",
+          "sha256": "943471cd0dcf25434b0f4181ce72abddbd987f0659877fee994e37d6d7df8104"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/prairie-dog-mechanic/contact-backgrounds.png",
+          "sha256": "1ba37525de7c466dde0cb4ab22d7a95754ffd7e2b7adc3b83d9d196b9b88372e"
+        },
+        "spec": {
+          "path": "character-motion/chores/prairie-dog-mechanic.json",
+          "sha256": "c78c3f8a6386abbc5bc9b209467a8ac499f29c0efe6de6ee59d97a1dc10470f1"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:06:32.834885+00:00",
+      "sources": [
+        {
+          "file": "otter-scout_prairie-dog-mechanic.png",
+          "sha256": "68d786707c3164d2bf1f3aa076aaaba9d3f865a843930344b6785b18e9cc49ab"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "prospector-lizard": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/prospector-lizard/carry.png",
+          "sha256": "f3e14bbe908fa38836b2ddf2284d0f9f027e0a8ec138592d4b2d95f51cb3ce85"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/prospector-lizard/sweep.png",
+          "sha256": "34bc66ea77a24a555482c3fd217805898e30b137ef0e7c3092b7e0cdf30c8f5a"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/prospector-lizard/tend.png",
+          "sha256": "423bb844c9526f25ae6f642f9e16a8f1033760c5820d6369915273efb0e38c75"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/prospector-lizard/audit/report.json",
+          "sha256": "526a26a6f8a1463d309a74df5e624cf03415f88a774ca42382c83afb37120633"
+        },
+        "build_report": {
+          "path": "output/resident-chores/prospector-lizard/build-report.json",
+          "sha256": "b296ea94da0d2bc17d28183bf0e359504fe7321d341f28294255a399b2c4489d"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/prospector-lizard/contact-backgrounds.png",
+          "sha256": "6a36043837983ea265de4f7e069d3c334520c63ac10d15be9d448bb8075ebac4"
+        },
+        "spec": {
+          "path": "character-motion/chores/prospector-lizard.json",
+          "sha256": "2289dd8bfbce7f2b2919362cafc0f4461f901c61781c4af840c18336b3c698e5"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:06:32.852946+00:00",
+      "sources": [
+        {
+          "file": "prospector-lizard_raccoon-cape.png",
+          "sha256": "79abc7841c4b450fbaf6c5063522965c262fb9dcf18e9bd366726c412aab047a"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "raccoon-cape": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/raccoon-cape/carry.png",
+          "sha256": "558fc1d7a6c9eddc726478024ff07c96066df6b0ad136aceffea4cd773e835c5"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-cape/sweep.png",
+          "sha256": "a9531e340368b997be27b5f49361ff29186aa51383e2dd4bda3e540fecf0c561"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-cape/tend.png",
+          "sha256": "099f4c665a6fd0384503ce10a648fe6a5b11f13477318e7621078b118bc081b9"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/raccoon-cape/audit/report.json",
+          "sha256": "7f5984b03a5a8fc78d54680027d3a621e34856b4f6305f113864811d9ff3e0d7"
+        },
+        "build_report": {
+          "path": "output/resident-chores/raccoon-cape/build-report.json",
+          "sha256": "f2f9d82ac83aca76e91d84a0a5aed354cfe804a9fe5ca0e12a02d3e66560f25c"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/raccoon-cape/contact-backgrounds.png",
+          "sha256": "515ce0c5f052c00ad8461ba875d4bf6d93bb40b69c4d837a52ea2a4044d3ecea"
+        },
+        "spec": {
+          "path": "character-motion/chores/raccoon-cape.json",
+          "sha256": "3f9ef3e5733986de51733963414a566b7ba67ef30db6b7db3cad81a98cda720f"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:06:32.870438+00:00",
+      "sources": [
+        {
+          "file": "prospector-lizard_raccoon-cape.png",
+          "sha256": "79abc7841c4b450fbaf6c5063522965c262fb9dcf18e9bd366726c412aab047a"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "raccoon-heart": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/raccoon-heart/carry.png",
+          "sha256": "33ec19541922815c37f45d5cc4a494622171528dc52f9e65b12c7cb2aebc51c0"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-heart/sweep.png",
+          "sha256": "9aa09b44ce01193354096a931f6fb3a32b5a781221e2255020c28cc7d5ad3cd6"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-heart/tend.png",
+          "sha256": "dee7e68eb9020dbcff9a78040e4786b507cdcd0d3feeeebe209b9400d6b0ead3"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/raccoon-heart/audit/report.json",
+          "sha256": "dce637ff25adab7479b399923e9ec55ae533680547db54d493fbdadb25188292"
+        },
+        "build_report": {
+          "path": "output/resident-chores/raccoon-heart/build-report.json",
+          "sha256": "aba868ffeac3acdf1691a4a2f5c1254532edfaf0daae175a5afcc6059d2420e8"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/raccoon-heart/contact-backgrounds.png",
+          "sha256": "045c27fc521dc9618f79b3e9a0482d203f5602ccba15c49009895b7ff689ac09"
+        },
+        "spec": {
+          "path": "character-motion/chores/raccoon-heart.json",
+          "sha256": "fdba2968debec231e2cf912a5e53b3ffcb47ff606dfad0976f8b245e8b5ecb52"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:06:32.888497+00:00",
+      "sources": [
+        {
+          "file": "raccoon-heart_raccoon-witch.png",
+          "sha256": "eaade5dded8a192ee714f1cc786e132fa1b891bf99cf057298e6210dcfd2f296"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "raccoon-witch": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/raccoon-witch/carry.png",
+          "sha256": "33ffc0bdf9dd2fb3e2c7ecb80404b760cbe930eafc053b89115c500053903eed"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-witch/sweep.png",
+          "sha256": "9125e24f1e7f09812d6238652bebab2b2211ccbca386568e5dd472f308f73ec0"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/raccoon-witch/tend.png",
+          "sha256": "c0c6e4f36a35344aac3c71a256937efce48327b9ecd652e501e706e4e461fdbe"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/raccoon-witch/audit/report.json",
+          "sha256": "b24d8a303096a9e1a1650b77a20f51822203a8775bc5a68327082385ee2df8a0"
+        },
+        "build_report": {
+          "path": "output/resident-chores/raccoon-witch/build-report.json",
+          "sha256": "10398f3f48dcd0850d4d64cb886bdb35f747d231e1a2bc605b242b65bd3903f9"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/raccoon-witch/contact-backgrounds.png",
+          "sha256": "3f5dec7e6a291d1cef058c168f796e273378cb218c739ed068c53e17daa08e2d"
+        },
+        "spec": {
+          "path": "character-motion/chores/raccoon-witch.json",
+          "sha256": "68389f96b822596421cbba848a8d0546bcda2f6f102ea895d7af6ccb7b3dc782"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:18:06.066640+00:00",
+      "sources": [
+        {
+          "file": "raccoon-heart_raccoon-witch.png",
+          "sha256": "eaade5dded8a192ee714f1cc786e132fa1b891bf99cf057298e6210dcfd2f296"
+        },
+        {
+          "file": "raccoon-witch-tend-repair.png",
+          "sha256": "c0b03870a8ad471dfd20e5b6d6ad1cbe30d9ff9007ebcd6dd2c40c1c2da42ff8"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "radio-cat": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/radio-cat/carry.png",
+          "sha256": "b1ce387eaaebcc7a775ccc9a8a3f58cf4840d7e39a606fa996d65ece575cc901"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/radio-cat/sweep.png",
+          "sha256": "ea132bbdaa1511a27ca83e8504190fdc6fc78200169a762b0b3c15998d92c648"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/radio-cat/tend.png",
+          "sha256": "29771e9a1ec36f4bb8d5acd103d1c94ec3e45a5858ac01dbba95d515a6d25f46"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/radio-cat/audit/report.json",
+          "sha256": "e551a8b5aeb46f29386b9a8c340204aa54377fb83aa987aea2e53af4510e133c"
+        },
+        "build_report": {
+          "path": "output/resident-chores/radio-cat/build-report.json",
+          "sha256": "1d5b6501eec03f42204a00d6fbc560a5e0e0b284239873b411de3ec30ee0cda0"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/radio-cat/contact-backgrounds.png",
+          "sha256": "c7fce5f1a16117a0112fa548c910e6c77312a9b7307e14ea3240aa62e8f9a5bc"
+        },
+        "spec": {
+          "path": "character-motion/chores/radio-cat.json",
+          "sha256": "748aa9d3eb6d76715ee902b53ae033748c8a0e8f1cea741e65872d7666685eb3"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:13:20.217159+00:00",
+      "sources": [
+        {
+          "file": "radio-cat_red-hood-mouse.png",
+          "sha256": "33cea12bc7ecaf6202e6c395dd9b486f66c46590825c9f3b7ffb781a0a9b643d"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "red-hood-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/red-hood-mouse/carry.png",
+          "sha256": "9d38c456380cec9e012f9b0af35c9aa860d4b8646411717c340e3903b50ca03c"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/red-hood-mouse/sweep.png",
+          "sha256": "ff53ec8c00b2ff7589d59ec6d2f50d9e7b17bc88aa4471dc9c54fac6172aee36"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/red-hood-mouse/tend.png",
+          "sha256": "d2390f6ff6df326f2241ce8da1b6f3e846e56ea3834bccedaccc8679b9ac0813"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/red-hood-mouse/audit/report.json",
+          "sha256": "b13a52a0602f2a562e706f922e7d03e934a5635daca9a8bdc4710b09956e9bf6"
+        },
+        "build_report": {
+          "path": "output/resident-chores/red-hood-mouse/build-report.json",
+          "sha256": "ca029396ebdac87bc4cfe5aca8435034d1994d309ac3b3791b3af3e2b44e5e59"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/red-hood-mouse/contact-backgrounds.png",
+          "sha256": "7974859a9a7d051ffe135a813312a4ef85b979bbb9b05b3c9f2fcde2f00d659d"
+        },
+        "spec": {
+          "path": "character-motion/chores/red-hood-mouse.json",
+          "sha256": "63402d3226324934cc6d28ec262a6d70cbb542109e190af4a3907ca498e290e5"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:37:12.228004+00:00",
+      "sources": [
+        {
+          "file": "radio-cat_red-hood-mouse.png",
+          "sha256": "33cea12bc7ecaf6202e6c395dd9b486f66c46590825c9f3b7ffb781a0a9b643d"
+        },
+        {
+          "file": "red-hood-mouse-carry-repair.png",
+          "sha256": "197be257478ef2ad6aa10c866d00de38735c9de8289d0432a7b2e71261bb9402"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "river-raccoon": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/river-raccoon/carry.png",
+          "sha256": "33fb49cf077037c6f59c7caaf0d7cb43af54e71e7ac5779979449363a561e4e5"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/river-raccoon/sweep.png",
+          "sha256": "e2c7097413b5aaf8a108be5f92387342e697ab411ad4c898f10f2a2621e00166"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/river-raccoon/tend.png",
+          "sha256": "8742db697ea73c5b1ad0d5ab4a1e242c1910c483600c9ceecdde752569287702"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/river-raccoon/audit/report.json",
+          "sha256": "cfe738afb996a4ff75141d5e09b982a43e0124d6328e31c8b424fb25b1dcdc67"
+        },
+        "build_report": {
+          "path": "output/resident-chores/river-raccoon/build-report.json",
+          "sha256": "9bc5547e00cb98ae54e777ec0d95dfed6e09928f0763458133aab7391f828116"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/river-raccoon/contact-backgrounds.png",
+          "sha256": "12e89730b7affa547156653b6c1afd4222ffb19a7a2107d2ae255293435b1da5"
+        },
+        "spec": {
+          "path": "character-motion/chores/river-raccoon.json",
+          "sha256": "7ecff410ce756b9e450d4f3120781172c0e4837f56fd3f10329e18855ea5d1be"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:13:20.237562+00:00",
+      "sources": [
+        {
+          "file": "river-raccoon_scavenger-mouse.png",
+          "sha256": "bb37171dafa95d0e6d48ec770e2995624ba52d4e65baeeadb2368e31621f7072"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "scavenger-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/scavenger-mouse/carry.png",
+          "sha256": "0b8bcf2b186251e4779a040fc3c0ed653a3dc7cadfe460ac9ed1fae183e71356"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scavenger-mouse/sweep.png",
+          "sha256": "5e23d86612822329452413893ea351721976126c4b89b5b1a601da37822fc9a6"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scavenger-mouse/tend.png",
+          "sha256": "97ac676b32a33fbeba6cb3648bfacc9309e269f86e64e913f572e1e8e1f58882"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/scavenger-mouse/audit/report.json",
+          "sha256": "dc1a097283ea4bac70a2fabc7fc6f72876345c1e3c4c16aa8f864f65869258f5"
+        },
+        "build_report": {
+          "path": "output/resident-chores/scavenger-mouse/build-report.json",
+          "sha256": "55f125f1effc83b4ca4406b7fba8f3e68359a95dff8a0be373fa0b524a0d09f6"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/scavenger-mouse/contact-backgrounds.png",
+          "sha256": "0aecf1e47d30c41159b58dbe03bf83e46b4df503d5372e7c7be81430fd4afa54"
+        },
+        "spec": {
+          "path": "character-motion/chores/scavenger-mouse.json",
+          "sha256": "c16fdd37011375de26dd820a9c86f5d695d193a43d1aac3e329a6b76fbbf5133"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:13:20.254115+00:00",
+      "sources": [
+        {
+          "file": "river-raccoon_scavenger-mouse.png",
+          "sha256": "bb37171dafa95d0e6d48ec770e2995624ba52d4e65baeeadb2368e31621f7072"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "scholar-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/scholar-mouse/carry.png",
+          "sha256": "2053f4072b68714e66d269f79bec9aea3979ea9a231e5bdaa1e25fe2f56b2561"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scholar-mouse/sweep.png",
+          "sha256": "1587e9af63a99c395c823cdc8f888df27e5026ea36ce0d177879297534bad98c"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scholar-mouse/tend.png",
+          "sha256": "f2ce6591b1903d0b97774fddcb89026e700d7abbc171f59088e95fd1ae0a752f"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/scholar-mouse/audit/report.json",
+          "sha256": "db5f85e71683e7ba8f75966b47a06ed0504af90e00bf228ccbcea5557f78b5cd"
+        },
+        "build_report": {
+          "path": "output/resident-chores/scholar-mouse/build-report.json",
+          "sha256": "2f82916795276bebd4de6061fcb98b061805c57e699acb671b95cfe4b22bd7d4"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/scholar-mouse/contact-backgrounds.png",
+          "sha256": "c5db46855031a27e85e4984f933a2571ff73cabdca507c13bd3d155e245e56f5"
+        },
+        "spec": {
+          "path": "character-motion/chores/scholar-mouse.json",
+          "sha256": "f889279f7730fc974e95d23b76d44a7bccad4118485a2ec1ddbb2775a1e09ca4"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:13:50.906810+00:00",
+      "sources": [
+        {
+          "file": "scholar-mouse_scout-frog.png",
+          "sha256": "0b15887624e6b0137e4d8f259a92064d363aa5bb31a4892d1491e6f40d9fe24c"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "scout-frog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/scout-frog/carry.png",
+          "sha256": "069d36f486cce1447a7d5fa4e862bbae034ed7179a47ba629d485ef7a98fd2a6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scout-frog/sweep.png",
+          "sha256": "0a206234b70d543a12faccc14e73100bdaccb52e06ec088aae8003fd6400413c"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scout-frog/tend.png",
+          "sha256": "a19d06b4566b65f65b335e84f6a90d928dd55b74692293b7d0790e84f51a6873"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 2
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/scout-frog/audit/report.json",
+          "sha256": "3a9e7ab1a38d6a43cf282b423b2a5b9be249fa24a59c8118e10e334cd29ff8cc"
+        },
+        "build_report": {
+          "path": "output/resident-chores/scout-frog/build-report.json",
+          "sha256": "e26e6b6a9bfde312b03b3222aaecdd94ce17f68038a99c17c583f9acc1b6f23c"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/scout-frog/contact-backgrounds.png",
+          "sha256": "fcfdc8f9378d4aa45c2124b4050f3ace08b361ab22e16ce942899e96543debf3"
+        },
+        "spec": {
+          "path": "character-motion/chores/scout-frog.json",
+          "sha256": "aa9e349dd50f746cc642f2f53a2e20d82e22a6c35c6a1d85881651e56295c304"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:13:50.926089+00:00",
+      "sources": [
+        {
+          "file": "scholar-mouse_scout-frog.png",
+          "sha256": "0b15887624e6b0137e4d8f259a92064d363aa5bb31a4892d1491e6f40d9fe24c"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "scout-lizard": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/scout-lizard/carry.png",
+          "sha256": "3bca6d8cc29f201abcb939ef3b8363c514b518a0b4b46f3aec131a9b6616c12d"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scout-lizard/sweep.png",
+          "sha256": "f21f3ea090ba06502241bf7cc07a2b06de83e502e7b76d73076dffb65acf26ae"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/scout-lizard/tend.png",
+          "sha256": "516a067a78ca92bfb8e0ea3e4018599c4186b17d2b05030da949e60e69c6ae39"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/scout-lizard/audit/report.json",
+          "sha256": "fd9a862eb0a17536e4febacfe67f6978c96ad1c1c2d00730af9c9bff81615cc8"
+        },
+        "build_report": {
+          "path": "output/resident-chores/scout-lizard/build-report.json",
+          "sha256": "dfe0e8737c6f85efd1d2a28b9d24b27a225af4f2a52963c20ccd72354449bd55"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/scout-lizard/contact-backgrounds.png",
+          "sha256": "104b32e1dd9a5afecef1c4159442a0d25abb2bc8b027af3bb3d26ff6cd2c64dc"
+        },
+        "spec": {
+          "path": "character-motion/chores/scout-lizard.json",
+          "sha256": "dfe068bfb8a6aada21ccd223bf7bba70b16253cdbf58b431a430ddc0052d655b"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:15:57.608836+00:00",
+      "sources": [
+        {
+          "file": "scout-lizard_shield-mouse.png",
+          "sha256": "3e1cfb9dcdd09e8742097497ceea31a05ea4a4f86a91a415347af5f4c282eaf1"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "shield-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/shield-mouse/carry.png",
+          "sha256": "9b738f7ab38453b1006d261ec5c8bf32782253a2017f2832714b1bd24aab396e"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/shield-mouse/sweep.png",
+          "sha256": "c0a57c76676c12c5bcd6e9e3e874015115db0f04a7b3f6a2a17576666b8dfcb1"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/shield-mouse/tend.png",
+          "sha256": "4a5e9cff736c4a46e2b98b112788ef10953b4600ff9850c27e7702cbb814cbb1"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/shield-mouse/audit/report.json",
+          "sha256": "a6d9519a2c2ab54ddf5ec321f8441735dfca3271011a59e805dc263777da4ebe"
+        },
+        "build_report": {
+          "path": "output/resident-chores/shield-mouse/build-report.json",
+          "sha256": "0135afa64fc78b63ac092532c411afce7ba6af8b86083e6d367628f921423390"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/shield-mouse/contact-backgrounds.png",
+          "sha256": "ec320e4f334516eba3ba062f8be109668937edeb51d40a0a495704bd37fe101b"
+        },
+        "spec": {
+          "path": "character-motion/chores/shield-mouse.json",
+          "sha256": "a9ff2bbe73448c3c51e811520ccaaff3c829e3186794a563da225a613cee2d7b"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:15:57.633626+00:00",
+      "sources": [
+        {
+          "file": "scout-lizard_shield-mouse.png",
+          "sha256": "3e1cfb9dcdd09e8742097497ceea31a05ea4a4f86a91a415347af5f4c282eaf1"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "signal-hedgehog": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/signal-hedgehog/carry.png",
+          "sha256": "325b65dd2bc8ea80463e79056af516d4afdac60f9150e991b5eeb0e2f2ae4ff7"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/signal-hedgehog/sweep.png",
+          "sha256": "cacc1b46c141bff25f5a7f7193c802e4c56f591ff653a5ef3ce2a85c3f7faa5e"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/signal-hedgehog/tend.png",
+          "sha256": "faacd2cb2de70b6918a090e9cfec82ff01e14ae7e9b6b81f54d6ffc3e96c6268"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/signal-hedgehog/audit/report.json",
+          "sha256": "8bb2286d5ae1549ec95439c1c2be2c97230cbda056029c5c63dffe6df802958c"
+        },
+        "build_report": {
+          "path": "output/resident-chores/signal-hedgehog/build-report.json",
+          "sha256": "14eb73c73a06a0e525dc78961599a471b6616bac03b30d5a1250d2c1ead9e686"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/signal-hedgehog/contact-backgrounds.png",
+          "sha256": "3134f0ba71eb1d36cd9d496e828e5f84dd55ee9716d3cfac6f5448b63e43f402"
+        },
+        "spec": {
+          "path": "character-motion/chores/signal-hedgehog.json",
+          "sha256": "8dc78d836af8361ed93fe32ad41f99ea1f89bff2db52ba5a14b16ff9954b1cca"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:35:15.853172+00:00",
+      "sources": [
+        {
+          "file": "signal-hedgehog_tinker-fox.png",
+          "sha256": "615560d927732905c709667ddfcfce6174ee2393bc8ab3462e07978156ea29bd"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "tinker-fox": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/tinker-fox/carry.png",
+          "sha256": "405056d886791556b9726476825058b5018504cbdbe09b79997fc5cf1bc29462"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/tinker-fox/sweep.png",
+          "sha256": "dbe72592da7469b29d6c433c8d424f654365bf48e9ebb10a45f322b292d606a5"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/tinker-fox/tend.png",
+          "sha256": "093e061ef9a26fd7f124a4ad4a576c57c942359739a70d28babaa11938906b9a"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/tinker-fox/audit/report.json",
+          "sha256": "f4beaca014a52e587b6e6aad0981558bfdfa9722d72994d3764380baf686d5e0"
+        },
+        "build_report": {
+          "path": "output/resident-chores/tinker-fox/build-report.json",
+          "sha256": "d85eed3760d885cdce9d00337f023123e5558b3637b72b3dd5bde4641c64d5d8"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/tinker-fox/contact-backgrounds.png",
+          "sha256": "0e2322a2ed664c0f3a33f15645963f623c60bc2bfc21355a697982ee87953557"
+        },
+        "spec": {
+          "path": "character-motion/chores/tinker-fox.json",
+          "sha256": "d0aff0fabbe77af6632b5ee2fbe25da5dfa3f30851f85179d215d4501bd438ab"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 8,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:35:15.872261+00:00",
+      "sources": [
+        {
+          "file": "signal-hedgehog_tinker-fox.png",
+          "sha256": "615560d927732905c709667ddfcfce6174ee2393bc8ab3462e07978156ea29bd"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "tortoise-conductor": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/tortoise-conductor/carry.png",
+          "sha256": "72f52d88e24e8b4211e06eb01790e9ec63eaf7f4adce79f4119b72bda188151f"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/tortoise-conductor/sweep.png",
+          "sha256": "55d05ede72d70b245c907ba61d9ee0cc0440b818f61b00ad27e3208e5b076eff"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/tortoise-conductor/tend.png",
+          "sha256": "c2bfeeb39a595d6fcadf4b43b5a4d85d86ff90895634849b952ff6ce6ec2df4e"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/tortoise-conductor/audit/report.json",
+          "sha256": "843f64263a9f4340cf89b450ea8c699929ecb8fa0565e02769b827129112a8ec"
+        },
+        "build_report": {
+          "path": "output/resident-chores/tortoise-conductor/build-report.json",
+          "sha256": "29725f8e880972b37ed4b0c06423c1ae775b6b895863ce8553943e8cb4134b22"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/tortoise-conductor/contact-backgrounds.png",
+          "sha256": "2a13e480427703128a94254f203601558fa8f5868116f27de0dd9a0383a1e335"
+        },
+        "spec": {
+          "path": "character-motion/chores/tortoise-conductor.json",
+          "sha256": "a0e3273ca8f0529945e069395c01e9ffdcd16c2d57f007af21e1c9ea4b3a5b99"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:37:12.248131+00:00",
+      "sources": [
+        {
+          "file": "tortoise-conductor_trail-fox.png",
+          "sha256": "35e811506fbe74464999093786f9df2f212d2aad9c83aa36646227d99a208af0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "trail-fox": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/trail-fox/carry.png",
+          "sha256": "6655b0027b3e6bab81e191a05d8c14171dd796567e327daaa6a0322992b5b6e7"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/trail-fox/sweep.png",
+          "sha256": "ad2f9e9e6c5df2a8c1291356a6e52065f180dcc5d9c8bb5bf62635cb9762e484"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/trail-fox/tend.png",
+          "sha256": "e2ac480f09ad9d0b797e222aef03002bd4fb3ade8ec6848b592cf4bdadc38a19"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/trail-fox/audit/report.json",
+          "sha256": "9f3a47021b3cf17d6e44485c59d8900340f2ea833c1d8f936aa6ade94d5311c2"
+        },
+        "build_report": {
+          "path": "output/resident-chores/trail-fox/build-report.json",
+          "sha256": "5445f4ade4c5a8f72d788062a1417dd5a9487cfbcda8a0d31ba1f3087ee55ecc"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/trail-fox/contact-backgrounds.png",
+          "sha256": "83b73dbfaf5c9edbef9424b854d17241c17d24d2b2bf581e730e2101b44ace95"
+        },
+        "spec": {
+          "path": "character-motion/chores/trail-fox.json",
+          "sha256": "9ec6a7582e22778ea37450d0aeefd4d27fbf3bc666f4a839eff0a786b52e12c8"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:37:12.264229+00:00",
+      "sources": [
+        {
+          "file": "tortoise-conductor_trail-fox.png",
+          "sha256": "35e811506fbe74464999093786f9df2f212d2aad9c83aa36646227d99a208af0"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "vampire-mouse": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/vampire-mouse/carry.png",
+          "sha256": "d0268ddd57d4de57fe1b3501a6f038b6bfccff2a264e6e786411e4d2179e2bb6"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/vampire-mouse/sweep.png",
+          "sha256": "76b5570cce2d0d10192ad225410779c25628c4573edf8fd6787b96f18cef7e8e"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/vampire-mouse/tend.png",
+          "sha256": "09da02215130450cca34af932df4a9d4c707c6ad1f223b6a398a7df7063b53f6"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/vampire-mouse/audit/report.json",
+          "sha256": "42be72bd2872d643fbea29f448683c08775bf53593d3c15403bc41e5863dd7e9"
+        },
+        "build_report": {
+          "path": "output/resident-chores/vampire-mouse/build-report.json",
+          "sha256": "be04c60ee715cf8e16ee0efbed3ed12c7d3f1083aa85b3323369a32bf3e53845"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/vampire-mouse/contact-backgrounds.png",
+          "sha256": "518cbfe71fdb41fb1e5ff422f302311a8f78f5dc62b4819a8585daa24796b460"
+        },
+        "spec": {
+          "path": "character-motion/chores/vampire-mouse.json",
+          "sha256": "e15fc8716d5b252d4a2ececebf7b32cb02e5c1b0dd6359b5e8927497e87bb589"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 1,
+        "warnings": 2
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:35:15.899569+00:00",
+      "sources": [
+        {
+          "file": "vampire-mouse_watch-raccoon.png",
+          "sha256": "4be043278625f04caf22de7c55ebc698ec2197cb4d59cd1ee090e01ba367ce1b"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "watch-raccoon": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/watch-raccoon/carry.png",
+          "sha256": "86e172fa29747df1e6dd0aa3bbf65594f557c5aa5be5188d6ff80a6d32d74cb7"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/watch-raccoon/sweep.png",
+          "sha256": "6ae472a7429b3c2f5504f66b38d8e3accbb724c4188922b1fa0d8096b2331f3a"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/watch-raccoon/tend.png",
+          "sha256": "ac90d767d7d7b74575a5087f54a098fb925da28c9abca49dd910608e8aeab4e2"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/watch-raccoon/audit/report.json",
+          "sha256": "c7ca89db40cb7e3b76555f084ad87f9243776dfea61383049130a5359f782907"
+        },
+        "build_report": {
+          "path": "output/resident-chores/watch-raccoon/build-report.json",
+          "sha256": "11bc9ed6e3fb38b1e2610c3437475b794e33fd47fcd8a890e8642a485f521a30"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/watch-raccoon/contact-backgrounds.png",
+          "sha256": "7931239813eefdef64725061dd0e2f915ea6d17ee9242e89408ce7e40dff90fa"
+        },
+        "spec": {
+          "path": "character-motion/chores/watch-raccoon.json",
+          "sha256": "d53922faf0ef504a5056d71228a0ae378bb1be8d0f564208e6cb60bdada10fdb"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:35:15.919569+00:00",
+      "sources": [
+        {
+          "file": "vampire-mouse_watch-raccoon.png",
+          "sha256": "4be043278625f04caf22de7c55ebc698ec2197cb4d59cd1ee090e01ba367ce1b"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    },
+    "young-tinker-fox": {
+      "actions": {
+        "carry": {
+          "fps": 2,
+          "path": "assets/sprites/character-animations/young-tinker-fox/carry.png",
+          "sha256": "d9bafe443b39b1afd753bef8a514f9a90ce57e019c50f2adb9b4ea9b0101390a"
+        },
+        "sweep": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/young-tinker-fox/sweep.png",
+          "sha256": "7257522fcff5d150dbdaecbdeb4402efd5a27ff3117b3736d51f72382729f14c"
+        },
+        "tend": {
+          "fps": 3,
+          "path": "assets/sprites/character-animations/young-tinker-fox/tend.png",
+          "sha256": "d0f8eb8190c12a2001982b8e277a969cefd4d3b747f3eba3339c78c5da4595cc"
+        }
+      },
+      "chore_audit": {
+        "errors": 0,
+        "warnings": 1
+      },
+      "evidence": {
+        "audit_report": {
+          "path": "output/resident-chores/young-tinker-fox/audit/report.json",
+          "sha256": "47c9e3486e4d7d7bd52ae75c7953f5ee4dd471e889a331c98858c8ec3ce6a222"
+        },
+        "build_report": {
+          "path": "output/resident-chores/young-tinker-fox/build-report.json",
+          "sha256": "454276efff0a971cd4c043864e26a3083177feeedce48010cc0820eea3b35184"
+        },
+        "contact_sheet": {
+          "path": "output/resident-chores/young-tinker-fox/contact-backgrounds.png",
+          "sha256": "e4c1c54a3f9ce8e40be486d3e9b93c95744bef7d6c818e06847e92edc3710f06"
+        },
+        "spec": {
+          "path": "character-motion/chores/young-tinker-fox.json",
+          "sha256": "7f3a1d3181747cd22cfd6f0048dcba966796ba1ba2812ef11c1fb44cec812080"
+        }
+      },
+      "preserved_motion_audit": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "review": "All action frames visually checked on contrasting backgrounds; body scale, tool clearance, and foot baseline checked.",
+      "reviewed_at": "2026-10-17T05:37:12.279358+00:00",
+      "sources": [
+        {
+          "file": "young-tinker-fox.png",
+          "sha256": "9a037f3c1ea865dd2f884cc057e1f4cc006472b6183be3f6d3a9fca275334dc7"
+        }
+      ],
+      "status": "reviewed_and_installed"
+    }
+  },
+  "version": 1
+}

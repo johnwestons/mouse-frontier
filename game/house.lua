@@ -1,61 +1,61 @@
 local House = {}
 local Random = require("game.coop_random")
-local Compositions = require("game.furniture_compositions")
+local Storage = require("game.house_storage")
+local Furniture = require("game.furniture_catalog")
 local LootProgression = require("game.loot_progression")
 local HouseholdItems = require("game.household_items")
 local CoopEntities = require("game.coop_entities")
 local Items = require("game.item_instances")
 
-local arrangements={
-    {{300,350,1.35},{470,350,1.35},{735,365,1.35},{330,535,1.45},{700,530,1.5}},
-    {{285,360,1.4},{500,350,1.3},{735,370,1.4},{355,530,1.5},{680,525,1.45}},
-    {{300,355,1.35},{485,365,1.35},{720,355,1.35},{325,525,1.45},{705,525,1.5}},
-    {{290,360,1.4},{470,350,1.35},{730,365,1.35},{350,525,1.45},{685,530,1.5}},
-    {{300,355,1.35},{490,350,1.35},{725,360,1.4},{335,530,1.5},{700,525,1.45}}
-}
-
-local furnitureGroups={
-    {"bookcase","medicine-cabinet","train-locker","pantry-cupboard","barrel-cabinet","railway-folding-screen","standing-dressing-mirror","wall-mounted-coat-hooks"},
-    {"floor-lamp","potbelly-stove","side-table","rolltop-writing-desk","brass-washstand","round-pedestal-table","copper-plant-stand"},
-    {"travel-chest","supply-crate","storage-bench","blue-steamer-trunk","quilting-frame"},
-    {"armchair-green","rocking-chair","round-stool","patchwork-train-bench","patchwork-footstool","train-car-writing-chair"},
-    {"single-bed","blue-sofa","patchwork-train-bench","wooden-cradle"}
-}
-
-local function furnitureBounds(item)
-    local half=math.max(28,38*(item.scale or 1))
-    return 145+half,815-half,350+half*.35,605-half*.20
-end
-
-local function arrange(items,isFurniture,location)
-    local placed={}
-    for _,item in ipairs(items or {}) do
-        if item.scene=="house" and item.location==location and isFurniture(item.name) and not item.droppedByPlayer then
-            local left,right,top,bottom=furnitureBounds(item)
-            item.x=math.max(left,math.min(right,item.x or (left+right)/2)); item.y=math.max(top,math.min(bottom,item.y or (top+bottom)/2))
-            local radius=math.max(30,42*(item.scale or 1))
-            for _=1,12 do
-                local overlap=false
-                for _,other in ipairs(placed) do if math.abs(item.x-other.x)<radius+other.radius and math.abs(item.y-other.y)<radius+other.radius then overlap=true; break end end
-                if not overlap then break end
-                item.x=item.x+radius*1.25
-                if item.x>right then item.x=left; item.y=math.min(bottom,item.y+radius*1.1) end
+local function ensureStorage(data,catalog,location,createLayout)
+    data.stopLayouts=data.stopLayouts or {}; data.droppedItems=data.droppedItems or {}
+    local key=tostring(location); local door=data.activeHouseDoor or 1
+    local layout=data.stopLayouts[key] or {}
+    -- Starting supplies and reward overflow can target an unvisited stop.
+    -- Do not preempt Stops.ensure with a partial generated stop layout.
+    if createLayout then data.stopLayouts[key]=layout end
+    layout.interior=Storage.interior(layout.interior,location)
+    local home=layout.houseDoors and layout.houseDoors[tostring(door)]
+    if home then home.interior=Storage.interior(home.interior or layout.interior,location); layout.interior=home.interior end
+    local containers={}
+    for index=#data.droppedItems,1,-1 do
+        local item=data.droppedItems[index]
+        if item.scene=="house" and item.location==location and (item.houseDoor or 1)==door and not item.droppedByPlayer then
+            if item.houseStorageHotspot or catalog.storageCapacities[item.name] then
+                table.insert(containers,1,item)
+            elseif item.generatedFurniture or Furniture.isFurniture(item.name) or item.name=="bedroll" then
+                table.remove(data.droppedItems,index)
             end
-            placed[#placed+1]={x=item.x,y=item.y,radius=radius}
         end
     end
+    if #containers==0 then
+        local item={scene="house",location=location,houseDoor=door,storage={}}
+        data.droppedItems[#data.droppedItems+1]=item; containers[1]=item
+    end
+    for number,item in ipairs(containers) do Storage.place(item,layout.interior,location,number) end
+    -- Existing containers keep their entity IDs, contents and gear identities.
+    -- Multiple old fixtures become compartments of the same painted storage.
+    return containers,layout
 end
 
 function House.lootDestination(data,catalog,location)
     location=math.max(1,location or 1)
     local houseDoor=data.activeHouseDoor or 1
+    -- Co-op reward authorization uses this query before opening a transaction.
+    -- Creation and legacy migration must happen in storeLoot/ensure instead.
     local containers={}
     for _,item in ipairs(data.droppedItems or {}) do
-        if item.scene=="house" and item.location==location and (item.houseDoor or 1)==houseDoor and catalog.storageCapacities[item.name] then containers[#containers+1]=item end
+        if item.scene=="house" and item.location==location and (item.houseDoor or 1)==houseDoor
+            and not item.droppedByPlayer and catalog.storageCapacities[item.name] then
+            containers[#containers+1]=item
+        end
     end
     local key=tostring(location); local start=(((data.lootContainerCursor or {})[key] or 0)%math.max(1,#containers))+1
     for step=0,#containers-1 do
-        local index=((start+step-1)%#containers)+1; local item=containers[index]; local capacity=catalog.storageCapacities[item.name]
+        local index=((start+step-1)%#containers)+1; local item=containers[index]
+        -- Predict the same slots that storeLoot will use after legacy fixtures
+        -- are converted, without changing them during authorization.
+        local capacity=catalog.storageCapacities["house-storage"]
         for slot=1,capacity do if not (item.storage or {})[slot] then return item,slot,index,#containers end end
     end
     return nil,1,nil,#containers
@@ -64,11 +64,13 @@ end
 function House.storeLoot(data,catalog,name,location,instance)
     location=math.max(1,location or 1)
     local houseDoor=data.activeHouseDoor or 1
+    local _,layout=ensureStorage(data,catalog,location)
     local container,slotIndex,cursor,count=House.lootDestination(data,catalog,location)
     data.lootContainerCursor=data.lootContainerCursor or {}
     if cursor then data.lootContainerCursor[tostring(location)]=cursor end
     if not container then
-        container={name="supply-crate",x=315+count*105,y=525,scene="house",location=location,houseDoor=houseDoor,scale=1.25,storage={},layer=50+count}
+        container={scene="house",location=location,houseDoor=houseDoor,storage={}}
+        Storage.place(container,layout.interior,location,count+1)
         data.droppedItems[#data.droppedItems+1]=container; slotIndex=1
     end
     container.storage=container.storage or {}
@@ -136,34 +138,16 @@ function House.rollLoot(data,catalog,location,rng)
 end
 
 function House.ensure(data,catalog,isFurniture,rng)
-    local random=Random.range(rng)
-    local location=data.location; local key=tostring(location); local layout=data.stopLayouts[key] or {}
+    local location=data.location; local key=tostring(location)
     local houseDoor=data.activeHouseDoor or 1
     local doorKey=key..":"..tostring(houseDoor)
-    layout.interior=layout.interior or random(1,5); data.stopLayouts[key]=layout
-    local composition=Compositions.build(layout.interior)
+    ensureStorage(data,catalog,location,true)
     if not data.houseInitialized then data.houseInitialized={} end
     if not data.houseLayoutsArranged then data.houseLayoutsArranged={} end
-    if not data.houseInitialized[doorKey] then
-        for _,spot in ipairs(composition) do
-            local name=spot.name
-            local item={name=name,x=spot.x,y=spot.y,scene="house",location=location,houseDoor=houseDoor,scale=spot.scale,rotation=spot.rotation,generatedFurniture=true,layer=spot.layer}
-            if catalog.storageCapacities[name] then item.storage={} end
-            data.droppedItems[#data.droppedItems+1]=item
-        end
-        data.houseInitialized[doorKey]=true
-    end
-    if not data.houseLayoutsArranged[doorKey] then
-        local index=1
-        for _,item in ipairs(data.droppedItems) do
-            if item.scene=="house" and item.location==location and (item.houseDoor or 1)==houseDoor and isFurniture(item.name) and not item.droppedByPlayer then
-                local spot=composition[index]; if spot then item.x,item.y,item.scale,item.rotation,item.layer=spot.x,spot.y,spot.scale,spot.rotation,spot.layer; item.generatedFurniture=true; index=index+1 end
-            end
-        end
-        data.houseLayoutsArranged[doorKey]=true
-    end
-    arrange(data.droppedItems,isFurniture,location)
+    data.houseInitialized[doorKey]=true
+    data.houseLayoutsArranged[doorKey]=true
     House.rollLoot(data,catalog,location,rng)
+    assert(CoopEntities.ensure(data))
 end
 
 return House

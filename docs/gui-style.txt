@@ -1,0 +1,28 @@
+SHARED SIMPLE GUI STYLE
+
+The default GUI uses the approved dark brown sprites with thin amber outlines
+and cream labels. game/gui_art.lua shares the rectangular and circular frames
+from assets/sprites/ui/actions/simple across the action layouts, title screens,
+HUD, inventory, dialogue, shops, settings, editor, radio, minigames and co-op UI.
+
+Nine-slicing keeps borders narrow at different panel sizes. Texture coordinates
+also scale for packaged images. Selected and unavailable controls retain state
+feedback; high-contrast settings retain their additional outlines. Existing
+advanced-editor color, position, scale and alternate-frame overrides still work.
+Characters and item illustrations remain their authored sprites.
+
+The title screen's Cheats / Controls and Local Play buttons occupy separate
+ends of the footer, with fitted text inside their touch targets.
+
+Validation, 2026-10-20
+- Targeted UI, editor, touch, inventory, repair and crafting behavior tests.
+- Companion activity, checkpoint, title and Local Play behavior tests.
+- All 67 action-menu application checks, including 13 debug activity launches.
+- Fifteen real GUI screens rendered in both desktop and simulated mobile modes.
+- Fresh disposable test-save fixtures were removed after each application run.
+- Physical Android/iOS devices were not used for these checks.
+
+Screenshots: .stabilization/gui-style, .stabilization/gui-style-desktop,
+and .stabilization/action-menu-layouts.
+Repeat: tools/run_gui_style_smoke.ps1 (add -Desktop for desktop layouts),
+tools/run_action_menu_smoke.ps1.

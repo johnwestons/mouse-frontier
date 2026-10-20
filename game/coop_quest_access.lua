@@ -7,14 +7,15 @@ local Contract=require('game.coop_item_contract')
 local House=require('game.house')
 local P=require('game.net.protocol')
 local Progression=require('game.quest_progression')
+local Targets=require('game.npc_targets')
 local Access={}
 function Access.recipient(actor,state,targetId,npc)
     local found=Recipients.find(actor,targetId,npc,state)
     return found and found.kind=='resident' and found or nil
 end
 function Access.nearest(actor,state)
-    local data=Players.campaignOf(actor); local layout=data.stopLayouts[tostring(data.location)]
-    return layout and layout.entityId and Access.recipient(actor,state,layout.entityId,data.currentNPC) or nil
+    local found=Recipients.nearest(actor,state)
+    return found and found.kind=='resident' and found or nil
 end
 function Access.itemQuest(actor,target,npc)
     local data=Players.campaignOf(actor); local request=target.helpRequests and target.helpRequests[npc]
@@ -28,7 +29,7 @@ end
 function Access.delivery(actor,id,npc)
     local data=Players.campaignOf(actor); local quest,entry=Entities.find(data,id)
     if not quest or (entry.kind~='mailQuest' and entry.kind~='supplyQuest') or quest.complete or quest.accepted==false or quest.state=='offered'
-        or quest.destination~=data.location or entry.kind=='mailQuest' and quest.recipient~=npc then return nil,'quest_unavailable' end
+        or not Targets.matches(data,quest,npc) then return nil,'quest_unavailable' end
     if quest.story or quest.storyHandIn or quest.branch or quest.sceneTransition then return nil,'story_hand_in' end
     return quest,entry.kind
 end

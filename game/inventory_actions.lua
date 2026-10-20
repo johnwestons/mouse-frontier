@@ -133,7 +133,7 @@ local function new(context)
           if commands then
               local passenger=runtime.nearPassenger and runtime.saveData.passengers[runtime.nearPassenger]
               local recipient=passenger and passenger.npc or runtime.saveData.currentNPC
-              local result=commands.gift(recipient,runtime.draggedSlot,runtime.activeChest,true)
+              local result=commands.gift(recipient,runtime.draggedSlot,runtime.activeChest,true,passenger and passenger.characterId)
               if not result.ok then return false,result.reason end
           elseif runtime.nearPassenger then
               local passenger=runtime.saveData.passengers[runtime.nearPassenger]
@@ -200,6 +200,7 @@ local function new(context)
       if not runtime.nearbyItem then return end
       local item=runtime.saveData.droppedItems[runtime.nearbyItem]
       if not item then runtime.nearbyItem=nil; return end
+      if item.houseStorageHotspot or item.stopHotspotId then runtime.nearbyItem=nil; return false,"fixed_storage" end
       if commands then
           local result=commands.submit("loot.pickup",{entityId=commands.identify(item)})
           if result.ok then
@@ -253,6 +254,7 @@ local function new(context)
       if not runtime.nearNPC and not targetPassenger then return false end
       runtime.giftOpen=true
       runtime.giftNPC=targetPassenger and targetPassenger.npc or runtime.saveData.currentNPC
+      runtime.giftCharacterId=require('game.npc_identity').key(runtime.saveData,targetPassenger or runtime.giftNPC)
       runtime.giftSlot=nil; runtime.inventoryOpen=true; runtime.chestOpen=false; runtime.activeChest=nil; runtime.draggedSlot=nil
       return true
   end

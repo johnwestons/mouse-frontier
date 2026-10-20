@@ -12,7 +12,12 @@ class RoamingEncounterTests(unittest.TestCase):
             Pending=require('game.roaming_encounter_state'); Roaming=require('game.roaming_mobs')
             data.location=5; data.scene='expedition'; data.activeExpeditionArea=Areas.BADLANDS_SURFACE_ID; Areas.ensure(data)
             area=data.expeditions[data.activeExpeditionArea]; a=area.mobs['surface-dust-beetle']; z=area.mobs['surface-cactus-rat']
-            states={host={screen='game',scene='expedition',x=1264,y=397},companion={screen='game',scene='expedition',x=914,y=565,movementReady=true}}
+            for _,interaction in ipairs(Areas.current(data).interactions) do
+                if interaction.id=='surface-cache' then hostSpot={x=interaction.x,y=interaction.y} end
+            end
+            assert(hostSpot); contactSpot={x=a.x,y=a.y}
+            states={host={screen='game',scene='expedition',x=hostSpot.x,y=hostSpot.y},
+                companion={screen='game',scene='expedition',x=contactSpot.x,y=contactSpot.y,movementReady=true}}
             host.playerX,host.playerY=states.host.x,states.host.y; guest.playerX,guest.playerY=states.companion.x,states.companion.y
             visual=Roaming.new(); visual.transient[data.activeExpeditionArea]={['surface-dust-beetle']={state='windup',timer=0,targetId='companion'}}
             local domain={catalog=Catalog,actorState=function(id) return states[id] end,fieldState=function() return visual end,
@@ -33,7 +38,8 @@ class RoamingEncounterTests(unittest.TestCase):
         self.lua.execute('''
             local epoch=data.coop.sceneEpoch; local hp=guest.health; local scrap=data.scrap
             local reply=raise(); assert(reply.ok and reply.durable,reply.reason)
-            assert(data.roamingEncounter.actorId=='companion' and data.roamingEncounter.x==914 and #data.roamingEncounter.enemyIds==1)
+            assert(data.roamingEncounter.actorId=='companion' and data.roamingEncounter.x==contactSpot.x
+                and data.roamingEncounter.y==contactSpot.y and #data.roamingEncounter.enemyIds==1)
             assert(data.scene=='expedition' and data.coop.sceneEpoch==epoch and guest.health==hp and data.scrap==scrap and not data.tacticalBattle)
             assert(Pending.validate(saved) and Schema.validate(saved) and writes==1)
             local producer=require('game.net.game_state').producer(); local packet=assert(producer:capture(data,true))
@@ -48,7 +54,8 @@ class RoamingEncounterTests(unittest.TestCase):
             assert((a.x-states.host.x)^2+(a.y-states.host.y)^2>330^2)
             assert(run('host','battle.begin',entry()).reason=='enemy_unavailable')
             assert(raise().ok); local reply=run('host','battle.begin',entry()); assert(reply.ok and reply.durable,reply.reason)
-            local b=data.tacticalBattle.battle; assert(not data.roamingEncounter and b.encounter.returnContext.x==1264 and b.encounter.returnContext.y==397)
+            local b=data.tacticalBattle.battle
+            assert(not data.roamingEncounter and b.encounter.returnContext.x==hostSpot.x and b.encounter.returnContext.y==hostSpot.y)
             assert(b.units[1].actorId=='host' and b.units[2].actorId=='companion' and b.units[3].hp==a.hp)
             assert(saved.tacticalBattle and State.validate(saved) and Schema.validate(saved))
         ''')
@@ -73,8 +80,8 @@ class RoamingEncounterTests(unittest.TestCase):
             local t=visual.transient[data.activeExpeditionArea]['surface-dust-beetle']
             t.targetId='host'; assert(raise().reason=='pressure_unavailable'); t.targetId='companion'
             t.timer=.1; assert(raise().reason=='pressure_unavailable'); t.timer=0
-            states.companion.x=1264; states.companion.y=397; assert(raise().reason=='pressure_unavailable')
-            states.companion.x=914; states.companion.y=565; states.companion.movementReady=false
+            states.companion.x,states.companion.y=hostSpot.x,hostSpot.y; assert(raise().reason=='pressure_unavailable')
+            states.companion.x,states.companion.y=contactSpot.x,contactSpot.y; states.companion.movementReady=false
             assert(raise().reason=='pressure_unavailable'); states.companion.movementReady=true
             service:disconnect('companion',1); assert(raise().reason=='pressure_unavailable')
             assert(not data.roamingEncounter and writes==0)
@@ -129,7 +136,7 @@ class RoamingEncounterTests(unittest.TestCase):
             Commands.install(service,{catalog=Catalog,actorState=function() return states.host end})
             local reply=run('host','battle.begin',entry()); assert(reply.ok and reply.durable,reply.reason)
             assert(not data.roamingEncounter and #data.tacticalBattle.battle.units==2)
-            assert(data.tacticalBattle.battle.units[1].actorId=='host' and data.tacticalBattle.battle.encounter.returnContext.x==1264)
+            assert(data.tacticalBattle.battle.units[1].actorId=='host' and data.tacticalBattle.battle.encounter.returnContext.x==hostSpot.x)
         ''')
 
 

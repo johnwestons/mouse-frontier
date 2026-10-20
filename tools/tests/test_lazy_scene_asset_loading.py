@@ -12,6 +12,7 @@ import os
 import sys
 import unittest
 from unittest import mock
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGE = ROOT / 'output/mobile/stage'
@@ -63,6 +64,7 @@ class AllocationProbe:
             love.graphics.newQuad=function(x,y,w,h)return {getViewport=function()return x,y,w,h end,setViewport=noop,release=noop}end
             love.graphics.newShader=function()return {send=noop,release=noop}end
             love.graphics.getDimensions=function()return 2340,1080 end
+            love.graphics.transformPoint=function(x,y)return x,y end
             love.graphics.inverseTransformPoint=function(x,y)return x/1.5-300,y/1.5 end
             local font={getWidth=function(_,value)return #tostring(value)*10 end,getHeight=function()return 20 end,
                 getLineHeight=function()return 1.08 end,getWrap=function(_,value,width)
@@ -218,10 +220,11 @@ class LazySceneAssetTests(unittest.TestCase):
             local ui=screens();local update=gameplay();runtime.walkingSoundTimer=0;runtime.actionTimer=0
             targets.ui.assetStreamer=streamer;runtime.state='slots'
             for frame=1,180 do update.update(1/60);ui.drawSlots()end
-            assert(background.releases==1)
+            assert(background.releases==0,'the save windows share the intro scenery')
             runtime.state='characters';runtime.characterScroll=0;ui.drawCharacterSelect()
             local first=targets.characterImages[targets.characters[1]];assert(first.releases==0)
             for frame=1,120 do update.update(1/60);ui.drawCharacterSelect()end
+            assert(background.releases==1,'intro scenery is released after leaving the title')
             assert(first.releases==0)
             runtime.state='slots';update.update(1/60);ui.drawSlots();assert(first.releases==1)
         ''')
@@ -282,6 +285,62 @@ class LazySceneAssetTests(unittest.TestCase):
         ''')
         self.assertEqual(sum(k == 'texture' and p.endswith('field-mouse-walk.png') for k, p in self.p.events), 2)
 
+    def test_all_visible_resident_families_stay_loaded_and_release_by_scene_and_door(self):
+        self.lua.execute('''
+            local SceneNPCs=require('game.scene_npcs');local Family=require('game.family')
+            local first={file='hedgehog-botanist.png',scene='stop',homeDoor=1,
+                family={{kind='hedgehog-child',x=300,y=500,facing=1}}}
+            local second={file='opossum-medic.png',scene='stop',homeDoor=2,
+                family={{kind='opossum-child',x=500,y=500,facing=1}}}
+            local inside={file='signal-hedgehog.png',scene='house',homeDoor=1,
+                family={{kind='hedgehog-baby',x=400,y=480,facing=1}}}
+            data.stopLayouts={['1']={residentVersion=1,residentKeys={'first','second','inside'}}}
+            data.npcStates={first=first,second=second,inside=inside}
+            data.currentNPC=first.file;runtime.npcActor=first
+            local function drawFamilies()
+                for _,actor in ipairs(SceneNPCs.list(data,runtime.scene,data.activeHouseDoor))do
+                    for _,pose in ipairs({'walk','lay','idle'})do
+                        for _,child in ipairs(actor.family)do child.moving=pose=='walk';child.sleeping=pose=='lay'end
+                        Family.draw(actor,targets.familyImages,0)
+                        Family.draw(actor,targets.familyImages,pose=='walk' and 1 or 2)
+                    end
+                end
+            end
+            local function images(kind)
+                local result={}
+                for _,pose in ipairs({'walk','lay','idle'})do for frame=1,2 do
+                    local key=kind..'-'..pose..'-'..frame
+                    result[key]=assert(rawget(targets.familyImages,key),'family renderer did not load '..key)
+                end end
+                return result
+            end
+            local function check(objects,released)
+                for key,image in pairs(objects)do
+                    assert(image.releases==released,'incorrect family retention for '..key)
+                    if released==0 then assert(rawget(targets.familyImages,key)==image,'family image replaced '..key)end
+                end
+            end
+            retain('stop');drawFamilies()
+            local firstImages=images('hedgehog-child');local secondImages=images('opossum-child')
+            for frame=1,120 do retain('stop');drawFamilies();check(firstImages,0);check(secondImages,0)end
+            assert(rawget(targets.familyImages,'hedgehog-baby-idle-1')==nil,'hidden household loaded')
+            second.scene='house'
+            retain('stop');drawFamilies();check(firstImages,0);check(secondImages,1)
+            data.activeHouseDoor=2;retain('house');drawFamilies()
+            check(firstImages,1);check(secondImages,1)
+            local returnedImages=images('opossum-child');check(returnedImages,0)
+            assert(rawget(targets.familyImages,'hedgehog-baby-idle-1')==nil,'wrong household loaded')
+            data.activeHouseDoor=1;retain('house');drawFamilies();check(returnedImages,1)
+            local babyImages=images('hedgehog-baby');check(babyImages,0)
+            retain('train');check(babyImages,1)
+        ''')
+        family_loads = Counter(p for k, p in self.p.events if k == 'texture' and '/NPCS/families/' in p)
+        for kind, count in (('hedgehog-child', 1), ('opossum-child', 2), ('hedgehog-baby', 1)):
+            for pose in ('walk', 'lay', 'idle'):
+                for frame in (1, 2):
+                    self.assertEqual(family_loads[f'assets/sprites/NPCS/families/{kind}-{pose}-{frame}.png'], count)
+        self.assertEqual(sum(family_loads.values()), 24)
+
     def test_generated_pixel_buffers_release_on_success_and_failed_upload(self):
         self.lua.execute('''
             local sludges=scenery.sludgeAnimations;local obstacles=scenery.battleObstacles
@@ -324,9 +383,41 @@ class LazySceneAssetTests(unittest.TestCase):
         ''')
 
 
-def write_profile(path):
+class ImmutableBaselineProfileTests(unittest.TestCase):
+    def test_newer_baseline_rejected_before_allocating_or_overwriting_report(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            baseline = Path(directory)
+            (baseline/'mobile-build.json').write_text(json.dumps({'versionCode': 32}), encoding='utf-8')
+            output = baseline/'historical-report.json'
+            output.write_text('original report', encoding='utf-8')
+            with mock.patch(__name__ + '.AllocationProbe') as allocation:
+                with self.assertRaisesRegex(ValueError, 'version 31.*32'):
+                    write_profile(output, baseline)
+                allocation.assert_not_called()
+            self.assertEqual(output.read_text(encoding='utf-8'), 'original report')
+
+    def test_explicit_version31_baseline_is_used_for_both_code_comparisons(self):
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
+            baseline = Path(directory)
+            network = {'protocol': 29, 'build': 'immutable31'}
+            (baseline/'mobile-build.json').write_text(json.dumps({'versionCode': 31, 'network': network}), encoding='utf-8')
+            output = baseline/'report.json'
+            fake = mock.Mock()
+            fake.profile.return_value = {'textureCount': 0, 'textureNominalRGBABytes': 0}
+            with mock.patch(__name__ + '.AllocationProbe', return_value=fake) as allocation:
+                write_profile(output, baseline)
+            self.assertEqual(allocation.call_args_list, [mock.call(baseline, asset_root=baseline), mock.call(ROOT, asset_root=baseline)])
+            self.assertEqual(json.loads(output.read_text(encoding='utf-8'))['immutableStageNetwork'], network)
+
+
+def write_profile(path, baseline_root):
+    baseline_root = Path(baseline_root).resolve()
+    metadata = json.loads((baseline_root/'mobile-build.json').read_text(encoding='utf-8'))
+    if metadata.get('versionCode') != 31:
+        raise ValueError('Profiling requires an explicit version 31 baseline; supplied versionCode is '
+                         + str(metadata.get('versionCode')) + '. The historical report was not changed.')
     def capture(code_root):
-        probe = AllocationProbe(code_root, asset_root=STAGE)
+        probe = AllocationProbe(code_root, asset_root=baseline_root)
         startup = probe.profile()
         probe.lua.execute('''
             local ui=screens();local update=gameplay();runtime.state='slots';runtime.saveData=nil
@@ -337,18 +428,23 @@ def write_profile(path):
         return startup, {'frames': 180, 'seconds': 3,
                          'cumulativeTextureAllocationsAfterStartup': total['textureCount'] - startup['textureCount'],
                          'cumulativeNominalRGBAUploadBytesAfterStartup': total['textureNominalRGBABytes'] - startup['textureNominalRGBABytes']}
-    baseline, baseline_title = capture(STAGE)
+    baseline, baseline_title = capture(baseline_root)
     candidate, candidate_title = capture(ROOT)
     files = ['game/assets.lua', 'game/lazy_asset_groups.lua', 'game/asset_streamer.lua', 'game/startup_runtime.lua', 'game/gameplay_update.lua']
     path.write_text(json.dumps({'method': 'Actual Assets.load, Settlements.load, GameplayUpdate and ScreenUI drawSlots with instrumented allocation API; exact mobile31 PNG dimensions. No GPU/native/ADB. Nominal RGBA bytes and cumulative uploads are not resident PSS/RSS. Title frame instrumentation uses the same authored virtual-stage transform on both versions.',
-                                'immutableStageNetwork': json.loads((STAGE/'mobile-build.json').read_text())['network'],
+                                'immutableStageNetwork': metadata['network'],
                                 'candidateSourceFileSHA256': {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in files},
                                 'immutableMobile31Startup': baseline, 'candidateSourceStartupAgainstMobile31Assets': candidate,
                                 'immutableMobile31Title180Frames': baseline_title, 'candidateSourceTitle180Frames': candidate_title}, indent=2) + '\n', encoding='utf-8')
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 3 and sys.argv[1] == '--profile':
-        write_profile(Path(sys.argv[2]))
+    if '--profile' in sys.argv:
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--profile', type=Path, required=True)
+        parser.add_argument('--baseline', type=Path, required=True, help='Explicit immutable version31 mobile stage')
+        args = parser.parse_args()
+        write_profile(args.profile, args.baseline)
     else:
         unittest.main()

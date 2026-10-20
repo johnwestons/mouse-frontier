@@ -192,12 +192,18 @@ class ExpeditionGeometryBehaviorTests(unittest.TestCase):
             assert(state.environmentPhase=='warning')
             Areas.updateEnvironment(basin,area.id,4)
             assert(state.environmentPhase=='flooded')
-            assert(not Areas.isWalkable(basin,area.id,832,526),'flood closes the lower wash')
-            local x,y=Areas.pathTarget(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,750,110)
+            local floodPoint=area.environment.floodZone.points[2]
+            assert(not Areas.isWalkable(basin,area.id,floodPoint.x,floodPoint.y),'flood closes the lower wash')
+            local safeSurvey
+            for _,interaction in ipairs(area.interactions) do
+                if interaction.id=='north-cairn' then safeSurvey=interaction end
+            end
+            assert(safeSurvey,'the basin needs a survey point outside the flood')
+            local x,y=Areas.pathTarget(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,safeSurvey.x,safeSurvey.y)
             assert(x and Areas.canReach(basin,area.id,area.spawns.surface.x,area.spawns.surface.y,x,y),
-                'the high ridge remains navigable during a flood')
+                'the dry route remains navigable during a flood')
             Areas.updateEnvironment(basin,area.id,8.1)
-            assert(state.environmentPhase=='receding' and Areas.isWalkable(basin,area.id,832,526))
+            assert(state.environmentPhase=='receding' and Areas.isWalkable(basin,area.id,floodPoint.x,floodPoint.y))
             for _,markerId in ipairs(area.completionRequiredMarkers) do state.markers[markerId]=true end
             assert(Areas.updateGates(basin,area.id).routeSurveyed and state.completed,
                 'surveying all cairns completes the route without a boss gate')

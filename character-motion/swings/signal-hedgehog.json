@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "character": "signal-hedgehog",
+  "animations": {
+    "swing": {
+      "path": "output/character-swings/signal-hedgehog/runtime/swing.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 17.142857142857142,
+      "loop": false,
+      "role": "authored_action",
+      "playback": {
+        "duration": 0.35
+      }
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "center_metric": "core",
+    "center_tolerance": 12,
+    "baseline_tolerance": 3
+  },
+  "scope": "Authored weapon swing; original unarmed melee and locomotion retained."
+}

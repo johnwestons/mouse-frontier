@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "scope": "combat-only",
+  "character": "pumpkin-vampire",
+  "animations": {
+    "melee": {
+      "path": "assets/sprites/Mobs/combat/pumpkin-vampire/melee.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "ranged": {
+      "path": "assets/sprites/Mobs/combat/pumpkin-vampire/ranged.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "hit": {
+      "path": "assets/sprites/Mobs/combat/pumpkin-vampire/hit.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 10.344827586206897,
+      "duration": 0.58
+    },
+    "death": {
+      "path": "assets/sprites/Mobs/combat/pumpkin-vampire/death.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 7.0588235294117645,
+      "duration": 0.85
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2
+  },
+  "status": "reviewed_and_installed",
+  "source_sha256": "fbf4f14cd1386b9e1277607872acef1b1e590a426daaef889728f4f6626dc59b",
+  "hashes": {
+    "melee": "5c035de688a5faf509882142564a569ca33df50c4f94e50e8aaa6be8f46bf7e2",
+    "ranged": "33a7f01150e3df4e6de99546e1df712094f677712a6dd48c9a831a3d73d37432",
+    "hit": "62582c9ec5da0ef5e28457feb1ab18bf562fda6d780804aa5f316be56e9f1654",
+    "death": "5646218d575b32f6a5c92f73c16767f761c4087c84b6ba68a934b6b7ee73891a"
+  },
+  "tool": "built-in image_gen",
+  "prompt": "Use case: identity-preserve. Production 2D combat sprites for Mouse Frontier, matching the referenced APPROVED creature exactly: same species/anatomy, silhouette, face, proportions, palette, materials, pixel-art outline and shading. NEW authored intermediate poses, never rotations/duplicates of one picture. Transparent RGBA background, clean alpha in all gaps; no scenery, shadows, text, labels or grid. Layout EXACTLY 6 equal columns x 4 rows, 1536x1024, 24 cells256x256. ONE complete creature in every cell, 16px edge clearance, consistent scale, fixed camera and baseline. Default face RIGHT in matching three-quarter profile; a front-facing reference can retain its approved view. Animate left to right in each row. Row1 MELEE: ready, prepare/wind-up, launch, maximum strike, follow-through, recovery to ready. Row2 RANGED: ready, prepare, aim/charge, release, recoil, recover. Row3 HIT: ready, initial flinch, recoil, maximum stagger, regain balance, return ready (do NOT fall fully over in a survivable hit). Row4 DEATH: ready, buckle/weaken, begin falling, collapse, settle, motionless final downed body with closed eyes. Last row never revives or loops. No gore. No extra accessories or limbs.  CRITICAL: all 24 cells must contain a COMPLETE creature body, even at the release frame. Keep effects small and immediately beside the body; NEVER use an effect-only cell. Max body width210px and max height210px inside each256px cell.Exactly this round RED pumpkin vampire head, red stem, pale highlighted ridges, two pointed red ears/horns, black/yellow carved eyes and yellow open grin with two large cream vampire FANGS. It is a floating pumpkin head only, no humanoid body, clothes, arms, legs or wings. Keep simple chunky pixel style and front view. Melee wind-up then fang bite with mouth moving; ranged small amber puff from mouth; hit eyes squeeze and head recoils; death sinks/tips on side with closed carved eyes, pumpkin intact. No added accessories."
+}

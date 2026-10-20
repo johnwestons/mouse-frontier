@@ -211,4 +211,24 @@ function Players.enroll(campaign,actorId,character,catalog,allowedCharacters)
     return record
 end
 
+-- Explicit host management changes the traveler, never recreates their kit.
+-- Preserve current HP (clamped), rather than healing through trait changes.
+function Players.replace(campaign,actorId,character,catalog,allowedCharacters)
+    if Players.role(campaign,actorId)~='host' then return nil,'host_only' end
+    local record=Players.get(campaign,Players.COMPANION)
+    if not record then return nil,'companion_missing' end
+    if type(character)~='string' or not allowedCharacters or allowedCharacters[character]~=true then
+        return nil,'invalid_character'
+    end
+    if record.character==character then return nil,'character_unchanged' end
+    local trait=copy(catalog.characterTrait(character))
+    if type(trait)~='table' or not finite(trait.maxHealth or 0) then return nil,'invalid_character_trait' end
+    local previous=record.traitBaselineApplied and record.trait and record.trait.maxHealth or 0
+    if not finite(previous) then return nil,'invalid_character_trait' end
+    local maximum=math.max(1,record.maxHealth-previous+(trait.maxHealth or 0))
+    record.character=character;record.trait=trait;record.traitBaselineApplied=true
+    record.maxHealth=maximum;record.health=math.min(record.health,maximum)
+    return record
+end
+
 return Players

@@ -56,6 +56,52 @@ class QuestDecisionTests(unittest.TestCase):
             assert(not layout.coopOffers and not data.questAsked['4:'..npc] and #data.supplyQuests==0)
         ''')
 
+    def test_named_mail_identity_is_saved_once_on_accept_and_retry(self):
+        self.lua.execute('''
+            setup('mail'); data.npcRoster={'tinker-fox.png','scout-frog.png'}
+            assert(offer().ok)
+            local req=assert(service:prepareRequest('host','quest.accept',args('mail')))
+            local reply=execute('host',req); assert(reply.ok,reply.reason)
+            local q=data.mailQuests[1]; local I=require('game.npc_identity')
+            local name=I.name(data,q.recipientId)
+            assert(q.senderId and q.recipientId and name~=q.recipient)
+            assert(execute('host',req).ok and #data.mailQuests==1)
+            local loaded=assert(Schema.migrate(saved))
+            assert(loaded.mailQuests[1].recipientId==q.recipientId and I.name(loaded,q.recipientId)==name)
+        ''')
+
+    def test_named_supply_handin_rejects_another_resident_without_consuming_cargo(self):
+        self.lua.execute('''
+            setup('supplies'); data.npcRoster={'tinker-fox.png'}
+            layout.deliveryOffers={[npc]='food'}; assert(offer().ok); assert(decide('supplies').ok)
+            local q=data.supplyQuests[1]; local T=require('game.npc_targets')
+            assert(q.senderId and q.recipientId)
+            data.location=q.destination; layout=data.stopLayouts[tostring(q.destination)]
+            npc='scout-frog.png'; data.currentNPC=npc
+            for _,state in pairs(states) do state.npc={id=npc,x=100,y=100} end
+            local food=data.resources.food; local scrap=data.scrap
+            local wrong=run('host','quest.deliver',{targetId=layout.entityId,npc=npc,questId=q.entityId})
+            assert(not wrong.ok and not q.complete and data.resources.food==food and data.scrap==scrap)
+            npc=q.recipient; data.currentNPC=npc
+            for _,state in pairs(states) do state.npc={id=npc,x=100,y=100} end
+            assert(T.matches(data,q,npc))
+            local delivered=run('companion','quest.deliver',{targetId=layout.entityId,npc=npc,questId=q.entityId})
+            assert(delivered.ok and q.complete,delivered.reason)
+            assert(data.relationships[q.recipientId].helpCount==1)
+        ''')
+
+    def test_recipient_cannot_board_before_their_accepted_delivery_is_finished(self):
+        self.lua.execute('''
+            setup('ride'); local T=require('game.npc_targets')
+            local q=T.bind(data,{sender='mail-mouse.png',origin=1,destination=4,recipient=npc,complete=false},function(a,b) return b and a or 1 end)
+            data.mailQuests[1]=q; assert(Entities.ensure(data)); assert(offer().ok)
+            assert(run('host','passenger.recruit',args('ride')).reason=='recipient_has_delivery')
+            assert(#data.passengers==0 and not data.questAsked['4:'..npc])
+            q.complete=true
+            local reply=run('host','passenger.recruit',args('ride')); assert(reply.ok,reply.reason)
+            assert(data.passengers[1].characterId==q.recipientId)
+        ''')
+
     def test_supply_offer_roll_is_saved_once_and_preserved_after_reload(self):
         self.lua.execute('''
             local req=assert(service:prepareRequest('host','quest.offer',args()))
@@ -154,7 +200,7 @@ class QuestDecisionTests(unittest.TestCase):
             assert(passenger.weapon=='frontier-short-sword' and passenger.weaponInstance.id==weapon and passenger.weaponInstance.durability==17)
             assert(not layout.npcWeapon and not layout.npcWeaponInstance and passenger.entityId==reply.result.entityId)
             assert(passenger.origin==4 and passenger.destination>4 and passenger.destination<=50 and passenger.job=='scavenger')
-            assert(execute('host',req).ok and #data.passengers==1 and data.relationships[npc].rides==1)
+            assert(execute('host',req).ok and #data.passengers==1 and data.relationships[passenger.characterId].rides==1)
             assert(Schema.validate(data))
         ''')
 

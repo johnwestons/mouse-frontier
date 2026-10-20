@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local FirstPerson=require("game.first_person_shooting")
 local WindowScene=require("game.window_scene")
@@ -788,11 +789,7 @@ local function formatTime(seconds)
 end
 
 local function panel(x,y,w,h)
-    love.graphics.setColor(.055,.035,.020,.90)
-    love.graphics.rectangle("fill",x,y,w,h,8,8)
-    love.graphics.setColor(.80,.55,.24,.95)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line",x,y,w,h,8,8)
+    GuiArt.frame(x,y,w,h)
 end
 
 local function pointIn(x,y,rx,ry,rw,rh)
@@ -883,11 +880,11 @@ function Shootout.draw(state,data,width,height)
         love.graphics.pop()
     end
 
-    if not state.ducking and cover==0 then
+    if not state.ducking and cover==0 and not state.gun.ads then
         local aimX,aimY=state.gun.aimX,state.gun.aimY
         love.graphics.setColor(1,.82,.42,.92)
-        love.graphics.setLineWidth(state.gun.ads and 1.5 or 2.5)
-        local radius=state.gun.ads and 9 or 16
+        love.graphics.setLineWidth(2.5)
+        local radius=16
         love.graphics.circle("line",aimX,aimY,radius)
         love.graphics.line(aimX-radius-8,aimY,aimX-radius+2,aimY)
         love.graphics.line(aimX+radius-2,aimY,aimX+radius+8,aimY)
@@ -933,7 +930,7 @@ function Shootout.draw(state,data,width,height)
     end
     if not state.guestPresentation then
     love.graphics.setColor(.95,.84,.64,.86)
-    local hints=state.touchControls and "Hold the grip. Second touch or FIRE to shoot."
+    local hints=state.touchControls and "Left stick to aim. Right FIRE button to shoot."
         or "LMB fire  •  RMB aim  •  R reload  •  V mode  •  C cover  •  TAB weapon  •  ESC leave"
     textBox(hints,24,height-36,width-48,30,.9,"center")
     if state.ducking then
@@ -963,7 +960,7 @@ function Shootout.draw(state,data,width,height)
         )
         local rx,ry,rw,rh=Shootout.supplyRect(width,height)
         love.graphics.setColor(.52,.26,.10,1)
-        love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
+        GuiArt.frame(rx,ry,rw,rh)
         love.graphics.setColor(1,.88,.62,1)
         local label=state.quest.loanActive and "TAKE AMMO" or "USE FOX'S RIFLE"
         textBox(label..(state.touchControls and "" or "  [L]"),rx+10,ry+4,rw-20,rh-8,1,"center")
@@ -979,7 +976,7 @@ function Shootout.draw(state,data,width,height)
         textBox("The defenders pull everyone back from the windows. Your progress is saved. Stabilize the position to continue.",width/2-270,height/2-36,540,106,1,"center")
         local rx,ry,rw,rh=Shootout.retryRect(width,height)
         love.graphics.setColor(.52,.25,.10,1)
-        love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
+        GuiArt.frame(rx,ry,rw,rh)
         love.graphics.setColor(1,.88,.62,1)
         textBox("REGROUP AND RETRY"..(state.touchControls and "" or "  [ENTER]"),rx+10,ry+4,rw-20,rh-8,1,"center")
     end

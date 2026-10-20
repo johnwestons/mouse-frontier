@@ -12,6 +12,12 @@ local LastStandStage=require('game.net.last_stand_stage')
 local Commands=require('game.net.commands')
 local CommandRate=require('game.net.command_rate')
 local Session={}; local Host={}; Host.__index=Host; local Client={}; Client.__index=Client
+Session.KICK_DISCONNECT_CODE=0x4b49434b -- Native ENet event data, ASCII "KICK".
+local KICK_GRACE_SECONDS=3
+local function samePeer(link,event)
+    return link and event.peer==link.peer
+        and (link.connectionId==nil or event.connectionId==link.connectionId)
+end
 local function call(fn,...)
     local ok,value,reason=pcall(fn,...)
     if not ok then return nil,'callback_failed' end
@@ -75,13 +81,34 @@ function Session.join(address,context)
     self.transport=transport; self.status='connecting'; self.deadline=(now(self) or 0)+P.HELLO_SECONDS
     return setmetatable(self,Client)
 end
-function Host:_drop(reason)
+function Host:_drop(reason,graceful)
     local link=self.link
     if not link then return end
     send(self,link.peer,P.message('reject',{reason=reason}))
-    self.transport:disconnect(link.peer,0,false)
+    if graceful then
+        self.departing={peer=link.peer,connectionId=link.connectionId,generation=link.generation,deadline=self.time+KICK_GRACE_SECONDS}
+        local ok=type(self.transport.disconnectLater)=='function'
+            and self.transport:disconnectLater(link.peer,Session.KICK_DISCONNECT_CODE)
+        if not ok then
+            self.transport:disconnect(link.peer,Session.KICK_DISCONNECT_CODE,true)
+            self.departing=nil
+        end
+    else self.transport:disconnect(link.peer,0,false) end
     self.link=nil; self.reason=reason
     if self.context.disconnected then call(self.context.disconnected,link.generation,reason) end
+    if graceful then return true end
+end
+function Host:kick(generation)
+    if self.closed then return nil,'host_closed' end
+    local link=self.link
+    if not P.integer(generation,1,2147483647) or not link or generation~=link.generation then return nil,'stale_generation' end
+    if not link.admitted then return nil,'not_admitted' end
+    if not now(self) then return nil,'invalid_clock' end
+    return self:_drop('host_kicked',true)
+end
+function Host:hasDeparting()
+    -- Admission is gone, but its native peer still occupies a draining slot.
+    return self.departing~=nil
 end
 function Client:_fail(reason)
     if self.closed then return end
@@ -162,7 +189,7 @@ function Host:_acknowledge()
     link.nextUpdate=self.time+.1
 end
 function Host:_receive(event)
-    local link=self.link; if not link or event.peer~=link.peer then return end
+    local link=self.link; if not samePeer(link,event) then return end
     -- A preceding command in this transport batch may have opened a failed
     -- checkpoint. Recheck before handling an in-flight snapshot acknowledgement.
     self:_checkpointBarrier()
@@ -224,20 +251,25 @@ end
 function Host:service()
     if self.closed then return end
     if not now(self) then return self:close('invalid_clock') end
+    if self.departing and self.time>=self.departing.deadline then
+        self.transport:disconnect(self.departing.peer,Session.KICK_DISCONNECT_CODE,true)
+        self.departing=nil
+    end
     self:_checkpointBarrier()
     local events,reason=self.transport:service(64)
     if reason or not events then return self:close('transport_failed') end
     for _,event in ipairs(events) do
         if event.type=='connect' then
-            if self.link or self.generation>=2147483647 then
+            if self.link or self.departing or self.generation>=2147483647 then
                 send(self,event.peer,P.message('reject',{reason='session_full'})); self.transport:disconnect(event.peer,0,false)
             else
                 self.generation=self.generation+1
-                self.link={peer=event.peer,generation=self.generation,phase='hello',deadline=self.time+P.HELLO_SECONDS}
+                self.link={peer=event.peer,connectionId=event.connectionId,generation=self.generation,phase='hello',deadline=self.time+P.HELLO_SECONDS}
                 if not send(self,event.peer,P.message('greeting',{build=self.context.build,schema=self.context.schema,
                     campaignId=self.context.campaignId})) then self:_drop('send_failed') end
             end
-        elseif event.type=='disconnect' and self.link and event.peer==self.link.peer then self:_drop('peer_disconnected')
+        elseif event.type=='disconnect' and samePeer(self.departing,event) then self.departing=nil
+        elseif event.type=='disconnect' and samePeer(self.link,event) then self:_drop('peer_disconnected')
         elseif event.type=='receive' then self:_receive(event) end
     end
     local link=self.link
@@ -308,10 +340,11 @@ end
 function Host:close(reason)
     if self.closed then return true end
     self:_drop(reason or 'host_closed'); self.closed=true
+    self.departing=nil
     return self.transport:close(0,false)
 end
 function Client:_receive(event)
-    if event.peer~=self.peer then return end
+    if not samePeer(self,event) then return end
     if not self.snapshot and self.status~='ready' and self.time>=self.deadline then return self:_fail('join_timeout') end
     local message=P.decode(event.payload or event.data,event.channel)
     if not message then return self:_fail('invalid_packet') end
@@ -449,9 +482,13 @@ function Client:update()
         if self.closed then break end
         if event.type=='connect' and self.status=='connecting' then
             self.peer=event.peer
+            self.connectionId=event.connectionId
             self.status='greeting'; self.deadline=self.time+P.HELLO_SECONDS
         elseif event.type=='receive' then self:_receive(event)
-        elseif event.type=='disconnect' then self:_fail('host_disconnected') end
+        elseif event.type=='disconnect' and (samePeer(self,event)
+            or self.status=='connecting' and event.peer==self.transport.peer) then
+            self:_fail(event.code==Session.KICK_DISCONNECT_CODE and 'host_kicked' or 'host_disconnected')
+        end
     end
     if self.closed then return end
     if self.pendingCommand and self.time>=self.pendingCommand.nextRetry then

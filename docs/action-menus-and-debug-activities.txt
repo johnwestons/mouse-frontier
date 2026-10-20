@@ -1,0 +1,41 @@
+ACTION MENUS AND DEBUG ACTIVITIES
+
+Player access
+- Open player options (F2, or Pause / Options / Touch Controls).
+- Controls selects Radial Wheel, Quick Dock, or Button Drawer.
+- Advanced UI Editor > Menus selects a base and previews Closed, Main, Poses, or More.
+- Tap an individual control to move it. Layout, Color and Art edit size, rotation, tint, text and icon size. Undo/redo and the three saved GUI presets include the chosen base layout.
+- Ring slices retain their authored artwork; button and panel frames support the existing alternate frames.
+- Controls retain separate edits for each base layout and game scene.
+- Menu actions activate on release. Sliding off a control cancels it. A second finger cannot double-activate an action. Close, an outside tap, Escape or controller B dismisses a menu.
+
+Art
+- The active simple sprite set is in assets/sprites/ui/actions/simple: flat brown panels, thin amber outlines, cream icons, and a circular close control.
+- All three base layouts share the simple sprites and retain individual control editing. The earlier decorative art is retained in assets/sprites/ui/actions.
+- Character symbols are mice; Use is a paw. No human icons are used in these layouts.
+- Original image files are retained; atlas source rectangles trim padding without editing the generated pixels.
+- Generation prompts and selected source filenames are in assets/sprites/ui/actions/simple/generation-prompts.json.
+
+Cheats > Play Minigames
+- Available inside a loaded offline save. Disconnect Local Play before using it.
+- Gun Range, Bandit Attack, Last Stand backyard, Last Stand shootout, First Aid Practice, Maintenance, Sewing, Weapon Repair, Tactical Battle, and all four adventure areas are listed.
+- The launcher changes the current save's location and starts the selected activity. Ordinary activity costs/rewards and exits still apply.
+- Test Supplies is on by default and can be switched off. It restores health, supplies and ammunition, adds a test firearm where needed, and supplies the first sewing recipe. It requires free inventory slots and never replaces existing items.
+- Weapon Repair selects a worn rifle when test supplies are enabled. First Aid Practice has no quest reward. Adventure progress and completed character conversations are retained.
+- Launching another activity replaces the current active encounter. Last Stand and Bandit Attack can be replayed.
+
+Validation (2026-10-20)
+- Simple sprite revision: 7 menu behavior tests and all 67 application smoke checks passed; all three layouts, the editor, and small-phone output were visually reviewed.
+- 118 focused behavior tests passed, covering menu pointer ownership, cancellation, current action permissions, nested transformed hit regions, advanced editor dragging/undo, independent preset persistence, launcher guards, controls and guest UI regressions.
+- Full application mobile menu smoke passed 67 checks: all three layouts, tap activation, disabled Leave, Travel confirmation, individual editing, settings reload, 13 activity launches, valid activity saves, first-aid exit, sewing start, and repair selection.
+- Full application shooter smoke passed 20 checks across shooting range, ambush and Last Stand, including simultaneous aiming and firing.
+- Smoke runs used fresh isolated test-save directories and cleaned them afterwards. Existing personal save folders were not used.
+- Screenshots: .stabilization/action-menu-layouts and .stabilization/mobile-shooter-controls.
+- Validation was in desktop LÖVE with mobile controls at phone/tablet dimensions, not on physical Android hardware.
+- Broader combined UI/co-op suite: 183/185 passed. Remaining failures concern full-pack quest reward delivery/reconnect and companion melee pose presentation. Neither exercises the new menu or debug launcher.
+- Startup also reports an existing missing catalog:garden-harvest sprite/atlas entry.
+
+Repeatable checks
+- tools/run_action_menu_smoke.ps1
+- tools/run_mobile_shooter_smoke.ps1
+- tools/tests/test_action_menu_behavior.py

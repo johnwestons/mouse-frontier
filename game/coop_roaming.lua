@@ -22,6 +22,7 @@ function Commands.weapon(data,id,catalog)
         if item and item.name~='scratch' and catalog.weaponStats[item.name] and (not combat or combat.kind~='ranged')
             and (item.durability or 100)>0 then return item.id end
     end
+    return 'scratch'
 end
 function Commands.install(authority,context)
     authority:register('roaming.attack',function(data,id,args,t)
@@ -44,7 +45,9 @@ function Commands.install(authority,context)
                 ref={kind='equipment',index=i}; break
             end
         end
-        if not ref then return nil,'ownership' end
+        local unarmed=args.weaponId=='scratch'
+        if unarmed and Commands.weapon(data,id,context.catalog)~='scratch' then return nil,'ownership' end
+        if not ref and not unarmed then return nil,'ownership' end
         local cooldown=t.state.fieldCooldowns and t.state.fieldCooldowns[id]
         if cooldown and cooldown.epoch==data.coop.sceneEpoch and t.now+1e-9<cooldown.untilTime then return nil,'attack_cooldown' end
         if data.roamingCombat and data.roamingCombat.serial>=2147483647 then return nil,'field_serial_exhausted' end
@@ -54,7 +57,7 @@ function Commands.install(authority,context)
             sys.attackTimer=0
             local pose={x=actor.x,y=actor.y,facing=actor.facing or own.playerFacing or 1,intentX=actor.intentX,intentY=actor.intentY}
             local alerts={}
-            local ctx={data=own,area=area,areaState=saved,player=pose,actorId=id,catalog=context.catalog,weaponRef=ref,
+            local ctx={data=own,area=area,areaState=saved,player=pose,actorId=id,catalog=context.catalog,weaponRef=ref,unarmed=unarmed,
                 rng=Random.range(Random.generator(data,t.randomSeed)),isWeapon=function(name) return context.catalog.weaponStats[name]~=nil end,
                 isActive=function(mob) return Areas.isMobActive(data,area.id,mob) end,
                 canReach=function(x1,y1,x2,y2) return Areas.canReach(data,area.id,x1,y1,x2,y2) end,

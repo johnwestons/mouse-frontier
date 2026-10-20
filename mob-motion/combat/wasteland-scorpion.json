@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "scope": "combat-only",
+  "character": "wasteland-scorpion",
+  "animations": {
+    "melee": {
+      "path": "assets/sprites/Mobs/combat/wasteland-scorpion/melee.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "ranged": {
+      "path": "assets/sprites/Mobs/combat/wasteland-scorpion/ranged.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "hit": {
+      "path": "assets/sprites/Mobs/combat/wasteland-scorpion/hit.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 10.344827586206897,
+      "duration": 0.58
+    },
+    "death": {
+      "path": "assets/sprites/Mobs/combat/wasteland-scorpion/death.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 7.0588235294117645,
+      "duration": 0.85
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2
+  },
+  "status": "reviewed_and_installed",
+  "source_sha256": "06bcdbb8d5ec32e62c2dfcc5715a9b039f5eb96d433382e8ec2b0dbaa42f688e",
+  "hashes": {
+    "melee": "94e07f2cd3a8e8dafed12480afb0bbf1d8a27f198ed8788b88d0a5e139550d33",
+    "ranged": "160231098466301acccfb0996f4a00a31cf71c8b974ac654022ef17783969e4c",
+    "hit": "e8e0067f2248f8f7889d6f1b56ae892f4fe76ac975b7a27a6d5363c672448cf5",
+    "death": "d6925fe908538ba6396a8cf974e4aeb6aa4f0647417542114a1afd731ba4c1f9"
+  },
+  "tool": "built-in image_gen",
+  "prompt": "Use case: identity-preserve. Production 2D combat sprites for Mouse Frontier, matching the referenced APPROVED creature exactly: same species/anatomy, silhouette, face, proportions, palette, materials, pixel-art outline and shading. NEW authored intermediate poses, never rotations/duplicates of one picture. Transparent RGBA background, clean alpha in all gaps; no scenery, shadows, text, labels or grid. Layout EXACTLY 6 equal columns x 4 rows, 1536x1024, 24 cells256x256. ONE complete creature in every cell, 16px edge clearance, consistent scale, fixed camera and baseline. Default face RIGHT in matching three-quarter profile; a front-facing reference can retain its approved view. Animate left to right in each row. Row1 MELEE: ready, prepare/wind-up, launch, maximum strike, follow-through, recovery to ready. Row2 RANGED: ready, prepare, aim/charge, release, recoil, recover. Row3 HIT: ready, initial flinch, recoil, maximum stagger, regain balance, return ready (do NOT fall fully over in a survivable hit). Row4 DEATH: ready, buckle/weaken, begin falling, collapse, settle, motionless final downed body with closed eyes. Last row never revives or loops. No gore. No extra accessories or limbs.  CRITICAL: all 24 cells must contain a COMPLETE creature body, even at the release frame. Keep effects small and immediately beside the body; NEVER use an effect-only cell. Max body width210px and max height210px inside each256px cell.Exactly this weathered brass/brown armored SCORPION with one low segmented body, TWO big pincers, EIGHT walking legs and ONE long jointed tail arcing above body to a curved sharp stinger. Preserve every plated segment, olive-brown/brass palette and dark pixel outlines. Face right. Melee draws pincers back then snap/forward sting (tail remains attached); ranged tail makes a restrained toxic-droplet flick to right with complete scorpion still visible; hit body recoils and legs brace; death legs curl under, body settles on side and tail droops. Never add antennae, wings, extra tails or humanoid body."
+}

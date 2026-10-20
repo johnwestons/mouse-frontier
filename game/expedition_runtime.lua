@@ -233,7 +233,7 @@ local function new(context)
                 local begin=getBeginEncounter(); assert(type(begin)=="function","battle runtime is not ready")
                 return begin(encounter)
             end,
-            onAction=function(weapon,duration) runtime.actionHeldItem=weapon; runtime.actionKind="melee"; runtime.actionTimer=duration or .42 end,
+            onAction=function(weapon,duration) local attack=require('game.character_attack'); runtime.actionHeldItem=attack.heldItem(weapon); runtime.actionKind=attack.action(weapon); runtime.actionTimer=duration or .42; runtime.actionDuration=runtime.actionTimer end,
             playSfx=ui.playSfx,
             onDefeated=function(definition,saved)
                 local receipt=Rewards.claimEnemy(runtime.saveData,Catalog,definition,saved)
@@ -297,12 +297,13 @@ local function new(context)
         runtime.expeditionGraceTimer=0
         if result.actorId=='host' and not context.readOnlyPresentation then
             runtime.player.facing=result.facing
-            runtime.actionHeldItem=result.weapon; runtime.actionKind="melee"; runtime.actionTimer=result.duration
+            local attack=require('game.character_attack')
+            runtime.actionHeldItem=attack.heldItem(result.weapon); runtime.actionKind=attack.action(result.weapon); runtime.actionTimer=result.duration; runtime.actionDuration=result.duration
         elseif not context.readOnlyPresentation then
             runtime.companionFieldAction={epoch=result.epoch,untilTime=(runtime.animationClock or 0)+result.duration,
-                weapon=result.weapon,facing=result.facing}
+                weapon=result.weapon,facing=result.facing,duration=result.duration}
         end
-        if ui.playSfx then ui.playSfx("sword") end
+        if ui.playSfx then ui.playSfx(result.weapon=='scratch' and 'slash' or 'sword') end
         return true
     end
 

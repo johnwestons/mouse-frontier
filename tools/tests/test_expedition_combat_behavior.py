@@ -91,6 +91,7 @@ class ExpeditionCombatBehaviorTests(unittest.TestCase):
         result = self.lua.execute(
             """
             local sys,ctx=fixture({{id='bandit',x=60,y=0}})
+            ctx.weaponRef={kind='equipment',index=1}
             ctx.data.weaponDurability.sword=0
             local used=R.attack(sys,ctx,60,0)
             assert(not used and ctx.areaState.mobs.bandit.hp==40)

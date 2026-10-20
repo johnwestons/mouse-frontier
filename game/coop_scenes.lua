@@ -17,6 +17,7 @@ local Routes=require('game.journey_scene_routes')
 local Caravans=require('game.crow_caravans')
 local Caravan=require('game.crow_caravan_area')
 local Areas=require('game.expedition_areas')
+local Home=require('game.home_stop')
 local Commands={}
 local function positionAvailable(state)
     return type(state.x)=='number' and state.x==state.x and math.abs(state.x)<100000
@@ -40,13 +41,17 @@ function Commands.install(authority,context)
             if not state or state.screen~="game" or state.scene~=data.scene or state.changingCar
                 or state.encounterActive then return nil,"scene_unavailable" end
             if data.roamingEncounter and name~='scene.returnTrain' then return nil,'encounter_pending' end
+            if Home.isHome(data) and (name=='scene.enterHouse' or name=='scene.caravan' or name=='scene.expedition') then return nil,'home_preparation_incomplete' end
             if data.coop.sceneEpoch>=Party.MAX then return nil,"scene_epoch_exhausted" end
             local apply,reason=prepare(data,state,args,transaction)
             if not apply then return nil,reason end
-            local scopes={"party","resources","rng","world:scene","relationships","player:host"}
+            local scopes={"party","resources","rng","world:scene","relationships","player:host","people:identities"}
+            if name=='home.advance' then scopes[#scopes+1]='story:homeStop'; scopes[#scopes+1]='world:maintenance' end
+            if name=='travel.depart' and Home.isHome(data) then scopes[#scopes+1]='story:homeStop' end
             if data.roamingEncounter then scopes[#scopes+1]='combat:roaming' end
             if data.players.companion then scopes[#scopes+1]="player:companion" end
-            return {scopes=scopes,effects={scene=true},apply=function()
+            local homeRoom=name=='home.advance' and (args.action=='enterOffice' or args.action=='exitOffice')
+            return {scopes=scopes,effects=name=='home.advance' and not homeRoom and {story=true} or {scene=true},apply=function()
                 local result,message=apply()
                 if not result then return nil,message end
                 if Items.enabled(data) and not Items.ensure(data) then return nil,"invalid_items" end
@@ -54,6 +59,27 @@ function Commands.install(authority,context)
             end}
         end)
     end
+    register('home.advance',function(data,state,args,transaction)
+        if not fields(args,{action=true}) or type(args.action)~='string' then return nil,'invalid_arguments' end
+        if state.traveling or state.activityBlocked or data.coop.journey then return nil,'home_step_unavailable' end
+        local allowed,reason=Home.canAdvance(data,args.action,state)
+        if not allowed then return nil,reason end
+        return function()
+            local result,message=Home.advance(data,args.action)
+            if not result then return nil,message end
+            if result.homeOfficeTransition then
+                local x,y
+                if Home.isOffice(data) then x,y=Home.officeSpawn.x,Home.officeSpawn.y else x,y=Home.points.officeDoor.x,Home.points.officeDoor.y+28 end
+                local actors,reason=Party.place(data,function() return x,y end,function(px,py) return Home.clamp(px,py,data) end)
+                if not actors then return nil,reason end
+                NPCs.prepare(data,catalog)
+                local party=Party.commit(data,transaction,actors)
+                party.homeOfficeTransition=true
+                return party
+            end
+            return result
+        end
+    end)
     for _,command in ipairs({"scene.leaveTrain","scene.returnTrain","scene.enterHouse","scene.exitHouse"}) do
         local name=command
         register(name,function(data,state,args,transaction)
@@ -62,13 +88,20 @@ function Commands.install(authority,context)
             if name=="scene.leaveTrain" then
                 if data.scene~="train" then return nil,"wrong_scene" end
                 local encounter=data.encounters[tostring(data.location)]
-                if encounter and encounter.hasMob and not encounter.resolved then return nil,"stop_not_open" end
-                if not data.events[tostring(data.location)] and not (encounter and encounter.hasMob and encounter.resolved) then return nil,"stop_not_open" end
+                if not Home.isHome(data) then
+                    if encounter and encounter.hasMob and not encounter.resolved then return nil,"stop_not_open" end
+                    if not data.events[tostring(data.location)] and not (encounter and encounter.hasMob and encounter.resolved) then return nil,"stop_not_open" end
+                end
             elseif name=="scene.enterHouse" then
                 if data.scene~="stop" or type(args.door)~="number" or args.door~=math.floor(args.door)
                     or Settlements.nearDoor(state.x,state.y,data.location)~=args.door then return nil,"door_unavailable" end
             elseif name=="scene.exitHouse" and data.scene~="house" then return nil,"wrong_scene"
             elseif name=="scene.returnTrain" and data.scene=="train" then return nil,"wrong_scene" end
+            if name=='scene.returnTrain' and Home.isHome(data) then
+                if data.homeStop.stage~='ready' then return nil,'home_preparation_incomplete' end
+                local target=Home.interaction(data,state)
+                if not target or target.action~='board' then return nil,'home_target_unavailable' end
+            end
             return function()
                 local rng=Random.generator(data,transaction.randomSeed)
                 local actors,message
@@ -88,9 +121,13 @@ function Commands.install(authority,context)
                     local returning=name=="scene.exitHouse"
                     data.scene="stop"; data.activeHouseDoor=nil
                     local x,y
-                    if returning then x,y=Settlements.doorPoint(data.location,data.lastStopDoor)
+                    if Home.isHome(data) then x,y=Home.points.train.x,Home.points.train.y
+                    elseif returning then x,y=Settlements.doorPoint(data.location,data.lastStopDoor)
                     else x,y=Settlements.trainPoint(data.location) end
-                    actors,message=Party.place(data,function() return x,y end,function(px,py) return Settlements.clamp(px,py,data.location) end)
+                    actors,message=Party.place(data,function() return x,y end,function(px,py)
+                        if Home.isHome(data) then return Home.clamp(px,py,data) end
+                        return Settlements.clamp(px,py,data.location)
+                    end)
                     NPCs.prepare(data,catalog,rng)
                 end
                 if not actors then return nil,message end
@@ -185,9 +222,11 @@ function Commands.install(authority,context)
     register("travel.depart",function(data,state,args,transaction)
         if not fields(args,{}) then return nil,"invalid_arguments" end
         if data.scene~="train" or data.location>=50 or data.coop.journey or state.traveling then return nil,"travel_unavailable" end
+        if not Home.canDepart(data) then return nil,'home_preparation_incomplete' end
         local cost=Progression.travelCost(data,Engines,Maintenance,catalog.characterTraitProfiles[1],Train)
         if not Progression.travelStatus(data,cost).affordable then return nil,"insufficient_supplies" end
         return function()
+            local departed,reason=Home.depart(data); if not departed then return nil,reason end
             for _,resource in ipairs({"food","water","coal"}) do data.resources[resource]=data.resources[resource]-cost[resource] end
             data.arrivalNotice=nil
             data.coop.journey={from=data.location,to=data.location+1,phase="departed",epoch=data.coop.sceneEpoch+1,maintenanceCondition=Maintenance.condition(data)}

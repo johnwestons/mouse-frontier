@@ -22,7 +22,8 @@ class WeaponRepairUIBehaviorTests(unittest.TestCase):
         self.lua.globals().root = ROOT.as_posix()
         image_sizes = self.lua.table()
         image_pixels = self.lua.table()
-        for path in (ROOT / 'assets/sprites/ui/repair').glob('*.png'):
+        for path in [*(ROOT / 'assets/sprites/ui/repair').glob('*.png'),
+                     *(ROOT / 'assets/sprites/ui/actions/simple').glob('*.png')]:
             with Image.open(path) as source:
                 image_sizes[path.relative_to(ROOT).as_posix()] = self.lua.table_from(source.size)
         controls_path = ROOT / 'assets/sprites/outfit-crafting/bench-controls-v1.png'

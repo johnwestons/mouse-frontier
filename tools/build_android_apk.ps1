@@ -162,10 +162,26 @@ try {
     $env:ANDROID_SDK_ROOT = $buildAndroidRoot
     $env:Path = (Join-Path $javaHome 'bin') + ';' + $env:Path
 
-    Write-Output 'Installing the pinned Android SDK components...'
-    1..100 | ForEach-Object { 'y' } | & $sdkManager --sdk_root=$buildAndroidRoot --licenses | Out-Null
-    & $sdkManager --sdk_root=$buildAndroidRoot 'platform-tools' 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
-    if ($LASTEXITCODE -ne 0) { throw "Android SDK setup failed with exit code $LASTEXITCODE" }
+    $requiredSdkFiles = @('platform-tools\adb.exe','platforms\android-34\android.jar',
+        'platforms\android-34\source.properties','build-tools\34.0.0\source.properties',
+        'build-tools\34.0.0\aapt2.exe','build-tools\34.0.0\zipalign.exe','build-tools\34.0.0\apksigner.bat',
+        'ndk\25.2.9519653\source.properties','ndk\25.2.9519653\ndk-build.cmd')
+    $missingSdkFiles = @($requiredSdkFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $androidRoot $_) -PathType Leaf) })
+    $cachedSdkReady = $missingSdkFiles.Count -eq 0
+    if ($cachedSdkReady) {
+        $cachedSdkReady = (Get-Content -Raw (Join-Path $androidRoot 'platforms\android-34\source.properties')) -match '(?m)^AndroidVersion\.ApiLevel\s*=\s*34\s*$' -and
+            (Get-Content -Raw (Join-Path $androidRoot 'build-tools\34.0.0\source.properties')) -match '(?m)^Pkg\.Revision\s*=\s*34\.0\.0\s*$' -and
+            (Get-Content -Raw (Join-Path $androidRoot 'ndk\25.2.9519653\source.properties')) -match '(?m)^Pkg\.Revision\s*=\s*25\.2\.9519653\s*$'
+    }
+    if ($cachedSdkReady) {
+        Write-Output 'Reusing the installed Android SDK and NDK components...'
+    }
+    else {
+        Write-Output 'Installing the pinned Android SDK components...'
+        1..100 | ForEach-Object { 'y' } | & $sdkManager --sdk_root=$buildAndroidRoot --licenses | Out-Null
+        & $sdkManager --sdk_root=$buildAndroidRoot 'platform-tools' 'platforms;android-34' 'build-tools;34.0.0' 'ndk;25.2.9519653'
+        if ($LASTEXITCODE -ne 0) { throw "Android SDK setup failed with exit code $LASTEXITCODE" }
+    }
 
     if (-not (Test-Path -LiteralPath (Join-Path $loveAndroidRoot 'gradlew.bat'))) {
         $git = (Get-Command git -ErrorAction Stop).Source

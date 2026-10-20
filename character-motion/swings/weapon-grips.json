@@ -1,0 +1,557 @@
+{
+  "brass-knuckle-duster": {
+    "x": 0.48695652173913045,
+    "y": 0.691304347826087,
+    "angle": -1.5707963267948966,
+    "length": 24,
+    "source": {
+      "path": "assets/sprites/weapons/brass-knuckle-duster.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "train-wrench": {
+    "x": 0.6391304347826087,
+    "y": 0.7043478260869566,
+    "angle": -2.256525837701183,
+    "length": 48,
+    "source": {
+      "path": "assets/sprites/weapons/train-wrench.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "salvage-pry-bar": {
+    "x": 0.34782608695652173,
+    "y": 0.6826086956521739,
+    "angle": -0.8533561803436719,
+    "length": 48,
+    "source": {
+      "path": "assets/sprites/atlases/melee-frontier-v1.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "scrap-hatchet": {
+    "x": 0.34347826086956523,
+    "y": 0.6739130434782609,
+    "angle": -1.0164888305933455,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/scrap-hatchet.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "rusty-cleaver": {
+    "x": 0.29130434782608694,
+    "y": 0.6304347826086957,
+    "angle": -0.7513204518104405,
+    "length": 44,
+    "source": {
+      "path": "assets/sprites/weapons/rusty-cleaver.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "frontier-short-sword": {
+    "x": 0.26956521739130435,
+    "y": 0.7130434782608696,
+    "angle": -0.8306347711766164,
+    "length": 50,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-short-sword.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "patched-trench-knife": {
+    "x": 0.3217391304347826,
+    "y": 0.717391304347826,
+    "angle": -0.8414142669406275,
+    "length": 34,
+    "source": {
+      "path": "assets/sprites/atlases/melee-blades-v1.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "scrap-hunting-spear": {
+    "x": 0.4217391304347826,
+    "y": 0.6173913043478261,
+    "angle": -0.8512924728278273,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/atlases/melee-polearms-v1.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "salvaged-track-hatchet": {
+    "x": 0.2826086956521739,
+    "y": 0.6608695652173913,
+    "angle": -0.9272952180016122,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/atlases/melee-axes-v1.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "miners-pick": {
+    "x": 0.46956521739130436,
+    "y": 0.6695652173913044,
+    "angle": -1.5707963267948966,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/miners-pick.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "gear-hammer": {
+    "x": 0.3173913043478261,
+    "y": 0.6521739130434783,
+    "angle": -0.8405568793256272,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/gear-hammer.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "rail-spike-spear": {
+    "x": 0.30434782608695654,
+    "y": 0.7434782608695653,
+    "angle": -0.9117062804606886,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/weapons/rail-spike-spear.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "gear-toothed-falchion": {
+    "x": 0.24782608695652175,
+    "y": 0.717391304347826,
+    "angle": -0.7557771999683222,
+    "length": 50,
+    "source": {
+      "path": "assets/sprites/atlases/melee-blades-v1.png",
+      "cell": [
+        627,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-fork-trident": {
+    "x": 0.3173913043478261,
+    "y": 0.6652173913043479,
+    "angle": -0.8685393952858895,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/atlases/melee-polearms-v1.png",
+      "cell": [
+        627,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "gearwright-bearded-axe": {
+    "x": 0.3,
+    "y": 0.6869565217391305,
+    "angle": -0.8481727186647735,
+    "length": 48,
+    "source": {
+      "path": "assets/sprites/atlases/melee-axes-v1.png",
+      "cell": [
+        627,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "chain-flail": {
+    "x": 0.30434782608695654,
+    "y": 0.5826086956521739,
+    "angle": -1.0584068664841588,
+    "length": 50,
+    "source": {
+      "path": "assets/sprites/weapons/chain-flail.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "rail-spike-dagger": {
+    "x": 0.3173913043478261,
+    "y": 0.6304347826086957,
+    "angle": -0.7101635499328338,
+    "length": 34,
+    "source": {
+      "path": "assets/sprites/weapons/rail-spike-dagger.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "frontier-hook-sickle": {
+    "x": 0.33043478260869563,
+    "y": 0.6869565217391305,
+    "angle": -0.8728935041998396,
+    "length": 45,
+    "source": {
+      "path": "assets/sprites/atlases/melee-frontier-v1.png",
+      "cell": [
+        627,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-curved-saber": {
+    "x": 0.7739130434782608,
+    "y": 0.8043478260869565,
+    "angle": -2.350669684526672,
+    "length": 52,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-curved-saber.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "steam-shock-baton": {
+    "x": 0.30869565217391304,
+    "y": 0.6695652173913044,
+    "angle": -0.769692648566309,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/steam-shock-baton.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "railway-cutlass": {
+    "x": 0.24347826086956523,
+    "y": 0.7478260869565218,
+    "angle": -0.8028180039492262,
+    "length": 52,
+    "source": {
+      "path": "assets/sprites/atlases/melee-blades-v1.png",
+      "cell": [
+        0,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "hooked-railway-halberd": {
+    "x": 0.3217391304347826,
+    "y": 0.591304347826087,
+    "angle": -0.9065411775553716,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/atlases/melee-polearms-v1.png",
+      "cell": [
+        0,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "rail-splitter-axe": {
+    "x": 0.20434782608695654,
+    "y": 0.7,
+    "angle": -0.8836721166534575,
+    "length": 54,
+    "source": {
+      "path": "assets/sprites/atlases/melee-axes-v1.png",
+      "cell": [
+        0,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-katana": {
+    "x": 0.782608695652174,
+    "y": 0.7956521739130434,
+    "angle": -2.3655400124998347,
+    "length": 56,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-katana.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "frontier-mace": {
+    "x": 0.2217391304347826,
+    "y": 0.717391304347826,
+    "angle": -0.7853981633974483,
+    "length": 52,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-mace.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-battle-axe": {
+    "x": 0.7652173913043478,
+    "y": 0.7043478260869566,
+    "angle": -2.2860395412240764,
+    "length": 56,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-battle-axe.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-longsword": {
+    "x": 0.7260869565217392,
+    "y": 0.6869565217391305,
+    "angle": -2.3242418985078652,
+    "length": 56,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-longsword.png",
+      "cell": [
+        0,
+        0,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-machete": {
+    "x": 0.11304347826086956,
+    "y": 0.8159509202453987,
+    "angle": -0.525036098489989,
+    "length": 50,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-machete.png",
+      "cell": [
+        0,
+        0,
+        708,
+        502
+      ]
+    }
+  },
+  "frontier-spear": {
+    "x": 0.6217391304347826,
+    "y": 0.5818181818181818,
+    "angle": -2.5658343360665574,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-spear.png",
+      "cell": [
+        0,
+        0,
+        693,
+        496
+      ]
+    }
+  },
+  "frontier-hatchet": {
+    "x": 0.8217391304347826,
+    "y": 0.7898089171974523,
+    "angle": -2.4799822698254617,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-hatchet.png",
+      "cell": [
+        0,
+        0,
+        703,
+        481
+      ]
+    }
+  },
+  "frontier-hand-axe": {
+    "x": 0.3826086956521739,
+    "y": 0.6707317073170732,
+    "angle": -0.7489180042744986,
+    "length": 46,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-hand-axe.png",
+      "cell": [
+        0,
+        0,
+        720,
+        512
+      ]
+    }
+  },
+  "frontier-cavalry-saber": {
+    "x": 0.7782608695652173,
+    "y": 0.7913043478260869,
+    "angle": -2.296941896528913,
+    "length": 52,
+    "source": {
+      "path": "assets/sprites/weapons/frontier-cavalry-saber.png",
+      "cell": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    }
+  },
+  "boiler-smith-maul": {
+    "x": 0.3347826086956522,
+    "y": 0.6130434782608696,
+    "angle": -0.821878322520398,
+    "length": 58,
+    "source": {
+      "path": "assets/sprites/atlases/melee-frontier-v1.png",
+      "cell": [
+        0,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "railway-war-pick": {
+    "x": 0.2391304347826087,
+    "y": 0.6173913043478261,
+    "angle": -0.8478169733934057,
+    "length": 52,
+    "source": {
+      "path": "assets/sprites/atlases/melee-frontier-v1.png",
+      "cell": [
+        627,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "brass-backed-greatsword": {
+    "x": 0.18695652173913044,
+    "y": 0.7652173913043478,
+    "angle": -0.7820759164841955,
+    "length": 58,
+    "source": {
+      "path": "assets/sprites/atlases/melee-blades-v1.png",
+      "cell": [
+        627,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "wasteland-partisan": {
+    "x": 0.2782608695652174,
+    "y": 0.5869565217391305,
+    "angle": -0.8114792046882006,
+    "length": 72,
+    "source": {
+      "path": "assets/sprites/atlases/melee-polearms-v1.png",
+      "cell": [
+        627,
+        627,
+        627,
+        627
+      ]
+    }
+  },
+  "frontier-executioner-axe": {
+    "x": 0.20869565217391303,
+    "y": 0.6826086956521739,
+    "angle": -0.8266119260557685,
+    "length": 58,
+    "source": {
+      "path": "assets/sprites/atlases/melee-axes-v1.png",
+      "cell": [
+        627,
+        627,
+        627,
+        627
+      ]
+    }
+  }
+}

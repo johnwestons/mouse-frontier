@@ -1,6 +1,7 @@
 local SmokeController = require("game.smoke_controller")
 local SmokeReport = require("game.smoke_report")
 local SmokeSupport={inventory=require("game.inventory"),style=require("game.ui_layout"),viewport=require("game.viewport")}
+SmokeSupport.home=require("game.home_stop")
 SmokeSupport.items=require("game.item_instances")
 SmokeSupport.settlements=require("game.settlements")
 function SmokeSupport.replaceSlots(data,kind,values)
@@ -54,6 +55,28 @@ local function install(context)
     local getMobileControls=required(context,"getMobileControls","function")
     local createIntro=required(context,"createIntro","function")
     local newSave=required(context,"newSave","function")
+    function SmokeSupport.prepareJourney(data)
+        -- Broad train/route fixtures begin after the opening yard. The native
+        -- home-stop harness exercises its real movement and dialogue controls.
+        assert(SmokeSupport.home.advance(data,"enterOffice"))
+        for line=1,5 do assert(SmokeSupport.home.advance(data,"talk").line==line) end
+        assert(SmokeSupport.home.advance(data,"talk").stage=="supplies")
+        assert(SmokeSupport.home.advance(data,"exitOffice"))
+        assert(SmokeSupport.home.advance(data,"supplies").suppliesCollected)
+        assert(SmokeSupport.home.advance(data,"repair").repairComplete and data.maintenance.condition==100)
+        assert(SmokeSupport.home.advance(data,"enterOffice"))
+        assert(SmokeSupport.home.advance(data,"talk").line==6)
+        assert(SmokeSupport.home.advance(data,"talk").stage=="ready")
+        assert(SmokeSupport.home.advance(data,"exitOffice"))
+        assert(SmokeSupport.home.depart(data))
+        data.scene="train"; data.playerX,data.playerY=car.x+300,car.y+285
+        data.stopLayouts["1"]=nil; data.npcStates={}; data.currentNPC=data.npcRoster[1]
+        -- Keep the established worn-train maintenance scenario independent of
+        -- the fully serviced locomotive supplied by the opening yard.
+        data.maintenance.condition=72
+        return data
+    end
+    function SmokeSupport.newPreparedSave(character) return SmokeSupport.prepareJourney(newSave(character)) end
     local enterGame=required(context,"enterGame","function")
     local ensureStopLayout=required(context,"ensureStopLayout","function")
     local setupNPC=required(context,"setupNPC","function")
@@ -96,6 +119,29 @@ local function install(context)
             love.mousereleased(x,y,1)
         end
     end
+    function ui.smokeTapActionMenu(id,pointer)
+        local menu=ui.actionMenu
+        if not menu then return nil end
+        local function findTarget()
+            for _,target in ipairs(menu.targets or {}) do
+                if target.id==id and target.enabled then return target end
+            end
+        end
+        local target=findTarget()
+        if not target then
+            menu:setPage('main'); ui.smokeDraw(); target=findTarget()
+        end
+        if not target then return nil end
+        local rect=target.rect; local x,y=rect.x+rect.w/2,rect.y+rect.h/2
+        if os.getenv("MOUSE_FRONTIER_MOBILE")=="1" then
+            love.touchpressed(pointer or "smoke-action",x,y)
+            love.touchreleased(pointer or "smoke-action",x,y)
+        else
+            love.mousepressed(x,y,1)
+            love.mousereleased(x,y,1)
+        end
+        return rect
+    end
 -- `MOUSE_FRONTIER_SMOKE=1` runs a deterministic, headless-friendly playthrough.
 -- It uses the real callbacks and writes typed checkpoints to smoke-test.rpt in
 -- the isolated test save directory.
@@ -131,6 +177,9 @@ local function install(context)
             maintenanceCursor=maintenanceSession.cursorActive,maintenanceCompleted=maintenanceSession.completed,
             battleActive=game.battle~=nil,playerX=game.player and game.player.x,playerY=game.player and game.player.y,
             activeCar=game.saveData and game.saveData.activeCar,carTransitioning=game.carTransition~=nil,
+            homeActive=SmokeSupport.home.isHome(game.saveData),homeStage=game.saveData and game.saveData.homeStop.stage,
+            homeSuppliesCollected=game.saveData and game.saveData.homeStop.suppliesCollected,
+            homeRepairComplete=game.saveData and game.saveData.homeStop.repairComplete,
             sessionSynchronized=session and session.screen==game.state and session.scene==game.scene and session.saveData==game.saveData and session.player==game.player and session.selectedSlot==game.selectedSlot,
             screenManagerSynchronized=screens and screens.current==game.state and screens.current==session.screen,
             runtimeSynchronized=game:isSynchronized(screens),
@@ -187,7 +236,7 @@ local function install(context)
             end
         end
         if not character then io.stderr:write("LOAD_ERROR: no playable character assets found\n"); io.stderr:flush(); os.exit(1) end
-        game.saveData=newSave(character); game.selectedSlot=nil; enterGame(game.saveData)
+        game.saveData=SmokeSupport.newPreparedSave(character); game.selectedSlot=nil; enterGame(game.saveData)
         local mobileControls=getMobileControls()
         local reportPath=os.getenv("MOUSE_FRONTIER_SMOKE_REPORT") or os.getenv("MOUSE_FRONTIER_SMOKE_RPT") or "smoke-test.rpt"
         ui.smokeReport=SmokeReport.new({path=reportPath,runId=os.getenv("MOUSE_FRONTIER_SMOKE_RUN_ID"),metadata={
@@ -450,7 +499,21 @@ local function install(context)
                 Save.remove(99); game.selectedSlot=previousSlot
                 return {scheduled=scheduled,flushed=flushed,persisted=persisted~=nil,revisionAdvanced=(ui.itemOrderRevision or 0)>revision,suspended=suspended,resumed=resumed}
             end,check=function(_,_,_,result) return result.scheduled and result.flushed and result.persisted and result.revisionAdvanced and result.suspended and result.resumed end},
-            {name="start_new_game",action=function() Save.remove(98); game.selectedSlot=98; game.saveData=newSave(character); enterGame(game.saveData); return true end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,runtimeSynchronized=true}},
+            {name="start_new_game",action=function()
+                Save.remove(98); game.selectedSlot=98; game.saveData=newSave(character); enterGame(game.saveData)
+                local data=game.saveData
+                return {version=data.homeStop.version,line=data.homeStop.dialogueLine,npc=data.currentNPC,
+                    fixedLayout=data.stopLayouts["1"].homeStop}
+            end,expect={state="game",scene="stop",location=1,food=0,water=0,coal=0,oil=0,
+                playerX=420,playerY=565,maintenanceCondition=72,homeActive=true,homeStage="briefing",
+                homeSuppliesCollected=false,homeRepairComplete=false,runtimeSynchronized=true},
+                check=function(_,_,_,result)
+                    return result.version==SmokeSupport.home.VERSION and result.line==nil and result.npc==SmokeSupport.home.CONDUCTOR and result.fixedLayout==true
+                end},
+            {name="prepare_smoke_train_fixture",action=function()
+                enterGame(SmokeSupport.prepareJourney(game.saveData)); startX=game.player.x; return true
+            end,expect={state="game",scene="train",location=1,food=10,water=10,coal=10,oil=10,
+                homeActive=false,homeStage="departed",homeSuppliesCollected=true,homeRepairComplete=true,runtimeSynchronized=true}},
             {name="weapon_repair_workbench_render",action=function()
                 local previous={saveData=game.saveData,selectedSlot=game.selectedSlot,
                     weaponRepairOpen=game.weaponRepairOpen,weaponRepairSelected=game.weaponRepairSelected,
@@ -460,7 +523,7 @@ local function install(context)
                 ui.smokeRepairRestore=previous
                 local weapon="frontier-22-lever-rifle"
                 local component=assert(Catalog.weaponRepairParts[weapon])
-                local testSave=newSave(character)
+                local testSave=SmokeSupport.newPreparedSave(character)
                 SmokeSupport.replaceSlots(testSave,"equipment",{})
                 SmokeSupport.replaceSlots(testSave,"inventory",{weapon,component})
                 testSave.inventoryCapacity=6
@@ -541,7 +604,7 @@ local function install(context)
             end},
             {name="weapon_repair_all_parts_render",action=function()
                 local previous=game.saveData
-                local testSave=newSave(character)
+                local testSave=SmokeSupport.newPreparedSave(character)
                 enterGame(testSave)
                 testSave=game.saveData
                 game.trainUpgradeOpen=true; game.weaponRepairOpen=true
@@ -564,7 +627,7 @@ local function install(context)
             end,check=function(_,_,_,result) return result.rendered==83 and result.emptyList end},
             {name="weapon_repair_list_controls",action=function()
                 local previous=game.saveData
-                enterGame(newSave(character))
+                enterGame(SmokeSupport.newPreparedSave(character))
                 local data=game.saveData
                 SmokeSupport.replaceSlots(data,"equipment",{});SmokeSupport.replaceSlots(data,"inventory",Catalog.weaponProgression);data.inventoryCapacity=#Catalog.weaponProgression
                 game.trainUpgradeOpen=true;game.weaponRepairOpen=true;game.weaponRepairScroll=1
@@ -623,9 +686,10 @@ local function install(context)
                 local oldX,oldY=game.player.x,game.player.y
                 game.scene="stop"; game.saveData.scene="stop"; ensureStopLayout(); setupNPC()
                 local npc=game.saveData.currentNPC
+                local relationshipKey=require("game.npc_identity").key(game.saveData,npc)
                 game.player.x,game.player.y=game.npcActor.x,game.npcActor.y
                 SmokeSupport.items.write(game.saveData,nil,{kind="inventory",index=1},"water-bottle"); game.giftNPC=npc; ui.offerGift(1)
-                local record=game.saveData.relationships and game.saveData.relationships[npc]
+                local record=game.saveData.relationships and game.saveData.relationships[relationshipKey]
                 local result={consumed=game.saveData.inventory[1]==nil,gifts=record and record.gifts,speaker=game.dialogue and game.dialogue.speaker,
                     text=game.dialogue and game.dialogue.text}
                 SmokeSupport.items.write(game.saveData,nil,{kind="inventory",index=1},"frontier-short-sword")
@@ -635,7 +699,7 @@ local function install(context)
                 local saved=assert(SaveSchema.migrate(game.saveData))
                 local recipient=saved.stopLayouts[tostring(saved.location)]
                 result.weaponPreserved=saved.inventory[1]==nil and recipient.npcWeaponInstance.id==giftedId
-                    and recipient.npcWeaponInstance.durability==17 and saved.relationships[npc].gifts==2
+                    and recipient.npcWeaponInstance.durability==17 and saved.relationships[relationshipKey].gifts==2
                 game.scene,game.saveData.scene,game.npcActor,game.saveData.currentNPC=oldScene,oldSavedScene,oldNPC,oldCurrent
                 game.player.x,game.player.y=oldX,oldY
                 game.dialogue=nil; return result
@@ -963,23 +1027,21 @@ local function install(context)
             end},
             {name="exit_home_button",action=function()
                 ui.smokeDraw()
-                local control=ui.exitHome
+                local control=ui.smokeTapActionMenu("leave","smoke-exit-home")
                 if not control then return false end
-                love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
                 return {width=control.w,height=control.h}
             end,check=function(_,_,snapshot,result)
-                return result and result.width>=135 and result.height>=38 and snapshot.state=="game" and snapshot.scene=="stop"
+                return result and result.width>=70 and result.height>=64 and snapshot.state=="game" and snapshot.scene=="stop"
             end},
             {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return true end,expect={state="game",scene="house"}},
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("e"); return "e" end,expect={state="game",scene="stop"}},
             {name="return_to_train_button",action=function()
                 ui.smokeDraw()
-                local control=ui.returnTrain
+                local control=ui.smokeTapActionMenu("leave","smoke-return-train")
                 if not control then return false end
-                love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
                 return {width=control.w,height=control.h}
             end,check=function(_,_,snapshot,result)
-                return result and result.width>=135 and result.height>=38 and snapshot.state=="game" and snapshot.scene=="train"
+                return result and result.width>=70 and result.height>=64 and snapshot.state=="game" and snapshot.scene=="train"
             end},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
             {name="battle_ui_mouse_routes",action=function()
@@ -1115,7 +1177,7 @@ local function install(context)
                 return result.wrote and result.location==23 and result.nested=="known-good" and result.primaryGood and result.backupGood
             end},
         }
-        local scenarioContext={runtime=game,ui=ui,catalog=Catalog,character=character,newSave=newSave,enterGame=enterGame,
+        local scenarioContext={runtime=game,ui=ui,catalog=Catalog,character=character,newSave=SmokeSupport.newPreparedSave,enterGame=enterGame,
             beginEncounter=beginEncounter,ensureStopLayout=ensureStopLayout,setupNPC=setupNPC,update=SmokeSupport.advanceSimulation,draw=ui.smokeDraw,
             presentationRuntime=presentationRuntime,getMobileControls=getMobileControls,
             mobileEnabled=function() return mobileControls and mobileControls:isEnabled() or false end}
@@ -1132,7 +1194,7 @@ local function install(context)
         if mobileControls and mobileControls:isEnabled() then
             local mobileSteps={
                 {name="mobile_joystick_move_and_run",action=function()
-                    game.saveData=newSave(character); enterGame(game.saveData)
+                    game.saveData=SmokeSupport.newPreparedSave(character); enterGame(game.saveData)
                     ui.smokeDraw()
                     local before=game.player.x
                     local stick=mobileControls.joystick; local targetX=stick.x+stick.radius
@@ -1168,13 +1230,9 @@ local function install(context)
                     and result.primaryRadius>=58 and result.joystickRadius>=82 end},
                 {name="mobile_menu_touch",action=function()
                     ui.smokeDraw()
-                    local menuX=mobileControls.menu.x+mobileControls.menu.w/2; local menuY=mobileControls.menu.y+mobileControls.menu.h/2
-                    love.touchpressed("smoke-menu-open",menuX,menuY); love.touchreleased("smoke-menu-open",menuX,menuY)
-                    ui.smokeDraw()
-                    local menuOpened=ui.mobileMenuOpen and ui.backpack and ui.backpack.h>=64
-                    local packX=ui.backpack.x+ui.backpack.w/2; local packY=ui.backpack.y+ui.backpack.h/2
-                    love.touchpressed("smoke-pack-open",packX,packY); love.touchreleased("smoke-pack-open",packX,packY)
-                    local opened=game.inventoryOpen and not ui.mobileMenuOpen
+                    local pack=ui.smokeTapActionMenu("backpack","smoke-pack-open")
+                    local menuOpened=pack and pack.w>=70 and pack.h>=64
+                    local opened=game.inventoryOpen and not (ui.actionMenu and ui.actionMenu.page)
                     ui.smokeDraw()
                     local backX=mobileControls.back.x+mobileControls.back.w/2; local backY=mobileControls.back.y+mobileControls.back.h/2
                     love.touchpressed("smoke-back",backX,backY); love.touchreleased("smoke-back",backX,backY)
@@ -1192,33 +1250,29 @@ local function install(context)
                     return {menuOpened=menuOpened,opened=opened,paused=paused,resumed=resumed,closed=not game.inventoryOpen}
                 end,check=function(_,_,_,result) return result.menuOpened and result.opened and result.paused and result.resumed and result.closed end},
                 {name="mobile_exit_home_touch",action=function()
-                    game.saveData=newSave(character); enterGame(game.saveData)
+                    game.saveData=SmokeSupport.newPreparedSave(character); enterGame(game.saveData)
                     game.scene="stop"; game.saveData.scene="stop"
                     local doorX,doorY=SmokeSupport.settlements.doorPoint(game.saveData.location,1)
                     game.player.x,game.player.y=SmokeSupport.settlements.clamp(doorX,doorY,game.saveData.location)
                     ui.interaction={kind="house",index=1}; love.keypressed("e"); love.keyreleased("e")
                     assert(game.scene=="house","mobile exit fixture did not approach and enter its house")
                     ui.smokeDraw()
-                    local control=ui.exitHome
+                    local control=ui.smokeTapActionMenu("leave","smoke-exit-home")
                     if not control then return false end
-                    local x,y=control.x+control.w/2,control.y+control.h/2
-                    love.touchpressed("smoke-exit-home",x,y); love.touchreleased("smoke-exit-home",x,y)
                     return {width=control.w,height=control.h,scene=game.scene}
                 end,check=function(_,_,snapshot,result)
-                    return result and result.width>=220 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
+                    return result and result.width>=70 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
                 end},
                 {name="mobile_return_to_train_touch",action=function()
                     ui.smokeDraw()
-                    local control=ui.returnTrain
+                    local control=ui.smokeTapActionMenu("leave","smoke-return-train")
                     if not control then return false end
-                    local x,y=control.x+control.w/2,control.y+control.h/2
-                    love.touchpressed("smoke-return-train",x,y); love.touchreleased("smoke-return-train",x,y)
                     return {width=control.w,height=control.h,scene=game.scene}
                 end,check=function(_,_,snapshot,result)
-                    return result and result.width>=220 and result.height>=64 and result.scene=="train" and snapshot.scene=="train"
+                    return result and result.width>=70 and result.height>=64 and result.scene=="train" and snapshot.scene=="train"
                 end},
                 {name="mobile_shooting_range_aim_then_fire",action=function()
-                    game.saveData=newSave(character); game.saveData.location=2; game.saveData.scene="stop"; enterGame(game.saveData)
+                    game.saveData=SmokeSupport.newPreparedSave(character); game.saveData.location=2; game.saveData.scene="stop"; enterGame(game.saveData)
                     game.scene="stop"; game.saveData.scene="stop"
                     local layout=ensureStopLayout(); local spot=layout.shootingRange
                     if not spot then return false end
@@ -1292,7 +1346,7 @@ local function install(context)
         if ui.smokeFull then
             local fullSteps={
                 {name="full_run_initialize",action=function()
-                    game.saveData=newSave(character)
+                    game.saveData=SmokeSupport.newPreparedSave(character)
                     -- Route assistance is explicit: the normal scenarios run
                     -- first; this segment checks every charged departure,
                     -- arrival, a disk resume, and the game's ending trigger.
@@ -1332,8 +1386,7 @@ local function install(context)
                         ui.smokeDraw();love.keypressed(game.eventOutcome and 'return' or '1')
                     elseif game.state=="game" and game.scene=="stop" then
                         game.dialogue=nil;ui.smokeDraw()
-                        local control=assert(ui.returnTrain,"route return-to-train control was not drawn")
-                        love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                        local control=assert(ui.smokeTapActionMenu("leave","smoke-route-return"),"route leave action was not drawn")
                         assert(game.scene=="train","route return-to-train control did not return")
                     elseif game.state=="game" and game.scene=="train" and not game.travelTransition then
                         if game.saveData.location==25 and not route.reloaded then
@@ -1389,7 +1442,7 @@ local function install(context)
         end
         if os.getenv("MOUSE_FRONTIER_SMOKE_REPAIR_ONLY")=="1" then
             local repairSteps={}
-            local repairStepNames={loot_equipment_balance=true,start_new_game=true,
+            local repairStepNames={loot_equipment_balance=true,start_new_game=true,prepare_smoke_train_fixture=true,
                 weapon_repair_workbench_render=true,weapon_repair_workbench_restore=true,
                 weapon_repair_all_parts_render=true,weapon_repair_list_controls=true}
             for _,step in ipairs(steps) do
@@ -1496,4 +1549,7 @@ local function install(context)
     return true
 end
 
-return {install=install}
+return {install=install,prepareJourney=function(data)
+    assert(SmokeSupport.prepareJourney,"install the smoke before preparing a journey fixture")
+    return SmokeSupport.prepareJourney(data)
+end}

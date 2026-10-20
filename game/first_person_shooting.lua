@@ -9,6 +9,7 @@ local Sessions=require('game.coop_shooter_sessions')
 local Shooting={}
 local viewCache
 local SoundProfiles=require("game.weapon_sound_profiles")
+local AimCursor=require("game.aim_cursor")
 local sounds={}
 
 local NON_FIREARM_AMMO={
@@ -356,6 +357,7 @@ function Shooting.draw(state,width,height)
     local views=ensureViews()
     local image=views:get(state.weapon,state.ads and "sights" or "hip")
     if not image then fallbackWeapon(state); love.graphics.pop(); return end
+    AimCursor.sights(state.ads and state.weaponAction~='reload')
     local iw,ih=image:getDimensions()
     local maxWidth=state.ads and width*1.03 or width*.80
     local maxHeight=state.ads and height*.94 or height*.84

@@ -4,6 +4,7 @@ local Entities=require('game.coop_entities')
 local Trade=require('game.merchant_trade')
 local Area=require('game.crow_caravan_area')
 local Players=require('game.coop_players')
+local Recipients=require('game.coop_recipient_access')
 local Access={}
 local function near(state,x,y,radius)
     return type(state.x)=='number' and type(state.y)=='number' and type(x)=='number' and type(y)=='number'
@@ -16,9 +17,9 @@ function Access.find(data,targetId,merchantId,state,catalog,readOnly)
     local source
     if record.kind=='stop' then
         if state.scene~='stop' and state.scene~='house' then return nil,'wrong_scene' end
-        local npc=state.npc
-        if not data.stopLayouts or data.stopLayouts[tostring(data.location)]~=target or merchantId~=data.currentNPC
-            or not npc or npc.id~=merchantId or not near(state,npc.x,npc.y,95)
+        local npc=Recipients.resident(data,merchantId,state)
+        if not data.stopLayouts or data.stopLayouts[tostring(data.location)]~=target
+            or not npc or not near(state,npc.x,npc.y,95)
             or not target.npcOffers or target.npcOffers[merchantId]~='trade' then return nil,'merchant_unavailable' end
         source=Trade.stopSource(target,merchantId,nil,readOnly)
     elseif record.kind=='caravan' then
@@ -37,7 +38,17 @@ function Access.nearest(data,state,catalog)
     if not data or not state then return nil end
     if state.scene=='stop' or state.scene=='house' then
         local target=data.stopLayouts and data.stopLayouts[tostring(data.location)]
-        if target and target.entityId then return Access.find(data,target.entityId,data.currentNPC,state,catalog,true) end
+        if target and target.entityId then
+            local nearest,distance
+            for _,resident in ipairs(Recipients.residents(data,state)) do
+                local source=Access.find(data,target.entityId,resident.file or resident.id,state,catalog,true)
+                if source then
+                    local d=(state.x-resident.x)^2+(state.y-resident.y)^2
+                    if not distance or d<distance then nearest,distance=source,d end
+                end
+            end
+            return nearest
+        end
     elseif state.scene=='caravan' then
         for _,record in ipairs(Entities.records(data)) do
             if record.kind=='caravan' and record.value.id==data.crowCaravans.activeCampId then

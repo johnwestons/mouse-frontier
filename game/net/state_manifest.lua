@@ -1,15 +1,15 @@
 -- Every persistent field needs an explicit wire ownership decision. New save
 -- fields fail projection until classified; migration flags stay host-local.
-local M={VERSION=1,SCHEMA=44}
+local M={VERSION=1,SCHEMA=46}
 M.groups={
     journey={'location','scene','stopped','activeHouseDoor','lastStopDoor','activeExpeditionArea','activeHelpQuestId',
         'visitedStops','arrivalNotice'},
     train={'resources','scrap','goodwill','trainCars','engineLevel','maintenance','outfitCrafting'},
     world={'droppedItems','houseInitialized','houseLayoutsArranged','stopLayouts','stopSludges','expeditions','crowCaravans','lootRolls','lootContainerCursor'},
-    people={'npcRoster','currentNPC','npcStates','npcOffers','npcWeapons','passengers','relationships'},
+    people={'npcRoster','currentNPC','npcStates','npcOffers','npcWeapons','passengers','relationships','npcIdentities'},
     quests={'supplyQuests','mailQuests','questAsked','helpHistory','helpQuestSessions','supplyDeliveryCycle'},
     story={'encounters','choices','events','eventProgress','eventHistory','eventCategoryHistory','mysteryStops',
-        'conversations','finale','lastStand','trainAmbush','expeditionBattle','pendingRewards'},
+        'conversations','finale','lastStand','trainAmbush','expeditionBattle','pendingRewards','homeStop'},
     combat={'tacticalBattle','roamingCombat','roamingEncounter','rangeSessions'},
 }
 M.actorFields={'id','character','trait','traitBaselineApplied','health','maxHealth','stats','inventory','inventoryCapacity',

@@ -2,6 +2,9 @@ local Accessibility=require("game.accessibility")
 local CoopProgression=require("game.coop_progression")
 local MerchantTrade=require("game.merchant_trade")
 local SceneRoutes=require('game.journey_scene_routes')
+local Home=require("game.home_stop")
+local SceneNPCs=require("game.scene_npcs")
+local HomeFox=require("game.home_stop_fox")
 local function required(context,name,expected)
   local value=context[name]
   assert(value~=nil,"world scene requires "..name)
@@ -79,6 +82,7 @@ local function new(context)
   end
 
   local function ensureStopLayout()
+      if Home.isHome(runtime.saveData) then return Home.layout(runtime.saveData) end
       local layout=Stops.ensure(runtime.saveData,Catalog,runtime.scene)
       ShootingRange.ensure(layout,runtime.saveData.location,Settlements)
       return layout
@@ -101,24 +105,11 @@ local function new(context)
   end
 
   local function setupNPC()
-      if runtime.scene=="train" or runtime.scene==ExpeditionAreas.SCENE or runtime.scene==CrowCaravanArea.SCENE then runtime.npcActor=nil; return end
-      local layout=ensureStopLayout()
-      runtime.saveData.currentNPC=(runtime.scene=="house" and layout.npcInside or layout.npcOutside) or layout.npc
-      local key=Util.sceneKey(runtime.scene,runtime.saveData.location)..(runtime.scene=="house" and (":"..tostring(runtime.saveData.activeHouseDoor or 1)) or "")
-      local saved=runtime.saveData.npcStates[key]
-      local defaults=runtime.scene=="house" and {x=650,y=410} or {x=math.max(330,math.min(790,(layout.houseX or 520)+135)),y=430}
-      saved=saved or {x=defaults.x,y=defaults.y,homeX=defaults.x,homeY=defaults.y,wait=1.5}
-      saved.weapon=layout.npcWeapon
-      if runtime.scene=="house" then
-          saved.x,saved.y=Util.clampHouseFloor(saved.x,saved.y)
-          saved.homeX,saved.homeY=Util.clampHouseFloor(saved.homeX,saved.homeY)
-      elseif runtime.scene=="stop" then
-          saved.x,saved.y=Settlements.clamp(saved.x,saved.y,runtime.saveData.location)
-          saved.homeX,saved.homeY=Settlements.clamp(saved.homeX,saved.homeY,runtime.saveData.location)
-      end
-      runtime.saveData.npcStates[key]=saved
-      runtime.npcActor=saved
-      Family.ensure(runtime.npcActor,runtime.saveData.currentNPC)
+      runtime.npcActors={}
+      runtime.npcActor=SceneNPCs.prepare(runtime.saveData,Catalog)
+      if SceneNPCs.hasResidents(runtime.saveData) and not Home.isHome(runtime.saveData) then
+          SceneNPCs.refresh(runtime,SceneNPCs.locked(runtime))
+      elseif runtime.npcActor then runtime.npcActors={runtime.npcActor} end
   end
 
   local function caravanScheduleOptions()
@@ -142,6 +133,7 @@ local function new(context)
 
   local function currentCaravanInteraction()
       if not runtime.saveData or not runtime.player then return nil end
+      if Home.isHome(runtime.saveData) then return nil end
       if runtime.scene=="stop" then
           local available=CrowCaravans.isScheduled(runtime.saveData,runtime.saveData.location,caravanScheduleOptions())
           if not available then return nil end
@@ -233,7 +225,7 @@ local function new(context)
       if runtime.tradeOpen then
           local layout=ensureStopLayout(); layout.tradeStock=layout.tradeStock or {}
           local merchant=runtime.tradeNPC or runtime.saveData.currentNPC
-          return MerchantTrade.stopSource(layout,merchant,Util.titleFromFile(merchant).."'S TRADING POST")
+          return MerchantTrade.stopSource(layout,merchant,require('game.npc_identity').name(runtime.saveData,merchant).."'S TRADING POST")
       end
       return nil
   end
@@ -266,6 +258,7 @@ local function new(context)
 
   local function updateStopSludges(dt)
       if runtime.scene~="stop" or not runtime.saveData or not runtime.player then return end
+      if Home.isHome(runtime.saveData) then return end
       StopSludges.update(activeStopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=isWeapon,clock=runtime.animationClock,
           clamp=function(x,y) return Settlements.clamp(x,y,runtime.saveData.location) end,
           dropCoal=function(x,y)
@@ -275,14 +268,16 @@ local function new(context)
   end
 
   local function attackStopSludge(x,y)
+      if Home.isHome(runtime.saveData) then return false end
       if runtime.scene~="stop" or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen or runtime.trainUpgradeOpen or runtime.poseMenu or ui.optionsOpen then return false end
       return StopSludges.attack(activeStopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=isWeapon,clock=runtime.animationClock,
-          onAction=function(weapon) runtime.actionHeldItem=weapon; runtime.actionKind="melee"; runtime.actionTimer=.42 end,
+          onAction=function(weapon) local attack=require('game.character_attack'); runtime.actionHeldItem=attack.heldItem(weapon); runtime.actionKind=attack.action(weapon); runtime.actionTimer=.42; runtime.actionDuration=.42 end,
           playSfx=function(kind) ui.playSfx(kind) end},x,y)
   end
 
   local function updateWildlife(dt)
       if runtime.scene~="stop" or not runtime.saveData then return end
+      if Home.isHome(runtime.saveData) then return end
       local layout=ensureStopLayout()
       Wildlife.spawn(layout,runtime.saveData.location,Settlements)
       local ecology={player=runtime.player}
@@ -292,6 +287,7 @@ local function new(context)
   end
 
   local function update(dt)
+      if Home.isHome(runtime.saveData) then HomeFox.update(runtime.saveData,dt,runtime.dialogue and runtime.dialogue.homeFox and runtime.player); return end
       updateStopSludges(dt)
       updateWildlife(dt)
       expedition.update(dt)
@@ -303,6 +299,7 @@ local function new(context)
 
   local function currentShootingRange()
       if runtime.scene~="stop" or not runtime.saveData then return nil end
+      if Home.isHome(runtime.saveData) then return nil end
       return ensureStopLayout().shootingRange
   end
 
@@ -489,11 +486,13 @@ local function new(context)
   end
 
   local function drawStopSludges(images)
+      if Home.isHome(runtime.saveData) then return end
       StopSludges.draw(activeStopSludges,{data=runtime.saveData,location=runtime.saveData.location,clock=runtime.animationClock,images=images})
   end
 
   local function drawWildlife(layout)
       if not layout or runtime.scene~="stop" then return end
+      if Home.isHome(runtime.saveData) then return end
       Wildlife.spawn(layout,runtime.saveData.location,Settlements)
       Wildlife.draw(layout.wildlife,scenery.stopWildlife,runtime.animationClock)
       Mice.spawn(layout,runtime.saveData.location,Settlements)

@@ -49,6 +49,38 @@ class GuestViewTests(unittest.TestCase):
             function ready() assert(view:update(.05)); controller.motionFrame=frame(1); assert(view:update(.05)) end
         ''')
 
+    def test_scenery_inspection_routes_guest_input_and_blocks_movement(self):
+        self.lua.execute('''
+            ready()
+            local data=view.runtime.saveData
+            data.scene='stop';data.location=42;view.runtime.scene='stop'
+            local spot=require('game.stop_hotspots').definitions(42)[1]
+            view.runtime.player.x,view.runtime.player.y=spot.x,spot.y
+            assert(view:interactionAvailable() and view:actionLabel()=='INSPECT')
+            view:keypressed('e')
+            assert(view.inspection.opened and not view:inputAllowed())
+            local scope,panel=view:controllerScope();assert(scope=='menu' and panel==view.inspection)
+            view:keypressed('i');assert(not view.runtime.inventoryOpen)
+            view:wheelmoved(0,1);assert(view.camera.zoom==1)
+            view:keypressed('escape');assert(not view.inspection.opened and view:inputAllowed())
+            view:interact();assert(view.inspection.opened)
+            view.epoch=view.epoch+1;view.inspection:update();assert(not view.inspection.opened)
+        ''')
+
+    def test_home_conductor_is_visible_and_has_no_generic_companion_conversation(self):
+        self.lua.execute('''
+            local Home=require('game.home_stop')
+            data.scene='stop'; data.location=1; data.homeStop=Home.newState()
+            data.homeStop.inOffice=true
+            require('game.scene_npcs').prepare(data,{})
+            ready()
+            assert(view.runtime.npcActor and view.runtime.saveData.currentNPC==Home.npc)
+            assert(view.runtime.npcActor.x==Home.points.conductor.x)
+            assert(view.runtime.npcActor.y==Home.points.conductor.y)
+            assert(not view.people:nearest() and not view.people:open({}))
+            assert(data.npcStates['stop:1']==nil)
+        ''')
+
     def test_render_state_is_detached_unsavable_and_scoped_to_guest(self):
         self.lua.execute('''
             ready(); local own=view.runtime.saveData

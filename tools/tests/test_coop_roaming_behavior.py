@@ -31,6 +31,23 @@ class RoamingCommandTests(unittest.TestCase):
             function swing(id,extra) return run(id,'roaming.attack',fieldArgs(id,extra)) end
         ''')
 
+    def test_unarmed_host_and_guest_use_saved_cues_without_item_wear(self):
+        self.field()
+        self.lua.execute('''
+            for _,id in ipairs({'host','companion'}) do
+                local actor=Players.get(data,id)
+                actor.itemSlots.equipment[1].durability=0
+                assert(Field.weapon(data,id,Catalog)=='scratch')
+                local hp=a.hp;local result=swing(id,{weaponId='scratch'})
+                assert(result.ok,result.reason)
+                local cue=data.roamingCombat.actors[id]
+                assert(cue.weapon=='scratch' and cue.damage>0 and a.hp<hp and Cue.validate(data))
+                assert(actor.itemSlots.equipment[1].durability==0)
+                assert(swing(id,{weaponId='scratch'}).reason=='attack_cooldown')
+            end
+            assert(Schema.copy(saved))
+        ''')
+
     def test_guest_swing_owns_costs_rng_and_cue_without_story_change(self):
         self.field()
         self.lua.execute('''

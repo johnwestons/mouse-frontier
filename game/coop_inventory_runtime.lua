@@ -342,13 +342,18 @@ function Runtime.new(context)
                 quotedPrice=quote and quote.price,quotedItem=quote and quote.itemName})
             return reply.ok and reply.result or {ok=false,reason=reply.reason}
         end,
-        gift=function(npc,source,chest,equipOnly)
+        gift=function(npc,source,chest,equipOnly,characterId)
             local service,reason=current()
             if not service then return {ok=false,reason=reason} end
             local target
             if runtime.scene=="train" then
+                local nearest
                 for _,passenger in ipairs(campaign.passengers) do
-                    if passenger.npc==npc then target=passenger; break end
+                    if passenger.npc==npc and (not characterId or passenger.characterId==characterId)
+                        and (passenger.carIndex or 1)==(campaign.activeCar or 1) then
+                        local distance=(runtime.player.x-passenger.x)^2+(runtime.player.y-passenger.y)^2
+                        if not nearest or distance<nearest then target,nearest=passenger,distance end
+                    end
                 end
             else target=campaign.stopLayouts[tostring(campaign.location)] end
             local command=equipOnly and runtime.scene=="train" and "passenger.equip" or "npc.gift"

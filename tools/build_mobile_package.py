@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -25,13 +26,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from tools.audit_coop_package import audit_love, contract, source_files
+from tools.character_action_contract import action_contract
 CONFIG_PATH = ROOT / "mobile" / "config.json"
 OUTPUT_ROOT = ROOT / "output" / "mobile"
 STAGE_ROOT = OUTPUT_ROOT / "stage"
 CACHE_ROOT = OUTPUT_ROOT / "cache"
 FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 FFMPEG_SHA_URL = FFMPEG_URL + ".sha256"
-ACTIONS = {"idle", "sit", "lay", "walk", "run", "melee", "ranged", "use", "hit", "death", "unconscious"}
+ACTIONS = {"idle", "sit", "lay", "walk", "run", "melee", "swing", "ranged", "use", "hit", "death", "unconscious", "sweep", "carry", "tend"}
 DIRECTIONAL_CHARACTER_ACTIONS = {
     f"{action}_{direction}"
     for action in ("idle", "walk", "run")
@@ -39,6 +41,7 @@ DIRECTIONAL_CHARACTER_ACTIONS = {
 }
 CHARACTER_ACTIONS = ACTIONS | DIRECTIONAL_CHARACTER_ACTIONS
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
+_STAGE_DIRECTORY_LOCK = threading.Lock()
 EXCLUDED_RUNTIME_AUDIO_PREFIXES = (
     "sounds/soundeffects/hurtmale/",
     "sounds/soundeffects/hurtmob/",
@@ -112,7 +115,10 @@ def cache_key(source: Path, operation: str) -> str:
 
 
 def link_or_copy(source: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    # Image and audio workers often share a new directory. Serialize mkdir on
+    # Windows, where a competing recursive mkdir may report access denied.
+    with _STAGE_DIRECTORY_LOCK:
+        destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         os.link(source, destination)
     except OSError:
@@ -168,10 +174,26 @@ def image_bounds(relative: str, config: dict, source_size: tuple[int, int] | Non
         if relative in CARAVAN_PACKED_REGIONS:
             atlas_region_rectangles(relative, result)
         return result
+    if relative.startswith("assets/sprites/Mobs/combat/"):
+        if source_size is None:
+            raise ValueError("Mob combat bounds require the source dimensions")
+        width, height = source_size
+        if height <= 0 or width != 12 * height:
+            raise ValueError(f"Mob combat sheets require six wide cells: {relative} ({width}x{height})")
+        frame_size = int(config['characterAnimationFrameSize'])
+        return 12 * frame_size, frame_size
     if relative.startswith("assets/sprites/character-animations/"):
         if source_size is None:
             raise ValueError("Character animation bounds require the source dimensions")
         width, height = source_size
+        parts=Path(relative).parts
+        authored=action_contract(ROOT,parts[-2],Path(relative).stem)
+        wide_count=authored['frame_count'] if authored else (4 if Path(relative).stem in {'sweep','carry','tend'} else None)
+        if wide_count:
+            if height<=0 or width!=wide_count*height*2:
+                raise ValueError(f"Character action sheet does not match its wide cells: {relative} ({width}x{height})")
+            frame_size=int(config['characterAnimationFrameSize'])
+            return wide_count*frame_size*2,frame_size
         if height <= 0 or width % height != 0:
             raise ValueError(f"Character animation sheet is not made of square cells: {relative} ({width}x{height})")
         frame_size = int(config["characterAnimationFrameSize"])

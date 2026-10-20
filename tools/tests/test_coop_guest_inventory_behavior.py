@@ -219,7 +219,10 @@ class GuestInventoryTests(unittest.TestCase):
         self.lua.execute('''
             local Areas=require('game.expedition_areas'); local campaign=Players.campaignOf(runtime.saveData)
             Areas.ensure(campaign); campaign.activeExpeditionArea=Areas.BADLANDS_SURFACE_ID; campaign.scene='expedition'
-            runtime.scene='expedition'; runtime.player.x=1264; runtime.player.y=397
+            runtime.scene='expedition'
+            for _,interaction in ipairs(Areas.current(campaign).interactions) do
+                if interaction.id=='surface-cache' then runtime.player.x,runtime.player.y=interaction.x,interaction.y end
+            end
             local area=campaign.expeditions[campaign.activeExpeditionArea]; local chest=area.chests['surface-cache']
             Areas.ensure=function() error('guest attempted normalization') end
             Areas.state=function() error('guest attempted lazy state access') end

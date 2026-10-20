@@ -96,7 +96,7 @@ local function new(context)
     }
     local ok,errorMessage=xpcall(function()
       runtime.selectedSlot=99; Save.remove(99)
-      local data=sessionBootstrap.newSave(characters[1])
+      local data=SmokePlaythrough.prepareJourney(sessionBootstrap.newSave(characters[1]))
       local stop=data.crowCaravans.scheduledStops[1]
       local player={x=480,y=600,facing=1,velocityX=0,velocityY=0,intentX=1,intentY=0}
       data.location=stop; data.scene="stop"; data.scrap=999
@@ -108,7 +108,9 @@ local function new(context)
       assert(entrance and entrance.action=="enterCaravan","scheduled stop has no caravan entrance")
       player.x,player.y=entrance.x,entrance.y
       local returnX,returnY=player.x,player.y
-      flow.entered=worldScene.activateCaravanInteraction(entrance)==true and runtime.scene=="caravan"
+      local entered,entryReason=worldScene.activateCaravanInteraction(entrance)
+      assert(entered,"caravan entry failed: "..tostring(entryReason))
+      flow.entered=runtime.scene=="caravan"
       views.gameplayHUD.draw()
       flow.returnVisibleDuringGreeting=runtime.dialogue~=nil and ui.returnStop~=nil
       local anchor=CrowCaravanArea.merchantDefinitions[1]

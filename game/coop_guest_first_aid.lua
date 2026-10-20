@@ -205,7 +205,7 @@ function Panel:draw()
         return
     end
     self.view.inventory:frame(120,80,720,570,1,1); g.setColor(self.c.colors.cream)
-    self.view.trade:textBox('FIRST AID / '..Util.titleFromFile(self.npc),145,102,670,38,1.1,'center')
+    self.view.trade:textBox('FIRST AID / '..require('game.npc_identity').name(self.runtime.saveData,self.npc),145,102,670,38,1.1,'center')
     self.view.trade:textBox(self.notice or 'Select a supply from your backpack. It is used after treatment.',155,149,650,65,.85,'center')
     self.rows={}; self.drawn={}
     if self.completed then

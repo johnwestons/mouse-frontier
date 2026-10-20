@@ -192,7 +192,7 @@ class LastStandProgressionTests(unittest.TestCase):
         self.stand()
         self.lua.execute('''
             local old=assert(Schema.copy(data)); old.version=39; old.lastStand.lifecycle=nil; old.lastStand.state='backyard'
-            local loaded=assert(Schema.migrate(old)); assert(loaded.version==44 and loaded.lastStand.lifecycle.mode=='backyard')
+            local loaded=assert(Schema.migrate(old)); assert(loaded.version==Schema.CURRENT_VERSION and loaded.lastStand.lifecycle.mode=='backyard')
             assert(Schema.validate(loaded)); loaded.lastStand.lifecycle.mode='shootout'; assert(not Schema.validate(loaded))
             assert(not Schema.migrate(loaded)); loaded.lastStand.lifecycle.mode='backyard'; loaded.lastStand.lifecycle.revision=0
             assert(not Schema.migrate(loaded))

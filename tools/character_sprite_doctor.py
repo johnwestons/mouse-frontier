@@ -32,6 +32,7 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from tools.character_action_contract import action_contract
 DEFAULT_ANIMATION_ROOT = ROOT / "assets" / "sprites" / "character-animations"
 DEFAULT_OUTPUT_ROOT = ROOT / "output" / "sprite-doctor"
 DEFAULT_WEAPON_ANCHOR_OVERRIDES = ROOT / "tools" / "weapon_attachment_overrides.json"
@@ -931,6 +932,9 @@ class SpriteDoctor:
         action: str,
         overrides: Mapping[tuple[str, str], Image.Image | None] | None = None,
     ) -> int:
+        authored=action_contract(self.project_root,character,action)
+        if authored:
+            return authored['frame_count']
         # A directional build manifest also identifies an isolated east draft;
         # sibling camera files need not exist yet for its eight-pose contract.
         if action == "walk" and ((character, action) in self.action_framing
@@ -971,6 +975,11 @@ class SpriteDoctor:
                 if image is None:
                     continue
                 expected = self.expected_frame_count(character, action)
+                authored=action_contract(self.project_root,character,action)
+                if authored and authored['hands']:
+                    actions[action]=[HandAnchor(index+1,p['x'],p['y'],p['side'],p.get('confidence',.7))
+                                     for index,p in enumerate(authored['hands'])]
+                    continue
                 actual = inferred_square_frame_count(image) or expected
                 frames = split_evenly(image.convert("RGBA"), actual)
                 actions[action] = [
@@ -1021,7 +1030,8 @@ class SpriteDoctor:
                 f"image mode is {original_mode}; expected RGBA", repairable=True, confidence="high",
             ))
         image = image.convert("RGBA")
-        inferred_count = inferred_square_frame_count(image)
+        authored=action_contract(self.project_root,character,action)
+        inferred_count = None if authored else inferred_square_frame_count(image)
         actual_count = inferred_count or (expected_count if image.width % expected_count == 0 else None)
 
         if inferred_count is not None and inferred_count != expected_count:
@@ -1042,7 +1052,7 @@ class SpriteDoctor:
         baseline_target = float(framing["baseline"]) if framing else TARGET_BASELINE
         anchor_mode = str(framing["horizontal_anchor"]) if framing else "bbox"
         size_metric = str(framing.get('size_metric', 'height')) if framing else 'extent'
-        expected_size = (frame_size * expected_count, frame_size)
+        expected_size = (authored['frame_width']*expected_count,authored['frame_height']) if authored else (frame_size * expected_count, frame_size)
         if image.size != expected_size:
             issues.append(Issue(
                 "error", "sheet_size", character, action,

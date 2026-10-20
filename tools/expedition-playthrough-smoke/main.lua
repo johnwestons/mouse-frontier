@@ -4,12 +4,13 @@ local repoRoot=assert(os.getenv("EXPEDITION_SMOKE_ROOT"),"EXPEDITION_SMOKE_ROOT 
 local outputRoot=assert(os.getenv("EXPEDITION_SMOKE_OUTPUT"),"EXPEDITION_SMOKE_OUTPUT is required"):gsub("\\","/")
 package.path=repoRoot.."/?.lua;"..repoRoot.."/?/init.lua;"..package.path
 
-local app,ctx,game,ui,services,Areas
+local app,ctx,game,ui,services,Areas,commands
 local report={}
 local checks=0
 local mobile=os.getenv("MOUSE_FRONTIER_MOBILE")=="1"
 local prefix=mobile and "mobile" or "desktop"
 local finished=false
+local simulationClock=0
 
 local function record(text)
     report[#report+1]=text
@@ -37,7 +38,9 @@ local function saveReport(status,message)
 end
 
 local function update(dt)
-    app.update(dt or 1/30)
+    dt=dt or 1/30
+    simulationClock=simulationClock+dt
+    app.update(dt)
 end
 
 local function setKeys(keys)
@@ -52,7 +55,8 @@ local function walkDirect(targetX,targetY,areaId)
     local stalled=0
     for _=1,900 do
         local dx,dy=targetX-game.player.x,targetY-game.player.y
-        if math.sqrt(dx*dx+dy*dy)<=12 then break end
+        local remaining=math.sqrt(dx*dx+dy*dy)
+        if remaining<=3 then break end
         local held=setKeys({
             a=dx < -1,d=dx > 1,w=dy < -1,s=dy > 1,
         })
@@ -60,11 +64,11 @@ local function walkDirect(targetX,targetY,areaId)
             for i=1,select("#",...) do if held[select(i,...)] then return true end end
             return false
         end
-        update(1/30)
+        update(remaining<=12 and 1/120 or 1/30)
         love.keyboard.isDown=oldIsDown
         assert(game.state=="game" and game.scene=="expedition" and game.saveData.activeExpeditionArea==areaId,
             "movement left the active expedition")
-        local remaining=distance(game.player.x,game.player.y,targetX,targetY)
+        remaining=distance(game.player.x,game.player.y,targetX,targetY)
         if remaining<previousDistance-.08 then stalled=0 else stalled=stalled+1 end
         previousDistance=remaining
         if stalled>24 then
@@ -73,7 +77,7 @@ local function walkDirect(targetX,targetY,areaId)
         end
     end
     love.keyboard.isDown=oldIsDown
-    local reached=distance(game.player.x,game.player.y,targetX,targetY)<=12
+    local reached=distance(game.player.x,game.player.y,targetX,targetY)<=3
     if reached then check(true,"walked to waypoint "..targetX..","..targetY) end
     return reached
 end
@@ -148,7 +152,8 @@ end
 local function walkAreaTo(areaId,targetX,targetY)
     check(game.scene=="expedition" and game.saveData.activeExpeditionArea==areaId,
         "route begins in "..areaId)
-    for _=1,80 do
+    local blockedSteps=0
+    for _=1,400 do
         if distance(game.player.x,game.player.y,targetX,targetY)<=18 then break end
         local nextX,nextY=Areas.pathTarget(game.saveData,areaId,game.player.x,game.player.y,targetX,targetY)
         check(nextX~=nil and nextY~=nil,"navigation found the next route waypoint")
@@ -160,19 +165,51 @@ local function walkAreaTo(areaId,targetX,targetY)
         check(route~=nil,"eight-direction movement route reaches the target")
         local waypoint
         for _,candidate in ipairs(route) do
-            if distance(game.player.x,game.player.y,candidate.x,candidate.y)>14 then
+            if distance(game.player.x,game.player.y,candidate.x,candidate.y)>3 then
                 waypoint=candidate; break
             end
         end
         check(waypoint~=nil,"keyboard route supplies a movement step")
+        record(string.format("KEYBOARD toward %.2f,%.2f",waypoint.x,waypoint.y))
         if not walkDirect(waypoint.x,waypoint.y,areaId) then
+            blockedSteps=blockedSteps+1
             record(string.format("ROUTE movement replans from %.1f,%.1f after a blocked step",
                 game.player.x,game.player.y))
-        end
+            check(blockedSteps<8,"keyboard movement does not repeatedly stall")
+        else blockedSteps=0 end
     end
     check(distance(game.player.x,game.player.y,targetX,targetY)<=18,
         "route reaches destination "..targetX..","..targetY)
     update(1/30)
+end
+
+local function interactionDefinition(areaId,interactionId)
+    local area=assert(Areas.definition(areaId),"missing interaction area "..areaId)
+    for _,interaction in ipairs(area.interactions or {}) do
+        if interaction.id==interactionId then return interaction end
+    end
+    error("missing interaction "..areaId.."/"..interactionId)
+end
+
+local function walkToInteraction(areaId,interactionId)
+    local interaction=interactionDefinition(areaId,interactionId)
+    walkAreaTo(areaId,interaction.x,interaction.y)
+end
+
+local function captureGameplay(name)
+    love.graphics.clear(0,0,0,1)
+    app.draw()
+    local captured=false
+    local filename=prefix.."-"..name..".png"
+    love.graphics.captureScreenshot(function(data)
+        local encoded=data:encode("png")
+        local file=assert(io.open(outputRoot.."/"..filename,"wb"))
+        file:write(encoded:getString()); file:close()
+        encoded:release(); data:release()
+        captured=true
+    end)
+    love.graphics.present()
+    check(captured,"captured gameplay view "..filename)
 end
 
 local function openMapAndClose()
@@ -231,10 +268,11 @@ end
 
 local function interact(action)
     update(1/30)
+    app.draw()
     local selected=services.worldScene.currentExpeditionInteraction()
     check(selected and selected.kind=="expedition" and selected.action==action,
         "interaction selected: "..action)
-    app.keypressed("q")
+    app.keypressed("e")
     update(1/30)
 end
 
@@ -267,8 +305,7 @@ local function fightMob(mobId)
 end
 
 local function clearBattleAsWin()
-    for _,unit in ipairs(game.battle.units) do if unit.team=="enemy" then unit.hp=0 end end
-    services.battleRuntime.advanceTurn()
+    require("tools.expedition-integration-preview.fixture").resolveStagedBattle(game,commands,require("game.catalog"),"win")
     check(game.battle.finished=="win","battle win uses the normal completion path")
 end
 
@@ -303,10 +340,11 @@ local function enterTrailhead(stop,areaId,description)
     game.saveData.location=stop
     game.player.x,game.player.y=875,380
     update(1/30)
+    app.draw()
     local stopEntrance=services.worldScene.currentExpeditionInteraction()
     check(Areas.availableAtStop(stop) and stopEntrance and stopEntrance.action=="enterArea",
         "Stop "..stop.." wilderness trailhead is selectable")
-    app.keypressed("q")
+    app.keypressed("e")
     check(game.scene=="expedition" and game.saveData.activeExpeditionArea==areaId,
         "trailhead enters "..description)
     game.dialogue=nil
@@ -318,18 +356,21 @@ local function clearBadlandsExpedition()
     enterTrailhead(5,surface,"Red Mesa Approach")
     checkCompactHud()
     openMapAndClose()
+    captureGameplay("approach-entrance")
 
     fightMob("surface-dust-beetle")
+    captureGameplay("approach-main-trail")
     fightMob("surface-cactus-rat")
     check(services.worldScene.expeditionObjective().status=="CLEARED 2/2",
         "regular Badlands mobs update surface cleared progress")
-    walkAreaTo(surface,1264,397)
+    walkToInteraction(surface,"surface-cache")
+    captureGameplay("approach-supply-cache")
     interact("chest")
     check(game.chestOpen and Areas.state(game.saveData,surface).chests["surface-cache"].opened,
         "Badlands supply cache opens and persists")
     closeExpeditionStorage()
 
-    walkAreaTo(surface,1460,150)
+    walkToInteraction(surface,"basin-entrance")
     interact("enterArea")
     check(game.scene=="expedition" and game.saveData.activeExpeditionArea==basin,
         "Red Mesa trail leads into the open Redwash Basin")
@@ -338,8 +379,15 @@ local function clearBadlandsExpedition()
     openMapAndClose()
 
     local basinState=Areas.state(game.saveData,basin)
-    check(Areas.definition(basin).kind=="wilderness" and #Areas.definition(basin).mobs==3,
+    local basinDefinition=Areas.definition(basin)
+    local environment=assert(basinDefinition.environment,"basin has a timed flood")
+    local floodPoints=assert(environment.floodZone.points,"basin has an authored flood crossing")
+    local floodSample=assert(floodPoints[math.ceil(#floodPoints/2)],"flood crossing has a sample point")
+    local northCairn=interactionDefinition(basin,"north-cairn")
+    check(basinDefinition.kind=="wilderness" and #basinDefinition.mobs==3,
         "Badlands basin uses a roaming wilderness roster without a dungeon guardian")
+    check(Areas.isWalkable(game.saveData,basin,floodSample.x,floodSample.y),
+        "low wash crossing is walkable before the flash flood")
 
     -- Let the warning and flood play through. The wash crossing closes while
     -- the elevated ridge remains a valid route to the north cairn.
@@ -350,19 +398,19 @@ local function clearBadlandsExpedition()
     check(basinState.environmentPhase=="warning","basin warns before the timed flash flood")
     for _=1,41 do update(.1) end
     check(basinState.environmentPhase=="flooded","flash flood reaches the low wash")
-    check(not Areas.isWalkable(game.saveData,basin,832,526),
+    check(not Areas.isWalkable(game.saveData,basin,floodSample.x,floodSample.y),
         "flash flood temporarily blocks the low wash crossing")
     local entryX,entryY=game.player.x,game.player.y
-    game.player.x,game.player.y=832,500
-    basinState.environmentPhase="warning"; basinState.environmentClock=13.9
+    game.player.x,game.player.y=floodSample.x,floodSample.y
+    basinState.environmentPhase="warning"; basinState.environmentClock=environment.floodAt-.1
     update(.2)
     check(basinState.environmentPhase=="flooded" and Areas.isWalkable(game.saveData,basin,game.player.x,game.player.y),
         "a player caught in the wash is moved safely to the nearest bank")
     game.player.x,game.player.y=entryX,entryY
-    local ridgeX,ridgeY=Areas.pathTarget(game.saveData,basin,game.player.x,game.player.y,750,110)
+    local ridgeX,ridgeY=Areas.pathTarget(game.saveData,basin,game.player.x,game.player.y,northCairn.x,northCairn.y)
     check(ridgeX~=nil and Areas.canReach(game.saveData,basin,game.player.x,game.player.y,ridgeX,ridgeY),
         "high ridge stays reachable while the wash is flooded")
-    walkAreaTo(basin,750,110)
+    walkToInteraction(basin,"north-cairn")
     interact("survey")
     check(basinState.markers["north-cairn"]==true,
         "north cairn can be marked from the safe ridge during a flood")
@@ -373,13 +421,13 @@ local function clearBadlandsExpedition()
     end
     check(basinState.environmentPhase~="flooded","wash opens again as floodwater recedes")
 
-    walkAreaTo(basin,360,180)
+    walkToInteraction(basin,"western-stash")
     interact("chest")
     check(game.chestOpen and basinState.chests["western-stash"].opened,
         "ridge supply stash opens and persists")
     closeExpeditionStorage()
 
-    walkAreaTo(basin,450,720)
+    walkToInteraction(basin,"fossil-cache")
     interact("chest")
     check(game.chestOpen and basinState.chests["fossil-cache"].opened,
         "optional fossil cache opens and persists")
@@ -397,21 +445,21 @@ local function clearBadlandsExpedition()
     end
     check(basinState.environmentPhase=="dry" and basinState.environmentClock<8,
         "smoke waits for a safe low-wash crossing window")
-    walkAreaTo(basin,900,500)
+    walkToInteraction(basin,"wash-cairn")
     interact("survey")
     check(basinState.markers["wash-cairn"]==true,"wash cairn records persistent survey progress")
-    walkAreaTo(basin,1580,320)
+    walkToInteraction(basin,"arch-cairn")
     interact("survey")
     check(basinState.markers["arch-cairn"]==true and basinState.completed,
         "marking all three cairns completes the open-air route")
     check(services.worldScene.expeditionObjective().status=="CAIRNS 3/3",
         "basin HUD shows all survey markers completed")
 
-    walkAreaTo(basin,1610,410)
+    walkToInteraction(basin,"basin-exit")
     interact("enterArea")
     check(game.saveData.activeExpeditionArea==surface,"basin route returns to Red Mesa Approach")
     setSafeGrace()
-    walkAreaTo(surface,836,700)
+    walkToInteraction(surface,"return-stop-5")
     interact("returnStop")
     check(game.scene=="stop" and game.saveData.activeExpeditionArea==nil,
         "Badlands surface exit returns to Stop 5 and clears the active area")
@@ -523,19 +571,22 @@ local function runPlaythrough()
     -- Exercise the loss result as a separate outcome in this isolated session.
     game.player.x,game.player.y=875,380
     update(1/30)
-    app.keypressed("q")
+    app.keypressed("e")
     check(game.scene=="expedition" and game.saveData.activeExpeditionArea==Areas.SURFACE_ID,
         "trailhead can be entered again for the defeat route")
     game.dialogue=nil
-    local returnX,returnY=game.player.x,game.player.y
+    setSafeGrace()
     local mob=Areas.state(game.saveData,Areas.SURFACE_ID).mobs["surface-bandit-b"]
-    services.battleRuntime.beginEncounter({source="expedition",areaId=Areas.SURFACE_ID,tier="easy",
+    local defeatX,defeatY=Areas.clamp(game.saveData,Areas.SURFACE_ID,mob.x-30,mob.y)
+    walkAreaTo(Areas.SURFACE_ID,defeatX,defeatY)
+    local returnX,returnY=game.player.x,game.player.y
+    check(services.battleRuntime.beginEncounter({source="expedition",areaId=Areas.SURFACE_ID,tier="easy",
         mobFiles={"sludge-bandit.png"},enemyStates={{mobId="surface-bandit-b",file="sludge-bandit.png",
             name="Sludge-Taken Bandit",hp=mob.hp,maxHp=mob.maxHp,weapon="mob-claw"}},
-        returnContext={scene="expedition",areaId=Areas.SURFACE_ID,x=returnX,y=returnY}})
+        returnContext={scene="expedition",areaId=Areas.SURFACE_ID,x=returnX,y=returnY}}),
+        "reachable living field enemy starts the defeat route")
     for _=1,40 do update(.05) end
-    for _,unit in ipairs(game.battle.units) do if unit.team=="ally" then unit.hp=0 end end
-    services.battleRuntime.advanceTurn()
+    require("tools.expedition-integration-preview.fixture").resolveStagedBattle(game,commands,require("game.catalog"),"loss")
     check(game.battle.finished=="loss","battle loss uses the normal completion path")
     clickControl("battleContinue")
     check(game.scene=="train" and game.saveData.activeExpeditionArea==nil,
@@ -553,15 +604,45 @@ function love.load()
         local Modules=require("game.systems")
         local original=Modules.smokeComposition.new
         Modules.smokeComposition.new=function(context) ctx=context; return original(context) end
+        local CommandRuntime=require("game.coop_inventory_runtime")
+        local originalCommands=CommandRuntime.new
+        CommandRuntime.new=function(context)
+            local function guard()
+                assert(love.filesystem.getIdentity()=="mouse-frontier-expedition-playthrough-qa","smoke identity changed")
+                assert(context.runtime.selectedSlot==nil and context.session.selectedSlot==nil,"smoke must remain unslotted")
+                assert(context.session.networkMode=="offline" and context.session.localPlayerId=="host","smoke must remain offline")
+            end
+            guard()
+            local detached={}; for key,value in pairs(context) do detached[key]=value end
+            -- Keep real command permissions/reach checks, without persistence;
+            -- simulated frame time must also advance authoritative cooldowns.
+            detached.checkpoint=nil
+            detached.clock=function() return simulationClock end
+            commands=originalCommands(detached)
+            local submit=commands.submit
+            commands.submit=function(...)
+                guard()
+                local reply=submit(...)
+                if not reply.ok then record("COMMAND rejected "..tostring((...))..": "..tostring(reply.reason)) end
+                assert(not reply.durable and not reply.savePending,"smoke produced a campaign save receipt")
+                return reply
+            end
+            return commands
+        end
         app=require("game.application_composition").new({engine=love})
+        CommandRuntime.new=originalCommands
         Modules.smokeComposition.new=original
         app.load()
         game,ui,services=ctx.state.runtime,ctx.state.ui,ctx.services
         Areas=require("game.expedition_areas")
         local data=services.sessionBootstrap.newSave("mail-mouse.png")
+        -- This fixture begins at Stop 5, after the opening-yard sequence.
+        data.homeStop={version=require("game.home_stop").VERSION,stage="departed",suppliesCollected=true,repairComplete=true}
         data.location=5; data.scene="stop"; data.playerX,data.playerY=875,380
         data.audio.musicVolume=0; data.audio.sfxVolume=0; data.audio.rainVolume=0
-        check(services.sessionBootstrap.enterGame(data),"fresh isolated journey loads")
+        local entered,enterError=services.sessionBootstrap.enterGame(data)
+        assert(entered,"fresh isolated journey could not load: "..tostring(enterError))
+        check(entered,"fresh isolated journey loads")
         check(game.selectedSlot==nil,"QA journey is unslotted")
         check(love.filesystem.getIdentity()=="mouse-frontier-expedition-playthrough-qa",
             "QA identity isolates all save data")

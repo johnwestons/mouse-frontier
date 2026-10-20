@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- A private shooter canvas. Only validated host commands change gameplay.
 local Schema=require('game.save_schema')
 local Sessions=require('game.coop_shooter_sessions')
@@ -9,6 +10,7 @@ local Scene=require('game.train_ambush_scene')
 local Rules=require('game.train_ambush_rules')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
+local ShooterPad=require('game.mobile_shooter_controls')
 local Panel={}; Panel.__index=Panel
 local controls={{key='space',label='FIRE\nLMB / SPACE'},{key='aim',label='AIM\nRMB'},
     {key='r',label='RELOAD\nR'},{key='c',label='COVER\nC'},{key='tab',label='WEAPON\nTAB'},
@@ -17,7 +19,7 @@ local AUDIO_FRESH_SECONDS=.35
 local function clockValue(value) return type(value)=='number' and value==value and value>=0 and value<=1e12 end
 local function protectionValue(value) return clockValue(value) and value<=1024 and value==math.floor(value) end
 local function inside(r,x,y) return x>=r.x and y>=r.y and x<=r.x+r.w and y<=r.y+r.h end
-function Panel.new(view,c) return setmetatable({view=view,c=c,held={},touches={},controllerReady=false},Panel) end
+function Panel.new(view,c) return setmetatable({view=view,c=c,held={},touches={},controllerReady=false,aimPad=ShooterPad.new()},Panel) end
 function Panel:state()
     local data=self.view.runtime.saveData
     local state=data and data.trainAmbush
@@ -34,6 +36,7 @@ function Panel:canAct()
         and not v.runtime.guestActivityOpen
 end
 function Panel:suspend()
+    self.aimPad:cancel()
     self.held={}; self.touches={}; self.controllerReady=false; self.controllerFire=false; self.controllerADS=false
     if self.gun then Shooting.setADS(self.gun,false) end
 end
@@ -191,6 +194,10 @@ function Panel:update(dt)
     if not v.focused or v.controller.menuOpen or self.paused or s.phase=='result' then self:suspend() end
     if self.gun then Actions.update(self.gun,math.min(.1,dt)) end -- Private authored-frame clock only.
     if self.impact then self.impact.time=self.impact.time-dt; if self.impact.time<=0 then self.impact=nil end end
+    if self.gun and v.ready and v.focused and not v.controller.menuOpen and not self.paused and not s.outcome then
+        local px,py=self.aimPad:step(dt,self.gun,960,720)
+        if px then self:aim(px,py) end
+    end
     if self:canAct() then
         if not self.gun or not self.gun.weapon then
             local options=self:options(); if options[1] then self:submit('gun.select',{weaponId=options[1].itemId}) end
@@ -233,14 +240,28 @@ function Panel:gamepadreleased(button)
     local key=self.c.bindings:translateButton(button,'last_stand_shootout'); if key=='space' then self:fireHeld('keyboard',false) end; return true
 end
 function Panel:touchpressed(id,x,y)
+    if ShooterPad.hit(x,y,960,720) then
+        local s=self:state(); local v=self.view
+        if not self.gun or not s or s.outcome or self.paused or not v.ready or not v.focused or v.controller.menuOpen then return true end
+        local action=self.aimPad:press(id,x,y,960,720)
+        if action then
+            if action=='aim' then self.gun.touchAim=nil elseif action=='fire' then self:fireHeld('pad',true) end
+            return true
+        end
+    end
     for i,control in ipairs(controls) do if inside(self:rect(i),x,y) then
         self.touches[id]=control.key
         if control.key=='space' then self:fireHeld('touch:'..tostring(id),true) else self:action(control.key) end; return true
     end end
     self.touches[id]='aim'; self:aim(x,y,true); return true
 end
-function Panel:touchmoved(id,x,y) if self.touches[id]=='aim' then self:aim(x,y,true) end; return true end
+function Panel:touchmoved(id,x,y)
+    if self.aimPad:move(id,x,y,960,720) then return true end
+    if self.touches[id]=='aim' then self:aim(x,y,true) end; return true
+end
 function Panel:touchreleased(id)
+    local action=self.aimPad:release(id)
+    if action then if action=='fire' then self:fireHeld('pad',false) end; return true end
     if self.touches[id]=='space' then self:fireHeld('touch:'..tostring(id),false) end
     self.touches[id]=nil; return true
 end
@@ -250,12 +271,14 @@ function Panel:draw()
     g.setFont(Typography.font(g)); Scene.draw(pose,960,720,Accessibility.ensure(data),self.impact)
     if self.gun and pose.coverProgress==0 and s.phase~='result' then
         Shooting.draw(self.gun,960,720); local x,y=self.gun.aimX,self.gun.aimY
-        g.setColor(1,.94,.75,1); g.line(x-9,y,x-3,y); g.line(x+3,y,x+9,y); g.line(x,y-9,x,y-3); g.line(x,y+3,x,y+9)
+        if not self.gun.ads then
+            g.setColor(1,.94,.75,1); g.line(x-9,y,x-3,y); g.line(x+3,y,x+9,y); g.line(x,y-9,x,y-3); g.line(x,y+3,x,y+9)
+        end
     end
     local function text(value,x,y,width,height,scale)
         Typography.drawText(g,value,x,y,width,height,{scale=(scale or .8)*Accessibility.textScale(data),minScale=.6,align='center',valign='center'})
     end
-    g.setColor(.035,.025,.02,.95); g.rectangle('fill',16,12,928,54,6,6); g.setColor(1,.89,.68,1)
+    g.setColor(.035,.025,.02,.95); GuiArt.frame(16,12,928,54); g.setColor(1,.89,.68,1)
     local hull,maxHull=Rules.hullTotal(s)
     text('YOUR HEALTH '..math.ceil(data.health)..' / '..data.maxHealth,22,17,250,42)
     text('CARRIAGE '..s.protection..' / '..s.maxProtection,276,17,220,42)
@@ -265,11 +288,12 @@ function Panel:draw()
     local name=(gun and gun.weapon or 'No firearm'):gsub('%-',' '):upper()
     text(name..'   '..(gun and gun.magazine or 0)..' / '..(gun and data.ammo[gun.ammoType] or 0)..' ROUNDS   '
         ..(gun and ((gun.reloadTimer or 0)>0 and 'RELOADING' or (gun.fireMode or ''):upper()) or ''),25,578,910,29,.77)
+    if v.mobile and v.mobile.enabled and not self.paused and s.phase~='result' then self.aimPad:draw(960,720) end
     local hint=self:statusHint(s,pose)
     text(hint,30,609,900,30,.72)
     for i,control in ipairs(controls) do
-        local r=self:rect(i); g.setColor(.12,.075,.035,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,5,5)
-        g.setColor(.73,.49,.22,1); g.rectangle('line',r.x,r.y,r.w,r.h,5,5); g.setColor(1,.89,.68,1)
+        local r=self:rect(i); g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
+        g.setColor(.73,.49,.22,1);  g.setColor(1,.89,.68,1)
         text(control.label,r.x+2,r.y+2,r.w-4,r.h-4,.69)
     end
 end

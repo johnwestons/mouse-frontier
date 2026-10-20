@@ -34,6 +34,31 @@ class CoopGiftsTests(unittest.TestCase):
             function run(actor,req) return authority:execute(actor,actor=='host' and 0 or 1,req) end
         ''')
 
+    def test_home_fox_chatter_is_authoritative_and_cannot_advance_the_conductor(self):
+        self.lua.execute('''
+            local Home=require('game.home_stop'); local Fox=require('game.home_stop_fox')
+            data.scene='stop'; data.location=1; data.homeStop=Home.newState(); Home.layout(data)
+            local fox=Fox.ensure(data); assert(Entities.ensure(data))
+            local stop=data.stopLayouts['1']
+            for _,state in pairs(states) do state.scene='stop'; state.x=fox.x; state.y=fox.y+30 end
+            local arguments={targetId=stop.entityId,npc=Home.FOX}
+            local result=run('host',request('host','npc.chatter',arguments))
+            assert(result.ok and Catalog.dialogueLines[result.result.lineIndex])
+            assert(data.relationships[Fox.KEY].talks==1)
+            assert(data.homeStop.stage=='briefing' and not data.homeStop.dialogueLine and not data.homeStop.suppliesCollected)
+            local bad=authority:prepareRequest('host','npc.chatter',{targetId=stop.entityId,npc=Home.CONDUCTOR})
+            assert(not bad)
+            local pending=request('companion','npc.chatter',arguments)
+            fox.x=900; fox.y=600
+            assert(not run('companion',pending).ok,'host accepted an out-of-reach moving fox')
+            fox.x=states.companion.x; fox.y=states.companion.y
+            result=run('companion',request('companion','npc.chatter',arguments))
+            assert(result.ok and data.relationships[Fox.KEY].talks==2)
+            assert(Schema.copy(data).relationships[Fox.KEY].talks==2)
+            data.homeStop.inOffice=true
+            bad=authority:prepareRequest('host','npc.chatter',arguments); assert(not bad)
+        ''')
+
     def test_competing_gifts_and_retry_commit_one_item_and_one_relationship_change(self):
         self.lua.execute('''
             local hostId=data.itemSlots.equipment[1].id
@@ -156,6 +181,28 @@ class CoopGiftsTests(unittest.TestCase):
             assert(data.equipment[1]==nil and passenger.weaponInstance.durability==67)
             assert(data.relationships[passenger.npc].gifts==1 and runtime.dialogue.inventoryResult)
             assert(saves==1 and Items.validate(data))
+        ''')
+
+    def test_two_passengers_with_the_same_art_receive_their_own_selected_gifts(self):
+        self.lua.execute('''
+            local I=require('game.npc_identity')
+            passenger.origin=1; passenger.characterId=I.ensure(data,passenger.npc,1,1).id
+            local second={npc=passenger.npc,origin=2,x=210,y=250,carIndex=1,weapon='trail-slingshot'}
+            second.characterId=I.ensure(data,second.npc,2,1).id
+            data.passengers[2]=second; assert(Entities.ensure(data)); assert(Items.ensure(data))
+            local GameSession=require('game.game_session')
+            local runtime={saveData=data,state='game',scene='train',player={x=200,y=250},nearPassenger=2,
+                draggedSlot={kind='equipment',index=1}}
+            local session=GameSession.new({runtime=runtime}); session:setSaveData(data)
+            local adapter=require('game.coop_inventory_runtime').new({runtime=runtime,session=session,catalog=Catalog})
+            local actions=require('game.inventory_actions').new({runtime=runtime,inventory=Inventory,catalog=Catalog,
+                util=require('game.util'),trainUpgradeBalance=require('game.train_upgrade_balance'),
+                lootProgression=require('game.loot_progression'),commands=adapter,writeSave=function() end,
+                useBattleHealingItem=function() end,useBattlePotion=function() end})
+            assert(actions.consumeSelected())
+            assert(second.weapon=='frontier-short-sword' and passenger.weapon=='frontier-short-sword')
+            assert(data.relationships[second.characterId].gifts==1 and not data.relationships[passenger.characterId])
+            assert(I.name(data,passenger)~=I.name(data,second))
         ''')
 
     def test_gift_failure_rolls_back_recipient_item_and_relationship_together(self):

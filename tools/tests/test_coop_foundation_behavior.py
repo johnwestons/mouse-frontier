@@ -24,7 +24,7 @@ class CoopFoundationTests(unittest.TestCase):
 
     def test_legacy_migration_has_one_authoritative_host_record(self):
         self.lua.execute('''
-            assert(data.version==44 and data.players.host.id=='host')
+            assert(data.version==Schema.CURRENT_VERSION and data.players.host.id=='host')
             assert(rawget(data,'health')==nil and rawget(data,'inventory')==nil)
             assert(data.health==17 and data.players.host.health==17)
             data.health=12

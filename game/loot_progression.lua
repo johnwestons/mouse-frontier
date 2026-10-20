@@ -107,6 +107,8 @@ local function medicalMaximum(tier)
 end
 
 local function itemAvailable(catalog,name,location)
+    -- Furnishings belong to merchant stock, never scavenging or reward rolls.
+    if catalog.furnitureItems and catalog.furnitureItems[name] then return false end
     local tier=LootProgression.locationTier(location)
     local unlockTier=LootProgression.itemUnlockTier[name]
     if catalog.ammoPickupAmounts and catalog.ammoPickupAmounts[name] then
@@ -188,7 +190,33 @@ function LootProgression.tradeStock(catalog,location,rng)
     result[2]=LootProgression.rollItem(catalog,location,{minimumRarity="common",allowWeapon=false,rng=rng})
     result[3]=LootProgression.rollItem(catalog,location,{minimumRarity="uncommon",weaponChance=.10,rng=rng})
     result[4]=LootProgression.rollWeapon(catalog,location,"uncommon",rng)
+    LootProgression.ensureFurnitureStock({tradeStock=result},catalog,location)
     return result
+end
+
+function LootProgression.ensureFurnitureStock(layout,catalog,location)
+    if not layout or type(layout.tradeStock)~="table" or layout.furnitureStockVersion==1 then return end
+    local names=catalog.furnitureNames or {}
+    if #names==0 then return end
+    local last,seen=0,{}
+    for index,entry in pairs(layout.tradeStock) do
+        if type(index)=="number" then
+            last=math.max(last,index)
+            local name=type(entry)=="table" and (entry.item or entry.name) or entry
+            if name then seen[name]=true end
+        end
+    end
+    local count=math.min(4,#names)
+    local stop=math.max(1,math.min(50,math.floor(tonumber(location) or 1)))
+    for offset=0,count-1 do
+        local name=names[((stop-1)*count+offset)%#names+1]
+        if not seen[name] then
+            last=last+1
+            layout.tradeStock[last]={item=name,quantity=1,basePrice=LootProgression.itemPrice(catalog,name)}
+        end
+    end
+    -- A sold listing remains sold when returning to a merchant or loading a save.
+    layout.furnitureStockVersion=1
 end
 
 function LootProgression.rollCraftMaterial(catalog,location,rng)
@@ -231,6 +259,8 @@ function LootProgression.qualityRarity(quality)
 end
 
 function LootProgression.itemPrice(catalog,name)
+    local furniturePrice=catalog.furniturePrices and catalog.furniturePrices[name]
+    if furniturePrice then return furniturePrice end
     local material=catalog.craftMaterials and catalog.craftMaterials[name]
     if material then return material.basePrice or materialPrices[name] or 3 end
     local stats=catalog.weaponStats[name]

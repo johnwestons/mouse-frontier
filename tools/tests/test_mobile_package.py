@@ -5,6 +5,7 @@ import re
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,6 +24,7 @@ from tools.build_mobile_package import (
     optimize_image,
     resolve_output_root,
     runtime_asset,
+    link_or_copy,
 )  # noqa: E402
 
 
@@ -50,6 +52,20 @@ class MobilePackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(RuntimeError, "inside the mobile output area"):
                 resolve_output_root(Path(temporary) / "outside")
+
+    def test_parallel_stage_directory_creation_tolerates_existing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = [root / f"source-{index}.png" for index in range(24)]
+            destinations = [root / "stage" / "sprites" / f"image-{index}.png" for index in range(24)]
+            for index, source in enumerate(sources):
+                source.write_bytes(f"sprite-{index}".encode())
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(link_or_copy, sources, destinations))
+            self.assertEqual(
+                [f"sprite-{index}".encode() for index in range(24)],
+                [destination.read_bytes() for destination in destinations],
+            )
 
     def test_future_run_sheets_pass_runtime_asset_filter(self) -> None:
         # Run art remains privately staged; classify synthetic present files
@@ -112,6 +128,24 @@ class MobilePackageTests(unittest.TestCase):
             "assets/sprites/character-animations/trail-fox/run_northwest.png",
             self.config, (4096, 512))
         self.assertEqual((frame_size * 8, frame_size), run_bounds)
+
+    def test_authored_action_and_chore_cells_survive_mobile_packaging(self) -> None:
+        for action,count in (('melee',6),('sit',6),('unconscious',6),('sweep',4),('carry',4),('tend',4)):
+            relative=f'assets/sprites/character-animations/trail-fox/{action}.png'
+            source=ROOT/relative
+            with self.subTest(action=action):
+                self.assertTrue(runtime_asset(source))
+                with Image.open(source) as image:
+                    source_size=image.size
+                config={**self.config,'characterAnimationFrameSize':128}
+                self.assertEqual((count*256,128),image_bounds(relative,config,source_size))
+                with tempfile.TemporaryDirectory() as temporary:
+                    destination=Path(temporary)/source.name
+                    with patch('tools.build_mobile_package.CACHE_ROOT',Path(temporary)/'cache'):
+                        optimize_image(source,destination,relative,config)
+                    with Image.open(destination) as image:
+                        self.assertEqual((count*256,128),image.size)
+                        self.assertIsNotNone(image.convert('RGBA').getchannel('A').getbbox())
 
     def test_ads_fire_atlases_retain_renderer_compatible_authored_dimensions(self) -> None:
         sources = sorted((ROOT / "assets/sprites/weapons/first-person/actions").glob("*-ads-fire.png"))
@@ -253,9 +287,12 @@ class MobilePackageTests(unittest.TestCase):
 
     def test_intro_train_anchors_follow_resized_mobile_scenery(self) -> None:
         intro = (ROOT / "game" / "intro_cinematic.lua").read_text(encoding="utf-8")
-        self.assertIn("local backgroundRailRatio = 750/1086", intro)
+        train = (ROOT / "game" / "cinematic_train.lua").read_text(encoding="utf-8")
+        self.assertIn('local Train=require("game.cinematic_train")', intro)
+        self.assertIn("local Train={railRatio=750/1086}", train)
+        self.assertIn("local backgroundRailRatio = Train.railRatio", intro)
         self.assertIn("backgroundHeight*backgroundRailRatio-backgroundHeight/2", intro)
-        self.assertIn("cars:getHeight()*consistBaselineRatio", intro)
+        self.assertIn("cars:getHeight()*consistBaselineRatio", train)
         self.assertNotIn("750-background:getHeight()/2", intro)
 
 

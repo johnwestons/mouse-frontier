@@ -231,6 +231,7 @@ function Commands.install(authority,context)
         local state=actorState(actorId)
         if not available(data,actorId,state) then return nil,'unavailable' end
         if not access(data,actor,state,item,record) then return nil,"out_of_reach" end
+        if item.houseStorageHotspot or item.stopHotspotId then return nil,"fixed_storage" end
         if item.permanent then return nil,"permanent" end
         if item.storage and next(item.storage) then return nil,"container_not_empty" end
         return {scopes={"player:"..actorId,"entity:"..item.entityId},apply=function()

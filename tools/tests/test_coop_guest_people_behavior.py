@@ -37,6 +37,22 @@ class GuestPeopleTests(unittest.TestCase):
             end
         ''')
 
+    def test_home_fox_opens_talk_only_with_no_guest_story_or_history_writes(self):
+        self.lua.execute('''
+            local Home=require('game.home_stop'); local Fox=require('game.home_stop_fox')
+            copy.scene='stop'; copy.location=1; copy.homeStop=Home.newState(); Home.layout(copy)
+            local fox=Fox.ensure(copy); assert(Entities.ensure(copy))
+            runtime.scene='stop'; runtime.player.x=fox.x; runtime.player.y=fox.y+30
+            assert(panel:nearest().npc==Home.FOX and panel:open())
+            assert(panel.homeFox and #requests==1 and requests[1].name=='npc.chatter')
+            assert(#panel:offers()==0 and not copy.relationships[Home.FOX])
+            result(1,{npc=Home.FOX,lineIndex=7,tier='New Face'}); panel:update()
+            assert(panel.speech.text==Catalog.dialogueLines[7])
+            assert(copy.homeStop.stage=='briefing' and not copy.homeStop.dialogueLine and not copy.relationships[Home.FOX])
+            panel:keypressed('e'); assert(not runtime.peopleOpen)
+            copy.homeStop.inOffice=true; assert(not panel:nearest() and not panel:open())
+        ''')
+
     def test_confirmation_retains_exact_personal_gear_and_scopes_without_writes(self):
         self.lua.execute('''
             assert(panel:open() and panel:setMode('equip')); panel.drawn=panel:offers()

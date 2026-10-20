@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Independent farmhouse presentation. Campaign decisions remain on the host.
 local Life=require('game.coop_last_stand_lifecycle')
 local Scene=require('game.last_stand_scene')
@@ -205,14 +206,14 @@ function Panel:draw()
     end
     local card=model and (model.page or model.summary)
     if card then
-        g.setColor(.055,.038,.025,.96); g.rectangle('fill',155,225,650,250,12,12)
+        g.setColor(.055,.038,.025,.96); GuiArt.frame(155,225,650,250)
         text(card.title,180,242,600,45); text(card.text,180,295,600,126)
         if card.page then text('Page '..card.page..' / '..card.count,180,425,600,30) end
     end
-    g.setColor(.055,.038,.025,.95); g.rectangle('fill',16,12,616,45,6,6)
+    g.setColor(.055,.038,.025,.95); GuiArt.frame(16,12,616,45)
     text('FARMHOUSE CO-OP  •  '..state.mode:upper(),20,15,608,39)
-    g.setColor(.18,.12,.075,.95); g.rectangle('fill',648,12,102,45,6,6); text(self.paused and 'RESUME' or 'PAUSE',652,15,94,39)
-    g.setColor(.055,.038,.025,.95); g.rectangle('fill',160,645,640,55,6,6)
+    g.setColor(.18,.12,.075,.95); GuiArt.frame(648,12,102,45); text(self.paused and 'RESUME' or 'PAUSE',652,15,94,39)
+    g.setColor(.055,.038,.025,.95); GuiArt.frame(160,645,640,55)
     local walkingHint=self.c.mobileEnabled and self.c.mobileEnabled() and 'Joystick to move. The host controls scene progression.'
         or 'WASD / arrows or click to move. The host controls scene progression.'
     text(self.paused and 'Your movement is paused. P / START to resume.' or self.notice
@@ -220,11 +221,11 @@ function Panel:draw()
     local action=self:action()
     local selection=Selection.selected(self.view.runtime.saveData,'companion')
     if state.mode=='interior' and selection then
-        g.setColor(.18,.12,.075,.95); g.rectangle('fill',20,580,330,45,6,6)
+        g.setColor(.18,.12,.075,.95); GuiArt.frame(20,580,330,45)
         text('RELEASE '..selection:upper()..' POSITION  [BACKSPACE]',24,583,322,39)
     end
     if action and (action.id=='borrow-rifle' or action.id=='help-wounded' or action.id=='window-wide' or action.id=='window-tall') then
-        g.setColor(.18,.12,.075,.95); g.rectangle('fill',580,580,350,45,6,6)
+        g.setColor(.18,.12,.075,.95); GuiArt.frame(580,580,350,45)
         local window=action.id=='window-wide' and 'wide' or action.id=='window-tall' and 'tall'
         local owner=window and Selection.owner(self.view.runtime.saveData,window)
         local label=window and (owner=='host' and 'WINDOW OCCUPIED BY HOST' or owner=='companion' and 'YOUR '..window:upper()..' POSITION' or 'SELECT '..window:upper()..' WINDOW')

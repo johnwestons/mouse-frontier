@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local WorldPause=require("game.world_pause")
 local Accessibility=require("game.accessibility")
@@ -9,6 +10,8 @@ local RepairArt=require("game.repair_workbench_art")
 local RepairLayout=require("game.repair_workbench_layout")
 local OutfitArt=require("game.outfit_sprite_art")
 local TitleSnapshots=require("game.title_snapshots")
+local TitleSlotTrains=require("game.title_slot_trains")
+local CharacterAnimation=require("game.character_animation")
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -58,13 +61,7 @@ local function new(context)
   local repairStatus=required(context,"repairStatus","function")
   local questSummary=required(context,"questSummary","function")
   local textBox
-
-  local function drawTitleBackdrop(image,x,y,width,alpha)
-      if not image then return end
-      local iw=image:getWidth(); local scale=width/iw
-      love.graphics.setColor(1,1,1,alpha or 1)
-      love.graphics.draw(image,x,y,0,scale,scale)
-  end
+  local characterPreviewState
 
   local function drawTitleSnapshots(saveBounds)
       local windowWidth,windowHeight=love.graphics.getDimensions()
@@ -99,15 +96,7 @@ local function new(context)
   end
 
   local function drawMenuFrame(x,y,w,h,kind,alpha)
-      kind=UIStyle.frame(kind or 1)
-      local frame=ui.menuFrames and ui.menuFrames[kind]
-      if frame then
-          love.graphics.setColor(1,1,1,alpha or 1)
-          local sw,sh=frame.w,frame.h; local sx=math.floor(sw*.22); local sy=math.floor(sh*.28)
-          local dx=math.min(kind==4 and 11 or 16,math.floor(w/4)); local dy=math.min(kind==4 and 8 or 14,math.floor(h/4))
-          local xs={0,sx,sw-sx,sw}; local ys={0,sy,sh-sy,sh}; local xd={x,x+dx,x+w-dx,x+w}; local yd={y,y+dy,y+h-dy,y+h}
-          for row=1,3 do for col=1,3 do local qw,qh=xs[col+1]-xs[col],ys[row+1]-ys[row]; local dw,dh=xd[col+1]-xd[col],yd[row+1]-yd[row]; if qw>0 and qh>0 and dw>0 and dh>0 then love.graphics.draw(frame.image,frame.quads[row][col],xd[col],yd[row],0,dw/qw,dh/qh) end end end
-      else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,w,h,8,8) end
+      GuiArt.frame(x,y,w,h,{alpha=alpha or 1})
       if runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast") then
           love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",x,y,w,h,8,8); love.graphics.setLineWidth(1)
       end
@@ -251,18 +240,19 @@ local function new(context)
       end)
   end
 
-  local function button(text, x, y, w, h, active, textScale, opacity)
+  local function button(text, x, y, w, h, active, textScale, opacity, textInset)
       opacity=runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast") and 1 or (opacity or 1)
       local highContrast=runtime.saveData and Accessibility.enabled(runtime.saveData,"highContrast")
       if highContrast then
           love.graphics.setColor(0,0,0,active and .98 or .82); love.graphics.rectangle("fill",x,y,w,h,8,8)
           love.graphics.setColor(active and 1 or .62,active and .84 or .62,active and .28 or .62,1); love.graphics.setLineWidth(active and 4 or 2); love.graphics.rectangle("line",x,y,w,h,8,8); love.graphics.setLineWidth(1)
-      elseif ui.menuFrames and ui.menuFrames[4] then drawMenuFrame(x-3,y-3,w+6,h+6,4,(active and 1 or .55)*opacity) else love.graphics.setColor(active and colors.brass[1] or colors.panel[1],active and colors.brass[2] or colors.panel[2],active and colors.brass[3] or colors.panel[3],opacity); love.graphics.rectangle("fill", x, y, w, h, 8, 8) end
+      else GuiArt.frame(x,y,w,h,{alpha=opacity,disabled=not active}) end
       local scale=(textScale or 1)*(runtime.saveData and Accessibility.textScale(runtime.saveData) or 1)
       if mobileEnabled() then scale=math.max(scale,.78) end
       scale=math.min(scale,mobileEnabled() and 1.18 or 1.22)
       love.graphics.setColor(colors.cream[1],colors.cream[2],colors.cream[3],opacity)
-      local fitted,height,lines,fits=Typography.drawText(love.graphics,text,x+10,y+6,w-20,h-12,
+      local inset=textInset or 10
+      local fitted,height,lines,fits=Typography.drawText(love.graphics,text,x+inset,y+6,w-inset*2,h-12,
           {scale=scale,minScale=mobileEnabled() and .75 or .60,align="center",valign="center"})
       return UIStyle.transformRect({x=x,y=y,w=w,h=h,textScale=fitted,textHeight=height,textLines=lines,textFits=fits})
   end
@@ -370,17 +360,51 @@ local function new(context)
       end)
   end
 
+  local function titleSlotLayout()
+      local mobile=mobileEnabled()
+      return mobile and 90 or 210,mobile and 780 or 540,
+          mobile and 215 or 225,mobile and 126 or 96,mobile and 150 or 125
+  end
+
+  function ui.resetSlotTrains()
+      ui.titleSlotTrains=TitleSlotTrains.new()
+      ui.titleSelectedSlot=nil
+  end
+  ui.resetSlotTrains()
+
+  function ui.updateSlots(dt)
+      local focused
+      local blocked=runtime.pendingConfirmation or runtime.exitPrompt or ui.escMenuOpen or ui.optionsOpen
+          or ui.playerToolsOpen or ui.localPlay and ui.localPlay.menuOpen
+      if not blocked then
+          if ui.keyboardFocusVisible and ui.keyboardFocusScreen=="title-slots" then
+              focused=tonumber((ui.keyboardFocusId or ""):match("^slot%.([123])%."))
+          else
+              local x,y=screenToGame(love.mouse.getPosition())
+              x,y=UIStyle.inversePoint(x,y,"slots",{x=0,y=0,w=W,h=H})
+              local cardX,cardW,cardY,cardH,cardStep=titleSlotLayout()
+              for index=1,3 do
+                  if Util.pointIn(x,y,{x=cardX,y=cardY+(index-1)*cardStep,w=cardW,h=cardH}) then
+                      focused=index;break
+                  end
+              end
+              focused=focused or ui.titleSelectedSlot
+          end
+      end
+      local settings=ui.menuSettings or runtime.saveData or {}
+      TitleSlotTrains.update(ui.titleSlotTrains,dt,focused,Accessibility.enabled(settings,"reducedMotion"))
+  end
+
   function ui.drawSlots()
       love.graphics.clear(0.09, 0.06, 0.04); love.graphics.setColor(colors.cream)
       return UIStyle.scope("slots",{x=0,y=0,w=W,h=H},function()
       local mobile=mobileEnabled()
-      local cardX,cardW=mobile and 90 or 210,mobile and 780 or 540
-      local cardY,cardH,cardStep=mobile and 215 or 225,mobile and 126 or 96,mobile and 150 or 125
+      local cardX,cardW,cardY,cardH,cardStep=titleSlotLayout()
       -- One source of bounds for both the controls and memory exclusion zone.
       ui.titleSaveBounds={x=cardX,y=cardY,w=cardW,h=cardStep*2+cardH}
       drawTitleSnapshots(ui.titleSaveBounds)
-      drawTitleBackdrop(scenery.titleHeaderBackdrop,0,-48,W,mobile and .64 or .82)
-      drawTitleBackdrop(scenery.titleFooterBackdrop,0,455,W,mobile and .48 or .64)
+      GuiArt.frame(0,0,W,210)
+      GuiArt.frame(0,H-76,W,60)
       if scenery.titleImage then
           local scale=math.min(540/scenery.titleImage:getWidth(),185/scenery.titleImage:getHeight())
           love.graphics.setColor(1,1,1)
@@ -393,9 +417,15 @@ local function new(context)
       textBox(hosting and "CHOOSE A JOURNEY TO HOST  •  F8 TO CANCEL"
           or "CHOOSE A JOURNEY  •  ARROWS / WASD + ENTER",0,182,W,28,.82,"center")
       ui.slots, ui.slotNew, ui.slotDelete = {}, {}, {}
+      ui.titleSlotBounds={}
       for i=1,3 do
           local data, y = readSave(i), cardY+(i-1)*cardStep
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",cardX,y,cardW,cardH,12,12)
+          local bounds={x=cardX,y=y,w=cardW,h=cardH}
+          ui.titleSlotBounds[i]=UIStyle.transformRect(bounds)
+          love.graphics.setColor(colors.panel); GuiArt.frame(cardX,y,cardW,cardH)
+          -- Keep the parked mobile locomotive in the open left portion of the
+          -- card so touch controls do not cover the wheel and smoke animation.
+          TitleSlotTrains.draw(ui.titleSlotTrains,i,bounds,mobile and 455 or 605,scenery,mobile and .72 or .40)
           love.graphics.setColor(colors.cream); textBox("SAVE "..i,mobile and 114 or 232,y+15,mobile and 330 or 250,32,1.15)
           textBox(data and (Util.titleFromFile(data.character).."\nStop "..tostring(data.location or 1)) or "New journey",mobile and 114 or 232,y+52,mobile and 340 or 260,mobile and 60 or 40,mobile and .95 or .8)
           if data and mobile then
@@ -425,7 +455,7 @@ local function new(context)
           local r={x=x,y=y,w=mobile and 194 or 150,h=180}; r.visible=y+r.h>94 and y<708
           local hitRect=UIStyle.transformRect(r); hitRect.visible=r.visible; ui.characters[i]=hitRect
           if r.visible then
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill", x,y,r.w,r.h,10,10)
+          love.graphics.setColor(colors.panel); GuiArt.frame(x,y,r.w,r.h)
           local img=characterImages[file]
           if img then local s=math.min(112/img:getWidth(),108/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,x+r.w/2,y+60,0,s,s,img:getWidth()/2,img:getHeight()/2) end
           local identity=Catalog.characterIdentity(file)
@@ -448,8 +478,8 @@ local function new(context)
           local tx,ty=mouseX+18,mouseY+18
           if tx+tooltipW>W then tx=mouseX-tooltipW-18 end
           if ty+tooltipH>H then ty=H-tooltipH-10 end
-          love.graphics.setColor(.055,.04,.03,.97); love.graphics.rectangle("fill",tx,ty,tooltipW,tooltipH,8,8)
-          love.graphics.setColor(colors.brass); love.graphics.rectangle("line",tx,ty,tooltipW,tooltipH,8,8)
+          love.graphics.setColor(.055,.04,.03,.97); GuiArt.frame(tx,ty,tooltipW,tooltipH)
+          love.graphics.setColor(colors.brass);
           love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(hoveredFile),tx+12,ty+10,tooltipW-24,20,.88)
           love.graphics.setColor(colors.brass); textBox("ABILITY  "..ability,tx+12,ty+34,tooltipW-24,17,.65)
           love.graphics.setColor(colors.cream); textBox(abilityDescription,tx+12,ty+51,tooltipW-24,25,.62)
@@ -463,23 +493,21 @@ local function new(context)
           local animationSet=getCharacterAnimations()[file]
           local direction=runtime.characterPreviewDirection or "SE"
           local selectedAction=runtime.characterPreviewAction or "walk"
-          local movementActions={"idle","walk"}
-          if animationSet and animationSet.runDirectional and animationSet.run then movementActions[#movementActions+1]="run" end
-          local actionLabels={sit="SIT",lay="LAY",use="USE",melee="MELEE",ranged="RANGE",hit="HIT",death="DEATH",unconscious="DOWN"}
-          local poseActions={}
-          for _,action in ipairs({"sit","lay","use","melee","ranged","hit","death","unconscious"}) do
-              if animationSet and animationSet[action] then poseActions[#poseActions+1]=action end
-          end
+          local movementActions,poseActions=CharacterAnimation.previewActions(animationSet)
+          local actionLabels={sit="SIT",lay="LAY",use="USE",melee="MELEE",swing="SWING",ranged="RANGE",hit="HIT",death="DEATH",unconscious="DOWN",
+              sweep="SWEEP",carry="CARRY",tend="TEND"}
           local actionAvailable=false
           for _,action in ipairs(movementActions) do if action==selectedAction then actionAvailable=true end end
           for _,action in ipairs(poseActions) do if action==selectedAction then actionAvailable=true end end
-          if not actionAvailable then selectedAction="walk"; runtime.characterPreviewAction=selectedAction end
+          if not actionAvailable then selectedAction=movementActions[1] or poseActions[1] or "idle"; runtime.characterPreviewAction=selectedAction end
           local directionVectors={
               NW={x=-1,y=-1},N={x=0,y=-1},NE={x=1,y=-1},W={x=-1,y=0},
               E={x=1,y=0},SW={x=-1,y=1},S={x=0,y=1},SE={x=1,y=1},
           }
-          local eightWay=(selectedAction=="idle" or selectedAction=="walk" or selectedAction=="run")
-              and animationSet and animationSet.directional
+          local eightWay=animationSet and (((selectedAction=="idle" or selectedAction=="walk") and animationSet.directional)
+              or (selectedAction=="run" and animationSet.runDirectional))
+          local authoredChore=selectedAction=="sweep" or selectedAction=="carry" or selectedAction=="tend"
+          if authoredChore then direction="E"; runtime.characterPreviewDirection=direction end
           if not eightWay and direction~="W" and direction~="E" then
               direction="E"; runtime.characterPreviewDirection=direction
           end
@@ -487,34 +515,34 @@ local function new(context)
           ui.characterPoseActions={}
           ui.characterDirections={}
           love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
-          drawMenuFrame(185,115,590,500,1,1)
-          love.graphics.setColor(colors.cream); textBox("TRAVELER PROFILE",205,136,550,38,1.15,"center")
-          love.graphics.setColor(colors.brass); textBox("ANIMATION",205,172,220,18,.60,"center")
-          local movementX,movementY,movementW,movementH,gap=205,193,220,34,5
-          local movementButtonW=(movementW-gap*(#movementActions-1))/#movementActions
+          drawMenuFrame(185,95,590,585,1,1)
+          love.graphics.setColor(colors.cream); textBox("TRAVELER PROFILE",205,116,550,38,1.15,"center")
+          love.graphics.setColor(colors.brass); textBox("ANIMATION",205,152,220,18,.60,"center")
+          local movementX,movementY,movementW,movementH,gap=205,173,220,34,5
+          local movementButtonW=(movementW-gap*(#movementActions-1))/math.max(1,#movementActions)
           for index,action in ipairs(movementActions) do
               local control=button(action:upper(),movementX+(index-1)*(movementButtonW+gap),movementY,movementButtonW,movementH,
                   selectedAction==action,.64)
               ui.characterMovementActions[#ui.characterMovementActions+1]={id=action,control=control}
           end
-          love.graphics.setColor(colors.brass); textBox(eightWay and "WALK DIRECTION" or "FACING",205,235,112,19,.54,"center")
+          love.graphics.setColor(colors.brass); textBox(authoredChore and "AUTHORED VIEW" or (eightWay and "DIRECTION" or "FACING"),205,215,112,19,.54,"center")
           local directionGrid={
               {{"NW",1,1},{"N",2,1},{"NE",3,1}},
               {{"W",1,2},{"CENTER",2,2},{"E",3,2}},
               {{"SW",1,3},{"S",2,3},{"SE",3,3}},
           }
-          local directionX,directionY,cell,step=205,256,32,34
+          local directionX,directionY,cell,step=205,236,32,34
           for _,row in ipairs(directionGrid) do
               for _,entry in ipairs(row) do
                   local id,column,line=entry[1],entry[2],entry[3]
                   local x,y=directionX+(column-1)*step,directionY+(line-1)*step
                   if id=="CENTER" then
-                      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,cell,cell,6,6)
-                      love.graphics.setColor(colors.brass); love.graphics.rectangle("line",x,y,cell,cell,6,6)
+                      love.graphics.setColor(colors.panel); GuiArt.frame(x,y,cell,cell)
+                      love.graphics.setColor(colors.brass);
                       love.graphics.setColor(colors.cream); textBox(direction,x,y,cell,cell,.48,"center")
                   else
-                      local enabled=eightWay or id=="W" or id=="E"
-                      local control=button(id,x,y,cell,cell,enabled and direction==id,.52,enabled and 1 or .42)
+                      local enabled=(eightWay or id=="W" or id=="E") and (not authoredChore or id=="E")
+                      local control=button(id,x,y,cell,cell,enabled and direction==id,.52,enabled and 1 or .42,4)
                       control.id=id; control.active=enabled
                       ui.characterDirections[id]=control
                   end
@@ -523,36 +551,56 @@ local function new(context)
           local directionVector=directionVectors[direction] or directionVectors.SE
           local animationDistance=(animationSet and animationSet.motionProfile and animationSet.motionProfile.pixelsPerFrame or 20)
               *runtime.animationClock*5.2
-          local motion={intentX=directionVector.x,intentY=directionVector.y,animationDistance=animationDistance,
-              locomotionMode=selectedAction=="run" and "run" or "walk"}
-          local previewAction=selectedAction=="run" and "walk" or selectedAction
-          love.graphics.setColor(0,0,0,.22); love.graphics.ellipse("fill",365,397,42,7)
-          local animated=drawAnimatedCharacter(file,previewAction,365,391,180,190,
-              directionVector.x<0 and -1 or 1,runtime.animationClock,motion)
+          local previewAction=selectedAction=="run" and animationSet and animationSet.runDirectional and "walk" or selectedAction
+          local previewPhase
+          previewPhase,characterPreviewState=CharacterAnimation.previewSample(characterPreviewState,file,selectedAction,
+              runtime.animationClock,animationSet and animationSet[selectedAction],direction)
+          local motion=characterPreviewState.motion
+          motion.intentX=directionVector.x; motion.intentY=directionVector.y; motion.animationDistance=animationDistance
+          motion.moving=selectedAction=="walk" or selectedAction=="run" or selectedAction:match('^walk_')~=nil or selectedAction:match('^run_')~=nil
+          motion.locomotionMode=selectedAction=="run" and "run" or "walk"
+          -- Chores include wide tools; fit the complete stroke beside the
+          -- profile text instead of letting the broom cover the description.
+          local previewX,previewWidth=authoredChore and 350 or 365,authoredChore and 110 or 180
+          love.graphics.setColor(0,0,0,.22); love.graphics.ellipse("fill",previewX,377,authoredChore and 28 or 42,7)
+          local animated=drawAnimatedCharacter(file,previewAction,previewX,371,previewWidth,190,
+              directionVector.x<0 and -1 or 1,previewPhase,motion)
           if not animated then
               local img=characterImages[file]
-              if img then local s=math.min(180/img:getWidth(),190/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,365,323,0,s,s,img:getWidth()/2,img:getHeight()/2) end
+              if img then local s=math.min(previewWidth/img:getWidth(),190/img:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(img,previewX,303,0,s,s,img:getWidth()/2,img:getHeight()/2) end
           end
-          love.graphics.setColor(colors.brass); textBox("POSE / ACTION",205,406,220,19,.58,"center")
-          local poseX,poseY,poseW,poseH,poseGap=205,426,52,30,3
-          for index,action in ipairs(poseActions) do
-              local column=(index-1)%4; local row=math.floor((index-1)/4)
-              local control=button(actionLabels[action] or action:upper(),poseX+column*(poseW+poseGap),poseY+row*(poseH+4),poseW,poseH,
-                  selectedAction==action,.58)
+          love.graphics.setColor(colors.brass); textBox("POSE / ACTION",205,418,220,19,.58,"center")
+          local pageSize=12; local pageCount=math.max(1,math.ceil(#poseActions/pageSize))
+          runtime.characterPreviewPage=math.max(1,math.min(pageCount,runtime.characterPreviewPage or 1))
+          local page=runtime.characterPreviewPage
+          ui.characterPosePageCount=pageCount; ui.characterPosePrev=nil; ui.characterPoseNext=nil
+          if pageCount>1 then
+              ui.characterPosePrev=button("<",205,565,40,34,page>1,.62)
+              textBox(page.." / "..pageCount,247,565,50,34,.60,"center")
+              ui.characterPoseNext=button(">",299,565,40,34,page<pageCount,.62)
+          end
+          local poseX,poseY,poseW,poseH,poseGap=205,444,133.75,34,5
+          for index=(page-1)*pageSize+1,math.min(#poseActions,page*pageSize) do
+              local action=poseActions[index]; local slot=(index-1)%pageSize
+              local column=slot%4; local row=math.floor(slot/4)
+              local control=button(actionLabels[action] or action:gsub('_',' '):upper(),poseX+column*(poseW+poseGap),poseY+row*(poseH+5),poseW,poseH,
+                  selectedAction==action,.64)
               ui.characterPoseActions[#ui.characterPoseActions+1]={id=action,control=control}
           end
-          love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(file),435,188,310,44,1.05)
-          love.graphics.setColor(colors.brass); textBox("ROLE: "..identity.role,435,236,310,27,.78)
-          textBox("TRAIT: "..identity.trait.name,435,268,310,27,.8)
-          love.graphics.setColor(colors.cream); textBox(identity.trait.description,435,297,310,52,.8)
-          love.graphics.setColor(colors.brass); textBox("ABILITY: "..identity.ability.name,435,358,310,27,.8)
-          love.graphics.setColor(colors.cream); textBox(identity.ability.description,435,390,310,59,.8)
-          textBox("Your chosen traveler becomes the player. The others can be met along the journey.",220,493,525,38,.8,"center")
-          ui.characterConfirm=button("CHOOSE THIS TRAVELER",mobile and 260 or 275,540,mobile and 280 or 250,mobile and 64 or 48,true,.78)
-          ui.characterCancel=button("BACK",mobile and 565 or 555,540,mobile and 135 or 130,mobile and 64 or 48,true,.82)
+          love.graphics.setColor(colors.cream); textBox(Util.titleFromFile(file),435,168,310,44,1.05)
+          love.graphics.setColor(colors.brass); textBox("ROLE: "..identity.role,435,216,310,27,.78)
+          textBox("TRAIT: "..identity.trait.name,435,248,310,27,.8)
+          love.graphics.setColor(colors.cream); textBox(identity.trait.description,435,277,310,52,.8)
+          love.graphics.setColor(colors.brass); textBox("ABILITY: "..identity.ability.name,435,338,310,27,.8)
+          love.graphics.setColor(colors.cream); textBox(identity.ability.description,435,370,310,59,.8)
+          textBox("Your chosen traveler becomes the player. The others can be met along the journey.",pageCount>1 and 354 or 220,568,pageCount>1 and 390 or 525,29,.72,"center")
+          ui.characterConfirm=button("CHOOSE THIS TRAVELER",mobile and 260 or 275,607,mobile and 280 or 250,mobile and 56 or 48,true,.78)
+          ui.characterCancel=button("BACK",mobile and 565 or 555,607,mobile and 135 or 130,mobile and 56 or 48,true,.82)
       else
+          characterPreviewState=nil
           ui.characterConfirm=nil; ui.characterCancel=nil
           ui.characterMovementActions={}; ui.characterPoseActions={}; ui.characterDirections={}
+          ui.characterPosePrev=nil; ui.characterPoseNext=nil
       end
       end)
   end
@@ -576,7 +624,7 @@ local function new(context)
       capacity=capacity or 20
       if ui.sideHudLayout then
           y=y or 18
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,y,width,51,7,7)
+          love.graphics.setColor(colors.panel); GuiArt.frame(x,y,width,51)
           drawResourceIcon(name,x+9,y+3,24)
           love.graphics.setColor(colors.cream)
           textBox(value.." / "..capacity,x+width*.48,y+3,width*.52-10,26,.84,"right")
@@ -584,7 +632,7 @@ local function new(context)
           return
       end
       if mobileEnabled() then
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,18,width,61,7,7)
+          love.graphics.setColor(colors.panel); GuiArt.frame(x,18,width,61)
           drawResourceIcon(name,x+12,24,27)
           love.graphics.setColor(colors.cream)
           textBox(value.." / "..capacity,x+width*.45,25,width*.55-12,35,1.15,"right")
@@ -592,14 +640,14 @@ local function new(context)
           return
       end
       local barWidth=math.max(20,width-60)
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",x,20,width,34,7,7)
+      love.graphics.setColor(colors.panel); GuiArt.frame(x,20,width,34)
       drawResourceIcon(name,x+7,25,24)
       love.graphics.setColor(color); love.graphics.rectangle("fill",x+32,29,math.max(0,math.min(barWidth,value*barWidth/capacity)),16,4,4)
           love.graphics.setColor(colors.cream); textBox(value.."/"..capacity,x+34,28,width-40,22,.78)
   end
 
   function ui.drawHealthBar(label,value,maxValue,x,y,w)
-      love.graphics.setColor(.055,.035,.025,1); love.graphics.rectangle("fill",x,y,w,39,5,5)
+      love.graphics.setColor(.055,.035,.025,1); GuiArt.frame(x,y,w,39)
       love.graphics.setColor(colors.cream); textBox(label.." "..value.." / "..maxValue,x+8,y+2,w-16,26,.92)
       love.graphics.setColor(.28,.08,.06,1); love.graphics.rectangle("fill",x+8,y+31,w-16,5,2,2)
       love.graphics.setColor(.95,.26,.20,1); love.graphics.rectangle("fill",x+8,y+31,(w-16)*math.max(0,math.min(1,value/math.max(1,maxValue))),5,2,2)
@@ -615,11 +663,8 @@ local function new(context)
   function ui.drawMap()
       love.graphics.setColor(0.05,0.035,0.02,0.78); love.graphics.rectangle("fill",0,0,W,H)
       return UIStyle.scope("map",{x=70,y=75,w=820,h=570},function()
-      love.graphics.setColor(0.76,0.59,0.34); love.graphics.rectangle("fill",70,75,820,570,18,18)
-      love.graphics.setColor(0.66,0.47,0.27)
-      for y=95,625,20 do for x=90+(y%37),870,43 do love.graphics.rectangle("fill",x,y,3,2) end end
-      love.graphics.setColor(0.49,0.31,0.18); love.graphics.setLineWidth(8); love.graphics.rectangle("line",70,75,820,570,18,18)
-      love.graphics.setColor(0.22,0.13,0.065); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
+      GuiArt.frame(70,75,820,570)
+      love.graphics.setColor(colors.cream); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
       if mobileEnabled() then
           -- The mobile HUD is hidden while an overlay is open, so keep the map
           -- dismiss control on the map itself where it remains reachable.
@@ -635,7 +680,7 @@ local function new(context)
       end
       -- Revealed terrain sketches around every visited stop.
       for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
-          local kind=((i-1)%4)+1; love.graphics.setColor(0.42,0.34,0.20,0.9)
+          local kind=((i-1)%4)+1; love.graphics.setColor(.65,.50,.30,.9)
           if kind==1 then for k=-2,2 do love.graphics.polygon("fill",p[1]+k*15,p[2]-35,p[1]+k*15-8,p[2]-20,p[1]+k*15+8,p[2]-20) end
           elseif kind==2 then love.graphics.setLineWidth(4); love.graphics.arc("line","open",p[1],p[2]-22,35,0.1,3.0)
           elseif kind==3 then for k=-2,2 do love.graphics.line(p[1]+k*13,p[2]-42,p[1]+k*13,p[2]-24); love.graphics.circle("fill",p[1]+k*13,p[2]-45,6) end
@@ -647,23 +692,25 @@ local function new(context)
           love.graphics.draw(scenery.redTrain,current[1]+36,current[2]-64,0,-s,s)
       end
       -- Dotted, winding path instead of straight route segments.
-      love.graphics.setColor(0.61,0.16,0.12)
+      love.graphics.setColor(.95,.63,.26)
       for i=2,#points do local a,b=points[i-1],points[i]; if (a[2]>160 and a[2]<550) or (b[2]>160 and b[2]<550) then for step=0,12 do if step%2==0 then local t=step/12; local bend=math.sin(t*math.pi)*((i%2==0) and 22 or -22); local x=a[1]+(b[1]-a[1])*t; local y=a[2]+(b[2]-a[2])*t+bend; love.graphics.circle("fill",x,y,4) end end end end
       for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
           love.graphics.setColor(i==#points and colors.red or colors.cream); love.graphics.circle("fill",p[1],p[2],i==#points and 13 or 9)
           love.graphics.setColor(colors.ink); textBox(tostring(i),p[1]-14,p[2]-7,28,14,.72,"center")
-          love.graphics.setColor(0.22,0.13,0.065); textBox(biomes[((i-1)%#biomes)+1],p[1]-58,p[2]+16,116,37,.84,"center")
+          love.graphics.setColor(colors.cream); textBox(biomes[((i-1)%#biomes)+1],p[1]-58,p[2]+16,116,37,.84,"center")
       end end
       local enc=runtime.saveData.encounters[tostring(runtime.saveData.location)]; local status=not enc and "Unexplored stop" or (enc.hasMob and not enc.resolved and "Danger nearby" or (enc.hasMob and "Mob cleared" or "Peaceful stop"))
-      love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,78,8,8)
+      love.graphics.setColor(0.39,0.25,0.14,0.92); GuiArt.frame(105,548,750,78)
       love.graphics.setColor(colors.cream); textBox("STOP "..runtime.saveData.location.." / "..biomes[((runtime.saveData.location-1)%#biomes)+1].." / "..status,120,552,720,29,.88,"center")
       local quests=questSummary()
       local questLine=quests.count>0 and ("ACTIVE: "..quests.first..(quests.count>1 and ("  +"..(quests.count-1).." more") or "")) or "No active deliveries or passengers."
+      local target=require('game.npc_targets').current(runtime.saveData)
+      if target then questLine=require('game.npc_identity').name(runtime.saveData,target.recipientId)..' • '..require('game.npc_targets').directions(runtime.saveData,target) end
       textBox(questLine,120,582,720,38,.8,"center")
       local mobile=mobileEnabled()
       ui.mapUp=button("^",mobile and 790 or 805,mobile and 148 or 132,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll>0)
       ui.mapDown=button("v",mobile and 790 or 805,mobile and 224 or 182,mobile and 68 or 42,mobile and 64 or 36,runtime.mapScroll<maxScroll)
-      love.graphics.setColor(colors.ink); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,mobile and 300 or 232,68,30,.85,"center")
+      love.graphics.setColor(colors.cream); textBox((runtime.mapScroll+1).."/"..(maxScroll+1),790,mobile and 300 or 232,68,30,.85,"center")
       love.graphics.setLineWidth(1)
       end)
   end
@@ -712,7 +759,7 @@ local function new(context)
           ui.questDecline=button(declining,x+40+buttonWidth,y+h+15,buttonWidth,mobile and 64 or 48,true)
       else
           ui.questAccept=nil; ui.questDecline=nil
-          ui.dialogueContinue=button("CONTINUE",x+w-154,y+h+12,130,mobile and 54 or 38,true,.78)
+          ui.dialogueContinue=button(runtime.dialogue.inspection and "CLOSE" or "CONTINUE",x+w-154,y+h+12,130,mobile and 54 or 38,true,.78)
       end
       end)
   end
@@ -759,7 +806,7 @@ local function new(context)
       return LootProgression.repairChoices(runtime.saveData,Catalog)
   end
 
-  local repairColors={ink={.20,.12,.07},muted={.40,.30,.20},brass={.46,.26,.10},green={.17,.34,.18},red={.61,.18,.12}}
+  local repairColors={ink={1,.93,.78},muted={.78,.69,.53},brass={1,.70,.28},green={.45,.83,.48},red={1,.45,.35}}
 
   local function repairButton(label,rect,enabled,selected)
       OutfitArt.draw(not enabled and "button-disabled" or selected and "button-selected" or "button",rect,{stretch=true})
@@ -877,12 +924,12 @@ local function new(context)
       love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
       return UIStyle.scope("trainUpgrades",repairPanelBounds,function()
       local mobile=mobileEnabled()
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",150,70,660,580,16,16)
+      love.graphics.setColor(colors.panel); GuiArt.frame(150,70,660,580)
       love.graphics.setColor(colors.brass); textBox("TRAIN WORKSHOP",170,88,620,40,1.35,"center")
       local engine=EngineUpgrades.profile(runtime.saveData.engineLevel); local engineStatus=TrainUpgradeBalance.engineStatus(runtime.saveData,EngineUpgrades); local nextEngine=engineStatus.entry
       local maintenance=Maintenance.status(runtime.saveData)
       love.graphics.setColor(colors.cream); textBox("Scrap "..runtime.saveData.scrap.." / Train "..math.floor(maintenance.condition).."% / Oil "..maintenance.oil.."/"..maintenance.oilCapacity,170,130,620,26,.88,"center")
-      love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,158,590,62,7,7)
+      love.graphics.setColor(.25,.18,.12); GuiArt.frame(185,158,590,62)
       love.graphics.setColor(colors.brass); textBox("ENGINE: "..engine.name,201,163,394,24,.88)
       love.graphics.setColor(colors.cream); textBox("Fuel "..math.floor(engine.coal*100).."% / Supplies "..math.floor(engine.supplies*100).."% / Speed "..math.floor(engine.speed*100).."%",201,188,394,29,.75)
       local engineLabel=engineStatus.maximum and "MAX LEVEL" or (engineStatus.locked and ("UNLOCK "..engineStatus.unlockStop) or (nextEngine.cost.." SCRAP"))
@@ -891,7 +938,7 @@ local function new(context)
       ui.trainCars={}
       for i,c in ipairs(Catalog.trainCarCatalog) do
           local y=230+(i-1)*58; local status=TrainUpgradeBalance.carStatus(runtime.saveData,c)
-          love.graphics.setColor(.25,.18,.12); love.graphics.rectangle("fill",185,y,590,52,7,7)
+          love.graphics.setColor(.25,.18,.12); GuiArt.frame(185,y,590,52)
           love.graphics.setColor(colors.cream); textBox(c.name..": "..c.description,201,y+4,394,44,.85)
           local label=status.owned and "OWNED" or (status.locked and ("UNLOCK "..status.unlockStop) or c.cost.." SCRAP")
           ui.trainCars[i]=button(label,mobile and 610 or 630,y+(mobile and 1 or 6),mobile and 155 or 125,mobile and 50 or 34,status.affordable)
@@ -909,7 +956,7 @@ local function new(context)
   function ui.drawEditControls()
       if ui.editedDecoration then ui.editedDecoration() end
       local mobile=mobileEnabled()
-      love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",mobile and 100 or 110,mobile and 145 or 158,mobile and 825 or 815,mobile and 225 or 122,10,10)
+      love.graphics.setColor(colors.panel); GuiArt.frame(mobile and 100 or 110,mobile and 145 or 158,mobile and 825 or 815,mobile and 225 or 122)
       love.graphics.setColor(colors.cream); love.graphics.print(runtime.editedItem and "MOVE / SCALE SELECTED ITEM" or "SELECT A YELLOW HANDLE",132,172)
       ui.editLeft=button("<",mobile and 125 or 132,mobile and 235 or 222,mobile and 56 or 40,mobile and 56 or 36,runtime.editedItem~=nil); ui.editRight=button(">",mobile and 245 or 220,mobile and 235 or 222,mobile and 56 or 40,mobile and 56 or 36,runtime.editedItem~=nil)
       ui.editUp=button("^",mobile and 185 or 176,mobile and 202 or 202,mobile and 56 or 40,mobile and 56 or 34,runtime.editedItem~=nil); ui.editDown=button("v",mobile and 185 or 176,mobile and 268 or 244,mobile and 56 or 40,mobile and 56 or 34,runtime.editedItem~=nil)
@@ -944,7 +991,7 @@ local function new(context)
       ui.editSaturation=slider("SATURATION  "..math.floor(saturation*100).."%",mobile and 570 or 755,mobile and 345 or 239,mobile and 180 or 145,saturation/2,"saturation")
       if ui.decorationMessage then
           local y=mobile and 378 or 286
-          love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",110,y,805,38,6,6)
+          love.graphics.setColor(colors.panel); GuiArt.frame(110,y,805,38)
           love.graphics.setColor(colors.cream)
           Typography.drawText(love.graphics,ui.decorationMessage,122,y+3,781,32,{scale=.75,minScale=.65,valign="center"})
       end

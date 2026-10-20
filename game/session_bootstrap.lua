@@ -1,5 +1,7 @@
 local AudioCatalog = require("game.audio_catalog")
 local ExpeditionBattleState = require("game.expedition_battle_state")
+local HomeFox = require("game.home_stop_fox")
+local Home = require("game.home_stop")
 
 local TRAIN_OBJECT_LAYOUT_VERSION=4
 local trainObjectStarts={
@@ -112,9 +114,9 @@ local function new(context)
       worldItems[#worldItems+1]={name="boombox-radio",x=radioX,y=radioY,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true}
       worldItems[#worldItems+1]={name="mailbox-reward",x=mailboxX,y=mailboxY,scene="train",carIndex=1,scale=1.15,rotation=0,permanent=true,mailbox=true,mailUnread=false,storage={}}
       local result={
-          version = SaveSchema.CURRENT_VERSION, character = character, location = 1, scene = "train", stopped = true,
-          npcRoster = npcRoster, currentNPC = npcRoster[1],
-          resources = {food = 10, water = 10, coal = 10, oil = 10},
+          version = SaveSchema.CURRENT_VERSION, character = character, location = 1, scene = "stop", stopped = true,
+          homeStop = Home.newState(), npcRoster = npcRoster, currentNPC = Home.CONDUCTOR,
+          resources = {food = 0, water = 0, coal = 0, oil = 0},
           health = 20, maxHealth = 20, stats=PlayerProgression.newStats(),
           equipment = {"frontier-short-sword", "trail-slingshot"},
           ammo = {rocks=12,arrows=0,["ball-bearings"]=0,["9mm"]=0,["45-cal"]=0,["556"]=0,["22lr"]=0,["30-carbine"]=0,["8mm"]=0,["380-acp"]=0,["32-acp"]=0,["12-gauge"]=0,["762x39"]=0},
@@ -130,8 +132,10 @@ local function new(context)
           trainObjectLayoutVersion=TRAIN_OBJECT_LAYOUT_VERSION,
           audio={station="8bit",musicVolume=.10,sfxVolume=.55,rainVolume=.20,rainEnabled=false,musicPaused=false,musicMuted=false},
           accessibility={version=1,textSize=1,highContrast=false,reducedMotion=false,controlHints=true,touchFeedback=true,largeTouchTargets=true},
-          playerX = car.x + 300, playerY = car.y + 285
+          playerX = 420, playerY = 565
       }
+      Home.layout(result)
+      HomeFox.ensure(result)
       for i,name in ipairs({"coal-bucket","pickaxe","potted-sprout","flower-pot","potted-flowers"}) do House.storeLoot(result,Catalog,name,i) end
       Events.ensure(result)
       local caravanState,caravanError=CrowCaravans.ensureSchedule(result,caravanScheduleOptions(result))
@@ -326,7 +330,8 @@ local function new(context)
       data.npcRoster = Roster.mergeNpcRoster(data.npcRoster,loadedNpcCandidates,data.character)
       local currentNpcAllowed=false
       for _,file in ipairs(data.npcRoster) do if file==data.currentNPC then currentNpcAllowed=true; break end end
-      if not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
+      if Home.isHome(data) then data.currentNPC=Home.CONDUCTOR
+      elseif not currentNpcAllowed then data.currentNPC = data.npcRoster[1] end
       resetStopSludges()
       local entities,entitiesError=require("game.coop_entities").ensure(data)
       if not entities then return false,entitiesError end
@@ -349,7 +354,10 @@ local function new(context)
       local restoredX=data.playerX or car.x+90; local restoredY=data.playerY or car.y+180
       local restoredFacing=1
       if data.scene=="train" then restoredX,restoredY=clampToTrainFloor(restoredX,restoredY) end
-      if data.scene=="stop" then restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
+      if data.scene=="stop" then
+          if Home.isHome(data) then restoredX,restoredY=Home.clamp(restoredX,restoredY,data)
+          else restoredX,restoredY=Settlements.clamp(restoredX,restoredY,data.location) end
+      end
       if data.scene==ExpeditionAreas.SCENE then
           if not ExpeditionAreas.isArea(data.activeExpeditionArea) then
               data.scene="train"; data.activeExpeditionArea=nil

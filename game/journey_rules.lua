@@ -2,6 +2,9 @@ local Conversations=require("game.npc_conversations")
 local CoopProgression=require("game.coop_progression")
 local Items=require("game.item_instances")
 local QuestDecisions=require('game.coop_quest_decisions')
+local Home=require("game.home_stop")
+local Identity=require('game.npc_identity')
+local Targets=require('game.npc_targets')
 
 local function required(context, name, expectedType)
   local value=context[name]
@@ -84,11 +87,12 @@ local function new(context)
       for i=#runtime.saveData.passengers,1,-1 do
           local passenger=runtime.saveData.passengers[i]
           if runtime.saveData.location>=passenger.destination then
+              Identity.arrive(runtime.saveData,passenger)
               table.remove(runtime.saveData.passengers,i)
               local origin=passenger.origin or math.max(1,(passenger.destination or runtime.saveData.location)-3)
               local reward=grantProgressionReward("ride",origin,passenger.destination or runtime.saveData.location)
-              local _,goodwill=StopHelpProgression.add(runtime.saveData,1,"ride",passenger.npc,passenger.destination)
-              notices[#notices+1]=Util.titleFromFile(passenger.npc).." reached their stop: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total)."
+              local _,goodwill=StopHelpProgression.add(runtime.saveData,1,"ride",passenger.characterId or passenger.npc,passenger.destination)
+              notices[#notices+1]=Identity.name(runtime.saveData,passenger).." reached their stop: "..rewardText(reward).." and +1 goodwill ("..goodwill.." total)."
           end
       end
       runtime.saveData.arrivalNotice=#notices>0 and table.concat(notices," ") or nil
@@ -104,7 +108,7 @@ local function new(context)
           elseif contribution.kind=="health" then local before=runtime.saveData.health; runtime.saveData.health=math.min(runtime.saveData.maxHealth,runtime.saveData.health+contribution.amount); amount=runtime.saveData.health-before
           else runtime.saveData.scrap=(runtime.saveData.scrap or 0)+contribution.amount; amount=contribution.amount end
           local gained=contribution.verb.." "..amount.." "..(contribution.kind=="health" and "health" or (contribution.kind=="scrap" and "scrap" or contribution.resource))
-          notes[#notes+1]=Util.titleFromFile(passenger.npc).." "..gained
+          notes[#notes+1]=Identity.name(runtime.saveData,passenger).." "..gained
       end
       if #notes>0 then runtime.saveData.arrivalNotice=table.concat(notes,". ").."." end
   end
@@ -138,7 +142,7 @@ local function new(context)
 
   local function pendingMailHere()
       for _,quest in ipairs(runtime.saveData.mailQuests or {}) do
-          if not quest.complete and quest.destination==runtime.saveData.location and quest.recipient==runtime.saveData.currentNPC then return quest end
+          if not quest.complete and Targets.matches(runtime.saveData,quest,runtime.saveData.currentNPC) then return quest end
       end
   end
 
@@ -155,7 +159,7 @@ local function new(context)
   local function showDialogueQuest(view)
       if not view then return false end
       runtime.helpDialogue=view
-      runtime.dialogue={speaker=Util.titleFromFile(view.request.npc or runtime.saveData.currentNPC or "Traveler"),text=view.text,timer=math.huge,authored=view.authored}
+      runtime.dialogue={speaker=Identity.title(runtime.saveData,view.request.npc or runtime.saveData.currentNPC or "Traveler"),text=view.text,timer=math.huge,authored=view.authored}
       return true
   end
 
@@ -180,7 +184,7 @@ local function new(context)
               if not index then runtime.helpDialogue=nil; runtime.dialogue=nil; return true end
               local read=Conversations.readAlong(runtime.saveData)
               runtime.helpDialogue=nil
-              runtime.dialogue={speaker=Util.titleFromFile(request.npc),text=read.text,notice=read.notice,authored=true,timer=math.huge}
+              runtime.dialogue={speaker=Identity.title(runtime.saveData,request.npc),text=read.text,notice=read.notice,authored=true,timer=math.huge}
               return {completed=true,text=read.text,notice=read.notice}
           end
           if not index then runtime.helpDialogue=nil; runtime.dialogue=nil; writeSave(); return true end
@@ -190,7 +194,7 @@ local function new(context)
           })
           if result.completed then
               runtime.helpDialogue=nil
-              runtime.dialogue={speaker=Util.titleFromFile(request.npc),text=result.text,notice=result.notice,authored=true,timer=math.huge}
+              runtime.dialogue={speaker=Identity.title(runtime.saveData,request.npc),text=result.text,notice=result.notice,authored=true,timer=math.huge}
           elseif result.view then showDialogueQuest(result.view) end
           writeSave(); return result
       end
@@ -203,7 +207,7 @@ local function new(context)
       if result.completed then
           runtime.helpDialogue=nil
           local relationship=result.relationship or NpcRelationships.status(runtime.saveData,request.npc)
-          runtime.dialogue={speaker=Util.titleFromFile(request.npc or "Traveler").." • "..relationship.name,
+          runtime.dialogue={speaker=Identity.name(runtime.saveData,request.npc or "Traveler").." • "..relationship.name,
               text=result.text.."\n\n+"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=14}
       elseif result.view then showDialogueQuest(result.view) end
       writeSave(); return result
@@ -219,7 +223,7 @@ local function new(context)
       end
       local result=context.commands and submitQuestAssistance("quest.help")
           or StopHelpProgression.completeItem(runtime.saveData,request,runtime.saveData.currentNPC,runtime.saveData.location)
-      local speaker=Util.titleFromFile(runtime.saveData.currentNPC or "Traveler")
+      local speaker=Identity.title(runtime.saveData,runtime.saveData.currentNPC or "Traveler")
       if result.completed then
           runtime.dialogue={speaker="TASK",text="Item delivered. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
       else
@@ -267,20 +271,25 @@ local function new(context)
 
   local function acceptQuest(kind)
       if not CoopProgression.allowed(runtime,"quest.accept") then return false,"host_only" end
+      if kind=='ride' and Targets.pending(runtime.saveData,runtime.saveData.currentNPC) then
+          runtime.dialogue={speaker='TASK',text="Complete this critter's deliveries before arranging a ride.",timer=5}
+          return false,'recipient_has_delivery'
+      end
       if context.commands then
           local data=runtime.saveData; local layout=data.stopLayouts[tostring(data.location)]
           local command=kind=='ride' and 'passenger.recruit' or 'quest.accept'
           local reply=context.commands.submit(command,{targetId=context.commands.identify(layout),npc=data.currentNPC,kind=kind})
           if not reply.ok then return false,reply.reason end
           local result=reply.result; local reward=result.reward
+          local accepted=result.entityId and require('game.coop_entities').find(runtime.saveData,result.entityId)
           runtime.questOffer=nil
           if kind=='mail' then
-              runtime.dialogue={speaker='TASK',text='Deliver the letter to '..Util.titleFromFile(result.recipient)..' at stop '..result.destination..'. Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=6}
+              runtime.dialogue={speaker='TASK',text=Targets.label(data,accepted,'the letter')..' '..Targets.directions(data,accepted)..'. Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=6}
           elseif kind=='ride' then
-              runtime.dialogue={speaker='TASK',text='Passenger job: '..result.job..' until stop '..result.destination..'. Arrival reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and loot.',timer=6}
+              runtime.dialogue={speaker='TASK',text=Identity.name(data,accepted)..' • Passenger job: '..result.job..' until stop '..result.destination..'. Arrival reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and loot.',timer=6}
           elseif kind=='supplies' then
               local profile=QuestProgression.deliveryProfile(result.deliveryKind)
-              runtime.dialogue={speaker='TASK',text=string.format(profile.accepted,result.destination)..' Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=7}
+              runtime.dialogue={speaker='TASK',text=Targets.label(data,accepted,profile.label)..' '..Targets.directions(data,accepted)..'. Reward: '..reward.scrap..' scrap, '..reward.xp..' XP, coal, and '..reward.minimumRarity..' loot.',timer=7}
           elseif kind=='trade' then
               runtime.tradeOpen=true; runtime.tradeNPC=data.currentNPC; runtime.tradeMerchantId=nil
               runtime.tradeMessage=nil; runtime.tradeBuyPage=0; runtime.tradeSellPage=0; runtime.dialogue=nil
@@ -297,18 +306,19 @@ local function new(context)
       runtime.saveData.questAsked[tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC)]=true
       if kind=="mail" then
           local distance=QuestProgression.questDistance("mail",runtime.saveData.location); local destination=runtime.saveData.location+distance
-          local layout=runtime.saveData.stopLayouts[tostring(destination)] or {houseX=love.math.random(390,700),treeA=love.math.random(110,250),treeB=love.math.random(760,860),house=love.math.random(1,8),tree=love.math.random(1,7)}
-          local roster=runtime.saveData.npcRoster or {}; layout.npc=layout.npc or roster[love.math.random(math.max(1,#roster))] or runtime.saveData.currentNPC; runtime.saveData.stopLayouts[tostring(destination)]=layout
-          runtime.saveData.mailQuests[#runtime.saveData.mailQuests+1]={sender=runtime.saveData.currentNPC,recipient=layout.npc,origin=runtime.saveData.location,destination=destination,complete=false}
+          local quest=Targets.bind(runtime.saveData,{sender=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,complete=false})
+          runtime.saveData.mailQuests[#runtime.saveData.mailQuests+1]=quest
           local reward=QuestProgression.rewardProfile("mail",distance,runtime.saveData.trait,destination)
-          runtime.dialogue={speaker="TASK",text="Deliver the letter to "..Util.titleFromFile(layout.npc).." at stop "..destination..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
+          runtime.dialogue={speaker="TASK",text=Targets.label(runtime.saveData,quest,'the letter')..' '..Targets.directions(runtime.saveData,quest)..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=6}
       elseif kind=="ride" then
           local remaining=math.max(1,50-runtime.saveData.location); local job=Passengers.jobFor(runtime.saveData.currentNPC); local rideStops=Passengers.rideLength(job,remaining,runtime.saveData.resources.food,runtime.saveData.resources.water,love.math.random(-1,1))
           local index=#runtime.saveData.passengers+1; local px=car.x+225+(index-1)*85
           local layout=ensureStopLayout()
           local destination=runtime.saveData.location+rideStops
           if Items.enabled(runtime.saveData) then assert(Items.ensure(runtime.saveData)) end
-          runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
+          local person=Identity.get(runtime.saveData,runtime.saveData.currentNPC) or Identity.ensure(runtime.saveData,runtime.saveData.currentNPC,runtime.saveData.location,1)
+          runtime.saveData.passengers[index]={npc=runtime.saveData.currentNPC,characterId=person.id,origin=runtime.saveData.location,destination=destination,x=px,y=car.y+285,homeX=px,homeY=car.y+285,wait=1,job=job,pose="idle",weapon=layout.npcWeapon}
+          Identity.board(runtime.saveData,runtime.saveData.passengers[index])
           if Items.enabled(runtime.saveData) then
               runtime.saveData.passengers[index].weaponInstance=layout.npcWeaponInstance
               layout.npcWeapon=nil; layout.npcWeaponInstance=nil
@@ -332,9 +342,10 @@ local function new(context)
           local distance=QuestProgression.questDistance("supplies",runtime.saveData.location); local destination=runtime.saveData.location+distance
           local cargoKind=(runtime.questOffer and runtime.questOffer.deliveryKind) or rollSupplyDelivery()
           local profile=QuestProgression.deliveryProfile(cargoKind)
-          runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]={origin=runtime.saveData.location,destination=destination,amount=profile.amount,cargoKind=cargoKind,complete=false}
+          local quest=Targets.bind(runtime.saveData,{sender=runtime.saveData.currentNPC,origin=runtime.saveData.location,destination=destination,amount=profile.amount,cargoKind=cargoKind,complete=false})
+          runtime.saveData.supplyQuests[#runtime.saveData.supplyQuests+1]=quest
           local reward=QuestProgression.rewardProfile(cargoKind,distance,runtime.saveData.trait,destination)
-          runtime.dialogue={speaker="TASK",text=string.format(profile.accepted,destination).." Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=7}
+          runtime.dialogue={speaker="TASK",text=Targets.label(runtime.saveData,quest,profile.label)..' '..Targets.directions(runtime.saveData,quest)..". Reward: "..reward.scrap.." scrap, "..reward.xp.." XP, coal, and "..reward.minimumRarity.." loot.",timer=7}
       end
       runtime.questOffer=nil; writeSave()
   end
@@ -357,6 +368,7 @@ local function new(context)
   local function resolveFirstAid(outcome)
       local session=runtime.firstAid
       if not session then return false end
+      if session.debugPractice then runtime.firstAid=nil;return true end
       if session.command then
           local name=outcome=="complete" and "firstAid.complete" or "firstAid.step"
           local args={leaseId=session.leaseId,action=outcome~="complete" and "pause" or nil}
@@ -376,7 +388,7 @@ local function new(context)
       runtime.firstAid=nil
       local layout=runtime.saveData.stopLayouts[tostring(session.location)]
       local request=StopHelpProgression.request(layout,session.npc)
-      local speaker=Util.titleFromFile(session.npc or "Traveler")
+      local speaker=Identity.title(runtime.saveData,session.npc or "Traveler")
       if outcome=="complete" then
           local result=StopHelpProgression.completeAid(runtime.saveData,request,session,session.npc,session.location)
           if result.completed then runtime.dialogue={speaker="TASK",text="Treatment complete. +"..result.gained.." goodwill. Total goodwill: "..result.total..".",timer=6}
@@ -413,7 +425,7 @@ local function new(context)
           showDialogueQuest(authored); if not context.commands then writeSave() end; return
       end
       for _,supply in ipairs(runtime.saveData.supplyQuests or {}) do
-          if not supply.complete and supply.destination==runtime.saveData.location then
+          if not supply.complete and Targets.matches(runtime.saveData,supply,runtime.saveData.currentNPC) then
               if context.commands then deliverQuest(supply,QuestProgression.deliveryProfile(supply.cargoKind).thanks); return end
               local result=QuestProgression.consumeCargo(runtime.saveData,Catalog,supply)
               local profile=QuestProgression.deliveryProfile(supply.cargoKind)
@@ -444,7 +456,7 @@ local function new(context)
       if dialogueRequest and dialogueRequest.complete then
           local followup=HelpDialogueQuests.followup(runtime.saveData,dialogueRequest)
           local status=NpcRelationships.status(runtime.saveData,runtime.saveData.currentNPC)
-          runtime.dialogue={speaker=Util.titleFromFile(runtime.saveData.currentNPC).." • "..status.name,text=followup,timer=8}; writeSave(); return
+          runtime.dialogue={speaker=Identity.name(runtime.saveData,runtime.saveData.currentNPC).." • "..status.name,text=followup,timer=8}; writeSave(); return
       end
       local key=tostring(runtime.saveData.location)..":"..tostring(runtime.saveData.currentNPC); local layout=ensureStopLayout()
       -- Read the offer for the NPC being spoken to. A stop can have several
@@ -482,7 +494,7 @@ local function new(context)
       if context.commands and context.commands.chatter then line,status=context.commands.chatter(runtime.saveData.currentNPC)
       else line,status=NpcRelationships.npcDialogue(runtime.saveData,runtime.saveData.currentNPC,Catalog.dialogueLines) end
       runtime.questOffer=nil
-      runtime.dialogue={speaker=line and (Util.titleFromFile(runtime.saveData.currentNPC or "Traveler").." • "..status.name) or "CONVERSATION",
+      runtime.dialogue={speaker=line and (Identity.name(runtime.saveData,runtime.saveData.currentNPC or "Traveler").." • "..status.name) or "CONVERSATION",
           text=line or "No new conversation available.",timer=6}
       writeSave()
   end
@@ -498,6 +510,7 @@ local function new(context)
 
   local function attemptLeaveTrain()
       if not CoopProgression.allowed(runtime,"scene.leaveTrain") then return false,"host_only" end
+      if Home.isHome(runtime.saveData) then return enterStop() end
       local key=tostring(runtime.saveData.location); local encounter=runtime.saveData.encounters[key]
       if beginRequiredEvent(runtime.saveData.location) then return end
       if context.commands then

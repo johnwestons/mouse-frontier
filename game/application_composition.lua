@@ -177,7 +177,6 @@ local function new(context)
   end
   ui.roamingAttack=function(x,y)
     local name=require('game.coop_roaming').weapon(runtime.saveData,'host',Catalog)
-    if not name then return false,'melee_required' end
     local reply=coopCommands.submit('roaming.attack',{areaId=runtime.saveData.activeExpeditionArea,weaponId=name,targetX=x,targetY=y})
     return reply.ok,reply.reason
   end
@@ -278,7 +277,7 @@ local function new(context)
     submit=function(name,args) return coopCommands.submit(name,args) end,
     inputPaused=function()
       local lp=ui.localPlay
-      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true
+      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true or ui.playerToolsOpen==true
         or lp and (lp.menuOpen or lp.focused==false) or false
     end,
     runtime=runtime,catalog=Catalog,writeSave=platform.persistenceRuntime.schedule,
@@ -292,6 +291,7 @@ local function new(context)
   })
 
   trainAmbush=TrainAmbush.new({
+    mobileEnabled=platform.mobileRuntime.isEnabled,
     runtime=runtime,catalog=Catalog,width=W,height=H,controlBindings=controlBindings,
     writeSave=platform.persistenceRuntime.schedule,enterStop=adventure.journeyRules.enterStop,
     submit=function(name,args) return coopCommands.submit(name,args) end,
@@ -304,7 +304,7 @@ local function new(context)
     checkpointPending=function() return coopCommands.checkpointStatus().pending end,
     inputPaused=function()
       local lp=ui.localPlay
-      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true
+      return runtime.exitPrompt~=nil or type(runtime.pendingConfirmation)=='table' or ui.escMenuOpen==true or ui.optionsOpen==true or ui.playerToolsOpen==true
         or lp and (lp.menuOpen or lp.focused==false) or false
     end,
     participants=function()
@@ -383,6 +383,7 @@ local function new(context)
 
   function application.update(dt)
     ui.updateDecoration()
+    platform.mobileRuntime.update(dt)
     if WorldPause.isSharedHost(runtime) and not WorldPause.isSimulationPaused(runtime,ui,maintenanceSession) then
       coopCommands.advanceRange(dt)
     end
@@ -548,6 +549,7 @@ local function new(context)
   end
   local sceneGesture=WorldGesture.new({
     field=function(x,y)
+      if platform.mobileRuntime.shooterControlAt(x,y) then return nil end
       local gx,gy=lastStandPoint(x,y)
       if lastStand:isCapturing() then return lastStand:zoomField(gx,gy) end
       local range=runtime.shootingRange
@@ -601,10 +603,6 @@ local function new(context)
     persistence=platform.persistenceRuntime,audio=platform.audioRuntime,bindings=controlBindings,
     maintenanceSession=maintenanceSession,commands=coopCommands,
   })
-  application=require("game.player_tools_host").wrap(application,{
-    runtime=runtime,ui=ui,filesystem=Filesystem,mobile=platform.mobileRuntime,
-    presentation=platform.presentationRuntime,persistence=platform.persistenceRuntime,
-  })
   application=require('game.coop_roaming_host').wrap(application,{
     runtime=runtime,ui=ui,commands=coopCommands,screenToGame=platform.presentationRuntime.screenToGame,
     battleEntered=function() runtime.battle=require('game.tactical_battle_state').restore(runtime.saveData,Catalog) end,
@@ -639,6 +637,7 @@ local function new(context)
     saveLocalPlayPreferences=function(value) return ui.localPreferences:setLocalPlay(value) end,
     clock=function() return Engine.timer.getTime() end,
     characters=function() return content.characters end,
+    managementState=function() return {activityBlocked=maintenanceSession.open==true} end,
     roaming=function()
       return world.worldScene.fieldState(),require('game.world_pause').isSimulationPaused(runtime,ui) or (runtime.expeditionGraceTimer or 0)>0
     end,
@@ -754,11 +753,32 @@ local function new(context)
   ui.relocateExpeditionCompanion=function(x,y)
     return localPlay.motion and localPlay.motion:relocate(x,y)
   end
-  ui.coopPatientBusy=function() return coopCommands.patientBusy(runtime.saveData.currentNPC) end
-  return require("game.local_play_host").wrap(application,{
+  ui.coopPatientBusy=function(npc) return coopCommands.patientBusy(npc or runtime.saveData.currentNPC) end
+  application=require("game.local_play_host").wrap(application,{
     controller=localPlay,runtime=runtime,ui=ui,commands=coopCommands,bindings=controlBindings,
     screenToGame=platform.presentationRuntime.screenToGame,
     idleUpdate=function(dt,presentation) platform.persistenceRuntime.update(dt); platform.audioRuntime.update(presentation); return true end,
+  })
+  local function guestView() return localPlay:isClient() and localPlay.clientView or nil end
+  local debugActivities=require('game.debug_activities').new({
+    runtime=runtime,ui=ui,controller=localPlay,catalog=Catalog,world=world.worldScene,
+    enterGame=world.sessionBootstrap.enterGame,lastStand=lastStand,battle=adventure.battleRuntime,
+    maintenance=Maintenance,maintenanceSession=maintenanceSession,save=platform.persistenceRuntime.schedule,
+    closeActivities=function()
+      if ui.actionMenu then ui.actionMenu:close() end
+      if maintenanceSession.open then Maintenance.close(maintenanceSession) end
+      if ui.suspendOutfitWorkbench then ui.suspendOutfitWorkbench() end
+      trainAmbush:suspend();lastStand:focus(false)
+    end,
+  })
+  ui.debugActivities=debugActivities
+  application=require('game.action_menu_host').wrap(application,{
+    runtime=runtime,ui=ui,mobile=platform.mobileRuntime,presentation=platform.presentationRuntime,
+    controller=localPlay,guest=guestView,maintenance=maintenanceSession,
+  })
+  return require('game.player_tools_host').wrap(application,{
+    runtime=runtime,ui=ui,filesystem=Filesystem,mobile=platform.mobileRuntime,guest=guestView,controller=localPlay,minigames=debugActivities,
+    presentation=platform.presentationRuntime,persistence=platform.persistenceRuntime,
   })
 end
 

@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Neutral connection controls; no authored character speech is created here.
 local Viewport=require('game.viewport')
 local Util=require('game.util')
@@ -8,6 +9,13 @@ local messages={load_journey_to_host='Continue a journey before hosting.',join_f
     session_full='This journey already has a guest or a pending request.',credential_not_saved='The reconnect credential could not be saved on this device.',
     host_timeout='The host stopped responding.',peer_timeout='The companion stopped responding.',join_timeout='The connection timed out.',
     host_disconnected='The host disconnected.',host_closed='The host ended Local Play.',
+    host_kicked='The host disconnected your companion. Joining again requires host approval.',
+    management_busy='Finish the pending companion change before continuing.',
+    management_expired='This companion request expired. Select the companion again.',
+    companion_connected='Disconnect the companion before changing their traveler.',
+    replacement_unavailable='Change travelers while stopped on the train, outside encounters and activities.',
+    pending_admission='Approve or decline the pending connection first.',
+    character_unchanged='Choose a different traveler.',
     invalid_guest_profile='Enter a name and select a traveler.',credential_lookup_failed='Saved connection information could not be read.',
     hosting_entry_unavailable='Choose a saved journey from the title screen.',hosting_entry_pending='Cancel hosting before joining a friend.'}
 local function inside(rect,x,y) return rect and x>=rect.x and y>=rect.y and x<=rect.x+rect.w and y<=rect.y+rect.h end
@@ -48,7 +56,10 @@ function Panel:textinput(text)
 end
 function Panel:key(key)
     if key=='escape' or key=='acback' or key=='f8' then
-        self:stopTextInput(); self.controller:closeMenu(); return true
+        self:stopTextInput()
+        if self.controller.managementStatus and self.controller:managementStatus() then self.controller:cancelCompanionManagement()
+        else self.controller:closeMenu() end
+        return true
     end
     if self.field then
         if key=='backspace' then
@@ -83,9 +94,7 @@ function Panel:draw()
         local rect={x=x,y=y,w=w,h=h,action=action,enabled=enabled,field=field}
         self.controls[#self.controls+1]=rect; self.context.ui.localPlayControls[id]=rect
         local focused=self.selected==#self.controls or self.field==field and field~=nil
-        g.setColor((focused or active) and .29 or .17,(focused or active) and .24 or .135,.09,enabled==false and .45 or 1)
-        g.rectangle('fill',x,y,w,h,8,8)
-        g.setColor(active and .9 or .64,active and .7 or .48,.23,enabled==false and .35 or 1); g.rectangle('line',x,y,w,h,8,8)
+        GuiArt.frame(x,y,w,h,{selected=focused or active,disabled=enabled==false})
         text(label,x+14,y+(h-24)/2,w-28,enabled==false and {.55,.52,.46,1} or nil)
     end
     local function button(id,label,x,y,w,action,enabled,height,active) control(id,label,x,y,w,action,enabled,nil,height,active) end
@@ -178,7 +187,34 @@ function Panel:draw()
             text('Traveler: '..Util.titleFromFile(existing and existing.character or pending.character),54,390)
             button('approve',existing and 'Approve reconnect' or 'Approve companion',54,475,300,function() c:approve() end)
             button('decline','Decline',380,475,176,function() c:decline() end)
-        else text(link and (link.admitted and (link.name..' is connected.') or 'Connecting companion...') or 'Waiting for a friend to join.',54,278) end
+        else
+            text(link and (link.admitted and (link.name..' is connected.') or 'Connecting companion...') or 'Waiting for a friend to join.',54,259)
+            local management=c.managementStatus and c:managementStatus()
+            if management and management.phase=='saving' then
+                text('Saving the companion change...',54,315)
+                small('Retry the host save to finish. The connection changes after saving succeeds.',54,365,852)
+            elseif management and management.kind=='kick' then
+                text('Disconnect this companion?',54,315)
+                small('Their items and progress stay in this journey. Joining again requires your approval.',54,365,852)
+                button('confirmDisconnect','Disconnect companion',54,455,340,function() c:disconnectCompanion() end)
+                button('cancelManagement','Cancel',420,455,180,function() c:cancelCompanionManagement() end)
+            elseif management and management.kind=='replace' then
+                small('Choose the saved companion traveler',54,310,852)
+                button('previousReplacement','<',54,345,62,function() c:cycleReplacementCharacter(-1) end)
+                text(c:replacementCharacter() and Util.titleFromFile(c:replacementCharacter()) or 'Loading travelers...',140,355,640)
+                button('nextReplacement','>',844,345,62,function() c:cycleReplacementCharacter(1) end)
+                small('Items and progress stay. The new trait applies without healing. Joining requires new approval.',54,410,852)
+                button('confirmReplacement','Confirm traveler change',54,475,350,function() c:replaceCompanion() end,
+                    c:replacementCharacter()~=c.campaign.players.companion.character)
+                button('cancelManagement','Cancel',430,475,180,function() c:cancelCompanionManagement() end)
+            elseif c.campaign.players.companion and c.canManageCompanion then
+                text('Saved traveler: '..Util.titleFromFile(c.campaign.players.companion.character),54,310,852)
+                local canKick=c:canManageCompanion('kick');local canReplace,replaceReason=c:canManageCompanion('replace')
+                button('disconnectCompanion','Disconnect companion',54,370,350,function() c:selectCompanionDisconnect() end,canKick)
+                button('changeCompanion','Change saved traveler',430,370,350,function() c:selectCompanionReplacement() end,canReplace)
+                small(c.managementNotice or (not canReplace and messages[replaceReason]) or 'Changing travelers keeps companion equipment and progress.',54,450,852)
+            end
+        end
         button('stop','End Local Play',54,630,240,function() c:stop(); c.menuOpen=false end)
         button('close','Back to journey',664,630,242,function() c:closeMenu() end)
     else
@@ -187,7 +223,7 @@ function Panel:draw()
             text('Connected to the host journey: stop '..data.location..' / '..data.scene,54,138)
             for index,id in ipairs({'host','companion'}) do
                 local actor=data.players[id]; local x=54+(index-1)*450
-                g.setColor(.15,.12,.085,1); g.rectangle('fill',x,200,402,230,10,10)
+                g.setColor(.15,.12,.085,1); GuiArt.frame(x,200,402,230)
                 text(id=='host' and 'HOST' or 'YOU',x+18,218,360)
                 text(Util.titleFromFile(actor.character),x+18,263,360)
                 text('Health '..actor.health..' / '..actor.maxHealth,x+18,310,360)

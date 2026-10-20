@@ -21,6 +21,8 @@
 
 # First-person weapon art
 
+- This world contains critters only. Character portraits, pose pictograms, and other GUI character icons must depict critters, never humans. Use paws when a body-part action symbol is needed.
+
 - Lever-action rifles always retain the lever and trigger guard beneath the receiver. Never relocate them above the barrel or receiver to imply a side change. A reload showing the opposite side must depict the entire upright rifle from that side with coherent stock, sights, receiver, and lever placement.
 
 - Weapon sprites must never contain hands, fingers, gloves, arms, or other body parts, including during reloads.

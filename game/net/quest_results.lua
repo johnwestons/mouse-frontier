@@ -2,7 +2,7 @@
 local P=require('game.net.protocol')
 local R={}
 local function amount(n) return P.integer(n,0,1000000000) end
-local destinations={backpack=true,mailbox=true,ammunition=true,['local supply crate']=true}
+local destinations={backpack=true,mailbox=true,ammunition=true,['house storage']=true}
 function R.valid(command,v)
     if command~='quest.help' and command~='quest.deliver' then return false end
     if command=='quest.help' then

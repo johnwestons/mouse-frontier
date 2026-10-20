@@ -8,6 +8,8 @@ local Style=require('game.ui_layout')
 local Focus=require('game.ui_focus')
 local Util=require('game.util')
 local QuestPanel=require('game.coop_guest_quests')
+local Home=require('game.home_stop')
+local Identity=require('game.npc_identity')
 local Panel={}; Panel.__index=Panel
 local failures={recipient_unavailable='The recipient is no longer within reach.',missing_recipient='The recipient is no longer available.',
     stale_item='The selected item changed. Select it again.',stale_revision='The items or relationship changed. Review them and try again.',
@@ -28,19 +30,29 @@ function Panel:busy()
         or self.runtime.inventoryOpen or self.runtime.tradeOpen or self.runtime.trainUpgradeOpen or self.runtime.editMode or self.ui.radioOpen
 end
 function Panel:nearest()
+    if Home.isOffice(self.runtime.saveData) then return nil end
     if self:busy() or self.runtime.peopleOpen or not self.view:actionsAllowed() then return nil end
     return Access.nearest(self.runtime.saveData,self:state())
 end
 function Panel:recipient()
     return self.targetId and Access.find(self.runtime.saveData,self.targetId,self.npc,self:state())
 end
+function Panel:person()
+    local recipient=self:recipient()
+    return recipient and recipient.kind=='passenger' and recipient.target or self.npc
+end
 function Panel:open(recipient)
     if self:busy() or not self.view:actionsAllowed() then return false end
     recipient=recipient or self:nearest(); if not recipient then return false end
+    local homeFox=Home.isHome(self.runtime.saveData)
+    if homeFox and (Home.isOffice(self.runtime.saveData) or recipient.npc~=Home.FOX) then return false end
     recipient=Access.find(self.runtime.saveData,recipient.targetId,recipient.npc,self:state()); if not recipient then return false end
     self.targetId,self.npc=recipient.targetId,recipient.npc; self.epoch=self.view.epoch; self.car=self.runtime.saveData.activeCar
     self.runtime.peopleOpen=true; self.page=0; self.mode='gift'; self.quote=nil; self.speech=nil; self.drawn=nil; self.notice=nil
-    self.ui.keyboardFocusId=nil; self.view:neutralize(); return true
+    self.homeFox=homeFox
+    self.ui.keyboardFocusId=nil; self.view:neutralize()
+    if homeFox then self:talk() end
+    return true
 end
 function Panel:close()
     self.quests:close()
@@ -65,6 +77,7 @@ function Panel:setMode(mode)
     self.mode=mode; self.page=0; self.drawn=nil; self.ui.keyboardFocusId=nil; return true
 end
 function Panel:offers()
+    if self.homeFox then return {} end
     local recipient=self:recipient(); if not recipient then return {} end
     local list={}; local data=self.runtime.saveData; local name=self.mode=='equip' and 'passenger.equip' or 'npc.gift'
     local function add(ref,chest,label)
@@ -117,6 +130,10 @@ function Panel:update()
 end
 function Panel:targets() return self.controls or {} end
 function Panel:keypressed(key)
+    if self.homeFox then
+        if key=='e' or key=='escape' or key=='acback' then self:close(); return true end
+        if key=='j' or key=='g' then return true end
+    end
     if self.quests.opened then return self.quests:keypressed(key) end
     if key=='j' then self.quests:open(); return true end
     if key=='escape' or key=='acback' or key=='g' then
@@ -138,10 +155,21 @@ function Panel:draw()
         local rect=Style.transformRect(self.view.inventory:button(label,x,y,w,h,enabled~=false,.82))
         self.ui['people_'..id]=rect; self.controls[#self.controls+1]={id=id,rect=rect,action=action,enabled=enabled~=false}; return rect
     end
+    if self.homeFox then
+        g.setColor(0,0,0,.76); g.rectangle('fill',0,0,960,720)
+        Style.scope('guest-fox-talk',{x=155,y=210,w=650,h=345},function()
+            self.view.inventory:frame(155,210,650,345,1,1)
+            g.setColor(self.c.colors.brass); text(Identity.title(self.runtime.saveData,Home.FOX),185,227,590,32,.9,'center')
+            g.setColor(self.c.colors.cream); text(self.speech and self.speech.text or self.notice or 'Approach Tinker Fox to talk.',185,270,590,155,1.1,'center')
+            button('speechClose','CLOSE',330,455,300,60,function() self:close() end,true)
+        end)
+        if self.ui.keyboardFocusVisible then Focus.draw(Focus.current(self.ui,self:targets(),'guest-people')) end
+        return
+    end
     g.setColor(0,0,0,.78); g.rectangle('fill',0,0,960,720)
     Style.scope('guest-people',{x=80,y=50,w=800,h=620},function()
         self.view.inventory:frame(80,50,800,620,1,1); g.setColor(self.c.colors.brass)
-        text(Util.titleFromFile(self.npc or 'Recipient'),110,70,740,44,1.15,'center'); g.setColor(self.c.colors.cream)
+        text(Identity.title(self.runtime.saveData,self:person() or 'Recipient'),110,70,740,44,1.15,'center'); g.setColor(self.c.colors.cream)
         text(self.notice or 'Talk, give an item, or equip a passenger weapon.',110,120,740,48,.87,'center')
         local recipient=self:recipient(); local enabled=not self.pending and not self.quote and not self.speech
         button('gift','GIVE ITEM',115,181,232,54,function() self:setMode('gift') end,enabled)
@@ -173,12 +201,12 @@ function Panel:draw()
         Style.scope('guest-people-confirm',{x=155,y=210,w=650,h=345},function()
             self.view.inventory:frame(155,210,650,345,1,1); g.setColor(self.c.colors.cream)
             if self.quote then
-                text((self.quote.command=='passenger.equip' and 'Equip ' or 'Give ')..Util.titleFromFile(self.quote.item)..' to '..Util.titleFromFile(self.npc)..'?',185,235,590,145,1,'center')
+                text((self.quote.command=='passenger.equip' and 'Equip ' or 'Give ')..Util.titleFromFile(self.quote.item)..' to '..Identity.name(self.runtime.saveData,self:person())..'?',185,235,590,145,1,'center')
                 if Inventory.isWeapon(self.quote.item,self.c.catalog.weaponStats) then text('This replaces their current weapon.',185,380,590,35,.8,'center') end
                 button('confirm','CONFIRM',185,446,275,64,function() self:confirm() end,not self.pending)
                 button('cancel','CANCEL',500,446,275,64,function() self.quote=nil; self.ui.keyboardFocusId=nil end,true)
             else
-                text(Util.titleFromFile(self.speech.npc)..' / '..self.speech.tier,185,227,590,32,.8,'center')
+                text(Identity.name(self.runtime.saveData,self:person())..' / '..self.speech.tier,185,227,590,32,.8,'center')
                 text(self.speech.text,185,270,590,155,1.1,'center')
                 button('speechClose','CLOSE',330,455,300,60,function() self.speech=nil; self.ui.keyboardFocusId=nil end,true)
             end

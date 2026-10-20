@@ -18,54 +18,162 @@ local definitions = {
         height=941,
         background="assets/sprites/expeditions/stop05/badlands-approach-background.png",
         walkMask="assets/sprites/expeditions/stop05/walkmask-badlands-approach.png",
-        version=2,
+        version=3,
         objectives={
             surface="Follow the dry wash into Redwash Basin.",
             complete="Survey the basin cairns, then return to Stop 5.",
         },
-        spawns={town={x=836,y=700},basinReturn={x=1418,y=188}},
+        spawns={town={x=836,y=868},basinReturn={x=1395,y=211}},
         clearings={
-            {x=836,y=700,rx=56,ry=54},
-            {x=920,y=565,rx=58,ry=50},
-            {x=1160,y=390,rx=55,ry=48},
-            {x=1264,y=397,rx=58,ry=55},
-            {x=1302,y=361,rx=48,ry=46},
-            {x=1460,y=150,rx=58,ry=62},
+            {x=836,y=868,rx=41.6,ry=44.2},
+            {x=890,y=528,rx=45.5,ry=35.1},
+            {x=1318,y=495,rx=45.5,ry=26},
+            {x=1410,y=187,rx=39,ry=28.6},
+        },
+        -- Additive ground regions outlined by the user in the map review.
+        walkRegions={
+            {id="entrance-west",points={
+                {x=803,y=796},{x=790,y=805},{x=776,y=822},{x=766,y=840},
+                {x=761,y=858},{x=766,y=877},{x=780,y=894},{x=796,y=905},
+                {x=808,y=894},{x=810,y=868},{x=808,y=840},{x=810,y=815},
+            },nodes={{x=780,y=861},{x=798,y=828}}},
+            {id="entrance-east",points={
+                {x=885,y=805},{x=907,y=810},{x=922,y=829},{x=931,y=852},
+                {x=930,y=870},{x=918,y=891},{x=900,y=912},{x=883,y=917},
+                {x=874,y=905},{x=869,y=878},{x=865,y=851},{x=867,y=822},
+            },nodes={{x=894,y=860},{x=888,y=896},{x=890,y=826}}},
+            {id="entrance-left-pocket",points={
+                {x=733,y=692},{x=756,y=681},{x=779,y=676},{x=796,y=681},
+                {x=805,y=700},{x=810,y=722},{x=804,y=737},{x=787,y=742},
+                {x=762,y=736},{x=739,y=733},{x=727,y=718},{x=731,y=703},
+            },nodes={{x=763,y=710},{x=793,y=711}}},
+            {id="entrance-right-shoulder",points={
+                {x=833,y=596},{x=846,y=580},{x=856,y=580},{x=869,y=593},
+                {x=883,y=614},{x=901,y=640},{x=925,y=667},{x=948,y=694},
+                {x=967,y=721},{x=980,y=746},{x=979,y=755},{x=956,y=766},
+                {x=935,y=765},{x=907,y=752},{x=881,y=735},{x=875,y=712},
+                {x=860,y=683},{x=849,y=659},{x=835,y=632},{x=829,y=610},
+            },nodes={{x=851,y=610},{x=866,y=648},{x=883,y=682},{x=911,y=724},{x=951,y=744}}},
+            {id="tree-pocket",points={
+                {x=688,y=548},{x=716,y=548},{x=745,y=559},{x=763,y=573},
+                {x=773,y=596},{x=775,y=614},{x=760,y=628},{x=739,y=629},
+                {x=720,y=610},{x=704,y=596},{x=682,y=582},{x=678,y=564},
+            },nodes={{x=710,y=568},{x=723,y=586},{x=748,y=605}}},
+            {id="supply-camp-floor",points={
+                {x=1145,y=433},{x=1164,y=420},{x=1198,y=417},{x=1238,y=423},
+                {x=1270,y=434},{x=1307,y=449},{x=1325,y=468},{x=1333,y=485},
+                {x=1312,y=493},{x=1280,y=499},{x=1245,y=505},{x=1208,y=500},
+                {x=1177,y=492},{x=1157,y=483},{x=1147,y=463},
+            },nodes={{x=1175,y=455},{x=1238,y=459},{x=1297,y=478}}},
+            {id="supply-camp-ledge",points={
+                {x=1250,y=544},{x=1290,y=529},{x=1336,y=513},{x=1373,y=492},
+                {x=1402,y=479},{x=1427,y=474},{x=1444,y=480},{x=1452,y=491},
+                {x=1451,y=509},{x=1432,y=525},{x=1392,y=540},{x=1351,y=552},
+                {x=1309,y=562},{x=1270,y=564},{x=1250,y=555},
+            },nodes={{x=1281,y=548},{x=1360,y=530},{x=1418,y=500}}},
+            {id="central-rock-pocket",points={
+                {x=1008,y=412},{x=1023,y=420},{x=1041,y=435},{x=1070,y=454},
+                {x=1080,y=463},{x=1062,y=471},{x=1041,y=475},{x=1024,y=466},
+                {x=1009,y=452},{x=1002,y=438},{x=1003,y=422},
+            },nodes={{x=1020,y=437},{x=1043,y=448},{x=1047,y=463}}},
+            {id="ruined-wall-shoulder",points={
+                {x=724,y=299},{x=746,y=292},{x=777,y=296},{x=805,y=314},
+                {x=834,y=339},{x=868,y=359},{x=906,y=382},{x=930,y=400},
+                {x=940,y=418},{x=931,y=439},{x=911,y=459},{x=906,y=434},
+                {x=883,y=414},{x=854,y=398},{x=819,y=380},{x=788,y=356},
+                {x=761,y=332},{x=740,y=315},
+            },nodes={{x=760,y=310},{x=796,y=335},{x=838,y=366},{x=880,y=394},{x=918,y=420}}},
+            {id="upper-east-ledge",points={
+                {x=1265,y=304},{x=1295,y=299},{x=1328,y=284},{x=1366,y=265},
+                {x=1401,y=245},{x=1431,y=232},{x=1450,y=234},{x=1465,y=247},
+                {x=1468,y=262},{x=1455,y=281},{x=1422,y=305},{x=1386,y=326},
+                {x=1351,y=344},{x=1312,y=351},{x=1278,y=344},{x=1260,y=331},
+                {x=1257,y=315},
+            },nodes={{x=1291,y=324},{x=1340,y=312},{x=1370,y=295},{x=1438,y=258}}},
+            {id="waystation-shelter",points={
+                {x=1204,y=183},{x=1221,y=166},{x=1250,y=154},{x=1275,y=151},
+                {x=1291,y=159},{x=1299,y=177},{x=1292,y=190},{x=1276,y=207},
+                {x=1268,y=225},{x=1290,y=225},{x=1285,y=236},{x=1241,y=235},
+                {x=1218,y=221},{x=1204,y=206},
+            },nodes={{x=1250,y=177},{x=1250,y=195},{x=1245,y=222}}},
+            {id="upper-ridge-spur",points={
+                {x=883,y=127},{x=906,y=109},{x=936,y=96},{x=975,y=85},
+                {x=1007,y=84},{x=1027,y=90},{x=1033,y=100},{x=1030,y=112},
+                {x=1013,y=130},{x=1005,y=145},{x=1018,y=160},{x=1046,y=179},
+                {x=1073,y=193},{x=1115,y=214},{x=1159,y=235},{x=1164,y=243},
+                {x=1149,y=254},{x=1126,y=265},{x=1103,y=273},{x=1087,y=260},
+                {x=1061,y=240},{x=1026,y=224},{x=987,y=204},{x=954,y=181},
+                {x=926,y=161},{x=901,y=148},{x=885,y=141},
+            },nodes={{x=1118,y=245},{x=1065,y=216},{x=1015,y=205},{x=978,y=174},{x=937,y=140},{x=954,y=123},{x=1005,y=103}}},
+            {id="western-arch-ground",points={
+                {x=452,y=291},{x=465,y=263},{x=492,y=241},{x=531,y=220},
+                {x=577,y=201},{x=630,y=179},{x=656,y=177},{x=677,y=188},
+                {x=699,y=222},{x=712,y=257},{x=712,y=278},{x=699,y=309},
+                {x=681,y=336},{x=657,y=363},{x=624,y=386},{x=590,y=405},
+                {x=554,y=425},{x=525,y=432},{x=500,y=420},{x=481,y=387},
+                {x=467,y=355},{x=459,y=326},
+            },nodes={{x=490,y=303},{x=510,y=374},{x=555,y=400},{x=575,y=345},{x=602,y=214},{x=646,y=206},{x=676,y=251}}},
         },
         corridors={
-            {x1=836,y1=748,x2=836,y2=700,r=44},
-            {x1=836,y1=700,x2=849,y2=663,r=44},
-            {x1=849,y1=663,x2=876,y2=614,r=44},
-            {x1=876,y1=614,x2=914,y2=565,r=44},
-            {x1=914,y1=565,x2=953,y2=518,r=44},
-            {x1=953,y1=518,x2=1014,y2=476,r=44},
-            {x1=1014,y1=476,x2=1074,y2=436,r=44},
-            {x1=1074,y1=436,x2=1137,y2=399,r=44},
-            {x1=1137,y1=399,x2=1200,y2=362,r=44},
-            {x1=1200,y1=362,x2=1262,y2=322,r=44},
-            {x1=1262,y1=322,x2=1325,y2=274,r=52},
-            {x1=1325,y1=274,x2=1387,y2=220,r=44},
-            {x1=1387,y1=220,x2=1450,y2=168,r=44},
-            {x1=1450,y1=168,x2=1492,y2=118,r=44},
-            {x1=1200,y1=362,x2=1264,y2=397,r=48},
-            {x1=1264,y1=397,x2=1302,y2=361,r=52},
-            {x1=1302,y1=361,x2=1325,y2=274,r=52},
-            {x1=1020,y1=474,x2=1115,y2=478,r=44},
-            {x1=1115,y1=478,x2=1208,y2=446,r=44},
-            {x1=1208,y1=446,x2=1265,y2=397,r=44},
+            -- Native-pixel traces of the painted trail, including the entrance
+            -- below the wooden gate and the bend around the central rock face.
+            {x1=836,y1=916,x2=836,y2=868,r=41.6},
+            {x1=836,y1=868,x2=836,y2=840,r=39},
+            {x1=836,y1=840,x2=836,y2=770,r=37.7},
+            {x1=836,y1=770,x2=830,y2=710,r=41.6},
+            {x1=830,y1=710,x2=810,y2=657,r=39},
+            {x1=810,y1=657,x2=782,y2=612,r=39},
+            {x1=782,y1=612,x2=810,y2=565,r=40.3},
+            {x1=810,y1=565,x2=890,y2=528,r=41.6},
+            {x1=890,y1=528,x2=955,y2=478,r=39},
+            {x1=955,y1=478,x2=968,y2=425,r=40.3},
+            {x1=968,y1=425,x2=984,y2=385,r=39},
+            {x1=984,y1=385,x2=1041,y2=352,r=37.7},
+            {x1=1041,y1=352,x2=1075,y2=312,r=23.4},
+            {x1=1075,y1=312,x2=1110,y2=310,r=23.4},
+            {x1=1110,y1=310,x2=1120,y2=277,r=23.4},
+            {x1=1120,y1=277,x2=1150,y2=263,r=24.7},
+            {x1=1150,y1=263,x2=1190,y2=268,r=24.7},
+            {x1=1190,y1=268,x2=1220,y2=277,r=29.9},
+            {x1=1220,y1=277,x2=1310,y2=253,r=39},
+            {x1=1310,y1=253,x2=1395,y2=211,r=36.4},
+            {x1=1395,y1=211,x2=1410,y2=187,r=35.1},
+            -- Approach the camp from the ground below its tent and supplies.
+            {x1=955,y1=478,x2=1055,y2=497,r=35.1},
+            {x1=1055,y1=497,x2=1165,y2=526,r=35.1},
+            {x1=1165,y1=526,x2=1255,y2=519,r=31.2},
+            {x1=1255,y1=519,x2=1318,y2=495,r=29.9},
+            -- The western trail loops around the ruined wall, not through it.
+            {x1=810,y1=565,x2=746,y2=543,r=28.6},
+            {x1=746,y1=543,x2=676,y2=519,r=27.3},
+            {x1=676,y1=519,x2=610,y2=490,r=27.3},
+            {x1=610,y1=490,x2=558,y2=451,r=27.3},
+            {x1=558,y1=451,x2=543,y2=415,r=26},
+            {x1=543,y1=415,x2=568,y2=380,r=26},
+            {x1=568,y1=380,x2=604,y2=358,r=26},
+            {x1=604,y1=358,x2=646,y2=344,r=26},
+            {x1=646,y1=344,x2=635,y2=317,r=23.4},
+            {x1=635,y1=317,x2=621,y2=286,r=23.4},
+            {x1=621,y1=286,x2=637,y2=257,r=23.4},
+            {x1=637,y1=257,x2=693,y2=247,r=24.7},
+            {x1=693,y1=247,x2=751,y2=270,r=24.7},
+            {x1=751,y1=270,x2=803,y2=305,r=24.7},
+            {x1=803,y1=305,x2=861,y2=337,r=26},
+            {x1=861,y1=337,x2=921,y2=361,r=26},
+            {x1=921,y1=361,x2=984,y2=385,r=28.6},
         },
         interactions={
-            {id="return-stop-5",kind="returnStop",x=836,y=700,radius=72,label="RETURN TO STOP 5"},
-            {id="surface-cache",kind="chest",chestId="surface-cache",x=1264,y=397,radius=62,label="SEARCH SUPPLY CACHE",
+            {id="return-stop-5",kind="returnStop",x=836,y=868,radius=72,label="RETURN TO STOP 5"},
+            {id="surface-cache",kind="chest",chestId="surface-cache",x=1318,y=495,radius=62,label="SEARCH SUPPLY CACHE",
                 contents={"food-ration","water-bottle","field-bandage-roll"}},
-            {id="basin-entrance",kind="enterArea",target=Areas.BADLANDS_BASIN_ID,spawn="surface",x=1460,y=150,radius=66,
+            {id="basin-entrance",kind="enterArea",target=Areas.BADLANDS_BASIN_ID,spawn="surface",x=1410,y=187,radius=66,
                 label="ENTER REDWASH BASIN",mapLabel="BASIN"},
         },
         mobs={
-            {id="surface-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=920,y=565,maxHp=13,tier="easy",packId="badlands-roamers",
-                patrol={{x=876,y=614},{x=914,y=565},{x=953,y=518}}},
-            {id="surface-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=1160,y=390,maxHp=14,tier="easy",
-                patrol={{x=1137,y=399},{x=1200,y=362},{x=1264,y=397}}},
+            {id="surface-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=890,y=528,maxHp=13,tier="easy",packId="badlands-roamers",
+                patrol={{x=810,y=565},{x=890,y=528},{x=955,y=478}}},
+            {id="surface-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=1120,y=277,maxHp=14,tier="easy",
+                patrol={{x=1085,y=315},{x=1120,y=277},{x=1220,y=277}}},
         },
     },
     [Areas.BADLANDS_BASIN_ID] = {
@@ -78,87 +186,235 @@ local definitions = {
         height=941,
         background="assets/sprites/expeditions/stop05/redwash-basin-background.png",
         walkMask="assets/sprites/expeditions/stop05/walkmask-redwash-basin.png",
-        version=1,
+        version=2,
         objectives={
-            explore="Mark the three cairns. Take the high ridge when the wash floods.",
+            explore="Survey the three cairns from the marked viewpoints. Use the dry bank when the wash floods.",
             complete="The basin route is surveyed. Return to Stop 5 when ready.",
         },
         completionRequiredMarkers={"north-cairn","wash-cairn","arch-cairn"},
         completionMessage="All three cairns are marked. The basin route is mapped.",
         environment={
             kind="flashFlood",cycle=34,warningAt=10,floodAt=14,floodEnds=22,recedesAt=25,
-            floodZone={radius=72,safeBanks={{x=690,y=515},{x=1015,y=510}},
-                points={{x=770,y=500},{x=850,y=500},{x=935,y=506}}},
+            floodZone={radius=27,safeBanks={{x=897,y=578},{x=1092,y=717}},
+                points={{x=977,y=604},{x=996,y=623},{x=986,y=641},{x=981,y=661}}},
         },
-        spawns={surface={x=60,y=600}},
-        clearings={
-            {x=60,y=600,rx=64,ry=58},
-            {x=360,y=180,rx=54,ry=46},
-            {x=450,y=720,rx=58,ry=50},
-            {x=750,y=110,rx=62,ry=48},
-            {x=900,y=500,rx=68,ry=58},
-            {x=1120,y=300,rx=56,ry=48},
-            {x=1580,y=320,rx=58,ry=48},
-            {x=1610,y=410,rx=64,ry=56},
-            {x=530,y=180,rx=55,ry=48},
-            {x=620,y=515,rx=58,ry=50},
-            {x=1170,y=515,rx=58,ry=50},
-            {x=450,y=340,rx=52,ry=46},
+        spawns={surface={x=1174,y=867}},
+        clearings={},
+        -- Additive ground regions outlined by the user in the map review.
+        walkRegions={
+            {id="southern-wash-floor",points={
+                {x=697,y=741},{x=727,y=738},{x=780,y=760},{x=852,y=748},
+                {x=910,y=735},{x=969,y=730},{x=1032,y=742},{x=1074,y=762},
+                {x=1114,y=778},{x=1151,y=801},{x=1177,y=830},{x=1214,y=865},
+                {x=1208,y=888},{x=1184,y=911},{x=1150,y=929},{x=1099,y=934},
+                {x=1040,y=932},{x=976,y=926},{x=923,y=912},{x=879,y=893},
+                {x=841,y=874},{x=815,y=845},{x=786,y=815},{x=758,y=790},
+                {x=725,y=765},{x=701,y=751},
+            },nodes={{x=1010,y=840},{x=1148,y=883},{x=1090,y=818},{x=936,y=842},{x=853,y=803},{x=762,y=765}}},
+            {id="southeast-channel",points={
+                {x=1288,y=714},{x=1305,y=712},{x=1332,y=723},{x=1361,y=740},
+                {x=1389,y=758},{x=1412,y=776},{x=1419,y=791},{x=1405,y=808},
+                {x=1375,y=818},{x=1341,y=818},{x=1318,y=825},{x=1301,y=839},
+                {x=1291,y=871},{x=1277,y=872},{x=1250,y=861},{x=1239,y=854},
+                {x=1231,y=842},{x=1244,y=828},{x=1270,y=813},{x=1295,y=799},
+                {x=1318,y=778},{x=1321,y=770},{x=1309,y=753},{x=1291,y=737},
+                {x=1287,y=717},
+            },nodes={{x=1355,y=775},{x=1369,y=800},{x=1325,y=811},{x=1272,y=846},{x=1306,y=730}}},
+            {id="eastern-wash-island",points={
+                {x=1029,y=544},{x=1056,y=534},{x=1080,y=537},{x=1121,y=558},
+                {x=1158,y=580},{x=1194,y=604},{x=1227,y=624},{x=1244,y=646},
+                {x=1251,y=669},{x=1263,y=706},{x=1273,y=745},{x=1275,y=771},
+                {x=1264,y=779},{x=1241,y=778},{x=1215,y=769},{x=1195,y=750},
+                {x=1168,y=731},{x=1137,y=709},{x=1115,y=684},{x=1081,y=661},
+                {x=1059,y=636},{x=1045,y=610},{x=1034,y=579},{x=1020,y=554},
+            },nodes={{x=1060,y=565},{x=1101,y=621},{x=1160,y=640},{x=1210,y=710},{x=1246,y=751}}},
+            {id="eastern-pillar-bank",points={
+                {x=1240,y=404},{x=1248,y=387},{x=1262,y=369},{x=1279,y=372},
+                {x=1290,y=388},{x=1299,y=409},{x=1320,y=430},{x=1344,y=450},
+                {x=1370,y=468},{x=1390,y=487},{x=1393,y=499},{x=1385,y=519},
+                {x=1372,y=549},{x=1361,y=583},{x=1344,y=604},{x=1320,y=627},
+                {x=1296,y=646},{x=1275,y=661},{x=1249,y=665},{x=1237,y=657},
+                {x=1242,y=640},{x=1253,y=619},{x=1265,y=600},{x=1280,y=569},
+                {x=1293,y=539},{x=1305,y=527},{x=1326,y=518},{x=1346,y=509},
+                {x=1355,y=501},{x=1347,y=490},{x=1328,y=477},{x=1302,y=465},
+                {x=1285,y=449},{x=1265,y=427},{x=1248,y=417},
+            },nodes={{x=1265,y=394},{x=1270,y=412},{x=1302,y=439},{x=1340,y=466},{x=1371,y=493},{x=1355,y=551},{x=1320,y=603},{x=1265,y=644}}},
+            {id="pillar-western-channel",points={
+                {x=1134,y=402},{x=1110,y=400},{x=1095,y=405},{x=1080,y=425},
+                {x=1070,y=449},{x=1066,y=475},{x=1061,y=489},{x=1053,y=494},
+                {x=1056,y=499},{x=1060,y=514},{x=1087,y=526},{x=1125,y=539},
+                {x=1169,y=553},{x=1215,y=575},{x=1253,y=578},{x=1274,y=570},
+                {x=1287,y=554},{x=1289,y=542},{x=1278,y=534},{x=1253,y=529},
+                {x=1227,y=528},{x=1185,y=518},{x=1156,y=503},{x=1134,y=484},
+                {x=1131,y=470},{x=1135,y=450},{x=1142,y=431},{x=1145,y=409},
+            },nodes={{x=1118,y=419},{x=1095,y=442},{x=1095,y=497},{x=1163,y=528},{x=1238,y=552}}},
+            {id="upper-wash-island",points={
+                {x=819,y=490},{x=833,y=477},{x=862,y=464},{x=898,y=454},
+                {x=938,y=447},{x=976,y=442},{x=1006,y=440},{x=1020,y=455},
+                {x=1026,y=474},{x=1027,y=520},{x=1022,y=540},{x=1007,y=549},
+                {x=984,y=557},{x=958,y=554},{x=932,y=549},{x=904,y=541},
+                {x=884,y=533},{x=855,y=522},{x=832,y=514},{x=818,y=502},
+            },nodes={{x=915,y=495},{x=978,y=503},{x=1004,y=469},{x=852,y=494}}},
+            {id="middle-wash-pocket",points={
+                {x=839,y=591},{x=859,y=590},{x=893,y=599},{x=929,y=609},
+                {x=951,y=621},{x=964,y=639},{x=968,y=654},{x=956,y=667},
+                {x=941,y=676},{x=919,y=675},{x=896,y=665},{x=879,y=651},
+                {x=859,y=632},{x=842,y=614},{x=831,y=600},
+            },nodes={{x=907,y=625},{x=936,y=650},{x=865,y=613}}},
+            {id="fossil-bank",points={
+                {x=519,y=672},{x=533,y=653},{x=568,y=635},{x=609,y=620},
+                {x=651,y=610},{x=698,y=612},{x=742,y=623},{x=791,y=638},
+                {x=829,y=651},{x=851,y=666},{x=858,y=691},{x=852,y=713},
+                {x=833,y=723},{x=809,y=724},{x=767,y=715},{x=728,y=706},
+                {x=677,y=698},{x=637,y=697},{x=602,y=703},{x=574,y=714},
+                {x=550,y=703},{x=528,y=691},{x=517,y=681},
+            },nodes={{x=690,y=658},{x=595,y=665},{x=553,y=681},{x=777,y=676},{x=832,y=696}}},
+            {id="western-bank-floor",points={
+                {x=220,y=731},{x=276,y=717},{x=341,y=706},{x=403,y=698},
+                {x=464,y=692},{x=520,y=693},{x=552,y=701},{x=574,y=712},
+                {x=578,y=730},{x=566,y=745},{x=543,y=755},{x=505,y=765},
+                {x=449,y=766},{x=399,y=761},{x=348,y=764},{x=294,y=773},
+                {x=259,y=773},{x=234,y=762},{x=221,y=750},
+            },nodes={{x=394,y=728},{x=275,y=742},{x=506,y=729},{x=552,y=727}}},
+            {id="western-cairn-spur",points={
+                {x=15,y=596},{x=36,y=584},{x=62,y=589},{x=95,y=604},
+                {x=136,y=629},{x=173,y=655},{x=203,y=690},{x=220,y=719},
+                {x=233,y=747},{x=232,y=768},{x=210,y=779},{x=176,y=782},
+                {x=136,y=777},{x=107,y=774},{x=105,y=744},{x=107,y=714},
+                {x=79,y=698},{x=52,y=681},{x=31,y=655},{x=19,y=630},
+                {x=12,y=613},
+            },nodes={{x=100,y=657},{x=48,y=622},{x=151,y=699},{x=161,y=750},{x=205,y=755}}},
+            {id="north-viewpoint-bank",points={
+                {x=547,y=493},{x=542,y=474},{x=561,y=462},{x=596,y=453},
+                {x=640,y=452},{x=682,y=451},{x=689,y=463},{x=694,y=488},
+                {x=719,y=516},{x=741,y=534},{x=751,y=555},{x=771,y=580},
+                {x=782,y=599},{x=779,y=612},{x=756,y=618},{x=728,y=616},
+                {x=691,y=604},{x=653,y=592},{x=620,y=576},{x=587,y=561},
+                {x=564,y=543},{x=554,y=521},
+            },nodes={{x=640,y=553},{x=589,y=512},{x=662,y=493},{x=721,y=564},{x=750,y=597}}},
+            {id="north-west-pocket",points={
+                {x=480,y=517},{x=494,y=500},{x=517,y=488},{x=541,y=482},
+                {x=553,y=492},{x=562,y=514},{x=559,y=531},{x=541,y=541},
+                {x=514,y=542},{x=489,y=540},{x=482,y=531},
+            },nodes={{x=518,y=513},{x=545,y=513}}},
         },
         corridors={
-            {x1=60,y1=600,x2=170,y2=650,r=54},
-            {x1=170,y1=650,x2=300,y2=630,r=54},
-            {x1=300,y1=630,x2=410,y2=555,r=54},
-            {x1=410,y1=555,x2=570,y2=515,r=58},
-            {x1=570,y1=515,x2=770,y2=500,r=58},
-            {x1=770,y1=500,x2=850,y2=500,r=58},
-            {x1=850,y1=500,x2=935,y2=506,r=58},
-            {x1=935,y1=506,x2=1080,y2=515,r=58},
-            {x1=1080,y1=515,x2=1270,y2=470,r=58},
-            {x1=1270,y1=470,x2=1450,y2=430,r=58},
-            {x1=1450,y1=430,x2=1610,y2=410,r=58},
-            {x1=300,y1=630,x2=280,y2=500,r=52},
-            {x1=280,y1=500,x2=270,y2=370,r=52},
-            {x1=270,y1=370,x2=220,y2=250,r=52},
-            {x1=220,y1=250,x2=220,y2=180,r=52},
-            {x1=220,y1=180,x2=380,y2=180,r=52},
-            {x1=380,y1=180,x2=530,y2=180,r=52},
-            {x1=530,y1=180,x2=650,y2=140,r=52},
-            {x1=650,y1=140,x2=750,y2=110,r=52},
-            {x1=750,y1=110,x2=900,y2=145,r=52},
-            {x1=900,y1=145,x2=1030,y2=205,r=52},
-            {x1=1030,y1=205,x2=1120,y2=300,r=52},
-            {x1=1120,y1=300,x2=1270,y2=315,r=52},
-            {x1=1270,y1=315,x2=1430,y2=345,r=52},
-            {x1=1430,y1=345,x2=1580,y2=320,r=52},
-            {x1=1580,y1=320,x2=1610,y2=410,r=52},
-            {x1=300,y1=630,x2=345,y2=720,r=48},
-            {x1=345,y1=720,x2=450,y2=720,r=48},
-            {x1=280,y1=500,x2=380,y2=440,r=45},
-            {x1=380,y1=440,x2=450,y2=340,r=45},
-            {x1=450,y1=340,x2=500,y2=250,r=45},
-            {x1=500,y1=250,x2=530,y2=180,r=45},
+            -- Trace the channel and low banks in native background pixels.
+            -- The painted high terraces have sheer edges, so survey viewpoints
+            -- remain on the connected basin floor instead of crossing cliffs.
+            {x1=1130,y1=900,x2=1174,y2=867,r=31.2},
+            {x1=1174,y1=867,x2=1210,y2=835,r=31.2},
+            {x1=1210,y1=835,x2=1220,y2=807,r=31.2},
+            {x1=1220,y1=807,x2=1186,y2=780,r=31.2},
+            {x1=1186,y1=780,x2=1148,y2=758,r=31.2},
+            {x1=1148,y1=758,x2=1120,y2=737,r=31.2},
+            {x1=1120,y1=737,x2=1092,y2=717,r=31.2},
+            {x1=1092,y1=717,x2=1047,y2=701,r=31.2},
+            {x1=1047,y1=701,x2=1009,y2=683,r=31.2},
+            {x1=1009,y1=683,x2=981,y2=661,r=31.2},
+            {x1=981,y1=661,x2=986,y2=641,r=31.2},
+            {x1=986,y1=641,x2=996,y2=623,r=31.2},
+            {x1=996,y1=623,x2=977,y2=604,r=31.2},
+            {x1=977,y1=604,x2=939,y2=590,r=31.2},
+            {x1=939,y1=590,x2=897,y2=578,r=31.2},
+            {x1=897,y1=578,x2=846,y2=568,r=31.2},
+            {x1=846,y1=568,x2=790,y2=555,r=31.2},
+            {x1=790,y1=555,x2=732,y2=542,r=31.2},
+            {x1=732,y1=542,x2=679,y2=528,r=31.2},
+            {x1=679,y1=528,x2=632,y2=516,r=31.2},
+            {x1=632,y1=516,x2=603,y2=500,r=31.2},
+            {x1=603,y1=500,x2=650,y2=487,r=31.2},
+            {x1=650,y1=487,x2=710,y2=474,r=31.2},
+            {x1=710,y1=474,x2=770,y2=461,r=31.2},
+            {x1=770,y1=461,x2=835,y2=450,r=31.2},
+            {x1=835,y1=450,x2=900,y2=438,r=31.2},
+            {x1=900,y1=438,x2=960,y2=425,r=31.2},
+            {x1=960,y1=425,x2=1008,y2=409,r=31.2},
+            {x1=1008,y1=409,x2=1040,y2=392,r=31.2},
+            {x1=1040,y1=392,x2=1072,y2=382,r=31.2},
+            {x1=1072,y1=382,x2=1124,y2=375,r=31.2},
+            {x1=1124,y1=375,x2=1168,y2=364,r=31.2},
+            {x1=1168,y1=364,x2=1190,y2=344,r=31.2},
+            {x1=1190,y1=344,x2=1175,y2=326,r=31.2},
+            {x1=1175,y1=326,x2=1173,y2=317,r=31.2},
+            {x1=1173,y1=317,x2=1201,y2=304,r=31.2},
+            {x1=1201,y1=304,x2=1225,y2=295,r=31.2},
+            {x1=897,y1=578,x2=945,y2=566,r=26},
+            {x1=945,y1=566,x2=990,y2=570,r=26},
+            {x1=990,y1=570,x2=1035,y2=600,r=26},
+            {x1=1035,y1=600,x2=1060,y2=620,r=26},
+            {x1=1060,y1=620,x2=1044,y2=648,r=26},
+            {x1=1044,y1=648,x2=1054,y2=675,r=26},
+            {x1=1054,y1=675,x2=1100,y2=710,r=26},
+            {x1=1100,y1=710,x2=1120,y2=737,r=26},
+            {x1=1040,y1=392,x2=1065,y2=412,r=29.9},
+            {x1=1065,y1=412,x2=1040,y2=434,r=29.9},
+            {x1=1040,y1=434,x2=1068,y2=452,r=29.9},
+            {x1=1068,y1=452,x2=1068,y2=470,r=29.9},
+            {x1=1068,y1=470,x2=1036,y2=489,r=29.9},
+            {x1=1036,y1=489,x2=1009,y2=500,r=29.9},
+            {x1=1009,y1=500,x2=1012,y2=518,r=29.9},
+            {x1=1012,y1=518,x2=1050,y2=539,r=29.9},
+            {x1=1050,y1=539,x2=1140,y2=565,r=29.9},
+            {x1=1140,y1=565,x2=1218,y2=584,r=29.9},
+            {x1=1218,y1=584,x2=1276,y2=610,r=29.9},
+            {x1=1276,y1=610,x2=1270,y2=639,r=29.9},
+            {x1=1270,y1=639,x2=1240,y2=666,r=29.9},
+            {x1=1240,y1=666,x2=1215,y2=694,r=29.9},
+            {x1=1215,y1=694,x2=1237,y2=720,r=29.9},
+            {x1=1237,y1=720,x2=1284,y2=750,r=29.9},
+            {x1=1284,y1=750,x2=1320,y2=775,r=29.9},
+            {x1=1320,y1=775,x2=1270,y2=791,r=29.9},
+            {x1=1270,y1=791,x2=1220,y2=807,r=29.9},
+            {x1=981,y1=661,x2=940,y2=688,r=27.3},
+            {x1=940,y1=688,x2=905,y2=713,r=27.3},
+            {x1=905,y1=713,x2=865,y2=732,r=27.3},
+            {x1=865,y1=732,x2=815,y2=739,r=27.3},
+            {x1=815,y1=739,x2=760,y2=736,r=27.3},
+            {x1=760,y1=736,x2=720,y2=720,r=27.3},
+            {x1=720,y1=720,x2=690,y2=707,r=27.3},
+            {x1=690,y1=707,x2=650,y2=703,r=27.3},
+            {x1=650,y1=703,x2=615,y2=730,r=27.3},
+            {x1=615,y1=730,x2=615,y2=758,r=27.3},
+            {x1=615,y1=758,x2=560,y2=770,r=27.3},
+            {x1=560,y1=770,x2=500,y2=773,r=27.3},
+            {x1=500,y1=773,x2=440,y2=779,r=27.3},
+            {x1=440,y1=779,x2=370,y2=783,r=27.3},
+            {x1=370,y1=783,x2=295,y2=787,r=27.3},
+            {x1=295,y1=787,x2=220,y2=780,r=27.3},
+            {x1=220,y1=780,x2=183,y2=786,r=27.3},
+            {x1=183,y1=786,x2=146,y2=790,r=27.3},
+            {x1=146,y1=790,x2=110,y2=813,r=27.3},
+            {x1=110,y1=813,x2=60,y2=848,r=27.3},
+            {x1=650,y1=703,x2=615,y2=700,r=26},
+            {x1=615,y1=700,x2=590,y2=713,r=26},
+            {x1=1009,y1=683,x2=1009,y2=711,r=26},
+            {x1=1009,y1=711,x2=965,y2=723,r=26},
+            {x1=965,y1=723,x2=905,y2=713,r=26},
+            {x1=1276,y1=610,x2=1301,y2=586,r=27.3},
+            {x1=1301,y1=586,x2=1310,y2=561,r=27.3},
+            {x1=650,y1=487,x2=617,y2=481,r=28.6},
         },
         interactions={
-            {id="return-approach",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=60,y=600,radius=72,
+            {id="return-approach",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=1174,y=867,radius=72,
                 label="RETURN TO RED MESA",mapLabel="APPROACH"},
-            {id="western-stash",kind="chest",chestId="western-stash",x=360,y=180,radius=58,label="SEARCH RIDGE STASH",mapLabel="STASH",
+            {id="western-stash",kind="chest",chestId="western-stash",x=500,y=773,radius=58,label="SEARCH BANK STASH",mapLabel="STASH",
                 contents={"water-bottle","field-bandage-roll"}},
-            {id="fossil-cache",kind="chest",chestId="fossil-cache",x=450,y=720,radius=58,label="SEARCH FOSSIL CACHE",mapLabel="CACHE",
+            {id="fossil-cache",kind="chest",chestId="fossil-cache",x=590,y=713,radius=58,label="SEARCH FOSSIL CACHE",mapLabel="CACHE",
                 contents={"food-ration","small-oil-canister"}},
-            {id="north-cairn",kind="survey",markerId="north-cairn",x=750,y=110,radius=54,label="MARK NORTH CAIRN",mapLabel="CAIRN"},
-            {id="wash-cairn",kind="survey",markerId="wash-cairn",x=900,y=500,radius=58,label="MARK WASH CAIRN",mapLabel="CAIRN"},
-            {id="arch-cairn",kind="survey",markerId="arch-cairn",x=1580,y=320,radius=56,label="MARK ARCH CAIRN",mapLabel="CAIRN"},
-            {id="basin-exit",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=1610,y=410,radius=68,
+            {id="north-cairn",kind="survey",markerId="north-cairn",x=617,y=481,radius=54,label="SURVEY NORTH CAIRN",mapLabel="VIEWPOINT"},
+            {id="wash-cairn",kind="survey",markerId="wash-cairn",x=146,y=790,radius=58,label="SURVEY WASH CAIRN",mapLabel="VIEWPOINT"},
+            {id="arch-cairn",kind="survey",markerId="arch-cairn",x=1310,y=561,radius=56,label="SURVEY ARCH CAIRN",mapLabel="VIEWPOINT"},
+            {id="basin-exit",kind="enterArea",target=Areas.BADLANDS_SURFACE_ID,spawn="basinReturn",x=1225,y=295,radius=68,
                 label="RETURN TO RED MESA",mapLabel="EXIT"},
         },
         mobs={
-            {id="basin-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=530,y=180,maxHp=15,tier="easy",packId="redwash-scavengers",
-                patrol={{x=380,y=180},{x=530,y=180},{x=650,y=140}}},
-            {id="basin-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=620,y=515,maxHp=16,tier="easy",
-                patrol={{x=410,y=555},{x=620,y=515},{x=770,y=500}}},
-            {id="basin-scorpion",file="wasteland-scorpion.png",name="Wasteland Scorpion",x=1170,y=515,maxHp=19,tier="easy",
-                patrol={{x=1080,y=515},{x=1170,y=515},{x=1270,y=470}}},
+            {id="basin-dust-beetle",file="dust-beetle.png",name="Dust Beetle",x=760,y=736,maxHp=15,tier="easy",packId="redwash-scavengers",
+                patrol={{x=650,y=703},{x=760,y=736},{x=865,y=732}}},
+            {id="basin-cactus-rat",file="cactus-rat.png",name="Cactus Rat",x=710,y=474,maxHp=16,tier="easy",
+                patrol={{x=650,y=487},{x=770,y=461},{x=900,y=438}}},
+            {id="basin-scorpion",file="wasteland-scorpion.png",name="Wasteland Scorpion",x=1218,y=584,maxHp=19,tier="easy",
+                patrol={{x=1140,y=565},{x=1276,y=610},{x=1215,y=694}}},
         },
     },
     [Areas.SURFACE_ID] = {
@@ -311,6 +567,19 @@ local stopEntrances={
 local initialized=setmetatable({},{__mode="k"})
 local navigation={}
 local walkMasks={}
+local gateRegions={}
+-- Pixel-level navigation queries should not rescan ungated terrain on every
+-- foot sample. Only the waystation's progression regions can block a mask.
+for areaId,area in pairs(definitions) do
+    local regions={clearings={},corridors={}}
+    for _,clearing in ipairs(area.clearings or {}) do
+        if clearing.gate then regions.clearings[#regions.clearings+1]=clearing end
+    end
+    for _,corridor in ipairs(area.corridors or {}) do
+        if corridor.gate then regions.corridors[#regions.corridors+1]=corridor end
+    end
+    if #regions.clearings>0 or #regions.corridors>0 then gateRegions[areaId]=regions end
+end
 
 local function finite(value,fallback)
     value=tonumber(value)
@@ -544,6 +813,22 @@ local function insideCorridor(corridor,x,y)
     return pointSegmentDistance(x,y,corridor.x1,corridor.y1,corridor.x2,corridor.y2)<=corridor.r
 end
 
+local function insideWalkRegion(region,x,y)
+    local points=region.points or {}
+    if #points<3 then return false end
+    local inside=false
+    local previous=points[#points]
+    local ax,ay=previous.x or previous[1],previous.y or previous[2]
+    for _,point in ipairs(points) do
+        local bx,by=point.x or point[1],point.y or point[2]
+        -- Include the polygon outline, including horizontal edges and vertices.
+        if pointSegmentDistance(x,y,ax,ay,bx,by)<=.0001 then return true end
+        if (ay>y)~=(by>y) and x<(bx-ax)*(y-ay)/(by-ay)+ax then inside=not inside end
+        ax,ay=bx,by
+    end
+    return inside
+end
+
 local function authoredWalkable(area,state,x,y)
     for _,clearing in ipairs(area.clearings or {}) do
         if gateOpen(state,clearing.gate) and insideClearing(clearing,x,y) then return true end
@@ -551,18 +836,23 @@ local function authoredWalkable(area,state,x,y)
     for _,corridor in ipairs(area.corridors or {}) do
         if gateOpen(state,corridor.gate) and insideCorridor(corridor,x,y) then return true end
     end
+    for _,region in ipairs(area.walkRegions or {}) do
+        if insideWalkRegion(region,x,y) then return true end
+    end
     return false
 end
 
 local function gateBlocked(area,state,x,y)
     -- Masks own the ground; only progression locks still use authored regions.
     -- Shared endpoints must remain accessible from the open side of a gate.
-    for _,clearing in ipairs(area.clearings or {}) do
+    local regions=gateRegions[area.id]
+    if not regions then return false end
+    for _,clearing in ipairs(regions.clearings) do
         if clearing.gate and not gateOpen(state,clearing.gate) and insideClearing(clearing,x,y) then
             return not authoredWalkable(area,state,x,y)
         end
     end
-    for _,corridor in ipairs(area.corridors or {}) do
+    for _,corridor in ipairs(regions.corridors) do
         if corridor.gate and not gateOpen(state,corridor.gate) and insideCorridor(corridor,x,y) then
             return not authoredWalkable(area,state,x,y)
         end
@@ -627,7 +917,10 @@ function Areas.move(data,areaId,oldX,oldY,newX,newY,readOnly)
 end
 
 function Areas.canReach(data,areaId,x1,y1,x2,y2,readOnly)
-    local steps=math.max(1,math.ceil(distance(x1,y1,x2,y2)/7))
+    -- Check each native mask pixel, including edges encountered when walking
+    -- slowly. Frame-sized samples can approve a shortcut through a tight bend
+    -- that the player's next, shorter movement step correctly rejects.
+    local steps=math.max(1,math.ceil(distance(x1,y1,x2,y2)))
     for i=0,steps do
         local t=i/steps
         if not Areas.isWalkable(data,areaId,x1+(x2-x1)*t,y1+(y2-y1)*t,readOnly) then return false end
@@ -655,6 +948,9 @@ local function navigationGraph(data,areaId)
     end
     for _,corridor in ipairs(area.corridors or {}) do add(corridor.x1,corridor.y1); add(corridor.x2,corridor.y2) end
     for _,clearing in ipairs(area.clearings or {}) do add(clearing.x,clearing.y) end
+    for _,region in ipairs(area.walkRegions or {}) do
+        for _,point in ipairs(region.nodes or {}) do add(point.x or point[1],point.y or point[2]) end
+    end
     for i,node in ipairs(nodes) do
         for j=1,i-1 do
             local other=nodes[j]

@@ -1,4 +1,6 @@
 local WeaponAttachment = {}
+local CharacterAnimation=require('game.character_animation')
+local MeleeGrips=require('game.melee_weapon_grips')
 
 local okPoints, generatedPoints = pcall(require, "game.weapon_attachment_points")
 if not okPoints or type(generatedPoints)~="table" then generatedPoints={} end
@@ -7,9 +9,8 @@ local handCache = {}
 local weaponCache = {}
 local patchCache = {}
 
--- Keep this in step with CharacterAnimation.anchorOffsets. WeaponAttachment
--- intentionally has no dependency on the renderer so it can also be used by
--- the Sprite Doctor preview and smoke harnesses.
+-- Keep this in step with CharacterAnimation.anchorOffsets. Frame sampling is
+-- shared with character rendering, including the authored action profiles.
 local anchorOffsets = {
     ["cowboy-mouse-no-skull.png"] = -15,
 }
@@ -90,7 +91,7 @@ end
 
 local function generatedHand(file,action,frame,animation)
     local byFile=generatedPoints[file]
-    local byAction=byFile and byFile[action]
+    local byAction=animation.handPoints or (byFile and byFile[action])
     local point=byAction and byAction[frame]
     if type(point)~="table" or type(point.x)~="number" or type(point.y)~="number" then return nil end
     if point.x<0 or point.x>1 or point.y<0 or point.y>1 then return nil end
@@ -98,6 +99,7 @@ local function generatedHand(file,action,frame,animation)
         x=point.x*animation.w,
         y=point.y*animation.h,
         side=point.side==-1 and -1 or 1,
+        angle=point.angle,
         confidence=point.confidence or 0,
         generated=true,
     }
@@ -234,21 +236,26 @@ function WeaponAttachment.draw(manager,file,weaponName,imageOrSprite,x,y,maxWidt
     if not manager or not file or not weaponName then return false end
     local sprite=asSprite(imageOrSprite)
     if not sprite or not sprite.image then return false end
-    action=action=="melee" and "melee" or "ranged"
+    action=(action=="melee" or action=="swing") and action or "ranged"
     local set=manager[file]; local animation=set and set[action]
     if not animation then return false end
 
-    local frame=(math.floor((phase or 0)*6)%animation.count)+1
+    local frame=CharacterAnimation.actionFrame(animation,phase)
     local hand=handFor(manager,file,action,frame,animation)
     if not hand then return false end
+    -- Swings require the reviewed gripping hand, never the legacy edge guess.
+    if action=='swing' and (not hand.generated or not hand.angle or not MeleeGrips[weaponName]) then return false end
 
     local baseExtent=set.baseExtent or math.max(animation.w,animation.h)
     local visible=animation.visibleExtent or baseExtent
     local normalize=math.max(.72,math.min(1.35,baseExtent/math.max(1,visible)))
     local characterScale=math.min((maxWidth or 76)/animation.w,(maxHeight or 96)/animation.h)*normalize
+    if animation.bodyExtent then
+        characterScale=math.min((maxWidth or 76)/animation.bodyExtent,(maxHeight or 96)/animation.bodyExtent)
+    end
     local drawFacing=facing or 1
     local handX=x+(hand.x-animation.w/2)*characterScale*drawFacing
-    local handY=y+(anchorOffsets[file] or 0)+(hand.y-animation.h)*characterScale
+    local handY=y+(anchorOffsets[file] or 0)+(hand.y-(animation.originY or animation.h))*characterScale
 
     local bounds=visibleWeaponBounds(weaponName,sprite)
     local layout=weaponLayout(weaponName,action,combat,bounds)
@@ -257,7 +264,16 @@ function WeaponAttachment.draw(manager,file,weaponName,imageOrSprite,x,y,maxWidt
     local gripX=bounds.x+bounds.w*layout.gripX
     local gripY=bounds.y+bounds.h*layout.gripY
     love.graphics.setColor(1,1,1)
-    drawSprite(sprite,handX,handY,0,layout.scale*flip,layout.scale,gripX,gripY)
+    if action=='swing' then
+        local grip=MeleeGrips[weaponName]
+        local scale=grip.length/math.max(sprite.w,sprite.h)*(characterScale*animation.h/82)
+        -- Discrete authored pose vectors share the body's frame, with the
+        -- complete transform reflected for west-facing actors.
+        local facingSign=drawFacing<0 and -1 or 1
+        drawSprite(sprite,handX,handY,facingSign*(hand.angle-grip.angle),scale*facingSign,scale,grip.x*sprite.w,grip.y*sprite.h)
+    else
+        drawSprite(sprite,handX,handY,0,layout.scale*flip,layout.scale,gripX,gripY)
+    end
 
     -- Repaint a small authored patch over the grip. This creates the visual
     -- overlap that makes the item read as held without requiring character-

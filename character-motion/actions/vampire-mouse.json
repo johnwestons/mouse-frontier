@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "character": "vampire-mouse",
+  "animations": {
+    "sit": {
+      "path": "output/character-actions/vampire-mouse/runtime/sit.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 8,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "fps": 8,
+        "intro_frames": 4,
+        "loop_start": 5,
+        "hold_fps": 0.7
+      }
+    },
+    "lay": {
+      "path": "output/character-actions/vampire-mouse/runtime/lay.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 7,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "fps": 7,
+        "intro_frames": 4,
+        "loop_start": 5,
+        "hold_fps": 0.5
+      }
+    },
+    "melee": {
+      "path": "output/character-actions/vampire-mouse/runtime/melee.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 17.142857142857142,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "duration": 0.35
+      }
+    },
+    "ranged": {
+      "path": "output/character-actions/vampire-mouse/runtime/ranged.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 17.142857142857142,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "duration": 0.35
+      }
+    },
+    "use": {
+      "path": "output/character-actions/vampire-mouse/runtime/use.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 17.142857142857142,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "duration": 0.35
+      }
+    },
+    "hit": {
+      "path": "output/character-actions/vampire-mouse/runtime/hit.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 12.0,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "duration": 0.5
+      }
+    },
+    "death": {
+      "path": "output/character-actions/vampire-mouse/runtime/death.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 7.0588235294117645,
+      "role": "authored_action",
+      "loop": false,
+      "playback": {
+        "duration": 0.85
+      }
+    },
+    "unconscious": {
+      "path": "output/character-actions/vampire-mouse/runtime/unconscious.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 0.8,
+      "role": "authored_action",
+      "loop": true,
+      "playback": {
+        "fps": 0.8,
+        "loop": true
+      }
+    },
+    "idle": {
+      "path": "output/character-actions/vampire-mouse/runtime/idle.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "fps": 0.65,
+      "role": "authored_action",
+      "loop": true,
+      "playback": {
+        "fps": 0.65,
+        "loop": true
+      }
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "center_metric": "core",
+    "center_tolerance": 12,
+    "baseline_tolerance": 3
+  },
+  "scope": "Authored non-locomotion actions; existing gait, directional idles and chores are unchanged.",
+  "body_extent": 256,
+  "core_x": 256.0,
+  "baseline": 228
+}

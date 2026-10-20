@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Independent guest presentation and controls. This module has no campaign
 -- writer or world-update callback; all movement is an intent sent to the host.
 local Schema=require('game.save_schema')
@@ -28,6 +29,9 @@ local GuestRange=require('game.coop_guest_range')
 local AssetRetention=require('game.coop_guest_asset_retention')
 local GuestSettings=require('game.coop_guest_settings')
 local Conversations=require('game.npc_conversations')
+local Home=require('game.home_stop')
+local SceneNPCs=require('game.scene_npcs')
+local NPCPresentation=require('game.npc_presentation')
 local SavedEvents=require('game.coop_events')
 local Events=require('game.events')
 local EventUI=require('game.event_ui')
@@ -74,7 +78,7 @@ function View.new(c,controller)
         primaryAction=function() return 'e',self:actionLabel() end,
         movementActive=function() return self:inputAllowed() end,
         cameraGesturesActive=function() return self.ready and not self:travelOpen() and not (self.range and self.range:available()) and not (self.lastStand and self.lastStand:available()) and not (self.ambush and self.ambush:available()) and not controller.menuOpen and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen and not self:objectsOpen() and not self.runtime.peopleOpen and not self.runtime.guestActivityOpen end,
-        backpackVisible=function() return self.ready and not self:travelOpen() and not (self.range and self.range:available()) and not (self.lastStand and self.lastStand:available()) and not self.runtime.battle and not controller.menuOpen and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen and not self:objectsOpen() and not self.runtime.peopleOpen and not self.runtime.guestActivityOpen end,
+        backpackVisible=function() return not self.ui.actionMenuVisible and self.ready and not self:travelOpen() and not (self.range and self.range:available()) and not (self.lastStand and self.lastStand:available()) and not self.runtime.battle and not controller.menuOpen and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen and not self:objectsOpen() and not self.runtime.peopleOpen and not self.runtime.guestActivityOpen end,
         backpackAction=function() self.inventory:toggle() end,
         menuVisible=function() return self.ready and not self.runtime.inventoryOpen end,menuLabel=function() return 'LOCAL PLAY' end,
         menuAction=function() controller:open() end,
@@ -88,6 +92,7 @@ function View.new(c,controller)
         endCameraPan=function() self.camera:endPan() end,
         accessibilityData=function() return self.runtime.saveData or {} end})
     self.inventory=GuestInventory.new(self,c)
+    self.inspection=require('game.coop_guest_inspection').new(self)
     self.trade=GuestTrade.new(self,c)
     self.train=GuestTrain.new(self,c)
     self.objects=GuestObjects.new(self,c)
@@ -117,6 +122,8 @@ function View:actionsAllowed()
         and not self.controller.menuOpen and not self.prediction:stale()
 end
 function View:inputAllowed()
+    if self.inspection and self.inspection.opened then return false end
+    if self.ui.mobileMenuOpen or self.ui.playerToolsOpen then return false end
     if self.controllerFocus or self.poses and self.poses.opened or self.journey and self.journey.opened or self.travel and self.travel.opened then return false end
     if self.lastStand and self.lastStand:available() then return self:actionsAllowed() and self.lastStand:inputAllowed() end
     return self:actionsAllowed() and not (self.ambush and self.ambush:available()) and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen
@@ -124,13 +131,14 @@ function View:inputAllowed()
         and not (self.inventory and self.inventory.pending) and not (self.trade and self.trade.pending) and not (self.train and self.train.pending)
         and not (self.expedition and self.expedition.pending)
 end
-function View:interactionAvailable() if self.lastStand:available() then return false end; return self.range:nearest()~=nil or self.expedition:nearest()~=nil or self.inventory:nearest()~=nil or self.trade:nearest()~=nil or self.people:nearest()~=nil or self.train:nearFire() end
-function View:actionLabel() local spot=self.expedition:nearest(); return spot and spot.label or self.range:nearest() and 'TARGET RANGE' or self.inventory:nearest() and self.inventory:actionLabel() or self.trade:nearest() and 'TRADE' or self.people:nearest() and 'TALK / GIFT' or self.train:nearFire() and 'ADD FUEL' or 'PICK UP' end
+function View:interactionAvailable() if self.lastStand:available() then return false end; return self.range:nearest()~=nil or self.expedition:nearest()~=nil or self.inventory:nearest()~=nil or self.inspection:nearest()~=nil or self.trade:nearest()~=nil or self.people:nearest()~=nil or self.train:nearFire() end
+function View:actionLabel() local spot=self.expedition:nearest(); return spot and spot.label or self.range:nearest() and 'TARGET RANGE' or self.inventory:nearest() and self.inventory:actionLabel() or self.inspection:nearest() and 'INSPECT' or self.trade:nearest() and 'TRADE' or self.people:nearest() and (Home.isHome(self.runtime.saveData) and 'TALK' or 'TALK / GIFT') or self.train:nearFire() and 'ADD FUEL' or 'PICK UP' end
 function View:interact()
     if not self:inputAllowed() then return false end
     if self.expedition:nearest() then return self.expedition:interact() end
     if self.range:nearest() then return self.range:open() end
     if self.inventory:nearest() then return self.inventory:pickup() end
+    if self.inspection:nearest() then return self.inspection:open() end
     local merchant=self.trade:nearest()
     if merchant then return self.trade:open(merchant) end
     local person=self.people:nearest(); if person then return self.people:open(person) end
@@ -189,7 +197,14 @@ function View:update(dt)
         end
         runtime.player.character=data.character; self.remote.character=data.players.host.character
         local key=Util.sceneKey(runtime.scene,data.location)..(runtime.scene=='house' and (':'..tostring(data.activeHouseDoor or 1)) or '')
-        runtime.npcActor=data.npcStates and data.npcStates[key] or nil
+        if runtime.scene=='stop' and Home.isHome(data) then key=Home.isOffice(data) and 'homeStop:conductor' or nil end
+        local selected=runtime.npcActor and runtime.npcActor.file
+        runtime.npcActor=key and data.npcStates and data.npcStates[key] or nil
+        runtime.npcActors=runtime.npcActor and {runtime.npcActor} or {}
+        if SceneNPCs.hasResidents(data) and not Home.isHome(data) then
+            if SceneNPCs.locked(runtime) and selected then data.currentNPC=selected end
+            NPCPresentation.update(runtime,0)
+        end
         self.ui.itemOrderCache={}; self.ui.itemOrderRevision=replica.revision
         self.assetRetention:update(self)
         if self.scene.prepareAssetRetention then self.scene.prepareAssetRetention({range=self.range and self.range:available()}) end
@@ -241,7 +256,9 @@ function View:update(dt)
         and result.reason~='save_pending' and result.reason~='busy' then
         self.actionError=result.reason; self.carRequest=nil
     end
+    if not Home.isHome(runtime.saveData) then NPCPresentation.update(runtime,dt) end
     self.inventory:update()
+    self.inspection:update()
     self.expedition:update()
     self.trade:update()
     self.train:update()
@@ -308,7 +325,7 @@ function View:update(dt)
     local manual=self.poses:presentation('companion')
     runtime.playerPose=manual.playerPose or 'idle'
     if (pose.actionTimer or 0)<=0 then pose=manual end
-    runtime.actionTimer=pose.actionTimer or 0; runtime.actionKind=pose.actionKind; runtime.actionHeldItem=pose.actionHeldItem
+    runtime.actionTimer=pose.actionTimer or 0; runtime.actionDuration=pose.actionDuration; runtime.actionKind=pose.actionKind; runtime.actionHeldItem=pose.actionHeldItem
     if runtime.actionTimer>0 and pose.facing~=nil then runtime.player.facing=pose.facing end
     self.waiting=self.paused or self.prediction:stale()
     return true
@@ -361,6 +378,7 @@ function View:draw()
     elseif runtime.scene=='caravan' then renderer.drawCaravan() end
     g.pop()
     self.font=self.font or g.newFont(18); g.setFont(self.font)
+    if self.inspection.opened then self.inspection:draw(); g.pop(); return end
     if runtime.guestActivityOpen then self.activities:draw(); g.pop(); return end
     if runtime.peopleOpen then self.people:draw(); g.pop(); return end
     if self:objectsOpen() then self.objects:draw(); g.pop(); return end
@@ -388,11 +406,11 @@ function View:draw()
         end)
         g.pop(); self.mobile:draw(ox,oy,sx,sy); return
     end
-    g.setColor(.045,.035,.025,.9); g.rectangle('fill',16,14,928,52,8,8)
+    g.setColor(.045,.035,.025,.9); GuiArt.frame(16,14,928,52)
     g.setColor(.96,.88,.69,1)
     g.printf('COMPANION  /  Stop '..runtime.saveData.location..'  /  '..runtime.scene,30,24,470,'left')
     g.printf('Health '..runtime.saveData.health..' / '..runtime.saveData.maxHealth,self.mobile.enabled and 500 or 700,24,225,'right')
-    g.setColor(.045,.035,.025,.9); g.rectangle('fill',220,660,520,45,8,8)
+    g.setColor(.045,.035,.025,.9); GuiArt.frame(220,660,520,45)
     g.setColor(.96,.88,.69,1)
     local bindings=self.context.bindings
     local controllerHint=bindings.buttons and bindings.buttons.guest_actions and love and love.joystick
@@ -408,7 +426,7 @@ function View:draw()
         self.ui.trainCarTabs=Train.consistLayout(960,#runtime.saveData.trainCars,{mobile=self.mobile.enabled})
         for index,tab in ipairs(self.ui.trainCarTabs) do
             if self.mobile.enabled then tab.y=214 end
-            g.setColor(.17,.135,.09,.94); g.rectangle('fill',tab.x,tab.y,tab.w,tab.h,7,7)
+            g.setColor(.17,.135,.09,.94); GuiArt.frame(tab.x,tab.y,tab.w,tab.h)
             g.setColor(index==runtime.saveData.activeCar and 1 or .7,.8,.5,1)
             g.rectangle('line',tab.x,tab.y,tab.w,tab.h,7,7)
             g.printf(tostring(index),tab.x,tab.y+(tab.h-18)/2,tab.w,'center')
@@ -416,15 +434,16 @@ function View:draw()
         g.setColor(.96,.88,.69,1)
         g.printf('CAR '..runtime.saveData.activeCar..' / '..#runtime.saveData.trainCars..(self.mobile.enabled and '' or '   [ / ]'),10,self.mobile.enabled and 284 or 248,400,'center')
     end
-    if not self.mobile.enabled then
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',764,78,180,46,8,8)
+    self.ui.guestBackpack=nil
+    if not self.mobile.enabled and not self.ui.actionMenuVisible then
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(764,78,180,46)
         g.setColor(.96,.88,.69,1); g.printf('LOCAL PLAY [F8]',774,92,160,'center')
         self.ui.guestBackpack={x=764,y=134,w=180,h=46}
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',764,134,180,46,8,8)
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(764,134,180,46)
         g.setColor(.96,.88,.69,1); g.printf('BACKPACK [I]',774,148,160,'center')
         self.ui.guestPickup=self:interactionAvailable() and {x=550,y=78,w=200,h=46} or nil
         if self.ui.guestPickup then
-            g.setColor(.17,.135,.09,.94); g.rectangle('fill',550,78,200,46,8,8)
+            g.setColor(.17,.135,.09,.94); GuiArt.frame(550,78,200,46)
             g.setColor(.96,.88,.69,1); g.printf(self:actionLabel()..' [E]',560,92,180,'center')
         end
     end
@@ -434,79 +453,85 @@ function View:draw()
         and {x=self.mobile.enabled and 370 or 550,y=self.mobile.enabled and 78 or 134,w=200,h=46} or nil
     if self.ui.guestTrade then
         local r=self.ui.guestTrade
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'TRADE' or 'TRADE [T / X]',r.x+10,r.y+14,r.w-20,'center')
     end
-    self.ui.guestWorkshop=runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 145 or 190,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
+    self.ui.guestWorkshop=not self.ui.actionMenuVisible and runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 145 or 190,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     local workshop=self.ui.guestWorkshop
     if workshop then
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',workshop.x,workshop.y,workshop.w,workshop.h,8,8)
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(workshop.x,workshop.y,workshop.w,workshop.h)
         g.setColor(.96,.88,.69,1); g.printf('WORKSHOP',workshop.x+8,workshop.y+14,workshop.w-16,'center')
     end
     self.ui.guestFuel=self.train:nearFire() and {x=550,y=self.mobile.enabled and 145 or 134,w=200,h=46} or nil
     if self.ui.guestFuel then
         local f=self.ui.guestFuel
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',f.x,f.y,f.w,f.h,8,8)
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(f.x,f.y,f.w,f.h)
         g.setColor(.96,.88,.69,1); g.printf('ADD FUEL',f.x+8,f.y+14,f.w-16,'center')
     end
     self.ui.guestRadio=self.objects:nearestRadio() and {x=550,y=202,w=200,h=46} or nil
     if self.ui.guestRadio then
-        local r=self.ui.guestRadio; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestRadio; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf('RADIO',r.x+8,r.y+14,r.w-16,'center')
     end
-    self.ui.guestEditor=runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 268 or 248,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
+    self.ui.guestEditor=not self.ui.actionMenuVisible and runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 268 or 248,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestEditor then
-        local r=self.ui.guestEditor; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestEditor; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'DECORATE' or 'DECORATE [O]',r.x+6,r.y+14,r.w-12,'center')
     end
-    self.ui.guestPose=self.poses and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 330 or 310,
+    self.ui.guestPose=not self.ui.actionMenuVisible and self.poses and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 330 or 310,
         w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestPose then
-        local r=self.ui.guestPose; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestPose; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf('POSES',r.x+8,r.y+18,r.w-16,'center')
     end
     self.ui.guestPeople=self.people:nearest() and {x=20,y=78,w=240,h=56} or nil
-    for index,entry in ipairs({{'guestMap','MAP'},{'guestJournal','JOURNAL'}}) do
+    self.ui.guestMap=nil;self.ui.guestJournal=nil
+    for index,entry in ipairs(self.ui.actionMenuVisible and {} or {{'guestMap','MAP'},{'guestJournal','JOURNAL'}}) do
         local rect={x=self.mobile.enabled and 794 or 764,y=(self.mobile.enabled and 392 or 364)+(index-1)*62,
             w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46}
         self.ui[entry[1]]=rect
-        g.setColor(.17,.135,.09,.94); g.rectangle('fill',rect.x,rect.y,rect.w,rect.h,8,8)
+        g.setColor(.17,.135,.09,.94); GuiArt.frame(rect.x,rect.y,rect.w,rect.h)
         g.setColor(.96,.88,.69,1); g.printf(entry[2],rect.x+8,rect.y+18,rect.w-16,'center')
     end
-    self.ui.guestTravel=runtime.scene=='train' and runtime.saveData.location<50 and not runtime.saveData.coop.journey
+    self.ui.guestTravel=not self.ui.actionMenuVisible and runtime.scene=='train' and runtime.saveData.location<50 and not runtime.saveData.coop.journey
         and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 516 or 488,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestTravel then
-        local r=self.ui.guestTravel;g.setColor(.17,.135,.09,.94);g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestTravel;g.setColor(.17,.135,.09,.94);GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1);g.printf('NEXT LEG',r.x+8,r.y+18,r.w-16,'center')
     end
     if self.ui.guestPeople then
-        local r=self.ui.guestPeople; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
-        g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'TALK / GIFT' or 'TALK / GIFT [G]',r.x+6,r.y+18,r.w-12,'center')
+        local r=self.ui.guestPeople; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local label=Home.isHome(self.runtime.saveData) and (self.mobile.enabled and 'TALK' or 'TALK [E]') or (self.mobile.enabled and 'TALK / GIFT' or 'TALK / GIFT [G]')
+        g.setColor(.96,.88,.69,1); g.printf(label,r.x+6,r.y+18,r.w-12,'center')
     end
     self.ui.guestMaintenance=nil; self.ui.guestRepair=nil; self.ui.guestSewing=nil
     self.ui.guestFirstAid=self.activities.firstAid:nearest() and {x=20,y=146,w=240,h=56} or nil
     if self.ui.guestFirstAid then
-        local r=self.ui.guestFirstAid; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestFirstAid; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'FIRST AID' or 'FIRST AID [H]',r.x+6,r.y+18,r.w-12,'center')
     end
     if self.activities:eligible() then
         for i,entry in ipairs({{'guestMaintenance','SERVICE','MAINTENANCE'},{'guestRepair','REPAIR','WEAPON BENCH'},{'guestSewing','SEWING','SEWING BENCH'}}) do
             local r={x=20+(i-1)*178,y=146,w=168,h=56}; self.ui[entry[1]]=r
-            g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+            g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
             g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and entry[3] or entry[2],r.x+6,r.y+18,r.w-12,'center')
         end
     end
     self.ui.guestRange=self.range:nearest() and {x=20,y=214,w=240,h=56} or nil
     if self.ui.guestRange then
-        local r=self.ui.guestRange; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=self.ui.guestRange; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'TARGET RANGE' or 'TARGET RANGE [E]',r.x+6,r.y+18,r.w-12,'center')
     end
+    local nearby=self.people:nearest()
+    local reference=nearby and (nearby.kind=='passenger' and nearby.target or nearby.npc)
+    self.ui.npcIdentityCard=not Home.isHome(runtime.saveData) and require('game.npc_identity_ui').draw({
+        data=runtime.saveData,reference=reference,images=self.context.content.npcImages,characterImages=self.context.content.characterImages,key=self.mobile.enabled and 'TAP' or 'E'}) or nil
     self.field:draw()
     local read=Conversations.readAlong(runtime.saveData)
     if read then
         local height=self.mobile.enabled and 226 or 292
-        g.setColor(.045,.035,.025,.94); g.rectangle('fill',16,222,520,height,8,8)
-        g.setColor(.96,.88,.69,1); g.printf(Util.titleFromFile(read.npc),30,234,492,'left')
+        g.setColor(.045,.035,.025,.94); GuiArt.frame(16,222,520,height)
+        g.setColor(.96,.88,.69,1); g.printf(require('game.npc_identity').title(runtime.saveData,read.npc),30,234,492,'left')
         local body=read.answer and (read.answer..'\n\n'..read.text) or read.text
         local _,lines=self.font:getWrap(body,492)
         local scale=math.min(1,(height-90)/math.max(1,#lines*self.font:getHeight()*self.font:getLineHeight()))
@@ -514,7 +539,7 @@ function View:draw()
         g.printf(read.waiting and 'The host is choosing a response.' or 'The host will continue when ready.',30,222+height-34,492,'left')
     end
     if self.controllerFocus then
-        g.setColor(.045,.035,.025,.94); g.rectangle('fill',220,612,520,40,7,7)
+        g.setColor(.045,.035,.025,.94); GuiArt.frame(220,612,520,40)
         g.setColor(.96,.88,.69,1); g.printf('Choose an action. Confirm to use; cancel to return.',230,621,500,'center')
         Focus.draw(Focus.current(self.ui,self:controllerTargets(),'guest-controller-actions'))
     end
@@ -543,6 +568,7 @@ end
 function View:keypressed(key,scancode,isrepeat)
     if isrepeat then return true end
     if key=='f8' then self.controller:open(); return true end
+    if self.inspection.opened then return self.inspection:keypressed(key) end
     if self.travel and self.travel.opened then return self.travel:keypressed(key)end
     if self.journey and self.journey.opened then return self.journey:keypressed(key) end
     if self.poses and self.poses.opened then return self.poses:keypressed(key) end
@@ -586,6 +612,7 @@ function View:controllerIdentity()
         tostring(life and life.mode),tostring(life and life.combat and life.combat.phaseRevision)},':')
 end
 function View:controllerScope()
+    if self.inspection.opened then return 'menu',self.inspection end
     if self.travel and self.travel.opened then return 'menu',self.travel end
     if self.lastStand and self.lastStand:available() then
         local panel=self.lastStand
@@ -711,6 +738,7 @@ end
 function View:mousepressed(x,y,button,istouch)
     if istouch then return true end
     local gx,gy=Viewport.toGame(x,y,960,720)
+    if self.inspection.opened then if button==1 then self.inspection:pointer(gx,gy) end;return true end
     if self.travel and self.travel.opened then if button==1 then self.travel:pointer(gx,gy)end;return true end
     if button==1 and Util.pointIn(gx,gy,self.ui.guestTravel)then self.travel:open();return true end
     if self.journey and self.journey.opened then if button==1 then self.journey:pointer(gx,gy) end; return true end
@@ -753,6 +781,7 @@ function View:mousepressed(x,y,button,istouch)
     return true
 end
 function View:mousemoved(x,y)
+    if self.inspection.opened then return true end
     if self.travel and self.travel.opened then return true end
     if self.journey and self.journey.opened or self.controllerFocus or self.poses and self.poses.opened then return true end
     if self.lastStand and self.lastStand:available() then
@@ -790,6 +819,7 @@ function View:mousereleased(x,y,button)
     self.camera:endPan(); return true
 end
 function View:wheelmoved(_,dy)
+    if self.inspection.opened then return true end
     if self.travel and self.travel.opened then return true end
     if self.journey and self.journey.opened then return self.journey:wheelmoved(0,dy) end
     if self.controllerFocus or self.poses and self.poses.opened then return true end
@@ -803,6 +833,7 @@ function View:wheelmoved(_,dy)
 end
 function View:touchpressed(id,x,y,...)
     local gx,gy=Viewport.toGame(x,y,960,720)
+    if self.inspection.opened then self.inspection:pointer(gx,gy);return true end
     if self.travel and self.travel.opened then self.travel:pointer(gx,gy);return true end
     if Util.pointIn(gx,gy,self.ui.guestTravel)then self.travel:open();return true end
     if self.journey and self.journey.opened then self.journey:pointer(gx,gy); return true end
@@ -850,6 +881,7 @@ function View:touchpressed(id,x,y,...)
     self.mobile:touchpressed(id,x,y,...); return true
 end
 function View:touchmoved(id,x,y,...)
+    if self.inspection.opened then return true end
     if self.travel and self.travel.opened then return true end
     if self.journey and self.journey.opened or self.controllerFocus or self.poses and self.poses.opened then return true end
     if self.range and self.range:available() then local gx,gy=Viewport.toGame(x,y,960,720); return self.range:touchmoved(id,gx,gy) end
@@ -920,6 +952,7 @@ function View:focus(focused)
     if self.context.audio then self.context.audio.focus(focused,self.runtime) end; return true
 end
 function View:release()
+    self.inspection:close()
     if self.travel then self.travel:release()end
     if self.journey then self.journey:release() end
     if self.settings then self.settings:release() end

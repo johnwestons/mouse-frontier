@@ -22,6 +22,7 @@ local TRANSIENT_DEFAULTS = {
     characterPreviewAction = "walk",
     characterPreviewDirection = "SE",
     giftOpen = false,
+    giftCharacterId = false,
     holdPickupTime = 0,
     inventoryDragActive = false,
     inventoryOpen = false,

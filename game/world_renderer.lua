@@ -1,5 +1,8 @@
 local WeaponAttachment = require("game.weapon_attachment")
 local InteractionBeacon = require("game.interaction_beacon")
+local HomeFox = require("game.home_stop_fox")
+local Home = require("game.home_stop")
+local HomeArt = require("game.home_stop_art")
 
 local function required(context,name,expected)
   local value=context[name]
@@ -202,10 +205,14 @@ local function new(context)
               local action=timer>0 and (presentation.actionKind or "use") or (presentation.playerPose=="sit" and "sit" or (presentation.playerPose=="lay" and "lay" or "idle"))
               if drawShadow~=false then love.graphics.setColor(0,0,0,0.28); love.graphics.ellipse("fill",actor.x,actor.y+28,20,7) end
               local actionPhase=timer>0 and math.max(0,.35-timer) or clock
+              if timer>0 and (action=='swing' or action=='melee') then
+                  local duration=presentation.actionDuration or .42
+                  actionPhase=math.max(0,1-timer/duration)*.35
+              end
               drawAnimatedCharacter(record.character,action,actor.x,actor.y+34,82,104,actor.facing,actionPhase,actor)
               if timer>0 and presentation.actionHeldItem then
                   local combat=Catalog.weaponCombat[presentation.actionHeldItem]
-                  local attached=combat and (action=="melee" or action=="ranged") and WeaponAttachment.draw(
+                  local attached=combat and (action=="melee" or action=="swing" or action=="ranged") and WeaponAttachment.draw(
                       getCharacterAnimations(),record.character,presentation.actionHeldItem,
                       WeaponAttachment.itemSprite(ui,presentation.actionHeldItem),actor.x,actor.y+34,
                       82,104,actor.facing,actionPhase,action,combat
@@ -273,7 +280,17 @@ local function new(context)
           local img=ui.propImages[item.name]
           local misc=Catalog.miscItems and Catalog.miscItems[item.name]
           local scale=(item.scale or 1)*(misc and misc.worldScale or 1); local rotation=item.rotation or 0
-          if img then
+          if item.stopHotspotId then
+              -- The garden and its marker are drawn with the stop scenery.
+          elseif item.houseStorageHotspot then
+              -- The cupboard/shelves are already painted into the interior.
+              -- A small fixed marker makes their contents discoverable.
+              love.graphics.setColor(.95,.78,.30,.72)
+              love.graphics.circle("line",item.x,item.y,7)
+              love.graphics.line(item.x-3,item.y,item.x+3,item.y)
+              love.graphics.line(item.x,item.y-3,item.x,item.y+3)
+              love.graphics.setColor(1,1,1)
+          elseif img then
               local idleFrames=itemIdleImages[item.name]
               if idleFrames and not runtime.editMode then img=idleFrames[(math.floor(runtime.animationClock/1.05)%#idleFrames)+1] or img end
               local s=math.min(58/img:getWidth(),58/img:getHeight())*scale
@@ -292,14 +309,14 @@ local function new(context)
               local mail=ui.propImages["family-letter"]; local ms=28/math.max(mail:getWidth(),mail:getHeight())
               love.graphics.setColor(1,1,1); love.graphics.draw(mail,item.x,item.y-48+math.sin(runtime.animationClock*3)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2)
           end
-          if runtime.editMode and (not carIndex or carIndex==(runtime.saveData.activeCar or 1)) then local hx,hy=item.x+31,item.y+31; love.graphics.setColor(1,.78,.1); love.graphics.rectangle("fill",hx-7,hy-7,14,14); love.graphics.setColor(colors.ink); love.graphics.rectangle("line",hx-7,hy-7,14,14); if runtime.editedItem==i then love.graphics.setColor(colors.brass); love.graphics.setLineWidth(3); love.graphics.circle("line",item.x,item.y,38); love.graphics.setLineWidth(1) end end
+          if runtime.editMode and not item.houseStorageHotspot and not item.stopHotspotId and (not carIndex or carIndex==(runtime.saveData.activeCar or 1)) then local hx,hy=item.x+31,item.y+31; love.graphics.setColor(1,.78,.1); love.graphics.rectangle("fill",hx-7,hy-7,14,14); love.graphics.setColor(colors.ink); love.graphics.rectangle("line",hx-7,hy-7,14,14); if runtime.editedItem==i then love.graphics.setColor(colors.brass); love.graphics.setLineWidth(3); love.graphics.circle("line",item.x,item.y,38); love.graphics.setLineWidth(1) end end
       end
   end
 
   local function trainItemAt(x,y)
       local best,bestLayer=nil,-math.huge
       for i,item in ipairs(runtime.saveData.droppedItems) do
-          if itemIsHere(item) then
+          if itemIsHere(item) and not item.houseStorageHotspot and not item.stopHotspotId then
               local hx,hy=item.x+31,item.y+31
               if math.abs(x-hx)<=14 and math.abs(y-hy)<=14 and (item.layer or i)>bestLayer then best,bestLayer=i,item.layer or i end
           end
@@ -307,27 +324,58 @@ local function new(context)
       return best
   end
 
-  local function drawNPC()
-      local npcFile=runtime.saveData.currentNPC; local img=npcFile and (npcImages[npcFile] or characterImages[npcFile])
-      if not (img and runtime.npcActor) then return end
-      local idle=0
+  local function drawResident(actor)
+      local npcFile=actor.file or runtime.saveData.currentNPC
+      local img=npcFile and (npcImages[npcFile] or characterImages[npcFile])
+      if not img then return end
       local animationSet=getCharacterAnimations()[npcFile]
-      local walking=runtime.npcActor.targetX and (not (animationSet and animationSet.directional) or runtime.npcActor.moving)
-      if walking and animationSet then
-          love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",runtime.npcActor.x,runtime.npcActor.y+28,20,7)
-          if drawAnimatedCharacter(npcFile,"walk",runtime.npcActor.x,runtime.npcActor.y+34,82,104,runtime.npcActor.facing or 1,runtime.animationClock,runtime.npcActor) then
-              love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),runtime.npcActor.x-100,runtime.npcActor.y+50,200,"center")
-              Family.draw(runtime.npcActor,familyImages,runtime.animationClock)
-              return
+      local walking=actor.moving or (actor.moving==nil and actor.targetX~=nil)
+      local action=walking and "walk" or (actor.routineAction or "idle")
+      local carrying=walking and actor.routineAction=="carry"
+      local supply=carrying and ui.propImages["supply-crate"]
+      -- Supplies ride against the backpack during travel. The authored walk
+      -- remains directional and its legs advance only with actual movement.
+      local function drawSupply()
+          if supply then
+              local scale=23/math.max(supply:getWidth(),supply:getHeight())
+              love.graphics.setColor(1,1,1)
+              love.graphics.draw(supply,actor.x-(actor.facing or 1)*12,actor.y+2,0,scale,scale,supply:getWidth()/2,supply:getHeight()/2)
           end
-      elseif walking and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then img=npcWalkImages[npcFile] or characterWalkImages[npcFile] end
-      local s=math.min(0.075,90/img:getHeight()); local facing=-(runtime.npcActor.facing or 1)
-      if walking and (npcWalkImages[npcFile] or characterWalkImages[npcFile]) then facing=-facing end
-      love.graphics.setColor(0,0,0,0.24); love.graphics.ellipse("fill",runtime.npcActor.x,runtime.npcActor.y+28,20,7)
-      if not walking and drawAnimatedCharacter(npcFile,"idle",runtime.npcActor.x,runtime.npcActor.y+34,82,104,facing,nil,runtime.npcActor) then else love.graphics.setColor(1,1,1); love.graphics.draw(img,runtime.npcActor.x,runtime.npcActor.y+idle,0,s*facing,s,img:getWidth()/2,img:getHeight()/2) end
-      love.graphics.setColor(colors.cream); love.graphics.printf(Util.titleFromFile(npcFile),runtime.npcActor.x-100,runtime.npcActor.y+50,200,"center")
-      if pendingMailHere() and ui.propImages["family-letter"] then local mail=ui.propImages["family-letter"]; local ms=34/math.max(mail:getWidth(),mail:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(mail,runtime.npcActor.x,runtime.npcActor.y-82+math.sin(runtime.animationClock*4)*3,0,ms,ms,mail:getWidth()/2,mail:getHeight()/2) end
-      Family.draw(runtime.npcActor,familyImages,runtime.animationClock)
+      end
+      love.graphics.setColor(0,0,0,.24); love.graphics.ellipse("fill",actor.x,actor.y+28,20,7)
+      local behind=carrying and (actor.intentY or 0)>0
+      if behind then drawSupply() end
+      local clock=walking and runtime.animationClock or (actor.routineAction and actor.routineClock or runtime.animationClock)
+      local drawn=drawAnimatedCharacter(npcFile,action,actor.x,actor.y+34,82,104,actor.facing or 1,clock,actor)
+      if not drawn then
+          local legacy=walking and (npcWalkImages[npcFile] or characterWalkImages[npcFile])
+          img=legacy or img
+          local scale=math.min(.075,90/img:getHeight())
+          local facing=-(actor.facing or 1)
+          if legacy then facing=-facing end
+          love.graphics.setColor(1,1,1); love.graphics.draw(img,actor.x,actor.y,0,scale*facing,scale,img:getWidth()/2,img:getHeight()/2)
+      end
+      if not behind then drawSupply() end
+      love.graphics.setColor(colors.cream)
+      local delivery=require('game.npc_targets').pending(runtime.saveData,actor.characterId or npcFile)
+      if delivery and delivery.destination==runtime.saveData.location then
+          love.graphics.setColor(.93,.72,.30,.9); love.graphics.setLineWidth(2)
+          love.graphics.ellipse('line',actor.x,actor.y+29,26,9); love.graphics.setLineWidth(1)
+      end
+      if delivery and delivery.destination==runtime.saveData.location and ui.propImages["family-letter"] then
+          local mail=ui.propImages["family-letter"]; local scale=34/math.max(mail:getWidth(),mail:getHeight())
+          love.graphics.setColor(1,1,1); love.graphics.draw(mail,actor.x,actor.y-82+math.sin(runtime.animationClock*4)*3,0,scale,scale,mail:getWidth()/2,mail:getHeight()/2)
+      end
+      Family.draw(actor,familyImages,runtime.animationClock)
+  end
+
+  local function drawNPC()
+      local actors={}
+      if runtime.npcActors then
+          for _,actor in ipairs(runtime.npcActors) do actors[#actors+1]=actor end
+      elseif runtime.npcActor then actors[1]=runtime.npcActor end
+      table.sort(actors,function(a,b) return a.y<b.y end)
+      for _,actor in ipairs(actors) do drawResident(actor) end
   end
 
   local function drawPassengers(carIndex)
@@ -359,6 +407,20 @@ local function new(context)
   end
 
   local function drawStop()
+      if Home.isHome(runtime.saveData) then
+          local office=Home.isOffice(runtime.saveData)
+          if office then HomeArt.drawOffice(W,H) else HomeArt.draw(scenery,W,H,runtime.saveData) end
+          drawDroppedItems()
+          InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          local fox=not office and HomeFox.actor(runtime.saveData)
+          local talking=runtime.dialogue and runtime.dialogue.homeFox
+          if fox and fox.y<=runtime.player.y+34 then HomeFox.draw(getCharacterAnimations(),runtime.saveData,runtime.animationClock,talking) end
+          if office then drawNPC() end
+          drawParty()
+          if fox and fox.y>runtime.player.y+34 then HomeFox.draw(getCharacterAnimations(),runtime.saveData,runtime.animationClock,talking) end
+          InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
+          return
+      end
       if scenery.settlements then drawLandscape() end
       if scenery.settlements and Settlements.draw(scenery.settlements,runtime.saveData.location,W,H) then
           local trainX,trainY=Settlements.trainPoint(runtime.saveData.location)
@@ -370,9 +432,19 @@ local function new(context)
           drawShootingRangeSpot()
           drawExpeditionTrailhead()
           drawCaravanGate()
+          for _,door in ipairs(require('game.npc_targets').doorMarkers(runtime.saveData)) do
+              local dx,dy=Settlements.doorPoint(runtime.saveData.location,door)
+              love.graphics.setColor(.93,.72,.30,.95); love.graphics.setLineWidth(3)
+              love.graphics.ellipse('line',dx,dy,30,12); love.graphics.setLineWidth(1)
+              local letter=ui.propImages['family-letter']
+              if letter then local scale=30/math.max(letter:getWidth(),letter:getHeight())
+                  love.graphics.setColor(1,1,1); love.graphics.draw(letter,dx,dy-42,0,scale,scale,letter:getWidth()/2,letter:getHeight()/2)
+              end
+          end
           drawDroppedItems()
           drawStopSludges(sludgeImages())
           drawWildlife(ensureStopLayout())
+          require("game.stop_hotspots").draw(runtime.saveData,runtime.animationClock,runtime.player,ui.interaction)
           InteractionBeacon.drawUnderlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
           drawNPC(); drawParty()
           InteractionBeacon.drawOverlay(ui.interaction,runtime.animationClock,{player=runtime.player,saveData=runtime.saveData})
@@ -473,6 +545,7 @@ local function new(context)
 
   return {
     release=function()
+      HomeArt.release()
       if landscapeSeamShader then landscapeSeamShader:release(); landscapeSeamShader=nil end
       for image,quads in pairs(landscapeQuads) do
         quads.body:release(); if quads.sky then quads.sky:release() end; landscapeQuads[image]=nil

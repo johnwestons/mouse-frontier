@@ -4,6 +4,7 @@ local Settlements=require('game.settlements')
 local Util=require('game.util')
 local Areas=require('game.expedition_areas')
 local Caravan=require('game.crow_caravan_area')
+local Home=require('game.home_stop')
 local Collision={}
 function Collision.new(context)
     assert(context.car and context.scenery,'co-op collision requires scene assets')
@@ -15,6 +16,7 @@ function Collision.new(context)
             local image=(context.scenery.trainCarImages or {})[data.trainCars[actor.activeCar]]
             return Train.clampCharacterToFloor(context.car,image,x,y,30)
         elseif data.scene=='stop' then
+            if Home.isHome(data) then return Home.move(oldX,oldY,x,y,data) end
             -- Corrections can span more than an ordinary movement step. Sweep
             -- them too; endpoint-only checks could jump a thin closed path.
             local dx,dy=x-oldX,y-oldY

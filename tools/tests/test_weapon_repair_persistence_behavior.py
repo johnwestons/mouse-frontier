@@ -148,7 +148,8 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
 
     def test_full_house_storage_allocates_space_in_the_correct_house(self) -> None:
         self.lua.execute(r'''
-            local full={name='supply-crate',scene='house',location=3,houseDoor=2,storage={}}
+            local full={name='house-storage',houseStorageHotspot=true,permanent=true,
+                scene='house',location=3,houseDoor=2,storage={}}
             for i=1,Catalog.storageCapacities[full.name] do full.storage[i]='food-ration' end
             local other={name='supply-crate',scene='house',location=3,houseDoor=1,storage={}}
             local data=prepared({activeHouseDoor=2,droppedItems={full,other}})
@@ -156,7 +157,8 @@ class WeaponRepairPersistenceBehaviorTests(unittest.TestCase):
             House.storeLoot(data,Catalog,part,3)
             assert(#data.droppedItems==3)
             local extra=data.droppedItems[3]
-            assert(extra.houseDoor==2 and extra.location==3 and extra.storage[1]==part)
+            assert(extra.houseDoor==2 and extra.location==3 and extra.storage[1]==part
+                and extra.name=='house-storage' and extra.houseStorageHotspot and extra.permanent)
             assert(next(other.storage)==nil,'a different house does not receive this loot')
             for i=1,Catalog.storageCapacities[full.name] do assert(full.storage[i]=='food-ration') end
         ''')

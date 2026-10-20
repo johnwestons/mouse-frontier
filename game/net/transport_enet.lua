@@ -89,6 +89,7 @@ local function newInstance(mode, nativeHost, options)
         _closeOk = nil,
         _closeError = nil,
         _peers = {},
+        _connectionIds = {},
     }, Instance)
 end
 
@@ -175,8 +176,13 @@ function Instance:poll()
     if not event then return nil end
     if event.type == "connect" and event.peer then
         self._peers[event.peer] = true
+        self._connectionIds[event.peer] = event.connectionId
         if self.mode == "client" then self.peer = event.peer end
     elseif event.type == "disconnect" and event.peer then
+        -- ENet can reset the native peer ID before returning its terminal
+        -- event. Preserve the immutable ID observed when this peer connected.
+        event.connectionId = self._connectionIds[event.peer] or event.connectionId
+        self._connectionIds[event.peer] = nil
         self._peers[event.peer] = nil
         if self.peer == event.peer then self.peer = nil end
     end
@@ -274,6 +280,18 @@ function Instance:disconnect(peer, code, immediate)
     return true
 end
 
+-- Administrative removal must deliver its reliable rejection before ENet
+-- tears down the peer. Ordinary disconnect() intentionally keeps its policy.
+function Instance:disconnectLater(peer, code)
+    if self.closed then return false, "Transport is closed." end
+    code = wholeNumber(code or 0, 0, 2147483647)
+    if not code then return false, "Disconnect code must be a nonnegative whole number." end
+    local ok, result = protectedMethod(peer, "disconnect_later", code)
+    if not ok or result == false then return false, "ENet deferred disconnect failed: " .. tostring(result) end
+    -- Leave peer bookkeeping intact until the terminal event or forced close.
+    return self:flush()
+end
+
 function Instance:close(code, immediate)
     if self.closed then
         if self._closeOk == true then return true end
@@ -299,6 +317,7 @@ function Instance:close(code, immediate)
         if not ok then errors[#errors + 1] = tostring(result) end
     end
     self._peers = {}
+    self._connectionIds = {}
     self.peer = nil
     self.nativeHost = nil
     self.closed = true

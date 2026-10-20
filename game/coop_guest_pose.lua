@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Cosmetic requests use the reliable authority channel; only fresh host
 -- motion facts supply either actor's displayed pose or USE countdown.
 local Util=require('game.util')
@@ -108,11 +109,11 @@ function Panel:keypressed(key)
 end
 function Panel:draw()
     if not self.opened then return end
-    local g=love.graphics;g.setColor(.045,.035,.025,.98);g.rectangle('fill',200,150,560,390,10,10)
+    local g=love.graphics;g.setColor(.045,.035,.025,.98);GuiArt.frame(200,150,560,390)
     g.setColor(1,.93,.78,1)
     Typography.drawText(g,'CHARACTER POSE',228,174,504,42,{align='center',valign='center'})
     for index,target in ipairs(self:targets()) do
-        local r=target.rect;g.setColor(index==self.selected and .3 or .17,.135,.09,1);g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
+        local r=target.rect;g.setColor(index==self.selected and .3 or .17,.135,.09,1);GuiArt.frame(r.x,r.y,r.w,r.h,{selected=index==self.selected})
         g.setColor(1,.93,.78,1)
         Typography.drawText(g,choices[index] and choices[index][2] or 'DONE',r.x+8,r.y+8,r.w-16,r.h-16,
             {scale=.85,minScale=.7,align='center',valign='center'})

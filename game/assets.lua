@@ -11,6 +11,7 @@ local CrowCaravanArt = require("game.crow_caravan_art")
 local OutfitItemArt = require("game.outfit_item_art")
 local LazyGroups = require("game.lazy_asset_groups")
 local LastStandLife = require("game.coop_last_stand_lifecycle")
+local MobCombat = require("game.mob_combat_animation")
 
 local Assets = {}
 local missingRequired
@@ -60,7 +61,8 @@ local function releaseLazyImages(destination,keep)
     if not paths then return end
     for key in pairs(paths) do
         local image=rawget(destination,key)
-        if not (keep and keep[key]) and not externallyOwnedImages[image] then
+        local owner=type(key)=='string' and key:match('^(.*)@combat$')
+        if not (keep and (keep[key] or owner and keep[owner])) and not externallyOwnedImages[image] then
             if image and image.release then pcall(image.release,image) end
             rawset(destination,key,nil)
         end
@@ -233,7 +235,9 @@ end
 
 local function validateCatalogArt(ui)
     local checked = {}
-    local virtual = {scratch=true, ["mob-claw"]=true, ["mob-spit"]=true}
+    local virtual = {scratch=true, ["mob-claw"]=true, ["mob-spit"]=true,
+        -- This fixture targets storage already painted into the room image.
+        ["house-storage"]=true,["garden-harvest"]=true}
     local function requireNamed(name, category)
         if not name or checked[name] or virtual[name] then return end
         checked[name] = true
@@ -358,6 +362,7 @@ local function loadMenuFrames(ui)
             ui.menuFrames[index] = frame
         end
     end
+    require('game.gui_art').setFrames(ui.menuFrames)
 end
 
 local function loadShader()
@@ -544,6 +549,7 @@ function Assets.load(targets)
             elseif file:match("%-ranged%.png$") then registerLazyImage(mobRangedImages,file:gsub("%-ranged%.png$", ".png"),path) end
         end
     end
+    MobCombat.register(targets,registerLazyImage)
     local sludgeAtlasRoot="assets/sprites/Mobs/atlases/"
     sceneAssets:add("sludgeAnimations","stop",function()
       local sludgeIdleWalk=loadGeneratedAnimationAtlas(sludgeAtlasRoot.."sludge-crawler-mouse-ears-idle-walk.png",2,2,4)
@@ -781,7 +787,8 @@ function Assets.releaseIntroImages(scenery,runtime)
     local keep
     if runtime and runtime.state=="slots" then
         local TitleSnapshots=require("game.title_snapshots")
-        keep={titleImage=true,titleHeaderBackdrop=true,titleFooterBackdrop=true}
+        keep={titleImage=true,titleHeaderBackdrop=true,titleFooterBackdrop=true,
+            introBackground=true,introLocomotiveSheet=true,introCars=true,introLocomotive=true}
         for side=0,1 do
             keep["titleSnapshot_"..TitleSnapshots.playback(runtime.animationClock or 0,side).id]=true
         end
@@ -811,15 +818,17 @@ local function retainSceneGroups(scenery,runtime,options)
 end
 
 -- Called before settlement/animation preparation, without decoding any images.
-function Assets.retainResidentArt(scenery,runtime,portraits,npcActor)
+function Assets.retainResidentArt(scenery,runtime,portraits,npcActor,npcActors)
     retainSceneGroups(scenery,runtime)
     local targets=residentTargets[scenery];if not targets then return end
     if runtime.state~="characters" then releaseLazyImages(targets.characterImages,portraits or {})end
     local family={}
     if runtime.saveData and (runtime.scene=="stop" or runtime.scene=="house") and not runtime.battle then
-        for _,member in ipairs(npcActor and npcActor.family or {})do
-            for _,pose in ipairs({"walk","lay","idle"})do
-                for frame=1,2 do family[member.kind.."-"..pose.."-"..frame]=true end
+        for _,actor in ipairs(npcActors or {npcActor})do
+            for _,member in ipairs(actor.family or {})do
+                for _,pose in ipairs({"walk","lay","idle"})do
+                    for frame=1,2 do family[member.kind.."-"..pose.."-"..frame]=true end
+                end
             end
         end
     end

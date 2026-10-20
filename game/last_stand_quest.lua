@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local Accessibility=require("game.accessibility")
 local WorldView=require("game.world_view")
 local Scene=require("game.last_stand_scene")
@@ -10,6 +11,7 @@ local CharacterMotion=require("game.character_motion")
 local Life=require('game.coop_last_stand_lifecycle')
 local AidState=require('game.coop_last_stand_aid_state')
 local PositionState=require('game.coop_last_stand_position_state')
+local ShooterPad=require('game.mobile_shooter_controls')
 
 local Quest={}
 local VERSION=1
@@ -72,10 +74,10 @@ local function modalPanel(title,text,width,height,accent)
     love.graphics.rectangle("fill",0,0,width,height)
     local x,y,w,h=width/2-310,height/2-190,620,380
     love.graphics.setColor(.075,.048,.028,.97)
-    love.graphics.rectangle("fill",x,y,w,h,14,14)
+    GuiArt.frame(x,y,w,h)
     love.graphics.setColor(accent or .82,.55,.23,1)
     love.graphics.setLineWidth(3)
-    love.graphics.rectangle("line",x,y,w,h,14,14)
+
     love.graphics.setColor(1,.84,.55,1)
     love.graphics.printf(title,x+28,y+30,w-56,"center")
     love.graphics.setColor(.93,.87,.75,1)
@@ -624,6 +626,20 @@ function Quest.new(context)
         return state
     end
 
+    function service:debugStart(shootout)
+        if not runtime.saveData or runtime.session and runtime.session.networkMode~='offline' and runtime.session.networkMode~=nil then return false,'offline_only' end
+        releaseResources()
+        local previous=runtime.saveData.lastStand or {}
+        -- Debug replay must not reset the user's completed conversations.
+        runtime.saveData.lastStand={state='backyard',originStop=runtime.saveData.location,
+            returnX=runtime.player.x,returnY=runtime.player.y,loanActive=true,loanAmmo=120,
+            conversations=previous.conversations,rewardClaimed=previous.rewardClaimed}
+        local quest=ensureQuest(runtime.saveData)
+        local state=restore(quest)
+        if shootout then beginShootout(state,'wide') end
+        save();return true
+    end
+
     local function canOffer(quest)
         if quest.state~="waiting" and quest.state~="declined" and quest.state~="paused" then return false end
         local data=runtime.saveData
@@ -641,6 +657,7 @@ function Quest.new(context)
     local controllerFire=false
     local controllerGun
     local function neutralizeShooter(state,preserveButtons)
+        if state.aimPad then state.aimPad:cancel() end
         if state.shootout and state.shootout.gun then
             state.shootout.fireHeldSources={}; state.shootout.gun.fireHeldSources={}; state.shootout.gun.fireHeld=false
             Shootout.setADS(state.shootout,false)
@@ -893,6 +910,11 @@ function Quest.new(context)
                 if #ids==0 and not state.shootout.result then state.shootout.effectsPaused=true; return true end
             end
             state.shootout.effectsPaused=false
+            if state.aimPad and state.aimTouchSession~=state.shootout then state.aimPad:cancel() end
+            if state.aimPad and not privatePaused then
+                local x,y=state.aimPad:step(dt,state.shootout.gun,width,height)
+                if x then Shootout.setAim(state.shootout,x,y) end
+            end
             local healthBefore=runtime.saveData.health
             local companionBefore=runtime.saveData.players and runtime.saveData.players.companion and runtime.saveData.players.companion.health
             local result=Shootout.update(state.shootout,dt,runtime.saveData,Catalog,width,height,ids)
@@ -1211,7 +1233,7 @@ function Quest.new(context)
         if not state or not state.capture then return nil end
         if state.mode=="shootout" and not state.paused and not state.treatment and not state.handoff
             and state.shootout.result~="retreat" and not Shootout.needsSupply(state.shootout,runtime.saveData) then
-            if Shootout.touchAction(x,y,width,height) then return nil end
+            if ShooterPad.hit(x,y,width,height) or Shootout.touchAction(x,y,width,height) then return nil end
             return state.shootout,true
         end
         return state,false
@@ -1220,11 +1242,25 @@ function Quest.new(context)
     function service:touchpressed(id,x,y)
         local state=runtime.lastStand
         if not state then return false end
+        if context.inputPaused and context.inputPaused() then neutralizeShooter(state); return state.capture==true end
         if runtime.session and runtime.session.checkpointPending then return state.capture==true end
         state.touchControls=true
         if state.mode=="shootout" then
             state.shootout.touchControls=true
-            if state.aimTouchSession~=state.shootout then state.aimTouch=nil; state.aimTouchSession=state.shootout end
+            if state.aimTouchSession~=state.shootout then
+                if state.aimPad then state.aimPad:cancel() end
+                state.aimTouch=nil; state.aimTouchSession=state.shootout
+            end
+            state.aimPad=state.aimPad or ShooterPad.new()
+            if not state.paused and not state.treatment and not state.handoff and not state.shootout.result
+                and not Shootout.needsSupply(state.shootout,runtime.saveData) then
+                local padAction=state.aimPad:press(id,x,y,width,height)
+                if padAction then
+                    if padAction=='aim' then state.aimTouch=id; state.shootout.gun.touchAim=nil
+                    elseif padAction=='fire' then Shootout.setFireHeld(state.shootout,'pad',true,runtime.saveData,width,height,Catalog) end
+                    return true
+                end
+            end
             if not state.paused and not state.treatment and not state.handoff
                 and not Shootout.touchAction(x,y,width,height) and state.shootout.result~="retreat"
                 and not Shootout.needsSupply(state.shootout,runtime.saveData) then
@@ -1248,6 +1284,7 @@ function Quest.new(context)
         local state=runtime.lastStand
         if not state or not state.capture then return false end
         if state.mode=="shootout" and not state.treatment then
+            if state.aimPad and state.aimPad:move(id,x,y,width,height) then return true end
             if not state.paused and state.aimTouch==id and state.aimTouchSession==state.shootout then
                 Shootout.setTouchAim(state.shootout,x,y,width,height)
             end
@@ -1259,6 +1296,12 @@ function Quest.new(context)
     function service:touchreleased(id,x,y)
         local state=runtime.lastStand
         if not state then return false end
+        local padAction=state.aimPad and state.aimPad:release(id)
+        if padAction then
+            if padAction=='fire' and state.shootout then Shootout.setFireHeld(state.shootout,'pad',false) end
+            if state.aimTouch==id then state.aimTouch=nil end
+            return true
+        end
         if state.fireTouchSources and state.fireTouchSources[id] then
             state.fireTouchSources[id]=nil
             Shootout.setFireHeld(state.shootout,"touch:"..tostring(id),false)
@@ -1269,6 +1312,7 @@ function Quest.new(context)
 
     function service:focus(focused)
         if not focused and runtime.lastStand and runtime.lastStand.capture then
+            if runtime.lastStand.aimPad then runtime.lastStand.aimPad:cancel() end
             runtime.lastStand.aimTouch=nil
             if runtime.lastStand.shootout then
                 runtime.lastStand.shootout.fireHeldSources={}
@@ -1282,7 +1326,7 @@ function Quest.new(context)
     local function drawNotice(state)
         if not state.notice then return end
         love.graphics.setColor(.055,.035,.020,.94)
-        love.graphics.rectangle("fill",width/2-285,height-126,570,48,8,8)
+        GuiArt.frame(width/2-285,height-126,570,48)
         love.graphics.setColor(.96,.84,.63,1)
         love.graphics.printf(state.notice.text,width/2-270,height-110,540,"center")
     end
@@ -1300,15 +1344,15 @@ function Quest.new(context)
             modalPanel("A LIGHT IN THE WINDOWS",OFFER_LINES[state.offerPage],width,height)
             local ax,ay,aw,ah,dx,dy,dw,dh=offerButtons(width,height)
             love.graphics.setColor(.46,.25,.10,1)
-            love.graphics.rectangle("fill",ax,ay,aw,ah,8,8)
+            GuiArt.frame(ax,ay,aw,ah)
             love.graphics.setColor(.27,.20,.16,1)
-            love.graphics.rectangle("fill",dx,dy,dw,dh,8,8)
+            GuiArt.frame(dx,dy,dw,dh)
             love.graphics.setColor(1,.88,.64,1)
             love.graphics.printf("ACCEPT  [Y]",ax,ay+17,aw,"center")
             love.graphics.printf("NOT NOW  [N]",dx,dy+17,dw,"center")
             love.graphics.setColor(.18,.12,.075,1)
-            love.graphics.rectangle("fill",ax,ay-58,aw,44,8,8)
-            love.graphics.rectangle("fill",dx,dy-58,dw,44,8,8)
+            GuiArt.frame(ax,ay-58,aw,44)
+            GuiArt.frame(dx,dy-58,dw,44)
             love.graphics.setColor(1,.88,.64,1)
             love.graphics.printf("DEFENSE OBJECTIVE  [Q]",ax,ay-43,aw,"center")
             love.graphics.printf("WEAPON SUPPLIES  [F]",dx,dy-43,dw,"center")
@@ -1334,6 +1378,11 @@ function Quest.new(context)
         end
         if state.mode=="shootout" then
             Shootout.draw(state.shootout,runtime.saveData,width,height)
+            if state.touchControls and not state.paused and not state.shootout.result
+                and not Shootout.needsSupply(state.shootout,runtime.saveData) then
+                state.aimPad=state.aimPad or ShooterPad.new()
+                state.aimPad:draw(width,height)
+            end
             return
         end
         if state.mode=="aftermath" then
@@ -1345,11 +1394,11 @@ function Quest.new(context)
             )
             local rx,ry,rw,rh=mainButton(width,height)
             love.graphics.setColor(.48,.26,.10,1)
-            love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
+            GuiArt.frame(rx,ry,rw,rh)
             love.graphics.setColor(1,.88,.64,1)
             love.graphics.printf("RETURN TO THE STOP  [E]",rx,ry+17,rw,"center")
             love.graphics.setColor(.27,.20,.16,1)
-            love.graphics.rectangle("fill",rx,ry-58,rw,44,8,8)
+            GuiArt.frame(rx,ry-58,rw,44)
             love.graphics.setColor(1,.88,.64,1)
             love.graphics.printf("STAY A LITTLE LONGER  [T]",rx,ry-43,rw,"center")
             return

@@ -18,6 +18,20 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @unittest.skipIf(LuaRuntime is None, "Lua 5.1 runtime unavailable; install Lupa or set LUA_RUNTIME_PYTHONPATH")
 class BattleUIBehaviorTests(unittest.TestCase):
+    def test_downed_pose_keeps_unit_identity_even_during_a_move_transition(self):
+        self.lua.execute('''
+            local fallen=ctx.battle.units[2];fallen.hp=0
+            fallen.moveAnim={fromQ=1,fromR=2,toQ=2,toR=2,t=.2,duration=.5}
+            local observed
+            ctx.drawAnimatedCharacter=function(file,action,x,y,w,h,facing,phase,motion)
+                if file==fallen.file then assert(action=='unconscious');observed=motion end
+                return true
+            end
+            UI.draw(ctx);assert(observed==fallen)
+            fallen.moveAnim.t=.4;ctx.animationClock=1;UI.draw(ctx);assert(observed==fallen)
+            fallen.moveAnim=nil;ctx.animationClock=2;UI.draw(ctx);assert(observed==fallen)
+        ''')
+
     def setUp(self) -> None:
         self.lua = LuaRuntime(unpack_returned_tuples=True)
         self.lua.globals().package.path = ROOT.as_posix() + "/?.lua;" + self.lua.globals().package.path

@@ -347,20 +347,22 @@ class HomeLootProgressionBehaviorTests(unittest.TestCase):
         self.lua.execute(r'''
             randomDraw=function() return .99 end
             local data=prepared(13,1)
-            local first={name='travel-chest',scene='house',location=13,houseDoor=1,storage={}}
+            local first={name='house-storage',houseStorageHotspot=true,permanent=true,
+                scene='house',location=13,houseDoor=1,storage={}}
             local other={name='supply-crate',scene='house',location=13,houseDoor=2,storage={[1]='water-bottle'}}
             local train={name='supply-crate',scene='train',carIndex=1,storage={[1]='food-ration'}}
             for slot=1,Catalog.storageCapacities[first.name]-1 do first.storage[slot]='coal-chunk' end
             data.droppedItems={first,other,train}
             local baseline=assert(Schema.migrate(data))
             House.rollLoot(data,Catalog,13)
-            assert(#contents(data,13,1)==9+6,'full storage lost or created extra home rewards')
-            for slot=1,9 do assert(first.storage[slot]=='coal-chunk','existing contents were overwritten') end
+            assert(#contents(data,13,1)==19+6,'full storage lost or created extra home rewards')
+            for slot=1,19 do assert(first.storage[slot]=='coal-chunk','existing contents were overwritten') end
             assertEqualTables(baseline.droppedItems[2],other,'other door container')
             assertEqualTables(baseline.droppedItems[3],train,'train container')
-            assert(#data.droppedItems==4,'overflow should add exactly one correctly scoped crate')
+            assert(#data.droppedItems==4,'overflow should add exactly one correctly scoped storage compartment')
             local crate=data.droppedItems[4]
-            assert(crate.name=='supply-crate' and crate.scene=='house' and crate.location==13 and crate.houseDoor==1)
+            assert(crate.name=='house-storage' and crate.houseStorageHotspot and crate.permanent
+                and crate.scene=='house' and crate.location==13 and crate.houseDoor==1)
             local saved=roundtrip(data)
             House.rollLoot(saved,Catalog,13)
             assertEqualTables(data.droppedItems,saved.droppedItems,'capacity overflow after save/load')

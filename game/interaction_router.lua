@@ -1,12 +1,32 @@
 local InteractionRouter = {}
 local CoopCapabilities = require("game.coop_capabilities")
+local Home = require("game.home_stop")
+local HomeFox = require("game.home_stop_fox")
+local StopHotspots = require("game.stop_hotspots")
 
 function InteractionRouter.select(ctx)
     local candidates={}
+    if ctx.scene=="stop" and Home.isHome(ctx.data) then
+        local target=Home.interaction(ctx.data,ctx.player)
+        if target then target.kind="homeStop"; target.hoverRadius=52; candidates[#candidates+1]=target end
+        local fox=HomeFox.interaction(ctx.data,ctx.player)
+        if fox then candidates[#candidates+1]=fox end
+        for _,candidate in ipairs(candidates) do CoopCapabilities.requireInteraction(candidate.kind) end
+        return ctx.choose(candidates,ctx.mouseX,ctx.mouseY,ctx.player)
+    end
     for i,item in ipairs(ctx.data.droppedItems) do
         if ctx.itemIsHere(item) and math.sqrt((ctx.player.x-item.x)^2+(ctx.player.y-item.y)^2)<75 then
             local kind=item.name=="mailbox-reward" and "mailbox" or (item.name=="boombox-radio" and "radio" or (ctx.storageCapacities[item.name] and "chest" or "item"))
-            candidates[#candidates+1]={kind=kind,index=i,x=item.x,y=item.y,hoverRadius=kind=="item" and 38 or 52}
+            candidates[#candidates+1]={kind=kind,index=i,x=item.x,y=item.y,hoverRadius=kind=="item" and 38 or 52,
+                houseStorageHotspot=item.houseStorageHotspot,stopHotspotId=item.stopHotspotId,
+                radius=item.stopHotspotId and 75 or nil,label=item.storageLabel}
+        end
+    end
+    if ctx.scene=="stop" then
+        for _,spot in ipairs(StopHotspots.definitions(ctx.data.location)) do
+            if spot.kind=="stopInspect" and StopHotspots.inReach(spot,ctx.player) then
+                candidates[#candidates+1]={kind=spot.kind,id=spot.id,x=spot.x,y=spot.y,label=spot.label,radius=spot.radius,hoverRadius=40}
+            end
         end
     end
     local activeCar=ctx.data.activeCar or 1
@@ -83,6 +103,9 @@ function InteractionRouter.keyAction(ctx,key)
         if selected and (selected.kind=="npc" or selected.kind=="passenger") then return "give",selected.index end
     elseif key=="e" then
         if ctx.dialogue then return "closeDialogue"
+        elseif selected and selected.kind=="homeStop" then return "homeStop",selected.action
+        elseif selected and selected.kind=="homeFox" then return "talkHomeFox"
+        elseif selected and selected.kind=="stopInspect" then return "inspectStop",selected.id
         elseif selected and selected.kind=="passenger" then return "talkPassenger",selected.index
         elseif selected and selected.kind=="carNext" then return "car",1
         elseif selected and selected.kind=="carPrev" then return "car",-1
@@ -94,7 +117,7 @@ function InteractionRouter.keyAction(ctx,key)
         elseif selected and selected.kind=="crowCaravan" then return "caravan",selected
         elseif selected and selected.kind=="returnTrain" then return "returnTrain"
         elseif selected and selected.kind=="mailbox" then return "openStorage",selected.index
-        elseif selected and selected.kind=="chest" then return "holdPickup",selected.index
+        elseif selected and selected.kind=="chest" then return (selected.houseStorageHotspot or selected.stopHotspotId) and "openStorage" or "holdPickup",selected.index
         elseif selected and selected.kind=="item" then return ctx.isFurniture(selected.index) and "holdPickup" or "pickup",selected.index
         elseif selected and selected.kind=="fire" then return "fire" end
     end
@@ -104,7 +127,7 @@ function InteractionRouter.mouseAction(selected,button)
     if button==1 and selected and selected.hovered then
         if selected.kind=="mailbox" or selected.kind=="chest" then return "openStorage",selected.index end
         if selected.kind=="radio" then return "routeKey","p" end
-        local eKinds={passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,shootingRange=true,
+        local eKinds={homeStop=true,homeFox=true,stopInspect=true,passenger=true,carNext=true,carPrev=true,npc=true,house=true,houseExit=true,shootingRange=true,
             returnTrain=true,expedition=true,crowCaravan=true,item=true,fire=true}
         if eKinds[selected.kind] then return "routeKey","e" end
     end

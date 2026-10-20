@@ -45,18 +45,23 @@ local function new(context)
   end
 
   local function shootingRangeActive()
-      return runtime.state=="game" and runtime.shootingRange and runtime.shootingRange.phase=="play" and runtime.shootingRange
+      return runtime.state=="game" and not ui.escMenuOpen and not ui.optionsOpen and not runtime.exitPrompt
+          and not runtime.pendingConfirmation and not (runtime.session and runtime.session.checkpointPending)
+          and not ui.playerToolsOpen and not ui.mobileMenuOpen and not ui.radioOpen
+          and not (ui.localPlay and (ui.localPlay.menuOpen or ui.localPlay.focused==false))
+          and runtime.shootingRange and runtime.shootingRange.phase=="play" and runtime.shootingRange
   end
 
   local function backVisible()
       if runtime.exitPrompt or ui.escMenuOpen or ui.optionsOpen then return true end
       if runtime.state~="game" then return true end
       return runtime.state=="game" and (runtime.travelConfirm or maintenanceSession.open or runtime.inventoryOpen or runtime.mapOpen or runtime.tradeOpen or runtime.trainUpgradeOpen
-          or runtime.editMode or runtime.poseMenu or ui.radioOpen or ui.mobileMenuOpen or runtime.dialogue~=nil or runtime.firstAid or runtime.shootingRange
+          or runtime.editMode or runtime.poseMenu or ui.radioOpen or (ui.mobileMenuOpen and not ui.actionMenusEnabled) or runtime.dialogue~=nil or runtime.firstAid or runtime.shootingRange
           or (runtime.lastStand and runtime.lastStand.capture))
   end
 
   local function menuVisible()
+      if ui.actionMenusEnabled then return false end
       return runtime.state=="game" and not ui.escMenuOpen and not ui.optionsOpen and not runtime.travelConfirm and not runtime.travelTransition and not maintenanceSession.open and not runtime.exitPrompt
           and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.editMode
           and not runtime.poseMenu and not ui.optionsOpen and not ui.radioOpen and not runtime.dialogue and not runtime.firstAid and not runtime.shootingRange
@@ -65,15 +70,20 @@ local function new(context)
 
   local function contextualAction()
       if runtime.dialogue then
+          if runtime.dialogue.homeStop then return "e","CONTINUE" end
           if runtime.dialogue.choice and runtime.questOffer then return "e","ACCEPT" end
           return "e","CLOSE"
       end
       local kind=ui.interaction and ui.interaction.kind
-      if kind=="radio" then return "p","RADIO"
+      if kind=="homeStop" then
+          local labels={talk="TALK",supplies="LOAD",repair="REPAIR",board="BOARD",enterOffice="ENTER",exitOffice="EXIT"}
+          return "e",labels[ui.interaction.action] or "USE"
+      elseif kind=="radio" then return "p","RADIO"
       elseif kind=="item" then return "e","PICK UP"
-      elseif kind=="chest" then return "i","OPEN"
+      elseif kind=="stopInspect" then return "e","INSPECT"
+      elseif kind=="chest" then return "i",ui.interaction.stopHotspotId and "HARVEST" or "OPEN"
       elseif kind=="fire" then return "e","COAL"
-      elseif kind=="npc" or kind=="passenger" then return "e","TALK"
+      elseif kind=="npc" or kind=="passenger" or kind=="homeFox" then return "e","TALK"
       elseif kind=="house" then return "e","ENTER"
       elseif kind=="houseExit" then return "e","EXIT"
       elseif kind=="shootingRange" then return "e","RANGE"
@@ -103,7 +113,7 @@ local function new(context)
           return contextualAction()
       end
       local kind=ui.interaction and ui.interaction.kind
-      if kind=="chest" then return "e","PICK UP" end
+      if kind=="chest" and not ui.interaction.houseStorageHotspot and not ui.interaction.stopHotspotId then return "e","PICK UP" end
       if kind=="npc" or kind=="passenger" then return "g","GIVE" end
   end
 
@@ -122,12 +132,13 @@ local function new(context)
           endCameraPan=endCameraPan,
           cameraGesturesActive=function() return true end,
           shootingRangeActive=shootingRangeActive,
+          aimRange=function(_,x,y) gameplayInput().rangeAim(x,y,false) end,
           backVisible=backVisible,
           backLabel=function() return runtime.state=="slots" and "MENU" or "PAUSE" end,
           menuVisible=menuVisible,
           menuLabel=function() return ui.mobileMenuOpen and "CLOSE" or "MENU" end,
           menuAction=function() ui.mobileMenuOpen=not ui.mobileMenuOpen; endCameraPan() end,
-          backpackVisible=function() return not WorldPause.isPaused(runtime,ui,maintenanceSession) end,
+          backpackVisible=function() return not ui.actionMenuVisible and not WorldPause.isPaused(runtime,ui,maintenanceSession) end,
           backpackAction=function()
               if WorldPause.isPaused(runtime,ui,maintenanceSession) then return end
               runtime.inventoryOpen=true
@@ -223,6 +234,8 @@ local function new(context)
       isHeld=isHeld,
       isSprinting=isSprinting,
       pointerPosition=pointerPosition,
+      update=function(dt) if controls then controls:update(dt) end end,
+      shooterControlAt=function(x,y) return controls and controls:shooterControlAt(x,y) end,
       draw=draw,
       mousepressed=mousepressed,
       mousemoved=mousemoved,

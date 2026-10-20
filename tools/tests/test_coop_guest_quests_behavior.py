@@ -134,6 +134,9 @@ class GuestQuestTests(unittest.TestCase):
             local d=assert(R.project('quest.deliver',value)); assert(R.valid('quest.deliver',d) and not d.reward and not d.quest and not d.randomState)
             local msg=assert(Wire.outcome('quests',1,{ok=true,revision=2,durable=true,result=value},'quest.deliver'))
             assert(#assert(P.encode(msg,P.CONTROL))<=1200)
+            value.reward.delivery='house storage'
+            assert(R.project('quest.deliver',value).delivery=='house storage')
+            assert(Wire.outcome('quests',2,{ok=true,revision=3,durable=true,result=value},'quest.deliver'))
             d.recipients.stranger=6; assert(not R.valid('quest.deliver',d)); d.recipients.stranger=nil
             d.recipients.host=7; assert(not R.valid('quest.deliver',d)); d.recipients.host=6
             d.delivery='ammunition'; assert(not R.valid('quest.deliver',d)); d.amount=8; assert(R.valid('quest.deliver',d))

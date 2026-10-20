@@ -1,5 +1,7 @@
+local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local SoundProfiles=require("game.weapon_sound_profiles")
+local AimCursor=require("game.aim_cursor")
 local FirstPersonWeaponManifest=require("game.first_person_weapon_manifest")
 local WeaponActions=require("game.first_person_weapon_actions")
 local MobileAim=require("game.mobile_weapon_aim")
@@ -100,8 +102,9 @@ local function validDistance(value)
 end
 
 local function distanceScale(distance)
-    local progress=(validDistance(distance)-25)/275
-    return 1-.4*progress
+    -- Lane sizes are calibrated at 50 m. Perspective halves the apparent
+    -- size when distance doubles, including the matching hit geometry.
+    return 50/validDistance(distance)
 end
 
 local function distanceProgress(distance)
@@ -324,13 +327,14 @@ local function spawnTarget(session,canonical)
     local material=session.material
     local sprite=material=="paper" and ((session.spawnIndex-1)%4+1) or material=="steel" and ((session.spawnIndex-1)%4+5) or 10
     local depth=distanceProgress(session.distance)
-    local sizeScale=distanceScale(session.distance)
-    local positionScale=.55+.45*sizeScale
-    local x=480+(lane.x-480)*positionScale
-    -- The practice lanes recede toward the horizon: near targets sit low on
-    -- the berm, while far targets rise toward the smaller backstop silhouettes.
-    local laneSpread=.50-.15*depth
-    local y=465+(300-465)*depth+(lane.y-320)*laneSpread
+    local perspective=25/validDistance(session.distance)
+    local sizeScale=distanceScale(session.distance)*(material=="sectioned" and 1.4 or 1)
+    -- Keep lane spacing independent of the target's apparent size.
+    local positionScale=1-.18*depth
+    local x=material=="sectioned" and 480 or 480+(lane.x-480)*positionScale
+    -- Ground position follows the same perspective as size: the 25 m lanes
+    -- sit near the player, and more distant targets converge on the horizon.
+    local y=225+(465-225+(lane.y-320)*.5)*perspective
     local points=math.floor(100*Range.scoreMultiplier(session)+.5)
     session.targets[#session.targets+1]={
         x=x,y=y,baseX=x,scale=lane.scale*sizeScale,material=material,sprite=sprite,
@@ -961,10 +965,8 @@ local function atlasQuads(image,columns,rows,cache)
 end
 
 local function drawButton(label,rect,enabled)
-    love.graphics.setColor(enabled==false and .16 or .28,enabled==false and .15 or .20,enabled==false and .14 or .10,.94)
-    love.graphics.rectangle("fill",rect.x,rect.y,rect.w,rect.h,7,7)
-    love.graphics.setColor(enabled==false and .45 or .93,enabled==false and .43 or .75,enabled==false and .40 or .30,1)
-    love.graphics.rectangle("line",rect.x,rect.y,rect.w,rect.h,7,7)
+    GuiArt.frame(rect.x,rect.y,rect.w,rect.h,{disabled=enabled==false})
+    love.graphics.setColor(1,.93,.78,enabled==false and .6 or 1)
     text(label,rect.x+8,rect.y+6,rect.w-16,rect.h-12,1,rect.h<50 and .74 or .82)
 end
 
@@ -1084,7 +1086,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
             for _,impact in ipairs(target.impacts) do
                 local index=impact.variant+(impact.material=="steel" and 4 or 0)
                 if impactImage and impactQuads and impactQuads[index] then
-                    local scale=16/math.max(impactQuads.cellW,impactQuads.cellH)
+                    local scale=16*distanceScale(session.distance)/math.max(impactQuads.cellW,impactQuads.cellH)
                     love.graphics.setColor(1,1,1,1)
                     love.graphics.draw(impactImage,impactQuads[index],target.x+impact.offsetX,target.y+impact.offsetY,0,scale,scale,impactQuads.cellW/2,impactQuads.cellH/2)
                 end
@@ -1092,7 +1094,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         end
         if magnification>1 then love.graphics.pop() end
         if not canonicalView then WorldView.finish() end
-        love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
+        love.graphics.setColor(.08,.055,.035,.91); GuiArt.frame(14,12,210,82); GuiArt.frame(736,12,210,82)
         love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
         text("DISTANCE  "..session.distance.." M",355,18,250,27,.92,.80,"center",true)
         if session.hasMonocular then
@@ -1118,7 +1120,8 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         end
         local sx,sy=Range.sway(session,catalog); local x,y=session.aimX+sx,session.aimY+sy
         local placement=Range.weaponViewPlacement(session)
-        drawFirstPersonWeapon(assets,ui,session,x,y,sx,sy,placement)
+        local drawn=drawFirstPersonWeapon(assets,ui,session,x,y,sx,sy,placement)
+        AimCursor.sights(drawn and placement=='sights' and session.weaponAction~='reload')
         if placement~="sights" then
             love.graphics.setColor(1,.25,.16,.95); love.graphics.circle("line",x,y,13); love.graphics.line(x-20,y,x-5,y); love.graphics.line(x+5,y,x+20,y); love.graphics.line(x,y-20,x,y-5); love.graphics.line(x,y+5,x,y+20)
         end
@@ -1135,7 +1138,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         drawButton(session.aimMode=="sights" and "AIMING" or (mobile and "AIM" or "AIM  [RMB]"),{x=154,y=654,w=126,h=42},true)
         drawButton(mobile and "SETUP" or "SETUP  [TAB]",{x=680,y=654,w=126,h=42},true)
         drawButton(mobile and "LEAVE" or "LEAVE  [E]",{x=816,y=654,w=126,h=42},true)
-        love.graphics.setColor(.045,.03,.02,.93); love.graphics.rectangle("fill",286,mobile and 592 or 648,388,mobile and 128 or 62,7,7)
+        love.graphics.setColor(.045,.03,.02,.93); GuiArt.frame(286,mobile and 592 or 648,388,mobile and 128 or 62)
         local fireModes=FirstPersonWeaponManifest.fireModesFor(session.weapon)
         if #fireModes>1 then
             drawButton("MODE: "..string.upper(session.fireMode or "single"),
@@ -1144,7 +1147,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         if mobile then
             love.graphics.setColor(1,.88,.58)
             text(title(session.weapon),292,596,376,26,.90,.78,"center",true)
-            text("HOLD THE GRIP • SECOND TOUCH / FIRE",292,624,376,24,.86,.78)
+            text("LEFT STICK TO AIM • RIGHT BUTTON TO FIRE",292,624,376,24,.80,.72)
             drawButton("FIRE",MOBILE_FIRE_BUTTON,true)
             love.graphics.setColor(1,.88,.58)
             text(string.upper(session.motion).." "..string.upper(session.material).." | "
@@ -1157,8 +1160,8 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
     end
 
     if not canonicalView then WorldView.finish() end
-    love.graphics.setColor(.055,.04,.03,.91); love.graphics.rectangle("fill",154,92,652,544,12,12)
-    love.graphics.setColor(.87,.65,.25); love.graphics.rectangle("line",154,92,652,544,12,12)
+    love.graphics.setColor(.055,.04,.03,.91); GuiArt.frame(154,92,652,544)
+    love.graphics.setColor(.87,.65,.25);
     if session.phase=="lobby" then
         love.graphics.setColor(1,.86,.58); text("COMMUNITY TARGET RANGE",180,118,600,33,1.35,1.1)
         love.graphics.setColor(.92,.86,.72); text("Live ammo is used. Buy more below.",220,155,520,23,.95,.85)

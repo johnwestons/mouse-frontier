@@ -1,5 +1,7 @@
 local QuestProgression={}
 local Items=require("game.item_instances")
+local Identity=require('game.npc_identity')
+local Targets=require('game.npc_targets')
 
 QuestProgression.offerOrder={"mail","ride","supplies","trade","item","aid","none"}
 QuestProgression.deliveryKinds={"food","water","medicine","repair","ammunition","recovery"}
@@ -200,7 +202,7 @@ function QuestProgression.storeRewardItem(data,catalog,Inventory,name,fallback)
             end
         end
     end
-    if fallback then fallback(name); return "local supply crate" end
+    if fallback then fallback(name); return "house storage" end
     return "unclaimed"
 end
 
@@ -216,15 +218,27 @@ end
 
 function QuestProgression.activeObjectives(data)
     local result={}
+    local function add(quest,kind,cargo,label,title)
+        local entry={kind=kind,destination=quest.destination or 50,label=label}
+        if quest.recipientId then
+            local person=Identity.get(data,quest.recipientId)
+            entry.questId=quest.entityId; entry.recipientId=quest.recipientId
+            entry.title=title; entry.objective=Targets.label(data,quest,cargo)
+            entry.label=entry.objective
+            entry.detail=(quest.senderId and ('FROM '..Identity.name(data,quest.senderId)..' • ') or '')..Targets.directions(data,quest)
+            entry.portrait=person and person.file
+        end
+        result[#result+1]=entry
+    end
     for _,quest in ipairs(data.mailQuests or {}) do if not quest.complete then
-        result[#result+1]={kind="mail",destination=quest.destination or 50,label="MAIL delivery to Stop "..tostring(quest.destination or "?")}
+        add(quest,'mail','the letter',"MAIL delivery to Stop "..tostring(quest.destination or "?"),'MAIL DELIVERY')
     end end
     for _,quest in ipairs(data.supplyQuests or {}) do if not quest.complete then
         local profile=QuestProgression.deliveryProfile(quest.cargoKind)
-        result[#result+1]={kind="supplies",destination=quest.destination or 50,label=profile.objective.." to Stop "..tostring(quest.destination or "?").." ("..profile.label..")"}
+        add(quest,'supplies',profile.label,profile.objective.." to Stop "..tostring(quest.destination or "?").." ("..profile.label..")",profile.objective)
     end end
     for _,passenger in ipairs(data.passengers or {}) do
-        result[#result+1]={kind="ride",destination=passenger.destination or 50,label="PASSENGER ride to Stop "..tostring(passenger.destination or "?")}
+        result[#result+1]={kind="ride",destination=passenger.destination or 50,label=Identity.name(data,passenger).." • PASSENGER ride to Stop "..tostring(passenger.destination or "?")}
     end
     table.sort(result,function(a,b) if a.destination==b.destination then return a.kind<b.kind end return a.destination<b.destination end)
     return result

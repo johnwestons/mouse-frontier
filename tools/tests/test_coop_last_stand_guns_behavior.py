@@ -249,7 +249,7 @@ class LastStandGunCommandsTests(unittest.TestCase):
             local old=assert(Schema.copy(data)); old.version=38; old.lastStand.combat.version=1
             old.lastStand.combat.phaseRevision=nil
             local restored=assert(Schema.migrate(old)); local c=restored.lastStand.combat
-            assert(restored.version==44 and c.version==2 and c.phaseRevision==1 and c.entityId==quest.combat.entityId)
+            assert(restored.version==Schema.CURRENT_VERSION and c.version==2 and c.phaseRevision==1 and c.entityId==quest.combat.entityId)
             assert(c.clock==quest.combat.clock and restored.players.companion.ammo['22lr']==guest.ammo['22lr'])
             assert(restored.lastStand.shooterSessions.companion.weaponSession.reloadTimer==ggun.reloadTimer)
             for _,value in ipairs({0,-1,1.5,1e9+1,0/0,'1'}) do

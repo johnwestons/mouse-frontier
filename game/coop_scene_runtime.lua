@@ -30,6 +30,9 @@ function Scenes.install(context)
         runtime.nearbyItem=nil; runtime.nearChest=nil; runtime.nearHouse=false; runtime.nearReturnTrain=false
         runtime.nearExpedition=false; runtime.nearCaravan=false; ui.interaction=nil
         runtime.npcActor=NPCs.prepare(runtime.saveData,context.catalog)
+        runtime.npcActors=NPCs.list(runtime.saveData,runtime.scene,runtime.saveData.activeHouseDoor)
+        if not NPCs.hasResidents(runtime.saveData) and runtime.npcActor then runtime.npcActors={runtime.npcActor} end
+        NPCs.refresh(runtime,NPCs.locked(runtime))
         if name=="travel.depart" then Scenes.restoreJourney(runtime)
         elseif name=="travel.arrive" then runtime.travelTransition.changed=true
         elseif name=="travel.finish" then

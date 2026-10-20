@@ -1,6 +1,7 @@
 -- Stop-only sludge crawler encounters.  Kept separate from the main scene loop so
 -- new stop creatures can be added without increasing main.lua's local/upvalue count.
 local M = {}
+local Items=require('game.item_instances')
 local quadCache=setmetatable({},{__mode="k"})
 
 local function dist(ax, ay, bx, by)
@@ -43,15 +44,15 @@ local function meleeWeapon(ctx)
     for i=1,2 do
         local name=data and data.equipment and data.equipment[i]
         local combat=name and ctx.catalog.weaponCombat and ctx.catalog.weaponCombat[name]
-        if name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged") then return name end
+        if name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged")
+            and (Items.condition(data,name,{kind='equipment',index=i}) or 100)>0 then return name end
     end
-    return nil
+    return "scratch"
 end
 
 function M.attack(sys,ctx,targetX,targetY)
     if sys.attackTimer>0 then return false,"Readying attack..." end
     local weapon=meleeWeapon(ctx)
-    if not weapon then return false,"A melee weapon is required." end
     local p=ctx.player; local px,py=p.x,p.y
     targetX=tonumber(targetX) or px; targetY=tonumber(targetY) or py
     local dtx,dty=targetX-px,targetY-py; local dlen=math.sqrt(dtx*dtx+dty*dty)
@@ -72,12 +73,12 @@ function M.attack(sys,ctx,targetX,targetY)
     p.facing=dtx>=0 and 1 or -1
     sys.attackTimer=.42
     if ctx.onAction then ctx.onAction(weapon) end
-    if ctx.playSfx then ctx.playSfx("sword") end
+    if ctx.playSfx then ctx.playSfx(weapon=="scratch" and "slash" or "sword") end
     if not best then
-        sys.message="The swing misses."; sys.messageTimer=1.2
+        sys.message=weapon=='scratch' and 'The attack misses.' or 'The swing misses.'; sys.messageTimer=1.2
         return true
     end
-    local stats=ctx.catalog.weaponStats[weapon] or {min=2,max=4}
+    local stats=ctx.catalog.weaponStats[weapon] or (weapon=='scratch' and {min=1,max=3} or {min=2,max=4})
     local damage=math.max(1,love.math.random(stats.min or 2,stats.max or 4))
     best.hp=math.max(0,best.hp-damage); best.hitTimer=.38; best.healthTimer=3; best.flee=true
     if best.hp<=0 then best.dead=true; best.deathTimer=0; best.dropDone=false end

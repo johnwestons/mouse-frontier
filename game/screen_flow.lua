@@ -34,7 +34,12 @@ local function new(context)
                   return Intro.draw(ui.introCinematic,scenery,colors,windowWidth,windowHeight)
               end,
           }},
-          {"slots",{update=passiveUpdate,draw=function(...) return ui.drawSlots(...) end}},
+          {"slots",{enter=function()
+              if ui.resetSlotTrains then ui.resetSlotTrains() end
+          end,update=function(dt)
+              if ui.updateSlots then ui.updateSlots(dt) end
+              return true
+          end,draw=function(...) return ui.drawSlots(...) end}},
           {"characters",{update=passiveUpdate,draw=function(...) return ui.drawCharacterSelect(...) end}},
           {"battle",{update=updateBattle,draw=drawBattle}},
           {"event",{update=passiveUpdate,draw=function(...) return ui.drawRandomEvent(...) end}},

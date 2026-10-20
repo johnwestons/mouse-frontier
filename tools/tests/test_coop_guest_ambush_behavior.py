@@ -339,6 +339,7 @@ class GuestAmbushTests(unittest.TestCase):
         self.panel()
         self.lua.execute('''
             local View=require('game.coop_guest_view'); view.ambush=panel
+            view.inspection={opened=false} -- Match the real view's modal setup.
             view.actionsAllowed=function() return true end
             assert(not View.inputAllowed(view))
             View.keypressed(view,'r',nil,false); assert(requests[1].command=='gun.reload')

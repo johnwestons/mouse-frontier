@@ -3,6 +3,11 @@ local TrainUpgradeBalance = require("game.train_upgrade_balance")
 local HouseholdItems = require("game.household_items")
 local OutfitCatalog = require("game.outfit_catalog")
 local WeaponRepairParts = require("game.weapon_repair_parts")
+local Furniture = require("game.furniture_catalog")
+
+Catalog.furnitureNames = Furniture.names
+Catalog.furnitureItems = Furniture.items
+Catalog.furniturePrices = Furniture.prices
 
 Catalog.characterTraitProfiles = {
     {name="Scrapper",combat=1,armor=0,coal=1.00,reward=1.25,description="Finds 25% more scrap and quest rewards."},
@@ -79,7 +84,7 @@ Catalog.trainCarCatalog = TrainUpgradeBalance.carCatalog
 Catalog.storageCapacities = {
     ["travel-chest"]=10, ["supply-crate"]=10, ["medicine-cabinet"]=10,
     ["train-locker"]=10, ["pantry-cupboard"]=10, ["barrel-cabinet"]=10,
-    ["mailbox-reward"]=20,
+    ["mailbox-reward"]=20, ["house-storage"]=20, ["garden-harvest"]=6,
     ["blue-steamer-trunk"]=10
 }
 

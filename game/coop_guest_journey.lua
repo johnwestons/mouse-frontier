@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Private read-only journey overlays. The caller supplies the 960x720 viewport
 -- for draw() and canonical coordinates for pointer(); no network command or
 -- campaign writer is available here. menuOpen remains the Local Play menu.
@@ -124,10 +125,11 @@ function Journey:draw()
     end
     local function frame(x,y,w,h,kind,alpha)
         if c.drawMenuFrame then c.drawMenuFrame(x,y,w,h,kind,alpha)
-        else g.setColor(c.colors.panel or {.08,.055,.038,alpha or 1});g.rectangle('fill',x,y,w,h,8,8) end
+        else GuiArt.frame(x,y,w,h,{alpha=alpha}) end
         if accessibility.highContrast==true then g.setColor(1,.84,.28,1);g.rectangle('line',x,y,w,h,8,8) end
     end
-    local context={controls=self.controls,colors=c.colors,scenery=c.content and c.content.scenery,
+    local context={controls=self.controls,colors=c.colors,scenery=c.content and c.content.scenery,npcImages=c.content and c.content.npcImages,
+        characterImages=c.content and c.content.characterImages,
         mobileEnabled=function()return v.mobile and v.mobile.enabled or false end,
         textBox=text,drawMenuFrame=frame,
         button=function(label,x,y,w,h,enabled,factor)

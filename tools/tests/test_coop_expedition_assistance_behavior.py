@@ -11,7 +11,14 @@ class ExpeditionAssistanceTests(unittest.TestCase):
             setup(); Areas=require('game.expedition_areas'); Assist=require('game.coop_expedition_assistance')
             data.location=5; data.scene='expedition'; data.activeExpeditionArea=Areas.BADLANDS_BASIN_ID
             Areas.ensure(data); assert(Entities.ensure(data)); area=data.expeditions[data.activeExpeditionArea]
-            states={host={screen='game',scene='expedition',x=750,y=110},companion={screen='game',scene='expedition',x=750,y=110}}
+            function positionAt(interactionId)
+                for _,interaction in ipairs(Areas.definition(data.activeExpeditionArea).interactions) do
+                    if interaction.id==interactionId then return interaction.x,interaction.y end
+                end
+                error('missing fixture interaction '..interactionId)
+            end
+            local x,y=positionAt('north-cairn')
+            states={host={screen='game',scene='expedition',x=x,y=y},companion={screen='game',scene='expedition',x=x,y=y}}
             service=Authority.new({campaign=data,sessionId='assist',checkpoint=function(value)
                 writes=writes+1; if failSave then return false end; saved=assert(Schema.copy(value)); return true end})
             Assist.install(service,{catalog=Catalog,actorState=function(id) return states[id] end})
@@ -25,10 +32,9 @@ class ExpeditionAssistanceTests(unittest.TestCase):
         self.expedition()
         self.lua.execute('''
             local epoch=data.coop.sceneEpoch; local xp=guest.stats.xp
-            local points={{'north-cairn',750,110},{'wash-cairn',900,500},{'arch-cairn',1580,320}}
-            for i,p in ipairs(points) do
-                states.companion.x,states.companion.y=p[2],p[3]
-                local reply=survey('companion',p[1]); assert(reply.ok and reply.durable,reply.reason)
+            for i,markerId in ipairs({'north-cairn','wash-cairn','arch-cairn'}) do
+                states.companion.x,states.companion.y=positionAt(markerId)
+                local reply=survey('companion',markerId); assert(reply.ok and reply.durable,reply.reason)
                 assert(reply.result.marked==i and reply.result.total==3 and reply.result.complete==(i==3))
             end
             assert(area.completed and area.gates.routeSurveyed and writes==3)
@@ -52,8 +58,8 @@ class ExpeditionAssistanceTests(unittest.TestCase):
             assert(survey('companion','invented').reason=='invalid_marker')
             assert(run('companion','expedition.survey',{areaId=data.activeExpeditionArea,markerId='north-cairn',x=750}).reason=='invalid_args')
             assert(run('companion','expedition.survey',{areaId='wrong',markerId='north-cairn'}).reason=='assistance_unavailable')
-            states.companion.x=360; states.companion.y=180; assert(survey('companion','north-cairn').reason=='out_of_reach')
-            states.companion.x,states.companion.y=750,110
+            states.companion.x,states.companion.y=positionAt('western-stash'); assert(survey('companion','north-cairn').reason=='out_of_reach')
+            states.companion.x,states.companion.y=positionAt('north-cairn')
             local reach=Areas.canReach; Areas.canReach=function() return false end
             assert(survey('companion','north-cairn').reason=='out_of_reach'); Areas.canReach=reach
             for _,key in ipairs({'traveling','changingCar','encounterActive','activityBlocked'}) do
@@ -69,7 +75,7 @@ class ExpeditionAssistanceTests(unittest.TestCase):
     def test_cache_open_is_durable_even_when_empty_and_transfer_keeps_owned_instance(self):
         self.expedition()
         self.lua.execute('''
-            states.companion.x,states.companion.y=360,180
+            states.companion.x,states.companion.y=positionAt('western-stash')
             local chest=area.chests['western-stash']; Items.write(host,chest,{kind='chest',index=1},'frontier-short-sword')
             local first=chest.storageInstances[1]; local hostItem=host.itemSlots.equipment[1].id
             assert(not chest.opened); local r=cache('companion',chest); assert(r.ok and r.durable,r.reason)
@@ -83,7 +89,7 @@ class ExpeditionAssistanceTests(unittest.TestCase):
             assert(cache('companion',area.chests['fossil-cache']).reason=='out_of_reach')
             assert(run('companion','expedition.cache',{areaId=data.activeExpeditionArea,containerId=area.entityId}).reason=='invalid_cache')
             data.location=6; data.activeExpeditionArea=Areas.DUNGEON_ID; Areas.ensure(data); assert(Entities.ensure(data))
-            states.companion.x,states.companion.y=1480,150
+            states.companion.x,states.companion.y=positionAt('boss-vault')
             local vault=data.expeditions[data.activeExpeditionArea].chests['boss-vault']
             assert(not cache('companion',vault).ok and not vault.opened)
             local walk,reach=Areas.isWalkable,Areas.canReach
@@ -123,7 +129,8 @@ class ExpeditionAssistanceTests(unittest.TestCase):
         self.lua.execute('''
             local session=require('game.game_session').new(); session.saveData=data; session.scene='expedition'; session.screen='game'
             data.coop.randomState=728431
-            local runtime={saveData=data,state='game',scene='expedition',animationClock=0,player={x=360,y=180}}
+            local x,y=positionAt('western-stash')
+            local runtime={saveData=data,state='game',scene='expedition',animationClock=0,player={x=x,y=y}}
             local presented=0; local adapter=require('game.coop_inventory_runtime').new({runtime=runtime,session=session,catalog=Catalog,
                 checkpoint=function(value) if failSave then return false end; saved=assert(Schema.copy(value)); return true end,
                 applyExpedition=function(result)

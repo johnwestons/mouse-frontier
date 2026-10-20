@@ -17,6 +17,7 @@ local LastStandStage=require('game.coop_last_stand_stage')
 local LastStandStageWire=require('game.net.last_stand_stage')
 local Discovery=require('game.net.lan_discovery')
 local Reconnect=require('game.net.lan_reconnect')
+local Management=require('game.coop_local_play_management')
 local LocalPlay={}; LocalPlay.__index=LocalPlay
 local function protected(fn,...)
     local ok,result,reason=pcall(fn,...)
@@ -246,7 +247,8 @@ function LocalPlay:host()
     if not authority:checkpointNow() then return self:_error('save_not_ready') end
     local allowed={}; for _,character in ipairs(self:characters()) do allowed[character]=true end
     local admission,admissionError=Admission.new(authority,{catalog=c.catalog,allowedCharacters=allowed,
-        placeCompanion=c.placeCompanion,token=c.token,hash=c.hash})
+        placeCompanion=c.placeCompanion,token=c.token,hash=c.hash,
+        managementState=function() return Management.state(self) end})
     if not admission then return self:_error(admissionError) end
     local producer=GameState.producer(); local campaign=authority.campaign; local hostedSlot=runtime.selectedSlot
     local motion=c.movement and Movement.host({campaign=campaign,clock=c.clock,move=c.movement.move,
@@ -400,6 +402,20 @@ function LocalPlay:decline()
     local pending=self:pending(); if not pending then return false end
     self.network:decline(pending.generation); self.menuOpen=false; return true
 end
+function LocalPlay:canManageCompanion(kind) return Management.can(self,kind) end
+function LocalPlay:managementStatus() return self.management end
+function LocalPlay:selectCompanionDisconnect() return Management.select(self,'kick') end
+function LocalPlay:selectCompanionReplacement() return Management.select(self,'replace') end
+function LocalPlay:cancelCompanionManagement() return Management.cancel(self) end
+function LocalPlay:cycleReplacementCharacter(direction)
+    local m=self.management;local count=#self:characters()
+    if m and m.kind=='replace' and m.phase=='select' and count>0 then m.characterIndex=(m.characterIndex-1+direction)%count+1 end
+end
+function LocalPlay:replacementCharacter()
+    local m=self.management;return m and self:characters()[m.characterIndex]
+end
+function LocalPlay:disconnectCompanion() return Management.begin(self,'kick') end
+function LocalPlay:replaceCompanion() return Management.begin(self,'replace',self:replacementCharacter()) end
 function LocalPlay:stop(reason,keepReconnect)
     local c=self.context
     self.discovery:stop()
@@ -428,7 +444,7 @@ function LocalPlay:stop(reason,keepReconnect)
     c.session.replicaData=nil; c.session:setNetworkMode('offline')
     if c.onStop then protected(c.onStop,reason) end
     self.origin=nil; self.replica=nil; self.authority=nil; self.campaign=nil; self.hostedSlot=nil; self.admission=nil; self.producer=nil
-    self.generation=nil
+    self.generation=nil;self.management=nil;self.managementNotice=nil
     self.motion=nil; self.motionFrame=nil; self.roamingPresentation=nil
     self.lastStandEffects=nil
     self.lastStandStage=nil
@@ -455,6 +471,9 @@ function LocalPlay:beginFrame(dt)
             self:stop('host_left_journey'); return
         end
     end
+    -- A successful save retry makes a pending kick effective before queued
+    -- guest commands can run against the formerly admitted connection.
+    Management.update(self)
     local service=self.phase=='hosting' and network.service or network.update
     local ok=pcall(service,network)
     if not ok then self:stop('session_error'); self:_error('session_error'); self.menuOpen=true; return end
@@ -462,6 +481,7 @@ function LocalPlay:beginFrame(dt)
         local reason=self.error or network.reason or 'connection_closed'
         self:_connectionFailed(reason); return
     end
+    Management.update(self)
     if self.motion then
         local updated,reason=protected(self.motion.update,self.motion)
         if not updated then self:stop('motion_failed'); self:_error(reason or 'motion_failed'); self.menuOpen=true; return end

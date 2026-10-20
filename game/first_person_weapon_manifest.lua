@@ -3,38 +3,7 @@ local Manifest={}
 local ROOT="assets/sprites/weapons/first-person/"
 local DEFAULT_ADS_ANCHOR={x=.5,y=.35,calibrated=false}
 
--- ADS action sheet aim points use each weapon's calibrated sight anchor;
--- weapons with a separately measured firing-sheet point override it here.
-local ADS_ACTION_ANCHORS={
-    ["frontier-45-1911"]={x=.53,y=.26,calibrated=true},
-    ["vintage-bolt-action-rifle"]={x=.5,y=.20,calibrated=true},
-    ["frontier-sr22-pistol"]={x=.5,y=.20,calibrated=true},
-    ["frontier-compact-9mm"]={x=.5,y=.18,calibrated=true},
-    ["frontier-380-pocket-pistol"]={x=.5,y=.26,calibrated=true},
-    ["frontier-pearl-pocket-pistol"]={x=.5,y=.27,calibrated=true},
-    ["frontier-22-target-pistol"]={x=.5,y=.28,calibrated=true},
-    ["heavy-frontier-pistol"]={x=.5,y=.27,calibrated=true},
-    ["frontier-long-barrel-revolver"]={x=.5,y=.25,calibrated=true},
-    ["frontier-lever-rifle"]={x=.5,y=.24,calibrated=true},
-    ["wood-stock-survival-carbine"]={x=.53,y=.29,calibrated=true},
-    ["frontier-lever-carbine"]={x=.5,y=.27,calibrated=true},
-    ["rugged-submachine-gun"]={x=.5,y=.19,calibrated=true},
-    ["sawed-off-shotgun"]={x=.515,y=.323,calibrated=true},
-    ["machine-pistol"]={x=.5,y=.33,calibrated=true},
-    ["frontier-9mm-service-pistol"]={x=.5,y=.15,calibrated=true},
-    ["frontier-9mm-glock"]={x=.5,y=.13,calibrated=true},
-    ["frontier-762-carbine"]={x=.5,y=.26,calibrated=true},
-    ["patched-22-survival-rifle"]={x=.5,y=.20,calibrated=true},
-    ["compact-carbine"]={x=.5,y=.25,calibrated=true},
-    ["improvised-556-rifle"]={x=.5,y=.22,calibrated=true},
-    ["improvised-service-rifle"]={x=.5,y=.24,calibrated=true},
-}
-local ADS_ACTION_FRAME_ANCHORS={
-    -- The generated flash cell sits slightly left of the ready pose. Pin its
-    -- iron-sight/bore line to the same reticle point during the shot.
-    ["frontier-45-1911"]={[2]={x=.47,y=.26,calibrated=true}},
-    ["sawed-off-shotgun"]={[2]={x=.498,y=.323,calibrated=true}},
-}
+local ADS_ACTION_FRAME_ANCHORS=require("game.first_person_ads_sights")
 
 local AUTOMATIC_WEAPONS={
     ["compact-carbine"]=true,
@@ -100,7 +69,7 @@ local function pair(id,anchor)
         actionAtlas=ROOT.."actions/"..id.."-actions.png",
         adsActionAtlas=ROOT.."actions/"..id.."-ads-fire.png",
         adsAnchor=anchor,
-        adsActionAnchor=ADS_ACTION_ANCHORS[id] or anchor,
+        adsActionAnchor=ADS_ACTION_FRAME_ANCHORS[id] and ADS_ACTION_FRAME_ANCHORS[id][1] or anchor,
         adsActionFrameAnchors=ADS_ACTION_FRAME_ANCHORS[id],
         fireModes=modes,
         fireCooldown=rapid and .18 or .27,

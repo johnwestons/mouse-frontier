@@ -16,7 +16,7 @@ function Panel.draw(c,source)
       local availableBudget=MerchantTrade.availableBudget(runtime.saveData,source)
       do
           drawMenuFrame(60,42,840,640,1,1)
-          love.graphics.setColor(colors.cream); textBox(source.title or Util.titleFromFile(merchant).."'S TRADING POST",85,59,790,45,1.2,"center")
+          love.graphics.setColor(colors.cream); textBox(source.title or require('game.npc_identity').name(runtime.saveData,merchant).."'S TRADING POST",85,59,790,45,1.2,"center")
           textBox("YOUR SCRAP "..runtime.saveData.scrap.." / MERCHANT BUDGET "..math.max(0,availableBudget),85,108,790,27,.9,"center")
           love.graphics.setColor(colors.brass); textBox(runtime.tradeMessage or (terms.tier.." terms / "..math.floor(terms.discount*100+.5).."% buying discount"),85,139,790,32,.82,"center")
           local stockIndices,occupied={},{}

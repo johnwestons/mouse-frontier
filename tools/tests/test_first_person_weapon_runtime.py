@@ -286,67 +286,22 @@ class FirstPersonWeaponRuntimeTests(unittest.TestCase):
                         self.assertGreaterEqual(margin, 32,
                             f"ADS frame {index} is still clipped by the atlas edge")
 
-        anchor_block = manifest.split("local ADS_ACTION_ANCHORS={", 1)[1].split(
-            "local ADS_ACTION_FRAME_ANCHORS={", 1)[0]
-        anchor_overrides = {
-            name: (float(x), float(y))
-            for name, x, y in re.findall(
-                r'^\s*\["([^"]+)"\]=\{x=([.\d]+),y=([.\d]+),calibrated=true\},?$',
-                anchor_block,
-                re.MULTILINE,
-            )
-        }
-        base_anchors = {
-            name: (float(x), float(y))
-            for name, x, y in re.findall(
-                r'^    \["([^"]+)"\]=pair\("[^"]+",\{x=([.\d]+),y=([.\d]+),calibrated=true\}\)',
-                manifest,
-                re.MULTILINE,
-            )
-        }
-        all_anchors = {**base_anchors, **anchor_overrides}
-        self.assertEqual({weapon for weapon, _ in weapon_ids}, set(all_anchors))
-        frame_anchor_block = manifest.split("local ADS_ACTION_FRAME_ANCHORS={", 1)[1].split(
-            "local AUTOMATIC_WEAPONS={", 1)[0]
-        frame_two_overrides = {
-            name: (float(x), float(y))
-            for name, x, y in re.findall(
-                r'^\s*\["([^"]+)"\]=\{\[2\]=\{x=([.\d]+),y=([.\d]+),calibrated=true\}\},?$',
-                frame_anchor_block,
-                re.MULTILINE,
-            )
-        }
-        self.assertEqual({"frontier-45-1911", "vintage-bolt-action-rifle", "frontier-sr22-pistol",
-                          "frontier-compact-9mm", "frontier-380-pocket-pistol",
-                          "frontier-pearl-pocket-pistol", "frontier-22-target-pistol",
-                          "heavy-frontier-pistol", "frontier-long-barrel-revolver",
-                          "frontier-lever-rifle", "wood-stock-survival-carbine",
-                          "frontier-lever-carbine", "rugged-submachine-gun",
-                          "sawed-off-shotgun", "machine-pistol", "frontier-9mm-service-pistol",
-                          "frontier-9mm-glock", "frontier-762-carbine", "patched-22-survival-rifle",
-                          "compact-carbine", "improvised-556-rifle", "improvised-service-rifle"},
-                         set(anchor_overrides))
-        for name, (x, y) in all_anchors.items():
-            with self.subTest(sight_anchor=name):
-                with Image.open(action_root / f"{name}-ads-fire.png") as image:
-                    frame_width, frame_height = image.width // 2, image.height // 2
-                    ready = image.getchannel("A").crop((0, 0, frame_width, frame_height))
-                    px, py = round(x * (frame_width - 1)), round(y * (frame_height - 1))
-                    neighborhood = ready.crop((max(0, px - 24), max(0, py - 24),
-                                               min(frame_width, px + 25), min(frame_height, py + 25)))
-                    visible = neighborhood.point(lambda value: 255 if value >= 160 else 0)
-                    self.assertIsNotNone(visible.getbbox(),
-                        "ADS ready anchor is detached from the rifle's sight line")
-        self.assertEqual({"frontier-45-1911", "sawed-off-shotgun"}, set(frame_two_overrides))
-        with Image.open(action_root / "frontier-45-1911-ads-fire.png") as image:
-            flash = image.getchannel("A").crop((512, 0, 1024, 768))
-            x, y = frame_two_overrides["frontier-45-1911"]
-            px, py = round(x * 511), round(y * 767)
-            neighborhood = flash.crop((max(0, px - 24), max(0, py - 24),
-                                       min(512, px + 25), min(768, py + 25)))
-            visible = neighborhood.point(lambda value: 255 if value >= 160 else 0)
-            self.assertIsNotNone(visible.getbbox(),
-                "1911 ADS flash frame anchor missed its iron sight")
+        measured = (ROOT / "game" / "first_person_ads_sights.lua").read_text(encoding="utf-8")
+        rows = dict(re.findall(r'^    \["([^"]+)"\]=(\{.*\}),$', measured, re.MULTILINE))
+        self.assertEqual({weapon for weapon, _ in weapon_ids}, set(rows))
+        for name, row in rows.items():
+            points = [(int(x), int(y)) for x, y in re.findall(r'\{(\d+),(\d+)\}', row)]
+            self.assertEqual(4, len(points), name + " requires four measured sight tips")
+            with Image.open(action_root / f"{name}-ads-fire.png") as image:
+                w, h = image.width // 2, image.height // 2
+                for index, (x, y) in enumerate(points):
+                    with self.subTest(weapon=name, frame=index + 1):
+                        self.assertTrue(0 < x < w and 0 < y < h)
+                        ox, oy = (index % 2) * w, (index // 2) * h
+                        alpha = image.getchannel("A").crop((ox + x - 2, oy + y - 2,
+                                                            ox + x + 3, oy + y + 3))
+                        self.assertGreaterEqual(alpha.getextrema()[1], 160,
+                                                "sight point detached from weapon art")
 
     def test_anchor_calibration_counts_are_explicit(self) -> None:
         manifest = (ROOT / "game" / "first_person_weapon_manifest.lua").read_text(encoding="utf-8")

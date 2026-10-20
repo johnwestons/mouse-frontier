@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local RepairArt={}
 
 local ROOT="assets/sprites/ui/repair/"
@@ -54,15 +55,13 @@ local function sprite(name)
 end
 
 function RepairArt.surface(x,y,w,h)
-    local texture=image(SURFACE)
-    local width,height=texture:getDimensions()
-    local r,g,b,a=love.graphics.getColor()
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.draw(texture,x,y,0,w/width,h/height)
-    love.graphics.setColor(r,g,b,a)
+    GuiArt.frame(x,y,w,h)
 end
 
 function RepairArt.draw(name,x,y,w,h,fraction)
+    if name=="normalRow" or name=="selectedRow" then
+        GuiArt.frame(x,y,w,h,{selected=name=="selectedRow"});return
+    end
     local amount=math.max(0,math.min(1,fraction or 1))
     if amount==0 then return end
     local art=sprite(name)

@@ -1,0 +1,129 @@
+MOUSE FRONTIER: MENU LAYOUT OPTIONS
+Research and concept illustrations, 2026-10-19.
+Prepared for user selection. No gameplay code or saves changed in this design task.
+Mockups created with the built-in image_gen tool. The adjacent image-prompts.json
+records the complete prompt set and source screenshot. They illustrate proposed
+interfaces; generated scenery and icons are not production replacement assets.
+
+CURRENT LAYOUT FINDINGS
+The host/single-player mobile Journey Menu is a large central panel. It mixes
+Travel, Backpack, Map, Upgrades, Move/Scale, Maintenance, Poses, Pause, Leave
+Train and Journal. Poses and Leave Train sit below less frequent train tools.
+A specific pose requires MENU > CHARACTER POSES > pose: three taps.
+Leave Train requires MENU > LEAVE TRAIN: two taps when available.
+Departing requires MENU > TRAVEL > confirmation: three taps when affordable.
+Mobile has a separate direct Backpack button, so burying Backpack in More is
+a real tradeoff in option B.
+Leave Train is rendered only on the stopped train in car 1. Its disappearance
+makes availability and location harder to understand.
+Desktop has different compact and side-panel arrangements. Co-op guests have
+another right-hand list with Poses, Map, Journal, Workshop, Decorate and
+conditional travel-related actions. Unify naming, order and navigation while
+retaining the existing co-op permissions and requests.
+The reference screenshot has two tall status rows. All three concepts use a
+compact shared status strip so the alternatives can be compared fairly.
+
+SOURCE LOCATIONS
+game/gameplay_hud.lua:517 - mobile Journey Menu and conditional buttons.
+game/gameplay_hud.lua:539 - desktop side panel and compact layouts.
+game/gameplay_input.lua:959 - pack, map, leave and travel dispatch.
+game/gameplay_input.lua:1085 - travel review confirmation.
+game/coop_guest_view.lua:450 - guest scene controls.
+game/mobile_runtime.lua - shared touch controls and modal visibility.
+game/mobile_controls.lua - touch layout, sizing and accessibility profiles.
+game/journey_rules.lua - authoritative leave and progression behavior.
+
+OPTIONS
+A. RADIAL QUICK MENU (a-radial-menu.png)
+One Actions launcher opens six broad fixed wedges: Poses, Leave Train, Travel,
+Backpack, Map and More. Center cancels. Poses opens four choices.
+Best for a clear resting screen and learned directional shortcuts.
+Ordinary tap navigation still takes three taps for a pose and two for Leave;
+the benefit is shorter search/reach, not a guaranteed reduction in taps.
+Use tap-open/tap-choice by default. Optional press-drag-release can be added
+after testing. An edge launcher needs an inward fan or correctly anchored
+gesture geometry; do not relocate a wheel under a stationary finger and
+accidentally select a different wedge. Avoid multiple concentric action rings.
+
+B. QUICK DOCK + POSE WHEEL (b-quick-dock-pose-wheel.png)
+Persistent Poses, Leave Train, Travel and More buttons near the right thumb.
+Poses opens a four-choice wheel: Stand, Sit, Lay Down, Use / Action.
+Best fit for the user's stated priority: pose selection in two taps, Leave
+in one tap when available, departure in two taps including confirmation.
+Tradeoffs: more persistent screen coverage and Backpack moves to More.
+Keep normal tap selection and center cancel. The dock could later allow
+user-selected shortcuts if keeping direct Backpack access proves important.
+
+C. LARGE-BUTTON DRAWER (c-action-drawer.png)
+One Actions tab opens a compact two-column, three-row labeled tile grid.
+Poses expands within this panel with a clear Back control.
+Best for large labels, predictable scanning and simple discrete input.
+Tradeoff: two taps for Leave, three for a pose; the open panel covers part
+of the scene. No scrolling required for the six primary choices.
+
+RECOMMENDATION
+Prototype B first for fastest access to the user's named actions. A is the
+strongest alternative if minimizing permanent HUD clutter matters more.
+C is a useful large-button option. This is a design judgment based on the
+current flow and cited guidance, not a claim that these concepts have already
+won a phone usability study.
+
+COMMON BEHAVIOR FOR THE SELECTED DESIGN
+- Pair simple icons with short horizontal labels; avoid icon-only guessing.
+- Keep stable slots. Show unavailable train actions dimmed with a reason
+  such as Train moving or Go to front car, instead of silently removing them.
+- Use a consistent exit/return slot at stops and caravans with explicit labels.
+  Preserve existing rules, events and host/guest progression authority.
+- Travel opens the existing cost review. Departure still needs confirmation.
+- Put upgrades, maintenance, decorating, journal and settings in a grouped
+  secondary panel. Keep a direct Pack shortcut if chosen during prototype.
+- Make touch targets at least 48 by 48 Android dp on the device; the game's
+  logical canvas pixels are not automatically dp. Use larger targets where
+  space permits, visible separation and existing adjustable control sizing.
+- Support tap navigation, clear cancel/back and digital controller focus.
+  Drag gestures are optional shortcuts. Select on release with cancellation.
+- Keep controls out of cutouts, system gesture areas, movement and USE hit
+  regions. Preserve control customization and offer mirrored placement.
+- The compact strip is a proposal; full resources, ammo, XP and other stats
+  must remain accessible in an expanded status view. Combat retains the
+  stats necessary for that mode.
+- Treat menus as input layers so opening/selecting cannot also move, fire or
+  activate objects behind them. Preserve the existing multiplayer pause model.
+- First-person minigames retain their dedicated aim/fire controls; do not
+  place the exploration dock or wheel on top of the new aiming joystick.
+- Validate the chosen layout on a small landscape phone, wide phone, tablet
+  and desktop/controller. Compare time, wrong selections and finger reach
+  for Sit, Leave Train, Travel, Backpack and Cancel in host and guest roles.
+  Check train moving, wrong car, insufficient supplies and blocked departures.
+
+RESEARCH BASIS (primary sources)
+Don Hopkins, The Design and Implementation of Pie Menus (1991):
+https://www.donhopkins.com/home/catalog/piemenus/ddj/piemenus.html
+Broad wedges close to an origin reduce pointing precision demands and can
+support learned directions. Stable item positions matter. The article also
+describes screen-space costs, difficulties with long labels and edge fans.
+Its historical experiments do not establish the fastest layout for this
+particular phone game.
+
+Valve, Steamworks Radial Menus:
+https://partner.steamgames.com/doc/features/steam_controller/radial_menus?l=english
+Shows a real game-input system with radial icons, several activation modes
+and an explicit center-cancel pattern. Use that interaction pattern as a
+reference, not as evidence that controller geometry transfers unchanged
+to a touchscreen.
+
+Microsoft, Xbox Accessibility Guideline 112, UI navigation:
+https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/112
+Consistent order, predictable focus, stable navigation conventions and a
+clear route back inform all three concepts.
+
+Microsoft, Xbox Accessibility Guideline 107, Input:
+https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/107
+Provide discrete input alternatives to gestures and prolonged holds.
+Release activation and a way to cancel reduce accidental commitments.
+This supports tap navigation even when a radial gesture is also available.
+
+Android Developers, Make apps more accessible:
+https://developer.android.com/guide/topics/ui/accessibility/apps
+Recommends minimum 48 by 48 dp touch targets. Treat this as a device-space
+minimum, then verify actual reach and clarity on target phones.

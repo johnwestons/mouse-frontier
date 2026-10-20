@@ -9,6 +9,7 @@ local Access=require('game.coop_recipient_access')
 local Contract=require('game.coop_item_contract')
 local Random=require('game.coop_random')
 local Availability=require('game.coop_object_access')
+local SceneNPCs=require('game.scene_npcs')
 local Gifts={}
 
 function Gifts.install(authority,context)
@@ -63,7 +64,8 @@ function Gifts.install(authority,context)
                     if not passenger then
                         local key=Util.sceneKey(data.scene,data.location)
                             ..(data.scene=="house" and (":"..tostring(data.activeHouseDoor or 1)) or "")
-                        local resident=data.npcStates and data.npcStates[key]
+                        local resident=SceneNPCs.find(data,args.npc,data.scene,data.activeHouseDoor)
+                        if not resident and not SceneNPCs.hasResidents(data) then resident=data.npcStates and data.npcStates[key] end
                         -- npcStates stores the actor's presentation name. The
                         -- unique owned instance stays on the stop record.
                         if resident then resident.weapon=item end
@@ -72,7 +74,7 @@ function Gifts.install(authority,context)
                 Inventory.setValue(actor,chest,args.source,nil,catalog.wearableItems)
                 if chest and chest.mailbox then chest.mailUnread=false end
                 if chest and chest.expeditionChest then chest.opened=true end
-                local result=Relationships.recordGift(data,args.npc,item,category)
+                local result=Relationships.recordGift(data,passenger and target or args.npc,item,category)
                 result.ok=true
                 result.item=item; result.npc=args.npc; result.equipped=isWeapon
                 result.itemId=instance and instance.id

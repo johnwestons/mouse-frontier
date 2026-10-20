@@ -3,6 +3,7 @@ local Players=require('game.coop_players')
 local Entities=require('game.coop_entities')
 local Contract=require('game.coop_item_contract')
 local P=require('game.net.protocol')
+local Recipients=require('game.coop_recipient_access')
 local Access={}
 local function finite(value) return type(value)=='number' and value==value and value>-math.huge and value<math.huge end
 function Access.patient(actor,state,targetId,npc,cleanup)
@@ -16,8 +17,8 @@ function Access.patient(actor,state,targetId,npc,cleanup)
         and story.targetId==targetId and story.npc==npc then return nil,'activity_busy' end
     if not target or entry.kind~='stop' or target~=data.stopLayouts[tostring(data.location)]
         or not P.text(npc,128) then return nil,'patient_unavailable' end
-    local resident=state and state.npc
-    if not cleanup and (data.currentNPC~=npc or not resident or resident.id~=npc
+    local resident=not cleanup and Recipients.resident(data,npc,state)
+    if not cleanup and (not resident
         or not finite(state.x) or not finite(state.y) or not finite(resident.x) or not finite(resident.y)
         or (state.x-resident.x)^2+(state.y-resident.y)^2>=95^2) then return nil,'patient_unavailable' end
     local request=target.helpRequests and target.helpRequests[npc]
@@ -30,7 +31,15 @@ end
 function Access.nearest(actor,state)
     local data=Players.campaignOf(actor); local layout=data.stopLayouts[tostring(data.location)]
     if not layout or not layout.entityId then return nil end
-    return Access.patient(actor,state,layout.entityId,data.currentNPC)
+    local nearest,distance
+    for _,resident in ipairs(Recipients.residents(data,state)) do
+        local found=Access.patient(actor,state,layout.entityId,resident.file or resident.id)
+        if found then
+            local d=(state.x-resident.x)^2+(state.y-resident.y)^2
+            if not distance or d<distance then nearest,distance=found,d end
+        end
+    end
+    return nearest
 end
 function Access.supplies(actor,catalog)
     local result={}

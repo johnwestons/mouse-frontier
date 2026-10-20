@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "scope": "combat-only",
+  "character": "ghost-small",
+  "animations": {
+    "melee": {
+      "path": "assets/sprites/Mobs/combat/ghost-small/melee.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "ranged": {
+      "path": "assets/sprites/Mobs/combat/ghost-small/ranged.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 8.823529411764705,
+      "duration": 0.68
+    },
+    "hit": {
+      "path": "assets/sprites/Mobs/combat/ghost-small/hit.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 10.344827586206897,
+      "duration": 0.58
+    },
+    "death": {
+      "path": "assets/sprites/Mobs/combat/ghost-small/death.png",
+      "frame_width": 512,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "fps": 7.0588235294117645,
+      "duration": 0.85
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2
+  },
+  "status": "reviewed_and_installed",
+  "source_sha256": "d393bcd430d7e32964e2f84d819586c82394fb6d5d3084bbb259acf7eaf08988",
+  "hashes": {
+    "melee": "5b899db269b76d1cadf56016f488d1e93d1cc091e954215ab0b5f071c9bac4a9",
+    "ranged": "7f4ae44d82cdd124af041d6b6751e451b521ca2def84105a1e8b041d4f60bff8",
+    "hit": "06a0210bcb6d376e9f0d71744e68b30b9b093fecdd8996e77d29880eb25eda42",
+    "death": "0b9cd461a3028d0a525ffe4d0285e1a55a283e79e5fa8c34b6443e15466d9330"
+  },
+  "tool": "built-in image_gen",
+  "prompt": "Use case: identity-preserve. Production 2D combat sprites for Mouse Frontier, matching the referenced APPROVED creature exactly: same species/anatomy, silhouette, face, proportions, palette, materials, pixel-art outline and shading. NEW authored intermediate poses, never rotations/duplicates of one picture. Transparent RGBA background, clean alpha in all gaps; no scenery, shadows, text, labels or grid. Layout EXACTLY 6 equal columns x 4 rows, 1536x1024, 24 cells256x256. ONE complete creature in every cell, 16px edge clearance, consistent scale, fixed camera and baseline. Default face RIGHT in matching three-quarter profile; a front-facing reference can retain its approved view. Animate left to right in each row. Row1 MELEE: ready, prepare/wind-up, launch, maximum strike, follow-through, recovery to ready. Row2 RANGED: ready, prepare, aim/charge, release, recoil, recover. Row3 HIT: ready, initial flinch, recoil, maximum stagger, regain balance, return ready (do NOT fall fully over in a survivable hit). Row4 DEATH: ready, buckle/weaken, begin falling, collapse, settle, motionless final downed body with closed eyes. Last row never revives or loops. No gore. No extra accessories or limbs. Exactly the small, rounded CREAM-WHITE friendly sheet ghost with dark blue-grey pixel border, two stubby outstretched arms, two black eyes with smiling curves and small pink/red tongue inside smile. Preserve rounded chubby shape, no clothing or accessories. Retain original front three-quarter view. Melee arms wind back and reach forward; ranged emits a tiny cool pale wisp; hit face winces and body compresses then recovers; death sags and melts into a small recognizable folded sheet shape, CLOSED EYES still present in final frame, not an empty cell."
+}

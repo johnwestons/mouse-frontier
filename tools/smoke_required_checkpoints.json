@@ -1,6 +1,7 @@
 {
   "common": [
     "start_new_game",
+    "prepare_smoke_train_fixture",
     "walk_right",
     "complete_travel",
     "shared_shooting_range_playable",

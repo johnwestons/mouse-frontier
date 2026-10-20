@@ -6,6 +6,10 @@ local UIStyle=require("game.ui_layout")
 local UIFocus=require("game.ui_focus")
 local LootProgression=require("game.loot_progression")
 local RepairLayout=require("game.repair_workbench_layout")
+local Home=require("game.home_stop")
+local HomeDialogue=require("game.home_stop_dialogue")
+local Identity=require('game.npc_identity')
+local HomeFox=require("game.home_stop_fox")
 
 local CoopProgression=require("game.coop_progression")
 local function required(context, name, expectedType)
@@ -137,6 +141,54 @@ local function new(context)
   end
 
   ui.menuSettings=ui.menuSettings or {}
+  function ui.homeStopAction(action)
+      if not Home.isHome(runtime.saveData) then return false end
+      if not CoopProgression.allowed(runtime,"home.advance") then return false,"host_only" end
+      if action=="board" then
+          local target=Home.interaction(runtime.saveData,runtime.player)
+          if runtime.saveData.homeStop.stage~="ready" or not target or target.action~="board" then return false,"home_target_unavailable" end
+          return enterTrain(true)
+      end
+      local result,reason
+      if commands then
+          local reply=commands.submit("home.advance",{action=action})
+          if not reply.ok then return false,reply.reason end
+          result=reply.result
+      else
+          local allowed; allowed,reason=Home.canAdvance(runtime.saveData,action,runtime.player)
+          if not allowed then return false,reason end
+          result,reason=Home.advance(runtime.saveData,action)
+          if not result then return false,reason end
+          if result.homeOfficeTransition then
+              if Home.isOffice(runtime.saveData) then runtime.player.x,runtime.player.y=Home.officeSpawn.x,Home.officeSpawn.y
+              else runtime.player.x,runtime.player.y=Home.points.officeDoor.x,Home.points.officeDoor.y+28 end
+              runtime.player.x,runtime.player.y=Home.clamp(runtime.player.x,runtime.player.y,runtime.saveData)
+              setupNPC()
+          end
+          writeSave()
+      end
+      runtime.questOffer=nil; runtime.helpDialogue=nil
+      if result.line then
+          runtime.dialogue={speaker=Identity.title(runtime.saveData,'homeStop:conductor'),text=HomeDialogue[result.line],homeStop=true}
+          ui.playSfx("talking")
+      elseif result.suppliesCollected then
+          runtime.dialogue={speaker="JOURNEY SUPPLIES",text="Loaded 10 food, 10 water, 10 coal, and 10 oil. Your supply totals are shown above. Next: prepare the locomotive at the repair stand.",timer=12}
+          ui.playSfx("menu")
+      elseif result.repairComplete then
+          runtime.dialogue={speaker="TRAIN READY",text="Running gear checked, loose fittings secured, and engine serviced. Train condition: 100%. Return to the conductor before boarding. During the journey, use Maintenance aboard the train to service worn running gear with oil.",timer=12}
+          ui.playSfx("menu")
+      else
+          runtime.dialogue=nil
+          if result.homeOfficeTransition then ui.playSfx("doors") end
+      end
+      if ui.refreshWorldInteraction then ui.refreshWorldInteraction() end
+      return true
+  end
+  local function continueDialogue()
+      if runtime.dialogue and runtime.dialogue.homeStop then return ui.homeStopAction("talk") end
+      runtime.dialogue=nil
+      return true
+  end
   ui.menuSettings.audio=ui.menuSettings.audio or {
       station="chill",musicVolume=.10,sfxVolume=.55,rainVolume=.20,
       rainEnabled=true,musicPaused=false,musicMuted=false,
@@ -254,6 +306,7 @@ local function new(context)
 
   local function startTravel()
       if not CoopProgression.allowed(runtime,"travel.depart") then return false,"host_only" end
+      if not Home.canDepart(runtime.saveData) then return false,"home_preparation_incomplete" end
       if ui.transitionParty then
           local reply=ui.transitionParty("travel.depart",{})
           if reply.ok then playTrainDepart() end
@@ -271,6 +324,7 @@ local function new(context)
       runtime.saveData.resources.coal=runtime.saveData.resources.coal-cost.coal
       runtime.travelConfirm=false
       runtime.travelTransition={t=0,changed=false,departSoundPlayed=true,maintenanceCondition=Maintenance.condition(runtime.saveData)}
+      Home.depart(runtime.saveData)
       playTrainDepart(); writeSave(); return true
   end
 
@@ -291,11 +345,13 @@ local function new(context)
   function ui.offerGift(slot)
       local name=runtime.saveData.inventory[slot]; local accepted=isWeapon(name) or Catalog.itemEffects[name] or Catalog.wearableItems[name] or name=="coal-chunk" or name=="coal-bucket"
       if accepted and commands then
-          local result=commands.gift(runtime.giftNPC,{kind="inventory",index=slot})
+          local result=commands.gift(runtime.giftNPC,{kind="inventory",index=slot},nil,false,runtime.giftOpen and runtime.giftCharacterId or nil)
           if result.ok then runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
           else runtime.dialogue={speaker="Gift unavailable",text="The item or recipient is no longer available here.",timer=3} end
       elseif accepted then
-          local passenger; for _,p in ipairs(runtime.saveData.passengers or {}) do if p.npc==runtime.giftNPC then passenger=p; break end end
+          local passenger; for _,p in ipairs(runtime.saveData.passengers or {}) do
+              if p.npc==runtime.giftNPC and (not runtime.giftCharacterId or p.characterId==runtime.giftCharacterId) then passenger=p; break end
+          end
           if isWeapon(name) then
               local instance=Items.get(runtime.saveData,nil,{kind="inventory",index=slot})
               if passenger then passenger.weapon=name; passenger.weaponInstance=instance
@@ -305,7 +361,7 @@ local function new(context)
           local category=isWeapon(name) and "weapon" or (Catalog.wearableItems[name] and "gear"
               or ((name=="coal-chunk" or name=="coal-bucket") and "fuel"
               or (effect and effect.health and "medical" or (effect and effect.food and "food" or (effect and effect.water and "water" or "useful")))))
-          local result=NpcRelationships.recordGift(runtime.saveData,runtime.giftNPC,name,category)
+          local result=NpcRelationships.recordGift(runtime.saveData,passenger or runtime.giftNPC,name,category)
           Inventory.setValue(runtime.saveData,nil,{kind="inventory",index=slot},nil); runtime.dialogue={speaker="GIFT • "..result.status.name,text=result.line,timer=5}
       else
           local result=NpcRelationships.rejection(runtime.saveData,runtime.giftNPC)
@@ -812,7 +868,53 @@ local function new(context)
       return true
   end
 
+  -- Shared semantic actions for the editable radial/dock/drawer controls.
+  -- Call the same domain entry points as the existing keyboard/menu routes.
+  function ui.quickActions()
+      local data=runtime.saveData or {}; local scene=runtime.scene
+      local onTrain=scene=='train'; local stopped=data.stopped==true
+      local front=(data.activeCar or 1)==1; local travel=onTrain and travelStatus() or {}
+      local result={}
+      local function add(id,run,enabled,reason,label)
+          result[id]={run=run,enabled=enabled~=false,reason=reason,label=label}
+      end
+      add('backpack',function() runtime.inventoryOpen=true;runtime.chestOpen=false;runtime.activeChest=nil;runtime.draggedSlot=nil;runtime.inventoryDragActive=false;return true end)
+      add('map',function() runtime.mapOpen=true;runtime.mapScroll=math.max(0,math.floor(((data.location or 1)-1)/6)-2);return true end)
+      add('journal',function() return setJourneyLogOpen(true,false) end)
+      add('leave',function()
+          if onTrain then return attemptLeaveTrain()
+          elseif scene=='stop' then if Home.isHome(data) then return ui.homeStopAction('board') else return enterTrain(true) end
+          elseif scene=='caravan' then return activateCaravanReturnControl()
+          elseif scene=='house' then return exitHouse() end
+      end,(onTrain and stopped and front) or scene=='stop' or scene=='caravan' or scene=='house',
+          onTrain and (not stopped and 'Train moving.' or 'Go to the front car.') or 'Use the area exit.',
+          scene=='stop' and 'BOARD TRAIN' or scene=='caravan' and 'RETURN TO STOP' or scene=='house' and 'EXIT HOME' or 'LEAVE TRAIN')
+      add('travel',function() runtime.travelConfirm=true;return true end,onTrain and (data.location or 50)<50 and travel.affordable==true,
+          not onTrain and 'Board the train first.' or (data.location or 50)>=50 and 'Journey complete.' or ('Need '..(travel.shortage or 'supplies')..'.'))
+      add('upgrade',function() runtime.trainUpgradeOpen=true;runtime.weaponRepairOpen=false;cancelWeaponRepair();return true end,onTrain,'Board the train first.')
+      add('decorate',function() if ui.closeDecoration then ui.closeDecoration() end;runtime.editMode=true;runtime.editedItem=nil;runtime.editDragging=false;ui.editSliderDrag=nil;return true end,onTrain,'Board the train first.')
+      add('maintenance',function() endCameraPan();Maintenance.open(maintenanceSession,data);return true end,onTrain and stopped and front,
+          not onTrain and 'Board the train first.' or not stopped and 'Train moving.' or 'Go to the front car.')
+      add('pause',function() ui.escMenuOpen=true;ui.escMenuSelection=1;return true end)
+      add('settings',function() ui.optionsOpen=true;runtime.optionsPage='audio';return true end)
+      add('editor',function() return ui.openGuiEditor and ui.openGuiEditor() end)
+      add('localPlay',function() return ui.openLocalPlay and ui.openLocalPlay() end)
+      for _,id in ipairs({'idle','sit','lay','use'}) do
+          local pose=id
+          add(id,function()
+              if ui.changePose then local value=ui.changePose(pose);return value==true or type(value)=='table' and value.ok==true end
+              if pose=='use' then runtime.playerPose='idle';runtime.actionKind='use';runtime.actionTimer=.45 else runtime.playerPose=pose end
+              return true
+          end)
+      end
+      return result
+  end
+
   function ui.handleGameMousePressed(x,y)
+      if runtime.dialogue and runtime.dialogue.homeStop then
+          if Util.pointIn(x,y,ui.dialogueContinue) then continueDialogue() end
+          return true
+      end
       if runtime.journeyLogOpen then
           if ui.journeyLogClose and Util.pointIn(x,y,ui.journeyLogClose) then setJourneyLogOpen(false)
           elseif ui.journeyLogUp and Util.pointIn(x,y,ui.journeyLogUp) then
@@ -863,7 +965,9 @@ local function new(context)
       end
       if runtime.scene=="house" and ui.exitHome and Util.pointIn(x,y,ui.exitHome) then exitHouse(); return true end
       if runtime.scene=="stop" and ui.returnTrain and Util.pointIn(x,y,ui.returnTrain) then
-          ui.mobileMenuOpen=false; enterTrain(true); return true
+          ui.mobileMenuOpen=false
+          if Home.isHome(runtime.saveData) then ui.homeStopAction("board") else enterTrain(true) end
+          return true
       end
       if (runtime.scene=="stop" or runtime.scene=="expedition") and ui.stopAttack and Util.pointIn(x,y,ui.stopAttack) then
           ui.mobileMenuOpen=false
@@ -899,7 +1003,7 @@ local function new(context)
       if ui.handleEditorMousePressed(x,y) then return true end
       if Util.pointIn(x,y,ui.backpack) then runtime.inventoryOpen=not runtime.inventoryOpen; ui.mobileMenuOpen=false; if not runtime.inventoryOpen then runtime.chestOpen=false; runtime.activeChest=nil end; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; return true end
       if Util.pointIn(x,y,ui.map) then runtime.mapOpen=not runtime.mapOpen; ui.mobileMenuOpen=false; if runtime.mapOpen then runtime.mapScroll=math.max(0,math.floor((runtime.saveData.location-1)/6)-2) end; runtime.inventoryOpen=false; runtime.draggedSlot=nil; return true end
-      if runtime.dialogue then runtime.dialogue=nil; return true end
+      if runtime.dialogue then continueDialogue(); return true end
       if Util.pointIn(x,y,ui.leaveTrain) then ui.mobileMenuOpen=false; attemptLeaveTrain(); return true end
       if Util.pointIn(x,y,ui.travel) and runtime.saveData.location<50 then
           ui.mobileMenuOpen=false
@@ -916,12 +1020,14 @@ local function new(context)
   local function openCharacterPreview(file)
       runtime.characterPreviewFile=file
       runtime.characterPreviewAction="walk"
+      runtime.characterPreviewPage=1
       runtime.characterPreviewDirection="SE"
   end
 
   local function closeCharacterPreview()
       runtime.characterPreviewFile=nil
       runtime.characterPreviewAction="walk"
+      runtime.characterPreviewPage=1
       runtime.characterPreviewDirection="SE"
   end
 
@@ -1027,6 +1133,10 @@ local function new(context)
           return
       end
       if runtime.state=="slots" then
+          ui.titleSelectedSlot=nil
+          for i,bounds in ipairs(ui.titleSlotBounds or {}) do
+              if Util.pointIn(x,y,bounds) then ui.titleSelectedSlot=i;break end
+          end
           for i=1,3 do if Util.pointIn(x,y,ui.slots[i]) then local data=readSave(i); if data then runtime.selectedSlot=i; enterGame(data) end; return elseif Util.pointIn(x,y,ui.slotNew[i]) then requestNewJourney(i); return elseif Util.pointIn(x,y,ui.slotDelete[i]) then
               requestConfirmation("deleteSave",{slot=i,message="Delete Save Slot "..i.."? This cannot be undone."})
               return
@@ -1035,6 +1145,8 @@ local function new(context)
           if runtime.characterPreviewFile then
               if Util.pointIn(x,y,ui.characterConfirm) then chooseCharacter(runtime.characterPreviewFile)
               elseif Util.pointIn(x,y,ui.characterCancel) then closeCharacterPreview()
+              elseif ui.characterPosePrev and Util.pointIn(x,y,ui.characterPosePrev) then runtime.characterPreviewPage=math.max(1,(runtime.characterPreviewPage or 1)-1)
+              elseif ui.characterPoseNext and Util.pointIn(x,y,ui.characterPoseNext) then runtime.characterPreviewPage=math.min(ui.characterPosePageCount or 1,(runtime.characterPreviewPage or 1)+1)
               else
                   for _,option in ipairs(ui.characterMovementActions or {}) do
                       if Util.pointIn(x,y,option.control) then runtime.characterPreviewAction=option.id; return end
@@ -1086,7 +1198,16 @@ local function new(context)
       end
   end
 
+  local function rangeAim(x,y,touchAim)
+      if not runtime.shootingRange then return end
+      if WorldPause.isSharedHost(runtime) then if context.rangeInput then context.rangeInput("mousemoved",x,y,touchAim) end; return end
+      ShootingRange.mousemoved(runtime.shootingRange,x,y,touchAim)
+  end
+
   local function mousemoved(x,y,dx,dy,touchAim)
+      if runtime.state=="slots" and ((dx or 0)~=0 or (dy or 0)~=0) then
+          ui.keyboardFocusVisible=false;ui.titleSelectedSlot=nil
+      end
       if runtime.weaponRepairDrag then
           if not runtime.trainUpgradeOpen or not runtime.weaponRepairOpen then runtime.weaponRepairDrag=nil; return end
           x,y=screenToGame(x,y)
@@ -1113,8 +1234,7 @@ local function new(context)
       if cameraPanning() then moveCameraPan(x,y); return end
       if runtime.shootingRange then
           x,y=screenToGame(x,y); x,y=UIStyle.inversePoint(x,y,"shootingRange",{x=0,y=0,w=960,h=720})
-          if WorldPause.isSharedHost(runtime) then if context.rangeInput then context.rangeInput("mousemoved",x,y,touchAim) end; return end
-          ShootingRange.mousemoved(runtime.shootingRange,x,y,touchAim); return
+          rangeAim(x,y,touchAim); return
       end
       if runtime.firstAid then
           x,y=screenToGame(x,y)
@@ -1292,7 +1412,25 @@ local function new(context)
           blocked=WorldPause.isPaused(runtime,ui,maintenanceSession,{allowDialogue=true}),
           isFurniture=function(index) local item=runtime.saveData.droppedItems[index]; return isFurnitureItem(item and item.name) end},key)
       if not action then return false end
-      if action=="closeDialogue" then runtime.dialogue=nil
+      if action=="closeDialogue" then continueDialogue()
+      elseif action=="inspectStop" then
+          local hotspots=require("game.stop_hotspots")
+          local spot=hotspots.find(runtime.saveData,arg)
+          if runtime.scene~="stop" or not spot or spot.kind~="stopInspect" or not hotspots.inReach(spot,runtime.player) then return false end
+          runtime.questOffer=nil; runtime.helpDialogue=nil
+          runtime.dialogue={speaker=spot.title,text=spot.description,inspection=true}
+      elseif action=="homeStop" then ui.homeStopAction(arg)
+      elseif action=="talkHomeFox" then
+          if not HomeFox.interaction(runtime.saveData,runtime.player) then return false end
+          if not CoopProgression.allowed(runtime,"npc.chatter") then return false end
+          local line,status
+          if commands and commands.chatter then line,status=commands.chatter(Home.FOX)
+          else line,status=NpcRelationships.npcDialogue(runtime.saveData,Home.FOX,Catalog.dialogueLines); writeSave() end
+          if not line then return false end
+          HomeFox.facePlayer(runtime.saveData,runtime.player)
+          runtime.questOffer=nil; runtime.helpDialogue=nil
+          runtime.dialogue={speaker=Identity.title(runtime.saveData,Home.FOX),text=line,homeFox=true}
+          ui.playSfx("talking")
       elseif action=="talkPassenger" then
           local p=runtime.saveData.passengers[arg]
           local lines=#(Catalog.passengerLines or {})>0 and Catalog.passengerLines or Catalog.dialogueLines
@@ -1300,7 +1438,7 @@ local function new(context)
           if commands and commands.chatter then line,status=commands.chatter(p.npc,p)
           else line,status=NpcRelationships.passengerDialogue(runtime.saveData,p,lines) end
           runtime.questOffer=nil
-          runtime.dialogue={speaker=line and (Util.titleFromFile(p.npc).." • "..status.name) or "PASSENGER",
+          runtime.dialogue={speaker=line and (Identity.name(runtime.saveData,p).." • "..status.name) or "PASSENGER",
               text=line or ("Destination: stop "..tostring(p.destination or "—")..". No new conversation available."),timer=7}; writeSave()
       elseif action=="car" then beginCarTransition((runtime.saveData.activeCar or 1)+arg)
       elseif action=="talkNPC" then ui.playSfx("talking"); talkToNPC()
@@ -1318,7 +1456,7 @@ local function new(context)
       elseif action=="expedition" then activateExpeditionInteraction(arg)
       elseif action=="caravan" then activateCaravanInteraction(arg)
       elseif action=="returnTrain" then
-          enterTrain(true)
+          if Home.isHome(runtime.saveData) then ui.homeStopAction("board") else enterTrain(true) end
       elseif action=="give" then giveWeaponToNearby()
       elseif action=="openStorage" then runtime.activeChest=runtime.saveData.droppedItems[arg]; runtime.activeChest.storage=runtime.activeChest.storage or {}; runtime.activeChest.mailUnread=false; runtime.chestOpen=true; runtime.inventoryOpen=true; runtime.draggedSlot=nil; runtime.inventoryDragActive=false; writeSave()
       elseif action=="holdPickup" then runtime.holdPickupIndex=arg; runtime.holdPickupTime=0
@@ -1459,6 +1597,8 @@ local function new(context)
                   local action=entry.id
                   add("character.pose."..index,entry.control,function() runtime.characterPreviewAction=action; if runtime.characterPreviewDirection~="W" and runtime.characterPreviewDirection~="E" then runtime.characterPreviewDirection="E" end end)
               end
+              add("character.pose.previous",ui.characterPosePrev,function() runtime.characterPreviewPage=math.max(1,(runtime.characterPreviewPage or 1)-1) end,(runtime.characterPreviewPage or 1)>1)
+              add("character.pose.next",ui.characterPoseNext,function() runtime.characterPreviewPage=math.min(ui.characterPosePageCount or 1,(runtime.characterPreviewPage or 1)+1) end,(runtime.characterPreviewPage or 1)<(ui.characterPosePageCount or 1))
               for _,direction in ipairs({"NW","N","NE","W","E","SW","S","SE"}) do
                   local control=ui.characterDirections and ui.characterDirections[direction]
                   local chosen=direction
@@ -1618,7 +1758,7 @@ local function new(context)
           add("dialogue.decline",ui.questDecline,declineQuestOffer)
       elseif runtime.dialogue then
           screenKey="dialogue"
-          add("dialogue.continue",ui.dialogueContinue,function() runtime.dialogue=nil end)
+          add("dialogue.continue",ui.dialogueContinue,continueDialogue)
       end
       return targets,screenKey
   end
@@ -1800,6 +1940,7 @@ local function new(context)
 
   return {
     beginTouchPickup=beginTouchPickup,
+    rangeAim=rangeAim,
     mousepressed=mousepressed,
     mousemoved=mousemoved,
     mousereleased=mousereleased,

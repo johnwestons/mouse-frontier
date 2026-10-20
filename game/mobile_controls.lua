@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local MobileControls = {}
 MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
@@ -5,6 +6,15 @@ local Typography=require("game.typography")
 local UIStyle=require("game.ui_layout")
 local ControlLayout=require("game.control_layout")
 local WideLayout=require("game.wide_layout")
+local ShooterPad=require("game.mobile_shooter_controls")
+local function rangeIdentity(session)
+    -- Shared-host presentation tables are replaced on every snapshot. Retain
+    -- the thumb for the same round, but never carry it into a new round/weapon.
+    if type(session)=='table' and session.entityId and session.roundRevision then
+        return table.concat({session.entityId,session.roundRevision,session.itemId or session.weapon or ''},':')
+    end
+    return session
+end
 
 local function distance(x1,y1,x2,y2)
     local dx,dy=x1-x2,y1-y2
@@ -42,6 +52,8 @@ function MobileControls.new(options)
     self.endCameraPan=options.endCameraPan or function() end
     self.cameraGesturesActive=options.cameraGesturesActive or function() return true end
     self.shootingRangeActive=options.shootingRangeActive or function() return false end
+    self.aimRange=options.aimRange or function(session,x,y) require('game.shooting_range').mousemoved(session,x,y,false) end
+    self.rangePad=ShooterPad.new()
     self.backVisible=options.backVisible or function() return false end
     self.backLabel=options.backLabel or function() return "BACK" end
     self.menuVisible=options.menuVisible or function() return false end
@@ -177,6 +189,7 @@ end
 function MobileControls:uiBounds()
     self:_updateCornerLayout()
     local bounds
+    if self.shootingRangeActive() then bounds={x=0,y=0,w=self.width,h=self.height} end
     if self:isMovementActive() then
         local r=self.joystick.radius
         bounds=extendBounds(bounds,self.joystick.x-r,self.joystick.y-r,r*2,r*2)
@@ -290,6 +303,24 @@ function MobileControls:_registerCanvasPointer(id,x,y)
     return true
 end
 
+function MobileControls:shooterControlAt(x,y)
+    if not self.enabled or not self.shootingRangeActive() then return false end
+    local gx,gy=self:_controlPoint(x,y)
+    return ShooterPad.hit(gx,gy,self.width,self.height)~=nil
+end
+
+function MobileControls:update(dt)
+    local session=self.enabled and self.shootingRangeActive()
+    if rangeIdentity(self.rangeSession)~=rangeIdentity(session) then
+        if self.rangePad.fireTouch then self.releaseKey('space') end
+        self.rangePad:cancel(); self.rangeAimTouch=nil; self.rangeSession=session
+    end
+    self.rangeSession=session
+    if not session then return end
+    local x,y=self.rangePad:step(dt,session,self.width,self.height,{left=30,top=55,right=930,bottom=625})
+    if x then self.aimRange(session,x,y) end
+end
+
 function MobileControls:touchpressed(id,x,y)
     if not self.enabled then return false end
     self:_updateCornerLayout()
@@ -306,8 +337,20 @@ function MobileControls:touchpressed(id,x,y)
         self:_feedback(gx,gy); self.touches[id]={kind="backpack"}; self.backpackAction(); return true
     end
     local rangeSession=self.shootingRangeActive()
-    if self.rangeSession~=rangeSession then self.rangeAimTouch=nil; self.rangeSession=rangeSession end
+    if rangeIdentity(self.rangeSession)~=rangeIdentity(rangeSession) then
+        if self.rangePad.fireTouch then self.releaseKey('space') end
+        self.rangePad:cancel(); self.rangeAimTouch=nil
+    end
+    self.rangeSession=rangeSession
     if rangeSession then
+        local padAction=self.rangePad:press(id,gx,gy,self.width,self.height)
+        if padAction then
+            self.touches[id]={kind="rangePad",session=rangeSession,action=padAction}
+            if padAction=="aim" then
+                self.rangeAimTouch=id; self.aimRange(rangeSession,rangeSession.aimX,rangeSession.aimY)
+            elseif padAction=="fire" then self:_feedback(gx,gy); self.pressKey("space") end
+            return true
+        end
         -- Only the first field touch owns the grip. A second field touch fires
         -- at the existing aim; the range owns all footer buttons, including FIRE.
         local button=self.rangeAimTouch and 5 or 4
@@ -353,8 +396,13 @@ function MobileControls:touchmoved(id,x,y,dx,dy)
         local gx,gy=self:_controlPoint(x,y)
         self:_updateJoystick(gx,gy)
     elseif touch.kind=="rangePointer" then
-        if self.rangeAimTouch==id and touch.session==self.shootingRangeActive() then
+        if self.rangeAimTouch==id and rangeIdentity(touch.session)==rangeIdentity(self.shootingRangeActive()) then
             self.movePointer(x,y,dx or 0,dy or 0,true)
+        end
+    elseif touch.kind=="rangePad" then
+        if rangeIdentity(touch.session)==rangeIdentity(self.shootingRangeActive()) then
+            local gx,gy=self:_controlPoint(x,y)
+            self.rangePad:move(id,gx,gy,self.width,self.height)
         end
     elseif touch.kind=="canvasPointer" then
         touch.x,touch.y=x,y
@@ -392,6 +440,10 @@ function MobileControls:touchreleased(id,x,y)
         if self.rangeAimTouch==id then self.rangeAimTouch=nil end
         self.releasePointer(x,y,touch.button)
     elseif touch.kind=="rangeControl" then self.releasePointer(x,y,touch.button)
+    elseif touch.kind=="rangePad" then
+        local action=self.rangePad:release(id)
+        if self.rangeAimTouch==id then self.rangeAimTouch=nil end
+        if action=="fire" then self.releaseKey("space") end
     elseif touch.kind=="canvasPointer" then
         if touch.key then self.releaseKey(touch.key) end
         if touch.pressed then self.releasePointer(x,y,1)
@@ -408,6 +460,8 @@ function MobileControls:touchreleased(id,x,y)
 end
 
 function MobileControls:cancelAll()
+    if self.rangePad.fireTouch then self.releaseKey("space") end
+    self.rangePad:cancel()
     for _,touch in pairs(self.touches) do if touch.key then self.releaseKey(touch.key) end end
     self.touches={}
     self.rangeAimTouch=nil; self.rangeSession=nil
@@ -419,11 +473,7 @@ end
 
 local function drawButton(button,label,active,textScale,opacity)
     opacity=opacity or 1
-    love.graphics.setColor(.055,.038,.028,.92*opacity)
-    love.graphics.circle("fill",button.x,button.y,button.radius)
-    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.72*opacity)
-    love.graphics.setLineWidth(4)
-    love.graphics.circle("line",button.x,button.y,button.radius)
+    GuiArt.circle(button.x,button.y,button.radius,{selected=active,alpha=opacity})
     love.graphics.setColor(1,.93,.75,.86*opacity)
     local width=button.radius*2-14
     local height=button.radius*1.4
@@ -433,11 +483,7 @@ local function drawButton(button,label,active,textScale,opacity)
 end
 
 local function drawRectButton(button,label,active,textScale)
-    love.graphics.setColor(.055,.038,.028,.92)
-    love.graphics.rectangle("fill",button.x,button.y,button.w,button.h,12,12)
-    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.96)
-    love.graphics.setLineWidth(4)
-    love.graphics.rectangle("line",button.x,button.y,button.w,button.h,12,12)
+    GuiArt.frame(button.x,button.y,button.w,button.h,{selected=active})
     love.graphics.setColor(1,.93,.75,.98)
     Typography.drawText(love.graphics,label,button.x+8,button.y+6,button.w-16,button.h-12,{
         scale=1.1*(textScale or 1),minScale=.95,singleLine=true,align="center",valign="center",
@@ -453,16 +499,11 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     UIStyle.scope("mobileControls",self:uiBounds(),function()
     local textScale=Accessibility.textScale(self.accessibilityData())
     local gameplayActive=self:isGameplayActive()
+    if self.shootingRangeActive() then self.rangePad:draw(self.width,self.height,self:getOpacity()) end
     if self:isMovementActive() then
         local stick=self.joystick
         local opacity=self:getOpacity()
-        love.graphics.setColor(.055,.038,.028,.60*opacity)
-        love.graphics.circle("fill",stick.x,stick.y,stick.radius)
-        love.graphics.setColor(.86,.49,.16,.78*opacity)
-        love.graphics.setLineWidth(4)
-        love.graphics.circle("line",stick.x,stick.y,stick.radius)
-        love.graphics.line(stick.x-stick.radius*.65,stick.y,stick.x+stick.radius*.65,stick.y)
-        love.graphics.line(stick.x,stick.y-stick.radius*.65,stick.x,stick.y+stick.radius*.65)
+        GuiArt.circle(stick.x,stick.y,stick.radius,{alpha=.65*opacity})
         local knobX=stick.x+self.axisX*stick.radius*.72
         local knobY=stick.y+self.axisY*stick.radius*.72
         love.graphics.setColor(.96,.66,.22,.92*opacity)

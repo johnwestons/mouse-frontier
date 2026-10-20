@@ -101,7 +101,7 @@ class LastStandMovementTests(unittest.TestCase):
             old.lastStand.lifecycle.version=1; old.lastStand.lifecycle.positions=nil
             local identity,rev=old.lastStand.lifecycle.entityId,old.lastStand.lifecycle.revision
             local loaded=assert(Schema.migrate(old)); local record=loaded.lastStand.lifecycle
-            assert(record.version==2 and record.entityId==identity and record.revision==rev and loaded.version==44)
+            assert(record.version==2 and record.entityId==identity and record.revision==rev and loaded.version==Schema.CURRENT_VERSION)
             assert(record.positions.host.y==590 and record.positions.companion.x==505 and Schema.validate(loaded))
         ''')
 

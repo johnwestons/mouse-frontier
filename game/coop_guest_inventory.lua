@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 -- Guest UI owns selection/drag state only. Accepted mutations arrive through
 -- the campaign replica; no inventory rules or save writer run in this module.
 local Inventory=require('game.inventory')
@@ -169,7 +170,7 @@ function Panel:pickup()
 end
 function Panel:actionLabel()
     local item=self:nearest()
-    return item and Containers.isContainer(item,self.c.catalog) and (item.mailbox and 'OPEN MAILBOX' or 'OPEN STORAGE') or 'PICK UP'
+    return item and Containers.isContainer(item,self.c.catalog) and (item.stopHotspotId and 'HARVEST' or item.mailbox and 'OPEN MAILBOX' or 'OPEN STORAGE') or 'PICK UP'
 end
 function Panel:update()
     if self.epoch and self.epoch~=self.view.epoch then self.runtime.inventoryOpen=false; self:clearContainer(); self.notice=nil end
@@ -206,7 +207,7 @@ function Panel:update()
 end
 function Panel:frame(x,y,w,h,kind,alpha)
     if self.c.drawMenuFrame then self.c.drawMenuFrame(x,y,w,h,kind,alpha)
-    else love.graphics.setColor(self.c.colors.panel); love.graphics.rectangle('fill',x,y,w,h,8,8) end
+    else GuiArt.frame(x,y,w,h,{alpha=alpha}) end
     if Accessibility.enabled(self.runtime.saveData,'highContrast') then
         love.graphics.setColor(1,.84,.28,1); love.graphics.rectangle('line',x,y,w,h,8,8)
     end
@@ -290,7 +291,7 @@ function Panel:draw()
     Style.scope('inventory',bounds,function()
         self:frame(35,35,490,chest and 105 or 125,3,.97)
         g.setColor(self.c.colors.cream)
-        Typography.drawText(g,chest and (chest.mailbox and 'REWARD MAILBOX' or 'SHARED STORAGE') or 'BACKPACK',55,chest and 43 or 55,450,35,
+        Typography.drawText(g,chest and (chest.storageLabel or (chest.mailbox and 'REWARD MAILBOX' or 'SHARED STORAGE')) or 'BACKPACK',55,chest and 43 or 55,450,35,
             {align='center',valign='center',scale=1.2,minScale=1})
         self.transferButton=nil; self.takeButton=nil
         if chest then

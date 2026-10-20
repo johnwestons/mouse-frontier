@@ -1,3 +1,4 @@
+local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
@@ -7,6 +8,9 @@ local Typography = require("game.typography")
 local TrainView = require("game.train_view")
 local WideLayout = require("game.wide_layout")
 local UIStyle = require("game.ui_layout")
+local Home = require("game.home_stop")
+local Identity=require('game.npc_identity')
+local Targets=require('game.npc_targets')
 
 local function required(context,name,expected)
   local value=context[name]
@@ -241,7 +245,7 @@ local function new(context)
       local health=math.max(0,tonumber(runtime.saveData.health) or 0)
       local maxHealth=math.max(1,tonumber(runtime.saveData.maxHealth) or 1)
       love.graphics.setColor(.025,.02,.016,.76)
-      love.graphics.rectangle("fill",x,y,width,height,8,8)
+      GuiArt.frame(x,y,width,height)
       love.graphics.setColor(colors.brass[1],colors.brass[2],colors.brass[3],.82)
       love.graphics.rectangle("fill",x,y,3,height,2,2)
       love.graphics.setColor(colors.brass)
@@ -265,7 +269,7 @@ local function new(context)
           love.graphics.setColor(1,1,1)
           love.graphics.draw(ui.radioFace,250,124,0,460/ui.radioFace:getWidth(),258/ui.radioFace:getHeight())
       end
-      love.graphics.setColor(.055,.038,.028,.98); love.graphics.rectangle("fill",118,320,724,128,8,8)
+      love.graphics.setColor(.055,.038,.028,.98); GuiArt.frame(118,320,724,128)
       local audioStatus=getAudioStatus()
       local track=audioStatus.nowPlaying and Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying) or "Starting music..."
       love.graphics.setColor(colors.brass); textIn("NOW PLAYING",138,331,684,26,.9,"center")
@@ -304,12 +308,15 @@ local function new(context)
       end
       for _,objective in ipairs(summary.objectives or {}) do
           local destination=math.floor(tonumber(objective.destination) or tonumber(data.location) or 1)
-          if objective.kind=="mail" then
+          if objective.objective then
+              rows[#rows+1]={kind=objective.kind,title=objective.title,destination=destination,
+                  objective=objective.objective,detail=objective.detail,portrait=objective.portrait}
+          elseif objective.kind=="mail" then
               local recipient,origin
               for index,mail in ipairs(data.mailQuests or {}) do
                   if not matchedMail[index] and not mail.complete and math.floor(tonumber(mail.destination) or 50)==destination then
                       matchedMail[index]=true
-                      recipient=mail.recipient and Util.titleFromFile(mail.recipient) or nil
+                      recipient=mail.recipient and Identity.name(data,mail.recipientId or mail.recipient,mail.destination) or nil
                       origin=tonumber(mail.origin)
                       break
                   end
@@ -335,14 +342,14 @@ local function new(context)
       end
       local passengers=data.passengers or {}
       for _,passenger in ipairs(passengers) do
-          local name=Util.titleFromFile(passenger.npc or "Passenger")
+          local name=Identity.name(data,passenger)
           local destination=math.floor(tonumber(passenger.destination) or tonumber(data.location) or 1)
           local origin=tonumber(passenger.origin)
           local job=passenger.job and Util.titleFromFile(passenger.job) or nil
           local detail=origin and ("FROM STOP "..math.floor(origin)) or "ONBOARD PASSENGER"
           if job then detail=detail.."  •  "..string.upper(job) end
           rows[#rows+1]={kind="passenger",title="PASSENGER  •  "..string.upper(name),destination=destination,
-              objective="Bring "..name.." to Stop "..destination..".",detail=detail}
+              objective="Bring "..name.." to Stop "..destination..".",detail=detail,portrait=passenger.npc}
       end
       local current=tonumber(data.location) or 1
       table.sort(rows,function(a,b)
@@ -379,7 +386,7 @@ local function new(context)
           local expedition=runtime.scene=="expedition" and expeditionObjective() or nil
           local currentObjective=expedition and tostring(expedition.text or "Explore the current area.")
               or (rows[1] and rows[1].objective or "No active objectives right now.")
-          love.graphics.setColor(.055,.038,.028,.96); love.graphics.rectangle("fill",x+26,y+88,w-52,65,8,8)
+          love.graphics.setColor(.055,.038,.028,.96); GuiArt.frame(x+26,y+88,w-52,65)
           love.graphics.setColor(colors.brass); textIn("CURRENT OBJECTIVE",x+40,y+94,190,20,.67)
           love.graphics.setColor(colors.cream); textIn(currentObjective,x+40,y+115,w-80,30,mobile and .88 or .75)
 
@@ -401,7 +408,7 @@ local function new(context)
                   local row=rows[start+offset]
                   if row then
                       local cy=listY+offset*(cardHeight+cardGap)
-                      love.graphics.setColor(.08,.055,.038,.96); love.graphics.rectangle("fill",listX,cy,listW,cardHeight,8,8)
+                      love.graphics.setColor(.08,.055,.038,.96); GuiArt.frame(listX,cy,listW,cardHeight)
                       local accent=colors.brass
                       if row.kind=="mail" then accent=colors.blue
                       elseif row.kind=="supplies" then accent=colors.green
@@ -414,9 +421,16 @@ local function new(context)
                       love.graphics.setColor(accent)
                       textIn("DESTINATION  •  STOP "..row.destination,listX+listW-190,cy+8,176,26,mobile and .76 or .62,"right")
                       love.graphics.setColor(colors.cream)
-                      textIn(row.objective,listX+22,cy+39,listW-44,34,mobile and .88 or .72)
+                      local portrait=row.portrait and (npcImages[row.portrait] or (context.characterImages and context.characterImages[row.portrait]))
+                      local inset=portrait and 76 or 22
+                      if portrait then
+                          local pw,ph=portrait:getDimensions(); local scale=math.min(44/pw,60/ph)
+                          love.graphics.setColor(1,1,1); love.graphics.draw(portrait,listX+45,cy+69,0,scale,scale,pw/2,ph/2)
+                          love.graphics.setColor(colors.cream)
+                      end
+                      textIn(row.objective,listX+inset,cy+39,listW-inset-22,34,mobile and .88 or .72)
                       love.graphics.setColor(.82,.72,.54,1)
-                      textIn(row.detail or "ACTIVE OBJECTIVE",listX+22,cy+76,listW-44,19,.62)
+                      textIn(row.detail or "ACTIVE OBJECTIVE",listX+inset,cy+76,listW-inset-22,19,.62)
                   end
               end
           end
@@ -436,6 +450,14 @@ local function new(context)
           if (quest.mode=="backyard" or quest.mode=="interior") and not quest.paused and not quest.treatment then
               ui.drawJourneyHUD()
           end
+          return
+      end
+      if runtime.shootingRange then
+          -- The range covers the world. Drawing the hidden settlement would
+          -- reload artwork that scene retention releases on every update.
+          UIStyle.scope("shootingRange",{x=0,y=0,w=W,h=H},function()
+              ShootingRange.draw(runtime.shootingRange,runtime.saveData,scenery.shootingRangeAssets or {},ui,Catalog,mobileEnabled())
+          end)
           return
       end
       local cloudLayer=getCloudLayer()
@@ -473,7 +495,7 @@ local function new(context)
       elseif runtime.scene=="expedition" then drawExpedition()
       elseif runtime.scene=="caravan" then drawCaravan()
       else drawStop() end
-      if runtime.scene=="train" or runtime.scene=="stop" then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
+      if (runtime.scene=="train" or runtime.scene=="stop") and not Home.isHome(runtime.saveData) then Clouds.draw(cloudLayer,runtime.scene,W,H,runtime.sceneryOffset,runtime.saveData.location) end
       WorldView.finish()
       -- The arriving scout is part of the stop, below ordinary panels. Its
       -- independent camera scope must finish before dialogue and touch HUD.
@@ -504,8 +526,10 @@ local function new(context)
           ui.backpack=mobile and button("CLOSE PACK",W/2-58,0,116,44,true,.78)
               or button("CLOSE PACK",W-132,2,116,30,true,.64)
           end)
+      elseif ui.actionMenuVisible then
+          -- The shared action menu is drawn after the world and touch controls.
       elseif mobile then
-          if ui.mobileMenuOpen then
+          if ui.mobileMenuOpen and not ui.actionMenusEnabled then
               love.graphics.setColor(0,0,0,.64); love.graphics.rectangle("fill",0,0,W,H)
               UIStyle.scope("journeyMenu",{x=90,y=62,w=780,h=610},function()
               drawMenuFrame(90,62,780,610,2,.99)
@@ -513,7 +537,7 @@ local function new(context)
               love.graphics.setColor(colors.brass); love.graphics.rectangle("fill",118,126,724,3)
               local canTravel=runtime.scene=="train" and runtime.saveData.location<50 and travel.affordable
               ui.travel=runtime.scene=="train" and button(travelLabel,118,150,724,66,canTravel) or nil
-              ui.returnTrain=runtime.scene=="stop" and button("RETURN TO TRAIN",118,150,724,66,true) or nil
+              ui.returnTrain=runtime.scene=="stop" and not Home.isHome(runtime.saveData) and button("RETURN TO TRAIN",118,150,724,66,true) or nil
               ui.returnStop=runtime.scene=="caravan" and button("RETURN TO STOP",118,150,724,66,true) or nil
               ui.backpack=button("BACKPACK",118,236,348,66,true)
               ui.map=button(runtime.scene=="expedition" and "AREA MAP" or "TRAIL MAP",494,236,348,66,true)
@@ -523,7 +547,7 @@ local function new(context)
               ui.pose=button("CHARACTER POSES",494,408,348,66,true)
               ui.pauseMenu=button("PAUSE MENU",118,494,348,66,true)
               ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",494,494,348,66,true) or nil
-              ui.stopAttack=runtime.scene=="stop" and button("ATTACK",494,494,348,66,true) or nil
+              ui.stopAttack=runtime.scene=="stop" and not Home.isHome(runtime.saveData) and button("ATTACK",494,494,348,66,true) or nil
               ui.journeyLog=button("JOURNEY LOG  •  "..#journeyLogRows().." OBJECTIVES  •  "..#(runtime.saveData.passengers or {}).." PASSENGERS",118,580,724,42,true,.82)
               textIn("Tap CLOSE to return",118,624,724,26,.90,"center")
               end)
@@ -540,7 +564,7 @@ local function new(context)
           ui.editMode=runtime.scene=="train" and button(runtime.editMode and "EDITING" or "MOVE / SCALE",x,y,w,36,true,.72) or nil; y=y+gap
           ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE",x,y,w,36,true,.72) or nil; y=y+gap
           ui.leaveTrain=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and button("LEAVE TRAIN",x,y,w,36,true,.76) or nil
-          ui.stopAttack=(runtime.scene=="stop" or runtime.scene=="expedition") and button("ATTACK",W-152,H-124,136,42,true,.85,.52) or nil
+          ui.stopAttack=(runtime.scene=="stop" or runtime.scene=="expedition") and not Home.isHome(runtime.saveData) and button("ATTACK",W-152,H-124,136,42,true,.85,.52) or nil
           end)
       else
           if expeditionScene then
@@ -568,11 +592,11 @@ local function new(context)
               ui.trainUpgrade=runtime.scene=="train" and button("UPGRADE  "..runtime.saveData.scrap.." SCRAP",510,70,220,36,true) or nil
               ui.maintenance=runtime.scene=="train" and runtime.saveData.stopped and (runtime.saveData.activeCar or 1)==1 and not runtime.travelTransition and button("MAINTENANCE  "..math.floor(Maintenance.condition(runtime.saveData)).."%",510,112,220,32,true) or nil
               ui.pose=button(runtime.poseMenu and "CLOSE" or "POSES",745,112,85,32,true)
-              ui.stopAttack=runtime.scene=="stop" and button("ATTACK",790,650,135,38,true) or nil
+              ui.stopAttack=runtime.scene=="stop" and not Home.isHome(runtime.saveData) and button("ATTACK",790,650,135,38,true) or nil
               end)
           end
       end
-      local returnTrainVisible=runtime.scene=="stop" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.helpDialogue
+      local returnTrainVisible=not ui.actionMenuVisible and runtime.scene=="stop" and not Home.isHome(runtime.saveData) and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue and not runtime.helpDialogue
           and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
           and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not runtime.shootingRange
           and not runtime.exitPrompt and not maintenanceSession.open
@@ -589,7 +613,7 @@ local function new(context)
       -- it above every modal panel; the mobile journey menu supplies its own
       -- full-width version while that menu is open.
       local returnStopVisible=runtime.scene=="caravan" and not ui.mobileMenuOpen
-      local exitHomeVisible=runtime.scene=="house" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue
+      local exitHomeVisible=not ui.actionMenuVisible and runtime.scene=="house" and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.dialogue
           and not runtime.editMode and not runtime.tradeOpen and not runtime.trainUpgradeOpen and not runtime.poseMenu
           and not ui.optionsOpen and not ui.radioOpen and not ui.mobileMenuOpen and not runtime.firstAid and not maintenanceSession.open
       if exitHomeVisible then
@@ -609,11 +633,14 @@ local function new(context)
       local contextText,contextScale
       if Accessibility.enabled(runtime.saveData,"controlHints") and not runtime.inventoryOpen and not runtime.mapOpen and not runtime.editMode and not runtime.carTransition and not ui.mobileMenuOpen then
           if mobile then
-              if ui.nearRadio then contextText,contextScale="TAP RADIO",.78
+              if ui.interaction and ui.interaction.kind=="stopInspect" then contextText,contextScale="TAP INSPECT",.72
+              elseif ui.interaction and ui.interaction.stopHotspotId then contextText,contextScale="TAP HARVEST",.72
+              elseif ui.nearRadio then contextText,contextScale="TAP RADIO",.78
               elseif runtime.nearPassenger or runtime.nearNPC then contextText,contextScale="TAP TALK   •   TAP GIVE",.72
               elseif runtime.nearCarNext then contextText,contextScale="TAP DOOR FOR NEXT CAR",.72
               elseif runtime.nearCarPrev then contextText,contextScale="TAP DOOR FOR PREVIOUS CAR",.66
               elseif runtime.nearMailbox then contextText,contextScale="TAP OPEN FOR REWARD MAILBOX",.66
+              elseif runtime.nearChest and ui.interaction and ui.interaction.houseStorageHotspot then contextText,contextScale="TAP OPEN",.66
               elseif runtime.nearChest then contextText,contextScale="TAP OPEN   •   HOLD PICK UP",.66
               elseif nearbyFurniture then contextText,contextScale="HOLD PICK UP FOR FURNITURE",.68
               elseif runtime.nearHouse then contextText,contextScale="TAP ENTER",.78
@@ -622,12 +649,15 @@ local function new(context)
               elseif runtime.nearCaravan then contextText,contextScale="TAP  •  "..(ui.interaction.label or "CARAVAN"),.62
               elseif runtime.nearReturnTrain then contextText,contextScale="TAP BOARD",.78
               elseif runtime.nearFire then contextText,contextScale="TAP COAL",.78 end
+          elseif ui.interaction and ui.interaction.kind=="stopInspect" then contextText,contextScale="E / CLICK  "..ui.interaction.label,.66
+          elseif ui.interaction and ui.interaction.stopHotspotId then contextText,contextScale="E / CLICK  HARVEST "..(ui.interaction.label or "GARDEN"),.66
           elseif ui.nearRadio then contextText,contextScale="P  OPEN RADIO",.72
           elseif runtime.nearPassenger then contextText,contextScale="E  TALK   •   G  GIVE",.72
           elseif runtime.nearCarNext then contextText,contextScale="E  ENTER NEXT CAR",.72
           elseif runtime.nearCarPrev then contextText,contextScale="E  RETURN TO PREVIOUS CAR",.66
           elseif runtime.nearNPC then contextText,contextScale="E  TALK   •   G  GIVE",.72
           elseif runtime.nearMailbox then contextText,contextScale="E / CLICK OPEN REWARD MAILBOX",.66
+          elseif runtime.nearChest and ui.interaction and ui.interaction.houseStorageHotspot then contextText,contextScale="E / CLICK OPEN HOUSE STORAGE",.66
           elseif runtime.nearChest then contextText,contextScale="CLICK OPEN   •   HOLD E PICK UP",.66
           elseif nearbyFurniture then contextText,contextScale="HOLD E  PICK UP FURNITURE",.72
           elseif runtime.nearHouse then contextText,contextScale="E  ENTER HOME",.78
@@ -638,8 +668,21 @@ local function new(context)
           elseif runtime.nearFire then contextText,contextScale="E  ADD COAL",.78 end
       end
       if mobile and runtime.holdPickupIndex then contextText="HOLD TO PICK UP" end
+      if Accessibility.enabled(runtime.saveData,"controlHints") and ui.interaction and ui.interaction.kind=="homeStop" and not runtime.dialogue then
+          local key=mobile and "TAP" or controlBindings:display("key","interact")
+          local labels={talk="TALK",supplies="LOAD SUPPLIES",repair="PREPARE TRAIN",board="BOARD TRAIN",enterOffice="ENTER OFFICE",exitOffice="EXIT OFFICE"}
+          contextText,contextScale=key.."  "..(labels[ui.interaction.action] or string.upper(ui.interaction.label)),.72
+      end
+      if Accessibility.enabled(runtime.saveData,"controlHints") and ui.interaction and ui.interaction.kind=="homeFox" and not runtime.dialogue then
+          contextText,contextScale=mobile and "TAP  TALK" or (controlBindings:display("key","interact").."  TALK TO TINKER FOX"),.72
+      end
       ui.contextHint=nil
-      if contextText then
+      local homeAction=Home.isHome(runtime.saveData) and runtime.scene=="stop"
+      local personReference
+      if ui.interaction and ui.interaction.kind=='npc' then personReference=runtime.npcActor or runtime.saveData.currentNPC
+      elseif ui.interaction and ui.interaction.kind=='passenger' then personReference=runtime.saveData.passengers[ui.interaction.index] end
+      if personReference and Identity.get(runtime.saveData,personReference) then contextText=nil end
+      if contextText and not homeAction then
           local highContrast=Accessibility.enabled(runtime.saveData,"highContrast")
           local hintX,hintY,hintW,hintH=325,300,310,40
           if ui.sideHudLayout then
@@ -664,7 +707,7 @@ local function new(context)
           end
           local hintAlpha=highContrast and .96 or (mobile and .42 or .50)
           ui.contextHint={x=hintX,y=hintY,w=hintW,h=hintH,alpha=hintAlpha,text=contextText}
-          love.graphics.setColor(highContrast and {0,0,0,hintAlpha} or {colors.panel[1],colors.panel[2],colors.panel[3],hintAlpha}); love.graphics.rectangle("fill",hintX,hintY,hintW,hintH,6,6)
+          love.graphics.setColor(highContrast and {0,0,0,hintAlpha} or {colors.panel[1],colors.panel[2],colors.panel[3],hintAlpha}); GuiArt.frame(hintX,hintY,hintW,hintH,{alpha=hintAlpha})
           if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",hintX,hintY,hintW,hintH,6,6); love.graphics.setLineWidth(1) end
           love.graphics.setColor(colors.cream)
           if mobile then
@@ -681,7 +724,7 @@ local function new(context)
                   tab.x,tab.y,tab.w,tab.h=ui.sideHudLayout.rightX,414+(index-1)*38,ui.sideHudLayout.panelWidth,32
               elseif mobile then tab.y=214 end
               local selected=index==active
-              love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",tab.x,tab.y,tab.w,tab.h,7,7)
+              love.graphics.setColor(colors.panel); GuiArt.frame(tab.x,tab.y,tab.w,tab.h)
               love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 3 or 1)
               love.graphics.rectangle("line",tab.x,tab.y,tab.w,tab.h,7,7)
               textIn(ui.sideHudLayout and ("CAR "..index) or tostring(index),tab.x,tab.y,tab.w,tab.h,mobile and 1.10 or .55,"center")
@@ -720,22 +763,27 @@ local function new(context)
               ui.poseIdle=button("STAND",228,240,236,70,true); ui.poseSit=button("SIT",496,240,236,70,true)
               ui.poseLay=button("LAY DOWN",228,335,236,70,true); ui.poseAction=button("USE / ACTION",496,335,236,70,true)
               ui.poseClose=button("DONE",496,450,236,48,true)
-          else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",735,198,190,150,8,8); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); ui.poseClose=button("DONE",792,300,118,34,true,.72) end
+          else love.graphics.setColor(colors.panel); GuiArt.frame(735,198,190,150); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); ui.poseClose=button("DONE",792,300,118,34,true,.72) end
           end)
       end
       if ui.radioOpen then
           love.graphics.setColor(0,0,0,.68); love.graphics.rectangle("fill",0,0,W,H)
           UIStyle.scope("radio",{x=90,y=62,w=780,h=610},function()
           if mobile then drawMobileRadio() else
-          if ui.radioFace then love.graphics.setColor(1,1,1); love.graphics.draw(ui.radioFace,130,95,0,700/ui.radioFace:getWidth(),450/ui.radioFace:getHeight()) else drawMenuFrame(130,95,700,450,2,1) end
+          drawMenuFrame(130,95,700,450,2,1)
+          love.graphics.setColor(colors.cream); textIn("RADIO",220,126,520,44,1.35,"center")
+          if ui.radioFace then
+              love.graphics.setColor(1,1,1)
+              love.graphics.draw(ui.radioFace,300,184,0,360/ui.radioFace:getWidth(),180/ui.radioFace:getHeight())
+          end
           ui.radio8bit={x=248,y=468,w=82,h=54}; ui.radioChill={x=343,y=468,w=82,h=54}; ui.radioVibes={x=438,y=468,w=82,h=54}
           ui.radioRain={x=533,y=468,w=82,h=54}; ui.radioClose={x=628,y=468,w=82,h=54}
           local radioButtons={ui.radio8bit,ui.radioChill,ui.radioVibes,ui.radioRain,ui.radioClose}
           local radioLabels={"8-BIT","CHILL","VIBES","RAIN","CLOSE"}
           for i,r in ipairs(radioButtons) do
-              if ui.radioButtonsImage and ui.radioButtonQuads then love.graphics.setColor(1,1,1); local iw,ih=ui.radioButtonsImage:getDimensions(); local q=((i-1)%3)+1; love.graphics.draw(ui.radioButtonsImage,ui.radioButtonQuads[q],r.x,r.y,0,r.w/(iw/3),r.h/ih) else button("",r.x,r.y,r.w,r.h,true) end
               local selected=(i==1 and runtime.saveData.audio.station=="8bit") or (i==2 and runtime.saveData.audio.station=="chill") or (i==3 and runtime.saveData.audio.station=="vibes") or (i==4 and runtime.saveData.audio.rainEnabled)
-              love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 4 or 2); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,5,5)
+              GuiArt.frame(r.x,r.y,r.w,r.h,{selected=selected})
+              love.graphics.setColor(colors.cream)
               textIn(radioLabels[i],r.x+2,r.y+18,r.w-4,30,.58,"center")
           end
           love.graphics.setLineWidth(1)
@@ -754,9 +802,83 @@ local function new(context)
           elseif Util.pointIn(mx,my,ui.radioVibes) then tip="Vibes Radio"
           elseif Util.pointIn(mx,my,ui.radioRain) then tip=runtime.saveData.audio.rainEnabled and "Turn rain ambience off" or "Turn rain ambience on"
           elseif Util.pointIn(mx,my,ui.radioClose) then tip="Close radio" end
-          if tip then love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.86); love.graphics.rectangle("fill",mx-85,my-42,170,30,5,5); love.graphics.setColor(colors.cream); textIn(tip,mx-80,my-34,160,20,.72,"center") end
+          if tip then love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.86); GuiArt.frame(mx-85,my-42,170,30); love.graphics.setColor(colors.cream); textIn(tip,mx-80,my-34,160,20,.72,"center") end
           end
           end)
+      end
+      ui.homeStopObjective=nil
+      ui.homeStopActionBounds=nil
+      ui.npcIdentityCard=nil
+      if not Home.isHome(runtime.saveData) and not WorldPause.isPaused(runtime,ui,maintenanceSession) then
+          ui.npcIdentityCard=require('game.npc_identity_ui').draw({data=runtime.saveData,reference=personReference,images=npcImages,characterImages=context.characterImages,
+              key=mobile and 'TAP' or controlBindings:hasGamepad() and controlBindings:display('button','interact') or controlBindings:display('key','interact')})
+      end
+      if Home.isHome(runtime.saveData) and not WorldPause.isPaused(runtime,ui,maintenanceSession) then
+          local x,y,w,h=20,mobile and 214 or (runtime.scene=="train" and 276 or 112),mobile and (Home.isOffice(runtime.saveData) and 430 or 610) or 470,134
+          local sidebar=ui.sideHudLayout
+          local compact=sidebar or runtime.scene=="stop"
+          if sidebar then x,y,w=sidebar.rightX,mobile and 116 or 168,sidebar.panelWidth end
+          if compact and not sidebar then x,y,w=W-196,214,184 end
+          local title=compact and (Home.isOffice(runtime.saveData) and "HOME STOP\nTRAIN OFFICE" or "HOME STOP\nTRAIN YARD")
+              or (Home.isOffice(runtime.saveData) and "HOME STOP  •  TRAIN OFFICE" or "HOME STOP  •  THE OLD TRAIN YARD")
+          local objective=runtime.scene=="train" and "Begin the journey west with TRAVEL. Each leg uses food, water, and coal." or Home.objective(runtime.saveData)
+          local controls=mobile and "Drag the movement stick. Approach a marker, then tap its action."
+              or (controlBindings:display("key","move_up").." / "..controlBindings:display("key","move_left").." / "..controlBindings:display("key","move_down").." / "..controlBindings:display("key","move_right").."  MOVE    "..controlBindings:display("key","interact").."  INTERACT    "..controlBindings:display("key","inventory").."  PACK")
+          if not mobile and controlBindings:hasGamepad() then controls="LEFT STICK  MOVE    "..controlBindings:display("button","interact").."  INTERACT    "..controlBindings:display("button","inventory").."  PACK" end
+          if compact and not mobile then
+              controls="MOVE\n"..controlBindings:display("key","move_up").."  "..controlBindings:display("key","move_left").."  "..controlBindings:display("key","move_down").."  "..controlBindings:display("key","move_right").."\n\n"..controlBindings:display("key","interact").."  INTERACT\n"..controlBindings:display("key","inventory").."  BACKPACK"
+              if controlBindings:hasGamepad() then controls="MOVE\nLEFT STICK\n\n"..controlBindings:display("button","interact").."  INTERACT\n"..controlBindings:display("button","inventory").."  BACKPACK" end
+          end
+          local titleY,titleH,objectiveY,objectiveH,controlsY,controlsH=y+8,28,y+39,43,y+87,35
+          if compact then
+              -- Measure wrapped text at the actual gutter width. A 16:9 window
+              -- needs more lines than an ultrawide window at the same font size.
+              local textScale=Accessibility.textScale(runtime.saveData)
+              local function heightFor(text,scale)
+                  local _,height=Typography.fitText(love.graphics,text,w-32,H,scale*textScale,scale*textScale)
+                  return math.ceil(height)
+              end
+              titleH=heightFor(title,.85); objectiveH=heightFor(objective,.85); controlsH=heightFor(controls,.75)
+              titleY=y+16; objectiveY=titleY+titleH+26; controlsY=objectiveY+objectiveH+28
+              h=controlsY+controlsH+16-y
+          end
+          love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.94)
+          GuiArt.frame(x,y,w,h)
+          love.graphics.setColor(colors.brass)
+          local _,_,_,titleFits=textIn(title,x+16,titleY,w-32,titleH,.85)
+          love.graphics.setColor(colors.cream)
+          local _,_,_,objectiveFits=textIn(objective,x+16,objectiveY,w-32,objectiveH,.85)
+          local _,_,_,controlsFit=textIn(controls,x+16,controlsY,w-32,controlsH,compact and .75 or .65)
+          ui.homeStopObjective={x=x,y=y,w=w,h=h,text=objective,textFits=titleFits and objectiveFits and controlsFit}
+          if homeAction then
+              local selected=ui.interaction
+              local nearby=selected and (selected.kind=="homeStop" or selected.kind=="homeFox")
+              local target=nearby and selected or Home.target(runtime.saveData)
+              if target then
+                  local labels={enterOffice="ENTER TRAIN OFFICE",exitOffice="EXIT OFFICE",talk="TORTOISE CONDUCTOR",
+                      supplies="LOAD SUPPLIES",repair="PREPARE TRAIN",board="BOARD TRAIN"}
+                  local label=target.kind=="homeFox" and Identity.name(runtime.saveData,Home.FOX):upper()
+                      or target.action=='talk' and Identity.name(runtime.saveData,Home.CONDUCTOR):upper()
+                      or labels[target.action] or target.label:upper()
+                  local key=mobile and "TAP" or controlBindings:hasGamepad() and controlBindings:display("button","interact") or controlBindings:display("key","interact")
+                  local verb=(target.kind=="homeFox" or target.action=="talk") and "TALK" or "INTERACT"
+                  local hint=nearby and (key.."  "..verb) or ("APPROACH TO "..verb)
+                  local textScale=Accessibility.textScale(runtime.saveData)
+                  local _,labelH=Typography.fitText(love.graphics,label,w-24,H,.80*textScale,.80*textScale)
+                  local _,hintH=Typography.fitText(love.graphics,hint,w-24,H,.65*textScale,.65*textScale)
+                  local actionH=math.ceil(labelH)+math.ceil(hintH)+28
+                  local actionY=math.max(y+h+12,mobile and 512 or 572)
+                  love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.94)
+                  GuiArt.frame(x,actionY,w,actionH)
+                  love.graphics.setColor(colors.brass)
+                  local _,_,_,labelFits=textIn(label,x+12,actionY+10,w-24,math.ceil(labelH),.80,"center")
+                  love.graphics.setColor(colors.cream)
+                  local _,_,_,hintFits=textIn(hint,x+12,actionY+18+math.ceil(labelH),w-24,math.ceil(hintH),.65,"center")
+                  ui.homeStopActionBounds={x=x,y=actionY,w=w,h=actionH,label=label,text=label.."  "..hint,
+                      textFits=labelFits and hintFits,nearby=not not nearby}
+                  if nearby then ui.contextHint=ui.homeStopActionBounds end
+              end
+          end
       end
       local inventoryResult=runtime.dialogue and runtime.dialogue.inventoryResult
       if not (expeditionScene and runtime.inventoryOpen and not inventoryResult) then ui.drawDialogue() end
@@ -781,11 +903,6 @@ local function new(context)
           love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,W,H)
           UIStyle.scope("firstAid",{x=105,y=40,w=750,h=635},function()
               FirstAid.draw(runtime.firstAid,colors,assets,true)
-          end)
-      end
-      if runtime.shootingRange then
-          UIStyle.scope("shootingRange",{x=0,y=0,w=W,h=H},function()
-              ShootingRange.draw(runtime.shootingRange,runtime.saveData,scenery.shootingRangeAssets or {},ui,Catalog,mobile)
           end)
       end
       -- Keep the campsite exit above its greeting and trading overlays so leaving

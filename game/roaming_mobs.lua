@@ -8,6 +8,7 @@ local function distance(ax,ay,bx,by)
 end
 
 local function meleeWeapon(ctx)
+    if ctx.unarmed then return "scratch",{multiplier=1} end
     local broken=false
     for i=1,2 do
         local name=ctx.data and ctx.data.equipment and ctx.data.equipment[i]
@@ -19,7 +20,8 @@ local function meleeWeapon(ctx)
             broken=true
         end
     end
-    return nil,nil,broken and "Your melee weapon is broken. Repair it at the train workshop." or "A melee weapon is required."
+    if ctx.weaponRef and broken then return nil,nil,"Your melee weapon is broken. Repair it at the train workshop." end
+    return "scratch",{multiplier=1}
 end
 
 local function isActive(ctx,definition)
@@ -246,16 +248,16 @@ function RoamingMobs.attack(sys,ctx,targetX,targetY)
     sys.attackTimer=({quick=.34,blunt=.50,axe=.48,polearm=.50})[family] or .42
     if ctx.onHostileAction then ctx.onHostileAction() end
     if ctx.onAction then ctx.onAction(weapon,sys.attackTimer) end
-    if ctx.playSfx then ctx.playSfx("sword") end
-    LootProgression.wearWeapon(ctx.data,weapon,1,weaponRef)
+    if ctx.playSfx then ctx.playSfx(weapon=="scratch" and "slash" or "sword") end
+    if weapon~="scratch" then LootProgression.wearWeapon(ctx.data,weapon,1,weaponRef) end
     ctx.data.weaponProficiency=ctx.data.weaponProficiency or {}
     local uses=(ctx.data.weaponProficiency[family] or ctx.data.weaponProficiency.melee or 0)+1
     ctx.data.weaponProficiency[family]=uses
     local result={weapon=weapon,duration=sys.attackTimer,facing=ctx.player.facing,damage=0,dead=false,shellBroken=false}
-    if not best then message(sys,"The swing misses.",1.2); result.message=sys.message; return true,nil,result end
+    if not best then message(sys,weapon=='scratch' and 'The attack misses.' or 'The swing misses.',1.2); result.message=sys.message; return true,nil,result end
     local saved=ctx.areaState.mobs[best.id]
     local transient=transientFor(sys,ctx.area.id,best.id)
-    local stats=ctx.catalog.weaponStats[weapon] or {min=2,max=4}
+    local stats=ctx.catalog.weaponStats[weapon] or (weapon=='scratch' and {min=1,max=3} or {min=2,max=4})
     local proficiency=math.min(5,math.floor(uses/10))
     local damage=math.max(1,math.floor(((ctx.rng or love.math.random)(stats.min or 2,stats.max or 4)+proficiency)*condition.multiplier))
     local remaining=saved.hp-damage
