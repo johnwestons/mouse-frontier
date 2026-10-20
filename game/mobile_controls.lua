@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local MobileControls = {}
 MobileControls.__index = MobileControls
 local Accessibility=require("game.accessibility")
@@ -473,7 +472,11 @@ end
 
 local function drawButton(button,label,active,textScale,opacity)
     opacity=opacity or 1
-    GuiArt.circle(button.x,button.y,button.radius,{selected=active,alpha=opacity})
+    love.graphics.setColor(.055,.038,.028,.92*opacity)
+    love.graphics.circle("fill",button.x,button.y,button.radius)
+    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.72*opacity)
+    love.graphics.setLineWidth(4)
+    love.graphics.circle("line",button.x,button.y,button.radius)
     love.graphics.setColor(1,.93,.75,.86*opacity)
     local width=button.radius*2-14
     local height=button.radius*1.4
@@ -483,7 +486,11 @@ local function drawButton(button,label,active,textScale,opacity)
 end
 
 local function drawRectButton(button,label,active,textScale)
-    GuiArt.frame(button.x,button.y,button.w,button.h,{selected=active})
+    love.graphics.setColor(.055,.038,.028,.92)
+    love.graphics.rectangle("fill",button.x,button.y,button.w,button.h,12,12)
+    love.graphics.setColor(active and .96 or .86,active and .66 or .49,active and .22 or .16,.96)
+    love.graphics.setLineWidth(4)
+    love.graphics.rectangle("line",button.x,button.y,button.w,button.h,12,12)
     love.graphics.setColor(1,.93,.75,.98)
     Typography.drawText(love.graphics,label,button.x+8,button.y+6,button.w-16,button.h-12,{
         scale=1.1*(textScale or 1),minScale=.95,singleLine=true,align="center",valign="center",
@@ -503,7 +510,13 @@ function MobileControls:draw(offsetX,offsetY,scaleX,scaleY)
     if self:isMovementActive() then
         local stick=self.joystick
         local opacity=self:getOpacity()
-        GuiArt.circle(stick.x,stick.y,stick.radius,{alpha=.65*opacity})
+        love.graphics.setColor(.055,.038,.028,.60*opacity)
+        love.graphics.circle("fill",stick.x,stick.y,stick.radius)
+        love.graphics.setColor(.86,.49,.16,.78*opacity)
+        love.graphics.setLineWidth(4)
+        love.graphics.circle("line",stick.x,stick.y,stick.radius)
+        love.graphics.line(stick.x-stick.radius*.65,stick.y,stick.x+stick.radius*.65,stick.y)
+        love.graphics.line(stick.x,stick.y-stick.radius*.65,stick.x,stick.y+stick.radius*.65)
         local knobX=stick.x+self.axisX*stick.radius*.72
         local knobY=stick.y+self.axisY*stick.radius*.72
         love.graphics.setColor(.96,.66,.22,.92*opacity)

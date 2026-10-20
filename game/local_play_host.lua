@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Outermost application boundary: networking runs before modal/save/workbench
 -- early returns. A pending checkpoint retains priority over the LAN panel.
 local Panel=require('game.local_play_panel')
@@ -102,22 +101,22 @@ function Host.wrap(application,context)
         if travelNotice then
             local g=love.graphics;g.push('all');g.origin()
             local ox,oy,sx,sy=Viewport.transform(960,720);g.translate(ox,oy);g.scale(sx,sy)
-            g.setColor(.08,.055,.035,.97);GuiArt.frame(226,78,510,66)
+            g.setColor(.08,.055,.035,.97);g.rectangle('fill',226,78,510,66,8,8)
             g.setColor(.96,.88,.69,1)
             Typography.drawText(g,'Companion requested departure to Stop '..travelNotice.to..'.',240,86,454,24,
                 {scale=.85,minScale=.65,align='center',valign='center'})
             Typography.drawText(g,'Host decides. Food '..travelNotice.food..' / Water '..travelNotice.water..' / Coal '..travelNotice.coal,240,112,454,24,
                 {scale=.75,minScale=.60,align='center',valign='center'})
-            GuiArt.frame(dismissRect.x,dismissRect.y,dismissRect.w,dismissRect.h)
+            g.rectangle('line',dismissRect.x,dismissRect.y,dismissRect.w,dismissRect.h,4,4)
             g.printf('X',dismissRect.x,dismissRect.y+5,dismissRect.w,'center');g.pop()
         end
         if available() then
             context.ui.localPlayLauncher=launcher
             local g=love.graphics; g.push('all'); g.origin()
             local ox,oy,sx,sy=Viewport.transform(960,720); g.translate(ox,oy); g.scale(sx,sy)
-            g.setColor(.18,.14,.09,1); GuiArt.frame(launcher.x,launcher.y,launcher.w,launcher.h)
-            g.setColor(1,.93,.78,1)
-            Typography.drawText(g,'LOCAL PLAY  [F8]',launcher.x+8,launcher.y+6,launcher.w-16,launcher.h-12,{scale=.8,minScale=.65,align='center',valign='center'}); g.pop()
+            g.setColor(.18,.14,.09,1); g.rectangle('fill',launcher.x,launcher.y,launcher.w,launcher.h,8,8)
+            g.setColor(.9,.77,.5,1); g.rectangle('line',launcher.x,launcher.y,launcher.w,launcher.h,8,8)
+            g.printf('LOCAL PLAY  [F8]',launcher.x+6,launcher.y+16,launcher.w-12,'center'); g.pop()
         end
         return result
     end

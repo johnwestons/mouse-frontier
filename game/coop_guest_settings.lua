@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Device-only guest settings. No campaign writer or gameplay command is available.
 local Preferences=require('game.local_preferences')
 local Accessibility=require('game.accessibility')
@@ -248,14 +247,15 @@ function Settings:draw()
         g.setColor(1,.93,.78,1); Typography.drawText(g,value,x,y,w,h,{scale=(scale or 1)*Accessibility.textScale(settings),minScale=.62,align='left',valign='center'})
     end
     local function add(id,label,x,y,w,action,enabled,h)
-        h=h or 44; g.setColor(enabled==false and .12 or .23,.17,.09,1); GuiArt.frame(x,y,w,h,{disabled=enabled==false})
+        h=h or 44; g.setColor(enabled==false and .12 or .23,.17,.09,1); g.rectangle('fill',x,y,w,h,6,6)
+        g.setColor(.84,.65,.32,1); g.rectangle('line',x,y,w,h,6,6)
         text(label,x+8,y+3,w-16,h-6,.8)
         self.controls[#self.controls+1]={id=id,rect=Style.transformRect({x=x,y=y,w=w,h=h}),action=action,enabled=enabled~=false}
     end
     g.push('all'); g.origin(); local ox,oy,sx,sy=Viewport.transform(960,720); g.translate(ox,oy); g.scale(sx,sy)
     g.clear(.045,.035,.025,1); g.setFont(Typography.font(g))
     Style.scope('guest-settings',bounds,function()
-        g.setColor(.075,.055,.035,1); GuiArt.frame(bounds.x,bounds.y,bounds.w,bounds.h)
+        g.setColor(.075,.055,.035,1); g.rectangle('fill',bounds.x,bounds.y,bounds.w,bounds.h,9,9)
         text('DEVICE SETTINGS',60,36,590,40,1.2); add('close','BACK TO LOCAL PLAY',690,36,210,function() self:close() end)
         for i,page in ipairs({'audio','accessibility','controls'}) do local chosen=page
             add(page,page:upper(),60+(i-1)*285,94,270,function() self.page=chosen; self.scroll=0; self.ui={} end)
@@ -290,9 +290,9 @@ function Settings:draw()
             end
             if self.device=='touch' then
                 local layout=self:touchLayout(); text('Drag a control. Positions and opacity save on this device.',75,202,805,28,.8)
-                g.setColor(.11,.105,.075,1); GuiArt.frame(canvas.x,canvas.y,canvas.w,canvas.h)
+                g.setColor(.11,.105,.075,1); g.rectangle('fill',canvas.x,canvas.y,canvas.w,canvas.h,6,6)
                 for _,id in ipairs(Layout.order) do local p=layout[id]; local x,y=canvas.x+p.x*canvas.w,canvas.y+p.y*canvas.h
-                    g.setColor(id==self.selectedControl and .48 or .28,.25,.12,layout.opacity); GuiArt.frame(x-42,y-23,84,46,{selected=id==self.selectedControl,alpha=layout.opacity})
+                    g.setColor(id==self.selectedControl and .48 or .28,.25,.12,layout.opacity); g.rectangle('fill',x-42,y-23,84,46,5,5)
                     text(Layout.labels[id],x-36,y-18,72,36,.7)
                 end
                 local selected=self.selectedControl or 'joystick'; text('Selected: '..Layout.labels[selected],75,540,310,32,.8)

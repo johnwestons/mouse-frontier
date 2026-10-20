@@ -1,28 +1,21 @@
-SHARED SIMPLE GUI STYLE
+ACTION MENU SPRITE STYLE
 
-The default GUI uses the approved dark brown sprites with thin amber outlines
-and cream labels. game/gui_art.lua shares the rectangular and circular frames
-from assets/sprites/ui/actions/simple across the action layouts, title screens,
-HUD, inventory, dialogue, shops, settings, editor, radio, minigames and co-op UI.
+The compact sprite atlas in assets/sprites/ui/actions/simple is used by the
+radial, box and dock action-menu layouts. It keeps those quick-access controls
+easy to scan while the title screen, HUD, inventory, settings, crafting,
+minigames and other established game screens keep their authored GUI styling.
 
-Nine-slicing keeps borders narrow at different panel sizes. Texture coordinates
-also scale for packaged images. Selected and unavailable controls retain state
-feedback; high-contrast settings retain their additional outlines. Existing
-advanced-editor color, position, scale and alternate-frame overrides still work.
-Characters and item illustrations remain their authored sprites.
+Advanced GUI editing continues to support action-menu control placement and
+scale. The title-screen control spacing remains separated for reliable access.
 
-The title screen's Cheats / Controls and Local Play buttons occupy separate
-ends of the footer, with fitted text inside their touch targets.
-
-Validation, 2026-10-20
-- Targeted UI, editor, touch, inventory, repair and crafting behavior tests.
-- Companion activity, checkpoint, title and Local Play behavior tests.
-- All 67 action-menu application checks, including 13 debug activity launches.
-- Fifteen real GUI screens rendered in both desktop and simulated mobile modes.
-- Fresh disposable test-save fixtures were removed after each application run.
-- Physical Android/iOS devices were not used for these checks.
+Validation
+- 83 behavior tests passed for action-menu editing, inventory, crafting, battle,
+  co-op settings and mobile packaging.
+- The action-menu smoke passed 67 checks across 13 test activities.
+- Fifteen real screens rendered in desktop and simulated mobile layouts.
+- Android package 0.7.0-mobile.37 and signed APK built; package smoke passed 117
+  checkpoints and Last Stand passed 1,591 focus checks.
+- Physical Android installation was not part of this validation.
 
 Screenshots: .stabilization/gui-style, .stabilization/gui-style-desktop,
 and .stabilization/action-menu-layouts.
-Repeat: tools/run_gui_style_smoke.ps1 (add -Desktop for desktop layouts),
-tools/run_action_menu_smoke.ps1.

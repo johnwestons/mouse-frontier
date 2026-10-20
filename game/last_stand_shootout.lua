@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local FirstPerson=require("game.first_person_shooting")
 local WindowScene=require("game.window_scene")
@@ -789,7 +788,11 @@ local function formatTime(seconds)
 end
 
 local function panel(x,y,w,h)
-    GuiArt.frame(x,y,w,h)
+    love.graphics.setColor(.055,.035,.020,.90)
+    love.graphics.rectangle("fill",x,y,w,h,8,8)
+    love.graphics.setColor(.80,.55,.24,.95)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line",x,y,w,h,8,8)
 end
 
 local function pointIn(x,y,rx,ry,rw,rh)
@@ -960,7 +963,7 @@ function Shootout.draw(state,data,width,height)
         )
         local rx,ry,rw,rh=Shootout.supplyRect(width,height)
         love.graphics.setColor(.52,.26,.10,1)
-        GuiArt.frame(rx,ry,rw,rh)
+        love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
         love.graphics.setColor(1,.88,.62,1)
         local label=state.quest.loanActive and "TAKE AMMO" or "USE FOX'S RIFLE"
         textBox(label..(state.touchControls and "" or "  [L]"),rx+10,ry+4,rw-20,rh-8,1,"center")
@@ -976,7 +979,7 @@ function Shootout.draw(state,data,width,height)
         textBox("The defenders pull everyone back from the windows. Your progress is saved. Stabilize the position to continue.",width/2-270,height/2-36,540,106,1,"center")
         local rx,ry,rw,rh=Shootout.retryRect(width,height)
         love.graphics.setColor(.52,.25,.10,1)
-        GuiArt.frame(rx,ry,rw,rh)
+        love.graphics.rectangle("fill",rx,ry,rw,rh,8,8)
         love.graphics.setColor(1,.88,.62,1)
         textBox("REGROUP AND RETRY"..(state.touchControls and "" or "  [ENTER]"),rx+10,ry+4,rw-20,rh-8,1,"center")
     end

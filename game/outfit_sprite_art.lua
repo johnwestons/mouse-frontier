@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Authored PNG sprites: selecting, positioning and scaling existing artwork.
 local Definitions=require("game.outfit_catalog")
 local Art={}
@@ -68,13 +67,26 @@ end
 
 function Art.has(id) return sprites[id]~=nil or Definitions.upgrades[id]~=nil end
 local panels={paper=true,card=true,["card-selected"]=true,button=true,["button-selected"]=true,["button-disabled"]=true}
+local function drawPanel(sheet,frame,rect)
+    if not frame.slices then
+        frame.slices={}
+        local bx,by=math.floor(frame.w*.18),math.floor(frame.h*.18)
+        local xs,ys={0,bx,frame.w-bx,frame.w},{0,by,frame.h-by,frame.h}
+        for row=1,3 do for col=1,3 do
+            local w,h=xs[col+1]-xs[col],ys[row+1]-ys[row]
+            frame.slices[(row-1)*3+col]={w=w,h=h,quad=love.graphics.newQuad(frame.x+xs[col],frame.y+ys[row],w,h,sheet.image:getDimensions())}
+        end end
+    end
+    local border=math.min(14,rect.w*.18,rect.h*.24)
+    local xs,ys={0,border,rect.w-border,rect.w},{0,border,rect.h-border,rect.h}
+    for row=1,3 do for col=1,3 do
+        local part=frame.slices[(row-1)*3+col]
+        love.graphics.draw(sheet.image,part.quad,rect.x+xs[col],rect.y+ys[row],0,
+            (xs[col+1]-xs[col])/part.w,(ys[row+1]-ys[row])/part.h)
+    end end
+end
 function Art.draw(id,rect,options)
     options=options or {}
-    if panels[id] and options.stretch and not options.rotation then
-        GuiArt.frame(rect.x,rect.y,rect.w,rect.h,{alpha=options.alpha,
-            selected=id:find('selected',1,true)~=nil,disabled=id=='button-disabled'})
-        return true
-    end
     local profile=Definitions.upgrades[id]
     local sprite=sprites[profile and profile.recipeId or id]
     if not sprite then return false end
@@ -84,7 +96,8 @@ function Art.draw(id,rect,options)
     if not options.stretch then sx=math.min(sx,sy); sy=sx end
     local g=love.graphics
     g.push("all"); g.setColor(1,1,1,options.alpha or 1)
-    g.draw(sheet.image,frame.quad,rect.x+rect.w/2,rect.y+rect.h/2,options.rotation or 0,sx,sy,frame.w/2,frame.h/2)
+    if panels[id] and options.stretch and not options.rotation then drawPanel(sheet,frame,rect)
+    else g.draw(sheet.image,frame.quad,rect.x+rect.w/2,rect.y+rect.h/2,options.rotation or 0,sx,sy,frame.w/2,frame.h/2) end
     g.pop()
     if profile and not options.noBadge then
         local size=math.min(rect.w,rect.h)*.34

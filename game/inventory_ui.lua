@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local Typography = require("game.typography")
 local UIStyle = require("game.ui_layout")
 local OutfitItemArt = require("game.outfit_item_art")
@@ -11,8 +10,8 @@ end
 local function detailCard(ctx)
     -- The three-line detail card needs the full interior height; a decorative
     -- menu frame's thick top and bottom strips would cross the text.
-    love.graphics.setColor(.08,.055,.035,.97); GuiArt.frame(565,562,350,56)
-    love.graphics.setColor(ctx.colors.brass);
+    love.graphics.setColor(.08,.055,.035,.97); love.graphics.rectangle("fill",565,562,350,56,5,5)
+    love.graphics.setColor(ctx.colors.brass); love.graphics.rectangle("line",565,562,350,56,5,5)
     love.graphics.setColor(ctx.colors.cream)
 end
 
@@ -117,8 +116,8 @@ function InventoryUI.draw(ctx)
         ui.inventoryModeTabs[tab.id]=r
         local active=(ctx.inventoryMode or "wearables")==tab.id
         love.graphics.setColor(active and .30 or .12,active and .22 or .09,active and .14 or .07,1)
-        GuiArt.frame(r.x,r.y,r.w,r.h)
-        love.graphics.setColor(ctx.colors.brass);
+        love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,5,5)
+        love.graphics.setColor(ctx.colors.brass); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,5,5)
         love.graphics.setColor(ctx.colors.cream); text(tab.label,r.x+4,r.y+1,r.w-8,r.h-2,.78,.70,"center")
     end
     if (ctx.inventoryMode or "wearables")=="ammo" then
@@ -139,8 +138,8 @@ function InventoryUI.draw(ctx)
         for index,slot in ipairs(Catalog.wearableSlots or {}) do
             local r=Inventory.wearableSlotRect(index); ui.wearableSlots[slot.id]=r
             love.graphics.setColor(ctx.colors.cream); text(slot.label,r.x,r.y-20,r.w,17,.70,.62,"center")
-            love.graphics.setColor(.28,.22,.16); GuiArt.frame(r.x,r.y,r.w,r.h)
-            love.graphics.setColor(ctx.colors.brass);
+            love.graphics.setColor(.28,.22,.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
+            love.graphics.setColor(ctx.colors.brass); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,7,7)
             local name=data.wearables and data.wearables[slot.id]
             if name then InventoryUI.drawItem(ctx,name,r)
             else
@@ -149,19 +148,19 @@ function InventoryUI.draw(ctx)
         end
     end
     ctx.drawMenuFrame(545,185,390,510,2,1)
-    love.graphics.setColor(.12,.09,.07,1); GuiArt.frame(570,202,340,27)
+    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,202,340,27,6,6)
     love.graphics.setColor(ctx.colors.cream); text("BACKPACK  -  "..capacity.." SLOTS",575,204,330,23,1,.85)
     for i=1,capacity do
-        local r=inventorySlotRect(ctx,i); love.graphics.setColor(0.28,0.22,0.16); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=inventorySlotRect(ctx,i); love.graphics.setColor(0.28,0.22,0.16); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
         if data.inventory[i] then InventoryUI.drawItem(ctx,data.inventory[i],r) end
     end
-    love.graphics.setColor(.12,.09,.07,1); GuiArt.frame(570,462,340,26)
+    love.graphics.setColor(.12,.09,.07,1); love.graphics.rectangle("fill",570,462,340,26,6,6)
     love.graphics.setColor(ctx.colors.cream); text("EQUIPPED WEAPONS",580,464,320,23,.90,.82)
     ui.equipmentSlots={}
     for i=1,2 do
         local r=equipmentSlotRect(ctx,i); ui.equipmentSlots[i]=r
-        love.graphics.setColor(0.32,0.20,0.12); GuiArt.frame(r.x,r.y,r.w,r.h)
-        love.graphics.setColor(ctx.colors.brass);
+        love.graphics.setColor(0.32,0.20,0.12); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
+        love.graphics.setColor(ctx.colors.brass); love.graphics.rectangle("line",r.x,r.y,r.w,r.h,7,7)
         if data.equipment[i] then InventoryUI.drawItem(ctx,data.equipment[i],r) end
     end
     local selectedName=ctx.draggedSlot and ctx.value(ctx.draggedSlot)
@@ -270,7 +269,7 @@ function InventoryUI.draw(ctx)
         ctx.drawMenuFrame(220,170,520,180,3,.97); love.graphics.setColor(ctx.colors.cream)
         text("GIVE TO "..(ctx.giftName or ctx.title(ctx.giftNPC or "NPC")),240,187,480,29,1.15,.92,"center")
         text("Place one item in the offer slot",250,218,460,22,.90,.78,"center")
-        local offer={x=445,y=245,w=70,h=70}; love.graphics.setColor(.28,.22,.16); GuiArt.frame(offer.x,offer.y,offer.w,offer.h)
+        local offer={x=445,y=245,w=70,h=70}; love.graphics.setColor(.28,.22,.16); love.graphics.rectangle("fill",offer.x,offer.y,offer.w,offer.h,7,7)
         if ctx.giftSlot then InventoryUI.drawItem(ctx,data.inventory[ctx.giftSlot],offer) end
         ui.giftSlot=offer; ui.giftConfirm=ctx.button("OFFER",535,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,ctx.giftSlot~=nil); ui.giftConfirm.enabled=ctx.giftSlot~=nil; ui.giftCancel=ctx.button("CANCEL",mobile and 295 or 325,mobile and 250 or 260,mobile and 130 or 100,mobile and 64 or 36,true)
     else ui.giftSlot=nil; ui.giftConfirm=nil; ui.giftCancel=nil end
@@ -290,7 +289,7 @@ function InventoryUI.drawChest(ctx)
     text(mailbox and ("REWARD MAILBOX  -  "..capacity.." SLOTS") or ((activeChest and activeChest.storageLabel or ctx.title(activeChest and activeChest.name or "Storage")).."  -  "..capacity.." SLOTS"),55,192,445,32,1.1,.85)
     ui.chestSlots={}
     for i=1,capacity do
-        local r=ctx.Inventory.chestSlotRect(i); ui.chestSlots[i]=r; love.graphics.setColor(0.25,0.18,0.12); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=ctx.Inventory.chestSlotRect(i); ui.chestSlots[i]=r; love.graphics.setColor(0.25,0.18,0.12); love.graphics.rectangle("fill",r.x,r.y,r.w,r.h,7,7)
         if activeChest and activeChest.storage[i] then InventoryUI.drawItem(ctx,activeChest.storage[i],r) end
     end
     love.graphics.setColor(ctx.colors.cream)

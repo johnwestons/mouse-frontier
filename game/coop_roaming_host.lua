@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Owner decisions for a saved companion encounter. No scene changes on close.
 local Viewport=require('game.viewport')
 local Host={}
@@ -39,12 +38,12 @@ function Host.wrap(application,c)
         local g=love.graphics; g.push('all'); g.origin()
         local ox,oy,sx,sy=Viewport.transform(960,720); g.translate(ox,oy); g.scale(sx,sy)
         g.setColor(0,0,0,.68); g.rectangle('fill',0,0,960,720)
-        g.setColor(.08,.06,.04,.98); GuiArt.frame(170,218,620,268)
+        g.setColor(.08,.06,.04,.98); g.rectangle('fill',170,218,620,268,12,12)
         c.ui.roamingEncounterFont=c.ui.roamingEncounterFont or g.newFont(20); g.setFont(c.ui.roamingEncounterFont)
         g.setColor(.97,.88,.68,1); g.printf('COMPANION ENCOUNTER',190,242,580,'center')
         g.setColor(1,1,1,1); g.printf('Your companion is caught by enemies. Choose whether the party fights or returns to the train.',210,290,540,'center')
         for index,r in ipairs(buttons) do
-            g.setColor(index==selected and .36 or .20,.20,.10,1); GuiArt.frame(r.x,r.y,r.w,r.h,{selected=index==selected})
+            g.setColor(index==selected and .36 or .20,.20,.10,1); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
             g.setColor(.98,.88,.67,1); g.printf(index==1 and 'FIGHT' or 'RETURN TO TRAIN',r.x+8,r.y+21,r.w-16,'center')
         end
         if errorMessage then g.setColor(1,.55,.4,1); g.printf('This decision is unavailable: '..errorMessage,185,457,590,'center') end

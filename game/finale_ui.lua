@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Shared existing ending presentation, with controls only on the host.
 local Finale=require('game.finale_progression')
 local Players=require('game.coop_players')
@@ -8,7 +7,7 @@ function UI.draw(data,finale,c,host)
     local g=love.graphics; local textBox=c.textBox; local colors=c.colors
     local choices,exit
     Style.scope('ending',{x=80,y=55,w=800,h=610},function()
-        g.setColor(colors.panel); GuiArt.frame(80,55,800,610)
+        g.setColor(colors.panel); g.rectangle('fill',80,55,800,610,20,20)
         g.setColor(colors.brass); textBox(finale.choice and finale.tier or 'THE LAST SWITCH',110,83,740,58,1.5,'center')
         g.setColor(colors.cream); textBox(finale.reunion,145,151,670,86,.95,'center')
         g.setColor(colors.brass)

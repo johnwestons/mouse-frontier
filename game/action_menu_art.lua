@@ -28,7 +28,7 @@ function Art.wheel(name,cx,cy,radius)
     love.graphics.draw(img,cx,cy,rotation,scale,scale,ox,oy)
 end
 function Art.frame(name,r,highlight,disabled)
-    GuiArt.frame(r.x,r.y,r.w,r.h,{circle=name=='center',selected=highlight,disabled=disabled})
+    GuiArt.frame(r.x,r.y,r.w,r.h,{circle=name=='center',simple=true,selected=highlight,disabled=disabled})
 end
 function Art.icon(id,x,y,size,disabled)
     local g=love.graphics;local img=Art.image('icons');local index=indexes[id] or 16

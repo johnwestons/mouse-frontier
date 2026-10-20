@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- A private shooter canvas. Only validated host commands change gameplay.
 local Schema=require('game.save_schema')
 local Sessions=require('game.coop_shooter_sessions')
@@ -278,7 +277,7 @@ function Panel:draw()
     local function text(value,x,y,width,height,scale)
         Typography.drawText(g,value,x,y,width,height,{scale=(scale or .8)*Accessibility.textScale(data),minScale=.6,align='center',valign='center'})
     end
-    g.setColor(.035,.025,.02,.95); GuiArt.frame(16,12,928,54); g.setColor(1,.89,.68,1)
+    g.setColor(.035,.025,.02,.95); g.rectangle('fill',16,12,928,54,6,6); g.setColor(1,.89,.68,1)
     local hull,maxHull=Rules.hullTotal(s)
     text('YOUR HEALTH '..math.ceil(data.health)..' / '..data.maxHealth,22,17,250,42)
     text('CARRIAGE '..s.protection..' / '..s.maxProtection,276,17,220,42)
@@ -292,8 +291,8 @@ function Panel:draw()
     local hint=self:statusHint(s,pose)
     text(hint,30,609,900,30,.72)
     for i,control in ipairs(controls) do
-        local r=self:rect(i); g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
-        g.setColor(.73,.49,.22,1);  g.setColor(1,.89,.68,1)
+        local r=self:rect(i); g.setColor(.12,.075,.035,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,5,5)
+        g.setColor(.73,.49,.22,1); g.rectangle('line',r.x,r.y,r.w,r.h,5,5); g.setColor(1,.89,.68,1)
         text(control.label,r.x+2,r.y+2,r.w-4,r.h-4,.69)
     end
 end

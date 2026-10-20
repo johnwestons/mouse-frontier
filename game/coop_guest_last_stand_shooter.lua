@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Private defender controls. The host owns enemy simulation and story progress.
 local Schema=require('game.save_schema')
 local Players=require('game.coop_players')
@@ -368,19 +367,19 @@ function Panel:draw()
         g.setColor(1,.89,.68,1)
         Typography.drawText(g,value,x,y,w,h,{scale=(scale or .8)*Accessibility.textScale(data),minScale=.6,align='center',valign='center'})
     end
-    g.setColor(.055,.038,.025,.95); GuiArt.frame(350,16,260,45)
+    g.setColor(.055,.038,.025,.95); g.rectangle('fill',350,16,260,45,6,6)
     text('POSITION: '..(Selection.selected(data,'companion') or 'CHOOSE'):upper()..'  [1 / 2]',354,20,252,37,.7)
     if not self:checkedPosition() or self.choosing then
-        g.setColor(.035,.025,.02,.85); GuiArt.frame(100,275,760,280)
+        g.setColor(.035,.025,.02,.85); g.rectangle('fill',100,275,760,280,8,8)
         text('Choose your firing position',125,290,710,46)
         text('The host starts each defense. Choose a free window to assist.',125,345,710,40,.72)
         for _,window in ipairs({'wide','tall'}) do
             local r=self:positionRect(window); local owner=Selection.owner(data,window)
-            g.setColor(.18,.12,.075,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
+            g.setColor(.18,.12,.075,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,6,6)
             text(window:upper()..' WINDOW  ['..(window=='wide' and '1' or '2')..']'
                 ..(owner=='host' and ' — HOST' or owner=='companion' and ' — YOURS' or ' — FREE'),r.x+4,r.y+4,r.w-8,r.h-8,.7)
         end
-        g.setColor(.18,.12,.075,.96); GuiArt.frame(350,480,260,52)
+        g.setColor(.18,.12,.075,.96); g.rectangle('fill',350,480,260,52,6,6)
         text('Release your position [BACKSPACE]',355,484,250,44,.65)
     end
     if v.mobile and v.mobile.enabled and self:checkedPosition() and not self.choosing and not self.parent.paused and not q.combat.result then self.aimPad:draw(960,720) end
@@ -393,7 +392,7 @@ function Panel:draw()
         or q.combat.defenders.companion and q.combat.defenders.companion.ducking and 'IN COVER — protected. Press COVER / C to return to the window.'
         or 'Help defend the farmhouse. Story decisions stay with the host.',25,590,910,42,.7)
     for index,control in ipairs(controls) do
-        local r=self:rect(index); g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self:rect(index); g.setColor(.12,.075,.035,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,5,5)
         text(control.label,r.x+2,r.y+2,r.w-4,r.h-4,.65)
     end
 end

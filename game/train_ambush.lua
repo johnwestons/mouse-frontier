@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local Rules=require("game.train_ambush_rules")
 local CoopProgression=require("game.coop_progression")
 local Scene=require("game.train_ambush_scene")
@@ -372,7 +371,7 @@ function Ambush.new(context)
             end
         end
         -- All interface elements are drawn after the window and weapon art.
-        g.setColor(.035,.025,.02,.94); GuiArt.frame(16,12,w-32,54)
+        g.setColor(.035,.025,.02,.94); g.rectangle("fill",16,12,w-32,54,6,6)
         g.setColor(1,.89,.68,1)
         label("HEALTH "..math.ceil(data.health or 20).." / "..(data.maxHealth or 20),22,17,205,42)
         label("CARRIAGE "..bound.protection.." / "..bound.maxProtection,232,17,235,42)
@@ -392,8 +391,8 @@ function Ambush.new(context)
         label(hint,30,h-111,w-60,30,.72)
         for i,item in ipairs(actions) do
             local r=rect(i)
-            g.setColor(.12,.075,.035,.96); GuiArt.frame(r.x,r.y,r.w,r.h)
-            g.setColor(.73,.49,.22,1);
+            g.setColor(.12,.075,.035,.96); g.rectangle("fill",r.x,r.y,r.w,r.h,5,5)
+            g.setColor(.73,.49,.22,1); g.rectangle("line",r.x,r.y,r.w,r.h,5,5)
             g.setColor(1,.89,.68,1); label(item.label,r.x+2,r.y+2,r.w-4,r.h-4,.69)
         end
         if not paused and bound.phase~='result' and (touchControls or context.mobileEnabled and context.mobileEnabled()) then aimPad:draw(w,h) end
@@ -409,7 +408,7 @@ function Ambush.new(context)
                 label(won and "BANDITS DRIVEN OFF" or "ENCOUNTER ENDED",90,h*.27,w-180,60,1.25)
                 local text=string.format("Salvage: %d scrap\nHealth lost: %d   Train condition lost: %d\nShots fired: %d",bound.reward or 0,bound.playerDamage,bound.trainDamage,bound.shots)
                 label(text,120,h*.37,w-240,120,.95)
-                g.setColor(.22,.13,.06,1); GuiArt.frame(w/2-130,h*.61,260,58)
+                g.setColor(.22,.13,.06,1); g.rectangle("fill",w/2-130,h*.61,260,58,6,6)
                 g.setColor(1,.89,.68,1); label("CONTINUE  [ENTER / A]",w/2-125,h*.61,250,58,.85)
             end
         end

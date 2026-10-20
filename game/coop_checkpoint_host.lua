@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- This wrapper stays outside workbenches/debug tools so no modal early-return
 -- can bypass a pending critical checkpoint. Future networking is serviced
 -- before this barrier through serviceSession, never through paused world code.
@@ -131,7 +130,7 @@ function Host.wrap(application,context)
             local rect=optionControls()[selected]
             if rect then g.setColor(1,.8,.35,1); g.setLineWidth(3); g.rectangle("line",rect.x-3,rect.y-3,rect.w+6,rect.h+6,5,5) end
         else
-            g.setColor(.12,.10,.08,1); GuiArt.frame(160,210,640,320)
+            g.setColor(.12,.10,.08,1); g.rectangle("fill",160,210,640,320,12,12)
             local scale=Accessibility.textScale(runtime.saveData)
             local function text(value,y,height,size)
                 g.setColor(1,.94,.78,1)
@@ -142,7 +141,7 @@ function Host.wrap(application,context)
                 or "Saving could not be confirmed. Progress is paused. Retry to save the current campaign.",294,110,.9)
             local labels={"RETRY SAVE",confirmQuit and "KEEP WAITING" or "SETTINGS",confirmQuit and "QUIT UNSAVED" or "QUIT"}
             for index,rect in ipairs(buttons) do
-                g.setColor(index==selected and .45 or .22,.24,.15,1); GuiArt.frame(rect.x,rect.y,rect.w,rect.h,{selected=index==selected})
+                g.setColor(index==selected and .45 or .22,.24,.15,1); g.rectangle("fill",rect.x,rect.y,rect.w,rect.h,6,6)
                 g.setColor(1,.94,.78,1)
                 Typography.drawText(g,labels[index],rect.x+8,rect.y,rect.w-16,rect.h,{scale=.8*scale,minScale=.6,align="center",valign="center"})
             end

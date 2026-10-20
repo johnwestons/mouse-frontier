@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local Model=require("game.player_tools_model")
 local Layout=require("game.control_layout")
 local Typography=require("game.typography")
@@ -11,7 +10,11 @@ local function text(value,x,y,w,h,scale,opacity)
     Typography.drawText(love.graphics,tostring(value),x,y,w,h,{scale=scale or .8,minScale=.58,valign="center"})
 end
 local function panel(x,y,w,h,selected,opacity)
-    GuiArt.frame(x,y,w,h,{selected=selected,alpha=opacity or 1,override=false})
+    opacity=opacity or 1
+    love.graphics.setColor(selected and .28 or .10,selected and .23 or .085,selected and .14 or .065,opacity)
+    love.graphics.rectangle("fill",x,y,w,h,7,7)
+    love.graphics.setColor(.64,.46,.24,opacity)
+    love.graphics.rectangle("line",x,y,w,h,7,7)
 end
 function UI.new(context)
     local self={open=false,tab="Items",query="",category="All",rarity="All",page=1,quantity="1",resourcePage=1,buttons={},message="",context=context,opacity=1,opacityExplicit=false}

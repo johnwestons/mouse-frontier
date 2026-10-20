@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Guest UI owns selection/drag state only. Accepted mutations arrive through
 -- the campaign replica; no inventory rules or save writer run in this module.
 local Inventory=require('game.inventory')
@@ -207,7 +206,7 @@ function Panel:update()
 end
 function Panel:frame(x,y,w,h,kind,alpha)
     if self.c.drawMenuFrame then self.c.drawMenuFrame(x,y,w,h,kind,alpha)
-    else GuiArt.frame(x,y,w,h,{alpha=alpha}) end
+    else love.graphics.setColor(self.c.colors.panel); love.graphics.rectangle('fill',x,y,w,h,8,8) end
     if Accessibility.enabled(self.runtime.saveData,'highContrast') then
         love.graphics.setColor(1,.84,.28,1); love.graphics.rectangle('line',x,y,w,h,8,8)
     end

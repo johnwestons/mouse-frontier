@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local CharacterMotion=require("game.character_motion")
 local CharacterAnimation=require("game.character_animation")
@@ -238,7 +237,7 @@ local function drawPlayer(player,visual)
     love.graphics.circle("fill",player.x-17,player.y-49,10)
     love.graphics.circle("fill",player.x+17,player.y-49,10)
     love.graphics.setColor(.24,.16,.10,1)
-    GuiArt.frame(player.x-18,player.y-12,36,22)
+    love.graphics.rectangle("fill",player.x-18,player.y-12,36,22,8,8)
 end
 
 local function actorsFor(scene)
@@ -266,9 +265,10 @@ local function drawAction(action,width,height,touchControls)
     if not action then return end
     local x,y,w,h=330,height-66,300,44
     love.graphics.setColor(.07,.045,.025,.94)
-    GuiArt.frame(x,y,w,h)
+    love.graphics.rectangle("fill",x,y,w,h,8,8)
     love.graphics.setColor(.88,.62,.27,1)
     love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line",x,y,w,h,8,8)
 
     text((touchControls and "TAP  " or "[E]  ")..action.label,x,y+7,w,30,.92)
 end
@@ -278,7 +278,7 @@ local function drawMovementHint(width,height,touchControls)
         or "MOVE  WASD / ARROWS OR CLICK     SPRINT  SHIFT     ACTION  E"
     local x,y,w,h=width/2-270,height-112,540,30
     love.graphics.setColor(.055,.038,.025,.82)
-    GuiArt.frame(x,y,w,h)
+    love.graphics.rectangle("fill",x,y,w,h,6,6)
     love.graphics.setColor(.96,.84,.62,.94)
     text(label,x+8,y+4,w-16,22,.82)
 end
@@ -286,9 +286,10 @@ end
 local function drawPauseButton(width,height,touchControls)
     local x,y,w,h=Scene.pauseRect(width,height)
     love.graphics.setColor(.055,.038,.025,.92)
-    GuiArt.frame(x,y,w,h)
+    love.graphics.rectangle("fill",x,y,w,h,7,7)
     love.graphics.setColor(.88,.62,.27,1)
     love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line",x,y,w,h,7,7)
 
     love.graphics.setColor(.96,.84,.62,1)
     text(touchControls and "PAUSE" or "PAUSE  [P]",x+4,y+5,w-8,26,.88)
@@ -350,7 +351,7 @@ function Scene.drawApproach(state,options)
     local hintX,hintY=WorldView.toScreen(scout.x,scout.y)
     if state.arrival and state.arrival>0 and not options.passive then
         love.graphics.setColor(.08,.05,.03,.92)
-        GuiArt.frame(hintX-104,hintY-145,208,44)
+        love.graphics.rectangle("fill",hintX-104,hintY-145,208,44,8,8)
         love.graphics.setColor(.98,.88,.68,1)
         local bark=state.quest.state=="paused" and "[E] Return to the homestead"
             or state.manualOffer and "[E] Talk to the scout" or "[E] Farmhouse defense"
@@ -424,7 +425,7 @@ function Scene.drawTransition(state,width,height,returning,playerVisual,options)
     end
     WorldView.finish()
     love.graphics.setColor(.04,.025,.016,.82)
-    GuiArt.frame(110,height*.14,width-220,118)
+    love.graphics.rectangle("fill",110,height*.14,width-220,118,12,12)
     love.graphics.setColor(.96,.84,.62,1)
     text(returning and "The relay falls quiet behind you." or "You follow the scout beyond the town limits.",135,height*.14+18,width-270,28,.94)
     love.graphics.setColor(.82,.70,.52,1)

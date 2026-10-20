@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local Typography=require("game.typography")
 local UIStyle=require("game.ui_layout")
 local FirstAid={}
@@ -328,7 +327,8 @@ local function progressAmount(session)
 end
 
 local function drawTreatment(session,assets,cream,brass)
-    GuiArt.frame(245,205,470,315)
+    love.graphics.setColor(.10,.07,.05,1); love.graphics.rectangle("fill",245,205,470,315,15,15)
+    love.graphics.setColor(.42,.29,.20,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",245,205,470,315,15,15)
     if assets.wound then drawImage(assets.wound,wound.x,wound.y,330)
     else
         love.graphics.setColor(.52,.31,.20); love.graphics.circle("fill",wound.x,wound.y,115)
@@ -363,14 +363,16 @@ function FirstAid.draw(session,colors,assets,skipBackdrop)
     local panel=colors.panel or {.08,.055,.035}; local cream=colors.cream or {1,.92,.74}; local brass=colors.brass or {.86,.57,.22}
     if not skipBackdrop then love.graphics.setColor(0,0,0,.78); love.graphics.rectangle("fill",0,0,960,720) end
     if assets.drawFrame then assets.drawFrame(105,40,750,635,2,.99)
-    else GuiArt.frame(105,40,750,635)
+    else
+        love.graphics.setColor(panel); love.graphics.rectangle("fill",105,40,750,635,18,18)
+        love.graphics.setColor(brass); love.graphics.setLineWidth(4); love.graphics.rectangle("line",105,40,750,635,18,18)
     end
     love.graphics.setColor(brass); text("FIRST AID  •  SMALL CUT",155,63,650,39,1.32,1.1)
     local step=session.phase==1 and phaseNames[1] or ("TREATMENT STEP "..(session.phase-1).." OF "..FirstAid.treatmentStepCount.."  •  "..phaseNames[session.phase])
     love.graphics.setColor(cream); text(step,160,108,640,27,.95,.82)
     text(session.message or instructions[session.phase],175,143,610,42,.90,.82)
 
-    love.graphics.setColor(.12,.085,.06,.95); GuiArt.frame(125,188,105,332)
+    love.graphics.setColor(.12,.085,.06,.95); love.graphics.rectangle("fill",125,188,105,332,12,12)
     love.graphics.setColor(brass); text("SUPPLY",130,202,95,26,.90,.82)
     if assets.medical then drawImage(assets.medical,177,294,92*UIStyle.iconScale()) end
     love.graphics.setColor(cream); text(title(session.itemName),131,346,93,78,.78,.68)
@@ -383,8 +385,8 @@ function FirstAid.draw(session,colors,assets,skipBackdrop)
     love.graphics.setColor(brass); love.graphics.rectangle("fill",247,550,466*amount,16,7,7)
     love.graphics.setColor(cream); text(math.floor(amount*100+0.5).."%",735,545,55,27,.85,.75)
     text("DRAG TO TREAT  •  ENTER: ACCESSIBLE STEP  •  Q: PAUSE",140,574,680,27,.84,.76)
-    love.graphics.setColor(brass); GuiArt.frame(cancel.x,cancel.y,cancel.w,cancel.h)
-    love.graphics.setColor(cream); text("PAUSE TREATMENT",cancel.x+8,cancel.y+5,cancel.w-16,cancel.h-10,1,.85)
+    love.graphics.setColor(brass); love.graphics.rectangle("fill",cancel.x,cancel.y,cancel.w,cancel.h,7,7)
+    love.graphics.setColor(.10,.06,.025,1); text("PAUSE TREATMENT",cancel.x+8,cancel.y+5,cancel.w-16,cancel.h-10,1,.85)
     love.graphics.setLineWidth(1); love.graphics.setColor(1,1,1,1)
 end
 

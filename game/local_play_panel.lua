@@ -223,7 +223,7 @@ function Panel:draw()
             text('Connected to the host journey: stop '..data.location..' / '..data.scene,54,138)
             for index,id in ipairs({'host','companion'}) do
                 local actor=data.players[id]; local x=54+(index-1)*450
-                g.setColor(.15,.12,.085,1); GuiArt.frame(x,200,402,230)
+                g.setColor(.15,.12,.085,1); g.rectangle('fill',x,200,402,230,10,10)
                 text(id=='host' and 'HOST' or 'YOU',x+18,218,360)
                 text(Util.titleFromFile(actor.character),x+18,263,360)
                 text('Health '..actor.health..' / '..actor.maxHealth,x+18,310,360)

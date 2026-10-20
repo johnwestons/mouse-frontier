@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Private practice controls. Targets, ammunition and rewards belong to the host.
 local Range=require('game.shooting_range')
 local Shooting=require('game.first_person_shooting')
@@ -315,18 +314,18 @@ function Panel:draw()
     if self.model then Range.draw(self.model,self.view.runtime.saveData,self.c.rangeAssets and self.c.rangeAssets(),self.view.ui,self.c.catalog,self.view.mobile.enabled)
     else g.setColor(.055,.038,.025,1); g.rectangle('fill',0,0,960,720) end
     if self.model and self.model.phase=='play' and self.view.mobile.enabled and not self:desiredPaused() then self.aimPad:draw(960,720) end
-    g.setColor(.055,.038,.025,.96); GuiArt.frame(menuRect.x,menuRect.y,menuRect.w,menuRect.h)
+    g.setColor(.055,.038,.025,.96); g.rectangle('fill',menuRect.x,menuRect.y,menuRect.w,menuRect.h,6,6)
     g.setColor(1,.89,.68,1)
     Typography.drawText(g,'LOCAL PLAY  [F8]',menuRect.x+4,menuRect.y+2,menuRect.w-8,menuRect.h-4,{scale=.8,minScale=.6,align='center',valign='center'})
-    g.setColor(.18,.12,.075,.98); GuiArt.frame(pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h)
-    g.setColor(.88,.70,.43,1);
+    g.setColor(.18,.12,.075,.98); g.rectangle('fill',pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h,6,6)
+    g.setColor(.88,.70,.43,1); g.rectangle('line',pauseRect.x,pauseRect.y,pauseRect.w,pauseRect.h,6,6)
     g.setColor(1,.93,.76,1)
     local pauseLabel=self.paused and 'RESUME' or 'PAUSE'
     if not self.view.mobile.enabled then pauseLabel=pauseLabel..'  [P]' end
     Typography.drawText(g,pauseLabel,pauseRect.x+4,pauseRect.y+2,pauseRect.w-8,pauseRect.h-4,
         {scale=.8*Accessibility.textScale(self.view.runtime.saveData),minScale=.6,align='center',valign='center'})
     if self.notice or self.paused then
-        g.setColor(.055,.038,.025,.96); GuiArt.frame(190,145,580,46); g.setColor(1,.89,.68,1)
+        g.setColor(.055,.038,.025,.96); g.rectangle('fill',190,145,580,46,6,6); g.setColor(1,.89,.68,1)
         Typography.drawText(g,self.paused and 'Your controls are paused. P / START to resume.' or self.notice,
             198,148,564,40,{scale=.8*Accessibility.textScale(self.view.runtime.saveData),minScale=.6,align='center',valign='center'})
     end

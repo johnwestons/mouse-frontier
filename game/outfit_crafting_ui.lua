@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local Model = require("game.outfit_crafting")
 local Definitions = require("game.outfit_catalog")
 local Art = require("game.outfit_sprite_art")
@@ -6,8 +5,8 @@ local Typography = require("game.typography")
 
 local UI = {}
 local colors = {
-    cream={1,.93,.78}, muted={.78,.69,.53}, brass={1,.70,.28},
-    green={.45,.83,.48}, red={1,.45,.35}, ink={1,.93,.78},
+    cream={.98,.90,.72}, muted={.40,.30,.20}, brass={.46,.26,.10},
+    green={.17,.34,.18}, red={.61,.18,.12}, ink={.20,.12,.07},
 }
 local function clamp(value,minimum,maximum) return math.max(minimum,math.min(maximum,value)) end
 local function hit(rect,x,y) return rect and x>=rect.x and x<=rect.x+rect.w and y>=rect.y and y<=rect.y+rect.h end
@@ -18,7 +17,7 @@ local function text(value,x,y,w,h,scale,tint,align)
         {scale=scale or .8,minScale=.68,align=align or "left",valign="center"})
 end
 local function panel(id,x,y,w,h)
-    GuiArt.frame(x,y,w,h,{selected=id:find("selected",1,true)~=nil,disabled=id=="button-disabled"})
+    Art.draw(id,{x=x,y=y,w=w,h=h},{stretch=true})
 end
 local function title(value) return (tostring(value or ""):gsub("[-_]"," "):gsub("(%a)([%w']*)",function(a,b) return a:upper()..b end)) end
 local statNames={armor="Battle armor",maxHealth="Max health",move="Battle movement",aim="Battle aim",attack="Battle attack",coldProtection="Cold protection"}
@@ -327,8 +326,7 @@ function UI.new(context)
     function self:draw()
         if not self.visible then return end
         love.graphics.push("all"); self.buttons={}
-        GuiArt.frame(0,0,960,720)
-        GuiArt.frame(20,120,240,460)
+        Art.background({x=0,y=0,w=960,h=720})
         text("SEWING BENCH", 90,27,665,32,1.27,colors.cream)
         text(context.subtitle and context.subtitle() or "Improvements for your character's own outfit",92,60,667,21,.73,colors.cream)
         self:button("close","PAUSE",818,28,98,46,function() self:close() end)

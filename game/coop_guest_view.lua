@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Independent guest presentation and controls. This module has no campaign
 -- writer or world-update callback; all movement is an intent sent to the host.
 local Schema=require('game.save_schema')
@@ -406,11 +405,11 @@ function View:draw()
         end)
         g.pop(); self.mobile:draw(ox,oy,sx,sy); return
     end
-    g.setColor(.045,.035,.025,.9); GuiArt.frame(16,14,928,52)
+    g.setColor(.045,.035,.025,.9); g.rectangle('fill',16,14,928,52,8,8)
     g.setColor(.96,.88,.69,1)
     g.printf('COMPANION  /  Stop '..runtime.saveData.location..'  /  '..runtime.scene,30,24,470,'left')
     g.printf('Health '..runtime.saveData.health..' / '..runtime.saveData.maxHealth,self.mobile.enabled and 500 or 700,24,225,'right')
-    g.setColor(.045,.035,.025,.9); GuiArt.frame(220,660,520,45)
+    g.setColor(.045,.035,.025,.9); g.rectangle('fill',220,660,520,45,8,8)
     g.setColor(.96,.88,.69,1)
     local bindings=self.context.bindings
     local controllerHint=bindings.buttons and bindings.buttons.guest_actions and love and love.joystick
@@ -426,7 +425,7 @@ function View:draw()
         self.ui.trainCarTabs=Train.consistLayout(960,#runtime.saveData.trainCars,{mobile=self.mobile.enabled})
         for index,tab in ipairs(self.ui.trainCarTabs) do
             if self.mobile.enabled then tab.y=214 end
-            g.setColor(.17,.135,.09,.94); GuiArt.frame(tab.x,tab.y,tab.w,tab.h)
+            g.setColor(.17,.135,.09,.94); g.rectangle('fill',tab.x,tab.y,tab.w,tab.h,7,7)
             g.setColor(index==runtime.saveData.activeCar and 1 or .7,.8,.5,1)
             g.rectangle('line',tab.x,tab.y,tab.w,tab.h,7,7)
             g.printf(tostring(index),tab.x,tab.y+(tab.h-18)/2,tab.w,'center')
@@ -436,14 +435,14 @@ function View:draw()
     end
     self.ui.guestBackpack=nil
     if not self.mobile.enabled and not self.ui.actionMenuVisible then
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(764,78,180,46)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',764,78,180,46,8,8)
         g.setColor(.96,.88,.69,1); g.printf('LOCAL PLAY [F8]',774,92,160,'center')
         self.ui.guestBackpack={x=764,y=134,w=180,h=46}
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(764,134,180,46)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',764,134,180,46,8,8)
         g.setColor(.96,.88,.69,1); g.printf('BACKPACK [I]',774,148,160,'center')
         self.ui.guestPickup=self:interactionAvailable() and {x=550,y=78,w=200,h=46} or nil
         if self.ui.guestPickup then
-            g.setColor(.17,.135,.09,.94); GuiArt.frame(550,78,200,46)
+            g.setColor(.17,.135,.09,.94); g.rectangle('fill',550,78,200,46,8,8)
             g.setColor(.96,.88,.69,1); g.printf(self:actionLabel()..' [E]',560,92,180,'center')
         end
     end
@@ -453,35 +452,35 @@ function View:draw()
         and {x=self.mobile.enabled and 370 or 550,y=self.mobile.enabled and 78 or 134,w=200,h=46} or nil
     if self.ui.guestTrade then
         local r=self.ui.guestTrade
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'TRADE' or 'TRADE [T / X]',r.x+10,r.y+14,r.w-20,'center')
     end
     self.ui.guestWorkshop=not self.ui.actionMenuVisible and runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 145 or 190,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     local workshop=self.ui.guestWorkshop
     if workshop then
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(workshop.x,workshop.y,workshop.w,workshop.h)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',workshop.x,workshop.y,workshop.w,workshop.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf('WORKSHOP',workshop.x+8,workshop.y+14,workshop.w-16,'center')
     end
     self.ui.guestFuel=self.train:nearFire() and {x=550,y=self.mobile.enabled and 145 or 134,w=200,h=46} or nil
     if self.ui.guestFuel then
         local f=self.ui.guestFuel
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(f.x,f.y,f.w,f.h)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',f.x,f.y,f.w,f.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf('ADD FUEL',f.x+8,f.y+14,f.w-16,'center')
     end
     self.ui.guestRadio=self.objects:nearestRadio() and {x=550,y=202,w=200,h=46} or nil
     if self.ui.guestRadio then
-        local r=self.ui.guestRadio; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestRadio; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf('RADIO',r.x+8,r.y+14,r.w-16,'center')
     end
     self.ui.guestEditor=not self.ui.actionMenuVisible and runtime.scene=='train' and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 268 or 248,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestEditor then
-        local r=self.ui.guestEditor; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestEditor; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'DECORATE' or 'DECORATE [O]',r.x+6,r.y+14,r.w-12,'center')
     end
     self.ui.guestPose=not self.ui.actionMenuVisible and self.poses and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 330 or 310,
         w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestPose then
-        local r=self.ui.guestPose; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestPose; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf('POSES',r.x+8,r.y+18,r.w-16,'center')
     end
     self.ui.guestPeople=self.people:nearest() and {x=20,y=78,w=240,h=56} or nil
@@ -490,36 +489,36 @@ function View:draw()
         local rect={x=self.mobile.enabled and 794 or 764,y=(self.mobile.enabled and 392 or 364)+(index-1)*62,
             w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46}
         self.ui[entry[1]]=rect
-        g.setColor(.17,.135,.09,.94); GuiArt.frame(rect.x,rect.y,rect.w,rect.h)
+        g.setColor(.17,.135,.09,.94); g.rectangle('fill',rect.x,rect.y,rect.w,rect.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf(entry[2],rect.x+8,rect.y+18,rect.w-16,'center')
     end
     self.ui.guestTravel=not self.ui.actionMenuVisible and runtime.scene=='train' and runtime.saveData.location<50 and not runtime.saveData.coop.journey
         and {x=self.mobile.enabled and 794 or 764,y=self.mobile.enabled and 516 or 488,w=self.mobile.enabled and 144 or 180,h=self.mobile.enabled and 56 or 46} or nil
     if self.ui.guestTravel then
-        local r=self.ui.guestTravel;g.setColor(.17,.135,.09,.94);GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestTravel;g.setColor(.17,.135,.09,.94);g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1);g.printf('NEXT LEG',r.x+8,r.y+18,r.w-16,'center')
     end
     if self.ui.guestPeople then
-        local r=self.ui.guestPeople; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestPeople; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         local label=Home.isHome(self.runtime.saveData) and (self.mobile.enabled and 'TALK' or 'TALK [E]') or (self.mobile.enabled and 'TALK / GIFT' or 'TALK / GIFT [G]')
         g.setColor(.96,.88,.69,1); g.printf(label,r.x+6,r.y+18,r.w-12,'center')
     end
     self.ui.guestMaintenance=nil; self.ui.guestRepair=nil; self.ui.guestSewing=nil
     self.ui.guestFirstAid=self.activities.firstAid:nearest() and {x=20,y=146,w=240,h=56} or nil
     if self.ui.guestFirstAid then
-        local r=self.ui.guestFirstAid; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestFirstAid; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'FIRST AID' or 'FIRST AID [H]',r.x+6,r.y+18,r.w-12,'center')
     end
     if self.activities:eligible() then
         for i,entry in ipairs({{'guestMaintenance','SERVICE','MAINTENANCE'},{'guestRepair','REPAIR','WEAPON BENCH'},{'guestSewing','SEWING','SEWING BENCH'}}) do
             local r={x=20+(i-1)*178,y=146,w=168,h=56}; self.ui[entry[1]]=r
-            g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+            g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
             g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and entry[3] or entry[2],r.x+6,r.y+18,r.w-12,'center')
         end
     end
     self.ui.guestRange=self.range:nearest() and {x=20,y=214,w=240,h=56} or nil
     if self.ui.guestRange then
-        local r=self.ui.guestRange; g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+        local r=self.ui.guestRange; g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
         g.setColor(.96,.88,.69,1); g.printf(self.mobile.enabled and 'TARGET RANGE' or 'TARGET RANGE [E]',r.x+6,r.y+18,r.w-12,'center')
     end
     local nearby=self.people:nearest()
@@ -530,7 +529,7 @@ function View:draw()
     local read=Conversations.readAlong(runtime.saveData)
     if read then
         local height=self.mobile.enabled and 226 or 292
-        g.setColor(.045,.035,.025,.94); GuiArt.frame(16,222,520,height)
+        g.setColor(.045,.035,.025,.94); g.rectangle('fill',16,222,520,height,8,8)
         g.setColor(.96,.88,.69,1); g.printf(require('game.npc_identity').title(runtime.saveData,read.npc),30,234,492,'left')
         local body=read.answer and (read.answer..'\n\n'..read.text) or read.text
         local _,lines=self.font:getWrap(body,492)
@@ -539,7 +538,7 @@ function View:draw()
         g.printf(read.waiting and 'The host is choosing a response.' or 'The host will continue when ready.',30,222+height-34,492,'left')
     end
     if self.controllerFocus then
-        g.setColor(.045,.035,.025,.94); GuiArt.frame(220,612,520,40)
+        g.setColor(.045,.035,.025,.94); g.rectangle('fill',220,612,520,40,7,7)
         g.setColor(.96,.88,.69,1); g.printf('Choose an action. Confirm to use; cancel to return.',230,621,500,'center')
         Focus.draw(Focus.current(self.ui,self:controllerTargets(),'guest-controller-actions'))
     end

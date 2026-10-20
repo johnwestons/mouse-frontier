@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local WeaponOwnership=require("game.battle_weapon_ownership")
 local Actors=require('game.battle_actors')
@@ -48,7 +47,7 @@ function BattleUI.draw(ctx)
     local drawLandscape,drawGround=ctx.drawLandscape,ctx.drawGround
     local drawAnimatedCharacter,button,screenToGame=ctx.drawAnimatedCharacter,ctx.button,ctx.screenToGame
     worldView.begin(); drawLandscape(); drawGround(); worldView.finish()
-    love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); GuiArt.frame(25,12,910,668)
+    love.graphics.setColor(highContrast and 0 or .06,highContrast and 0 or .045,highContrast and 0 or .035,highContrast and .98 or .88); love.graphics.rectangle("fill",25,12,910,668,12,12)
     if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(4); love.graphics.rectangle("line",25,12,910,668,12,12); love.graphics.setLineWidth(1) end
     -- The northern scenery reaches above its board tile. Keep the heading in
     -- the free top band and put touch hints on the feed, clear of that artwork.
@@ -195,10 +194,10 @@ function BattleUI.draw(ctx)
     -- Paint the controls backing before the card/feed so mobile actions never
     -- cover the current unit's health or the most recent combat result.
     if not battle.finished and active and active.team=="ally" then
-        love.graphics.setColor(.055,.038,.028,.97); GuiArt.frame(8,mobile and 488 or 575,944,mobile and 220 or 105)
+        love.graphics.setColor(.055,.038,.028,.97); love.graphics.rectangle("fill",8,mobile and 488 or 575,944,mobile and 220 or 105,9,9)
     end
     local feedX,feedY,feedW,feedH=mobile and 20 or 185,mobile and 414 or 476,mobile and 920 or 590,mobile and 82 or 94
-    love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); GuiArt.frame(feedX,feedY,feedW,feedH)
+    love.graphics.setColor(highContrast and 0 or .08,highContrast and 0 or .055,highContrast and 0 or .04,highContrast and .98 or .92); love.graphics.rectangle("fill",feedX,feedY,feedW,feedH,8,8)
     love.graphics.setColor(colors.brass); text("BATTLE FEED",feedX+20,feedY+7,feedW-40,20,.82,.72)
     if Accessibility.enabled(saveData,"controlHints") then
         local hint=mobile and "TAP UNIT / TILE  •  PINCH TO ZOOM" or "CLICK: SELECT  •  RIGHT CLICK: INSPECT  •  WHEEL: ZOOM"
@@ -221,7 +220,7 @@ function BattleUI.draw(ctx)
         -- Character card occupies the lower-left corner between the battle
         -- feed and the attack controls, leaving the tactical map unobstructed.
         local cardX,cardY=mobile and 660 or 8,mobile and 498 or 488
-        love.graphics.setColor(.08,.055,.04,.94); GuiArt.frame(cardX,cardY,mobile and 282 or 168,mobile and 62 or 82)
+        love.graphics.setColor(.08,.055,.04,.94); love.graphics.rectangle("fill",cardX,cardY,mobile and 282 or 168,mobile and 62 or 82,8,8)
         love.graphics.setColor(colors.brass); text(inspected==active and "ACTIVE" or "INSPECT",cardX+6,cardY+4,50,16,.62,.58)
         local portrait=inspected.team=="enemy" and mobImages[inspected.file] or (characterImages[inspected.file] or npcImages[inspected.file])
         if portrait then local portraitScale=math.min(42/portrait:getWidth(),(mobile and 34 or 48)/portrait:getHeight()); love.graphics.setColor(1,1,1); love.graphics.draw(portrait,cardX+34,cardY+(mobile and 51 or 64),0,portraitScale,portraitScale,portrait:getWidth()/2,portrait:getHeight()) end
@@ -250,7 +249,7 @@ function BattleUI.draw(ctx)
                 local details=string.format("%s  DMG %d-%d  %s  REACH %d",stats.name,stats.min,stats.max,combat.kind=="melee" and Catalog.weaponRole(w) or string.upper(combat.kind or "melee"),Catalog.weaponReach(w))
                 if combat.ammo then details=details.."  "..Util.titleFromFile(combat.ammo).." "..(actionData.ammo[combat.ammo] or 0) end
                 details=details.."  DUR "..durability.."%"..(durability<=0 and " BROKEN" or "")
-                love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); GuiArt.frame(190,535,580,38)
+                love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",190,535,580,38,5,5)
                 love.graphics.setColor(colors.cream); text(details,200,538,560,32,.67,.60,"center")
             end
         end
@@ -274,12 +273,12 @@ function BattleUI.draw(ctx)
         ui.battleEnd=button("END TURN",mobile and 460 or 665,mobile and 634 or 638,mobile and 250 or 140,mobile and 54 or 34,true,.72)
         if mobile and Accessibility.enabled(saveData,"controlHints") then
             local hintScale=.76*math.min(textScale,1.15)
-            love.graphics.setColor(0,0,0,.92); GuiArt.frame(240,634,200,54)
+            love.graphics.setColor(0,0,0,.92); love.graphics.rectangle("fill",240,634,200,54,5,5)
             love.graphics.setColor(colors.cream); text(abilityProfile.description,246,637,188,48,hintScale,.65,"center")
         end
         local mx,my=screenToGame(ctx.pointerPosition())
         if not mobile and Util.pointIn(mx,my,ui.battleAbility) then
-            love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); GuiArt.frame(545,518,395,55)
+            love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.96); love.graphics.rectangle("fill",545,518,395,55,5,5)
             love.graphics.setColor(colors.cream); text(abilityBase.name.." RANK "..abilityProfile.rank.."  •  "..abilityProfile.description,557,522,371,46,.72,.60,"center")
         end
     end

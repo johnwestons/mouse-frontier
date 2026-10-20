@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 local WorldView=require("game.world_view")
 local SoundProfiles=require("game.weapon_sound_profiles")
 local AimCursor=require("game.aim_cursor")
@@ -965,8 +964,10 @@ local function atlasQuads(image,columns,rows,cache)
 end
 
 local function drawButton(label,rect,enabled)
-    GuiArt.frame(rect.x,rect.y,rect.w,rect.h,{disabled=enabled==false})
-    love.graphics.setColor(1,.93,.78,enabled==false and .6 or 1)
+    love.graphics.setColor(enabled==false and .16 or .28,enabled==false and .15 or .20,enabled==false and .14 or .10,.94)
+    love.graphics.rectangle("fill",rect.x,rect.y,rect.w,rect.h,7,7)
+    love.graphics.setColor(enabled==false and .45 or .93,enabled==false and .43 or .75,enabled==false and .40 or .30,1)
+    love.graphics.rectangle("line",rect.x,rect.y,rect.w,rect.h,7,7)
     text(label,rect.x+8,rect.y+6,rect.w-16,rect.h-12,1,rect.h<50 and .74 or .82)
 end
 
@@ -1094,7 +1095,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         end
         if magnification>1 then love.graphics.pop() end
         if not canonicalView then WorldView.finish() end
-        love.graphics.setColor(.08,.055,.035,.91); GuiArt.frame(14,12,210,82); GuiArt.frame(736,12,210,82)
+        love.graphics.setColor(.08,.055,.035,.91); love.graphics.rectangle("fill",14,12,210,82,8,8); love.graphics.rectangle("fill",736,12,210,82,8,8)
         love.graphics.setColor(1,.88,.58); text(string.format("TIME  %02d",math.ceil(session.time)),28,18,180,28,1.15,.92,"left",true)
         text("DISTANCE  "..session.distance.." M",355,18,250,27,.92,.80,"center",true)
         if session.hasMonocular then
@@ -1138,7 +1139,7 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
         drawButton(session.aimMode=="sights" and "AIMING" or (mobile and "AIM" or "AIM  [RMB]"),{x=154,y=654,w=126,h=42},true)
         drawButton(mobile and "SETUP" or "SETUP  [TAB]",{x=680,y=654,w=126,h=42},true)
         drawButton(mobile and "LEAVE" or "LEAVE  [E]",{x=816,y=654,w=126,h=42},true)
-        love.graphics.setColor(.045,.03,.02,.93); GuiArt.frame(286,mobile and 592 or 648,388,mobile and 128 or 62)
+        love.graphics.setColor(.045,.03,.02,.93); love.graphics.rectangle("fill",286,mobile and 592 or 648,388,mobile and 128 or 62,7,7)
         local fireModes=FirstPersonWeaponManifest.fireModesFor(session.weapon)
         if #fireModes>1 then
             drawButton("MODE: "..string.upper(session.fireMode or "single"),
@@ -1160,8 +1161,8 @@ function Range.draw(session,data,assets,ui,catalog,mobile)
     end
 
     if not canonicalView then WorldView.finish() end
-    love.graphics.setColor(.055,.04,.03,.91); GuiArt.frame(154,92,652,544)
-    love.graphics.setColor(.87,.65,.25);
+    love.graphics.setColor(.055,.04,.03,.91); love.graphics.rectangle("fill",154,92,652,544,12,12)
+    love.graphics.setColor(.87,.65,.25); love.graphics.rectangle("line",154,92,652,544,12,12)
     if session.phase=="lobby" then
         love.graphics.setColor(1,.86,.58); text("COMMUNITY TARGET RANGE",180,118,600,33,1.35,1.1)
         love.graphics.setColor(.92,.86,.72); text("Live ammo is used. Buy more below.",220,155,520,23,.95,.85)

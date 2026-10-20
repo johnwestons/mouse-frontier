@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Read-only guest map/journal: no campaign writer, mutating world getter,
 -- input callback or network command.
 -- Rendering below is extracted from screen_ui.drawMap and gameplay_hud's
@@ -159,15 +158,18 @@ function Panels.drawTrail(context,model)
     local mobileEnabled=assert(context.mobileEnabled)
       love.graphics.setColor(0.05,0.035,0.02,0.78); love.graphics.rectangle("fill",0,0,W,H)
       return Style.scope("map",{x=70,y=75,w=820,h=570},function()
-      GuiArt.frame(70,75,820,570)
-      love.graphics.setColor(colors.cream); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
+      love.graphics.setColor(0.76,0.59,0.34); love.graphics.rectangle("fill",70,75,820,570,18,18)
+      love.graphics.setColor(0.66,0.47,0.27)
+      for y=95,625,20 do for x=90+(y%37),870,43 do love.graphics.rectangle("fill",x,y,3,2) end end
+      love.graphics.setColor(0.49,0.31,0.18); love.graphics.setLineWidth(8); love.graphics.rectangle("line",70,75,820,570,18,18)
+      love.graphics.setColor(0.22,0.13,0.065); textBox("THE MOUSE FRONTIER TRAIL",100,90,640,50,1.25,"center")
       -- A guest overlay does not draw the ordinary Source HUD. Keep Source's
       -- existing map dismiss control on both desktop and touch presentations.
       ui.map=button("CLOSE MAP",746,82,128,mobileEnabled() and 50 or 38,true,.72)
       local points=model.points;local maxScroll=model.maxScroll
       -- Revealed terrain sketches around every visited stop.
       for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
-          local kind=((p.stop-1)%4)+1; love.graphics.setColor(.65,.50,.30,.9)
+          local kind=((p.stop-1)%4)+1; love.graphics.setColor(0.42,0.34,0.20,0.9)
           if kind==1 then for k=-2,2 do love.graphics.polygon("fill",p[1]+k*15,p[2]-35,p[1]+k*15-8,p[2]-20,p[1]+k*15+8,p[2]-20) end
           elseif kind==2 then love.graphics.setLineWidth(4); love.graphics.arc("line","open",p[1],p[2]-22,35,0.1,3.0)
           elseif kind==3 then for k=-2,2 do love.graphics.line(p[1]+k*13,p[2]-42,p[1]+k*13,p[2]-24); love.graphics.circle("fill",p[1]+k*13,p[2]-45,6) end
@@ -179,7 +181,7 @@ function Panels.drawTrail(context,model)
           love.graphics.draw(scenery.redTrain,current[1]+36,current[2]-64,0,-s,s)
       end
       -- Dotted, winding path instead of straight route segments.
-      love.graphics.setColor(.95,.63,.26)
+      love.graphics.setColor(0.61,0.16,0.12)
       for _,segment in ipairs(model.segments) do local a,b=segment.a,segment.b;local i=segment.stop
           if (a[2]>160 and a[2]<550) or (b[2]>160 and b[2]<550) then for step=0,12 do if step%2==0 then
               local t=step/12;local bend=math.sin(t*math.pi)*((i%2==0) and 22 or -22)
@@ -189,15 +191,15 @@ function Panels.drawTrail(context,model)
       for i,p in ipairs(points) do if p[2]>175 and p[2]<535 then
           love.graphics.setColor(p.current and colors.red or colors.cream); love.graphics.circle("fill",p[1],p[2],p.current and 13 or 9)
           love.graphics.setColor(colors.ink); textBox(tostring(p.stop),p[1]-14,p[2]-7,28,14,.72,"center")
-          love.graphics.setColor(colors.cream); textBox(p.biome,p[1]-58,p[2]+16,116,37,.84,"center")
+          love.graphics.setColor(0.22,0.13,0.065); textBox(p.biome,p[1]-58,p[2]+16,116,37,.84,"center")
       end end
-      love.graphics.setColor(0.39,0.25,0.14,0.92); GuiArt.frame(105,548,750,78)
+      love.graphics.setColor(0.39,0.25,0.14,0.92); love.graphics.rectangle("fill",105,548,750,78,8,8)
       love.graphics.setColor(colors.cream); textBox("STOP "..model.location.." / "..model.biome.." / "..model.status,120,552,720,29,.88,"center")
       textBox(model.questLine,120,582,720,38,.8,"center")
       local mobile=mobileEnabled()
       ui.mapUp=button("^",mobile and 790 or 805,mobile and 148 or 132,mobile and 68 or 42,mobile and 64 or 36,model.scroll>0)
       ui.mapDown=button("v",mobile and 790 or 805,mobile and 224 or 182,mobile and 68 or 42,mobile and 64 or 36,model.scroll<maxScroll)
-      love.graphics.setColor(colors.cream); textBox((model.scroll+1).."/"..(maxScroll+1),790,mobile and 300 or 232,68,30,.85,"center")
+      love.graphics.setColor(colors.ink); textBox((model.scroll+1).."/"..(maxScroll+1),790,mobile and 300 or 232,68,30,.85,"center")
       love.graphics.setLineWidth(1)
       end)
 end
@@ -221,7 +223,7 @@ function Panels.drawJournal(context,model)
           ui.journeyLogClose=button("CLOSE",x+w-142,y+15,112,mobile and 48 or 38,true,mobile and .92 or .72)
 
           local currentObjective=model.currentObjective
-          love.graphics.setColor(.055,.038,.028,.96); GuiArt.frame(x+26,y+88,w-52,65)
+          love.graphics.setColor(.055,.038,.028,.96); love.graphics.rectangle("fill",x+26,y+88,w-52,65,8,8)
           love.graphics.setColor(colors.brass); textIn("CURRENT OBJECTIVE",x+40,y+94,190,20,.67)
           love.graphics.setColor(colors.cream); textIn(currentObjective,x+40,y+115,w-80,30,mobile and .88 or .75)
 
@@ -244,7 +246,7 @@ function Panels.drawJournal(context,model)
                   local row=rows[start+offset]
                   if row then
                       local cy=listY+offset*(cardHeight+cardGap)
-                      love.graphics.setColor(.08,.055,.038,.96); GuiArt.frame(listX,cy,listW,cardHeight)
+                      love.graphics.setColor(.08,.055,.038,.96); love.graphics.rectangle("fill",listX,cy,listW,cardHeight,8,8)
                       local accent=colors.brass
                       if row.kind=="mail" then accent=colors.blue
                       elseif row.kind=="supplies" then accent=colors.green

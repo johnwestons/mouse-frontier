@@ -245,7 +245,7 @@ local function new(context)
       local health=math.max(0,tonumber(runtime.saveData.health) or 0)
       local maxHealth=math.max(1,tonumber(runtime.saveData.maxHealth) or 1)
       love.graphics.setColor(.025,.02,.016,.76)
-      GuiArt.frame(x,y,width,height)
+      love.graphics.rectangle("fill",x,y,width,height,8,8)
       love.graphics.setColor(colors.brass[1],colors.brass[2],colors.brass[3],.82)
       love.graphics.rectangle("fill",x,y,3,height,2,2)
       love.graphics.setColor(colors.brass)
@@ -269,7 +269,7 @@ local function new(context)
           love.graphics.setColor(1,1,1)
           love.graphics.draw(ui.radioFace,250,124,0,460/ui.radioFace:getWidth(),258/ui.radioFace:getHeight())
       end
-      love.graphics.setColor(.055,.038,.028,.98); GuiArt.frame(118,320,724,128)
+      love.graphics.setColor(.055,.038,.028,.98); love.graphics.rectangle("fill",118,320,724,128,8,8)
       local audioStatus=getAudioStatus()
       local track=audioStatus.nowPlaying and Util.titleFromFile(audioStatus.nowPlaying:match("[^/]+$") or audioStatus.nowPlaying) or "Starting music..."
       love.graphics.setColor(colors.brass); textIn("NOW PLAYING",138,331,684,26,.9,"center")
@@ -386,7 +386,7 @@ local function new(context)
           local expedition=runtime.scene=="expedition" and expeditionObjective() or nil
           local currentObjective=expedition and tostring(expedition.text or "Explore the current area.")
               or (rows[1] and rows[1].objective or "No active objectives right now.")
-          love.graphics.setColor(.055,.038,.028,.96); GuiArt.frame(x+26,y+88,w-52,65)
+          love.graphics.setColor(.055,.038,.028,.96); love.graphics.rectangle("fill",x+26,y+88,w-52,65,8,8)
           love.graphics.setColor(colors.brass); textIn("CURRENT OBJECTIVE",x+40,y+94,190,20,.67)
           love.graphics.setColor(colors.cream); textIn(currentObjective,x+40,y+115,w-80,30,mobile and .88 or .75)
 
@@ -408,7 +408,7 @@ local function new(context)
                   local row=rows[start+offset]
                   if row then
                       local cy=listY+offset*(cardHeight+cardGap)
-                      love.graphics.setColor(.08,.055,.038,.96); GuiArt.frame(listX,cy,listW,cardHeight)
+                      love.graphics.setColor(.08,.055,.038,.96); love.graphics.rectangle("fill",listX,cy,listW,cardHeight,8,8)
                       local accent=colors.brass
                       if row.kind=="mail" then accent=colors.blue
                       elseif row.kind=="supplies" then accent=colors.green
@@ -707,7 +707,7 @@ local function new(context)
           end
           local hintAlpha=highContrast and .96 or (mobile and .42 or .50)
           ui.contextHint={x=hintX,y=hintY,w=hintW,h=hintH,alpha=hintAlpha,text=contextText}
-          love.graphics.setColor(highContrast and {0,0,0,hintAlpha} or {colors.panel[1],colors.panel[2],colors.panel[3],hintAlpha}); GuiArt.frame(hintX,hintY,hintW,hintH,{alpha=hintAlpha})
+          love.graphics.setColor(highContrast and {0,0,0,hintAlpha} or {colors.panel[1],colors.panel[2],colors.panel[3],hintAlpha}); love.graphics.rectangle("fill",hintX,hintY,hintW,hintH,6,6)
           if highContrast then love.graphics.setColor(1,.84,.28,1); love.graphics.setLineWidth(3); love.graphics.rectangle("line",hintX,hintY,hintW,hintH,6,6); love.graphics.setLineWidth(1) end
           love.graphics.setColor(colors.cream)
           if mobile then
@@ -724,7 +724,7 @@ local function new(context)
                   tab.x,tab.y,tab.w,tab.h=ui.sideHudLayout.rightX,414+(index-1)*38,ui.sideHudLayout.panelWidth,32
               elseif mobile then tab.y=214 end
               local selected=index==active
-              love.graphics.setColor(colors.panel); GuiArt.frame(tab.x,tab.y,tab.w,tab.h)
+              love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",tab.x,tab.y,tab.w,tab.h,7,7)
               love.graphics.setColor(selected and colors.brass or colors.cream); love.graphics.setLineWidth(selected and 3 or 1)
               love.graphics.rectangle("line",tab.x,tab.y,tab.w,tab.h,7,7)
               textIn(ui.sideHudLayout and ("CAR "..index) or tostring(index),tab.x,tab.y,tab.w,tab.h,mobile and 1.10 or .55,"center")
@@ -763,7 +763,7 @@ local function new(context)
               ui.poseIdle=button("STAND",228,240,236,70,true); ui.poseSit=button("SIT",496,240,236,70,true)
               ui.poseLay=button("LAY DOWN",228,335,236,70,true); ui.poseAction=button("USE / ACTION",496,335,236,70,true)
               ui.poseClose=button("DONE",496,450,236,48,true)
-          else love.graphics.setColor(colors.panel); GuiArt.frame(735,198,190,150); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); ui.poseClose=button("DONE",792,300,118,34,true,.72) end
+          else love.graphics.setColor(colors.panel); love.graphics.rectangle("fill",735,198,190,150,8,8); ui.poseIdle=button("STAND",750,212,75,34,true); ui.poseSit=button("SIT",835,212,75,34,true); ui.poseLay=button("LAY",750,256,75,34,true); ui.poseAction=button("USE",835,256,75,34,true); ui.poseClose=button("DONE",792,300,118,34,true,.72) end
           end)
       end
       if ui.radioOpen then
@@ -802,7 +802,7 @@ local function new(context)
           elseif Util.pointIn(mx,my,ui.radioVibes) then tip="Vibes Radio"
           elseif Util.pointIn(mx,my,ui.radioRain) then tip=runtime.saveData.audio.rainEnabled and "Turn rain ambience off" or "Turn rain ambience on"
           elseif Util.pointIn(mx,my,ui.radioClose) then tip="Close radio" end
-          if tip then love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.86); GuiArt.frame(mx-85,my-42,170,30); love.graphics.setColor(colors.cream); textIn(tip,mx-80,my-34,160,20,.72,"center") end
+          if tip then love.graphics.setColor(colors.panel[1],colors.panel[2],colors.panel[3],.86); love.graphics.rectangle("fill",mx-85,my-42,170,30,5,5); love.graphics.setColor(colors.cream); textIn(tip,mx-80,my-34,160,20,.72,"center") end
           end
           end)
       end

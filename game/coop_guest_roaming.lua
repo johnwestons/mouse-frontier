@@ -1,4 +1,3 @@
-local GuiArt=require('game.gui_art')
 -- Field controls send one owned swing and wait for its saved host outcome.
 local Commands=require('game.coop_roaming')
 local Attack=require('game.character_attack')
@@ -59,13 +58,13 @@ function Field:draw()
     local pending=self.view.runtime.saveData and self.view.runtime.saveData.roamingEncounter
     if pending then
         local g=love.graphics
-        g.setColor(.045,.035,.025,.96); GuiArt.frame(230,268,500,94)
+        g.setColor(.045,.035,.025,.96); g.rectangle('fill',230,268,500,94,8,8)
         g.setColor(.96,.88,.69,1); g.printf('COMPANION ENCOUNTER\nWaiting for the host to choose a battle or return to the train.',250,281,460,'center')
         return
     end
     if not self:available() then return end
     local g=love.graphics; local r={x=550,y=202,w=200,h=56}; ui.guestFieldAttack=r
-    g.setColor(.17,.135,.09,.94); GuiArt.frame(r.x,r.y,r.w,r.h)
+    g.setColor(.17,.135,.09,.94); g.rectangle('fill',r.x,r.y,r.w,r.h,8,8)
     g.setColor(.96,.88,.69,1); g.printf(self.view.mobile.enabled and 'MELEE ATTACK' or 'MELEE [SPACE / X]',r.x+6,r.y+18,r.w-12,'center')
     local data=self.view.runtime.saveData
     local environment=require('game.expedition_areas').environment(data,data.activeExpeditionArea,true)
@@ -73,7 +72,7 @@ function Field:draw()
         flooded='FLASH FLOOD — THE LOW WASH IS CLOSED',receding='THE FLOOD IS DRAINING — THE WASH WILL REOPEN'})[environment.phase]
     local notice=self.pending and self.notice or hazard or self.notice and (not self.noticeUntil or self.noticeUntil>self.view.elapsed) and self.notice
     if notice then
-        g.setColor(.045,.035,.025,.94); GuiArt.frame(240,268,500,76)
+        g.setColor(.045,.035,.025,.94); g.rectangle('fill',240,268,500,76,8,8)
         g.setColor(.96,.88,.69,1); g.printf(notice,260,282,460,'center')
     end
 end
