@@ -23,6 +23,77 @@ class LocalPreferencesTests(unittest.TestCase):
             function attach(value) return store:attach(value or data,function() return mode end) end
         ''')
 
+    def test_touch_aim_preferences_default_clamp_and_roundtrip_only_on_device(self):
+        self.lua.execute('''
+            local defaults=Access.aimSettings(store.menu)
+            assert(defaults.aimAssist==.35 and defaults.aimSensitivity==1)
+            defaults.aimAssist=1; assert(Access.aimSettings(store.menu).aimAssist==.35)
+            attach(); Access.adjustAim(data,'aimAssist',-.35); Access.adjustAim(data,'aimSensitivity',.4)
+            assert(Access.aimLabel(data,'aimAssist')=='OFF' and Access.aimLabel(data,'aimSensitivity')=='1.4x')
+            assert(store:save(true)); local restored=Prefs.new(fs)
+            restored:attach(data); local aim=Access.aimSettings(data)
+            assert(aim.aimAssist==0 and aim.aimSensitivity==1.4 and not data.accessibility and Schema.validate(data))
+            Access.adjustAim(data,'aimAssist',10); Access.adjustAim(data,'aimSensitivity',-10)
+            assert(Access.aimSettings(data).aimAssist==1 and Access.aimSettings(data).aimSensitivity==.5)
+            local access=Access.ensure(data); access.aimAssist=0/0; access.aimSensitivity=math.huge
+            assert(Access.aimSettings(data).aimAssist==.35 and Access.aimSettings(data).aimSensitivity==1)
+            access.aimAssist=-5; access.aimSensitivity=9
+            assert(Access.aimSettings(data).aimAssist==0 and Access.aimSettings(data).aimSensitivity==2)
+        ''')
+
+    def test_existing_device_preferences_gain_aim_defaults_without_importing_host_values(self):
+        self.lua.execute('''
+            local Codec=require('game.net.codec'); local values=store.values
+            values.accessibility.aimAssist=nil; values.accessibility.aimSensitivity=nil
+            files[Prefs.PATH]=assert(Codec.encode(values)); store=Prefs.new(fs)
+            data.accessibility.aimAssist=1; data.accessibility.aimSensitivity=2
+            mode='client'; attach()
+            assert(Access.aimSettings(data).aimAssist==.35 and Access.aimSettings(data).aimSensitivity==1)
+            Access.adjustAim(data,'aimAssist',-.15); Access.adjustAim(data,'aimSensitivity',.2)
+            assert(store:save(true)); local loaded=Prefs.new(fs)
+            assert(loaded.values.accessibility.aimAssist==.2 and loaded.values.accessibility.aimSensitivity==1.2)
+            assert(data.accessibility.aimAssist==1 and data.accessibility.aimSensitivity==2)
+        ''')
+
+    def test_host_accessibility_drawn_aim_controls_fit_and_change_saved_preferences(self):
+        self.lua.execute('''
+            attach(); local noop=function() end; local mobile=true; local rects={}
+            love={graphics={setColor=noop},keyboard={isDown=function() return false end}}
+            package.loaded['game.typography']={drawText=noop}
+            local runtime={saveData=data,optionsPage='accessibility',state='game'}
+            local ui={optionsOpen=true,localPreferences=store,menuSettings=store.menu,playSfx=noop}
+            local bindings=require('game.control_bindings').new(fs)
+            local context={runtime=runtime,ui=ui,width=960,height=720,holdPickupSeconds=1,colors={cream={1,1,1}},
+                controlBindings=bindings,util=require('game.util'),mobileEnabled=function() return mobile end,
+                getAudioStatus=function() return {available=false} end,
+                button=function(label,x,y,w,h)
+                    local r={x=x,y=y,w=w,h=h}; rects[#rects+1]=r; return r
+                end}
+            for _,key in ipairs({'characters','maintenanceSession','scenery','inventory','catalog','npcRelationships',
+                'merchantTrade','engineUpgrades','trainUpgradeBalance','maintenance','battleRules','stops','settlements',
+                'interiorDoors','firstAid','shootingRange','clouds','lastStand','npcImages','train'}) do context[key]={} end
+            setmetatable(context,{__index=function() return noop end})
+            local hud=require('game.gameplay_hud').new(context)
+            require('game.gameplay_input').new(context)
+            local function click(key)
+                local r=assert(ui[key]); assert(ui.handleOptionsMousePressed(r.x+r.w/2,r.y+r.h/2))
+            end
+            for _,touch in ipairs({true,false}) do
+                mobile=touch; rects={}; hud.drawOptions()
+                for _,r in ipairs(rects) do assert(r.x>=42 and r.y>=26 and r.x+r.w<=918 and r.y+r.h<=694) end
+                for _,key in ipairs({'accessAimAssistDown','accessAimAssistUp','accessAimSensitivityDown','accessAimSensitivityUp'}) do
+                    assert(ui[key].w>=44 and ui[key].h>=44)
+                end
+                click('accessAimAssistDown'); click('accessAimSensitivityUp')
+            end
+            assert(Access.aimSettings(data).aimAssist==.25 and Access.aimSettings(data).aimSensitivity==1.2)
+            local loaded=Prefs.new(fs)
+            assert(loaded.values.accessibility.aimAssist==.25 and loaded.values.accessibility.aimSensitivity==1.2)
+            assert(not data.accessibility and Schema.validate(data))
+            runtime.optionsPage='audio'; hud.drawOptions()
+            assert(not ui.accessAimAssistDown and not ui.accessAimAssistUp and not ui.accessAimSensitivityDown and not ui.accessAimSensitivityUp)
+        ''')
+
     def test_local_play_options_persist_on_device_without_campaign_or_legacy_import(self):
         self.lua.execute('''
             local defaults=store:localPlay(); assert(defaults.connectionMode=='auto' and not defaults.autoJoin)

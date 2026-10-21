@@ -36,6 +36,29 @@ class AmbushReadinessTests(unittest.TestCase):
             assert(input:commandState('host').paused and not input:commandState('companion').paused)
         ''')
 
+    def test_mobile_stick_exclusively_owns_aim_but_keeps_footer_actions_available(self):
+        self.source()
+        self.lua.execute('''
+            local Pad=require('game.mobile_shooter_controls'); local p=Pad.layout(960,720)
+            local Accessibility=require('game.accessibility')
+            Accessibility.bind(data,{aimAssist=0})
+            require('game.mobile_aim_targets').ambush=function() error('assist OFF must skip target masks') end
+            local calls,gun=0,nil; local original=Shooting.setTouchAim
+            Shooting.setTouchAim=function(g,x,y,w,h) calls=calls+1; gun=g; return original(g,x,y,w,h) end
+            input:touchpressed('old-field',400,300); assert(calls==1)
+            input:touchpressed('stick',p.x,p.y)
+            local x,y=gun.aimX,gun.aimY
+            input:touchpressed('new-field',600,300); input:touchmoved('old-field',700,350)
+            assert(calls==1 and gun.aimX==x and gun.aimY==y and convoy.shots==0)
+            local ads=gun.ads; input:touchpressed('footer',180,670); assert(gun.ads~=ads)
+            input:touchmoved('stick',p.x+p.r,p.y); input:update(.02)
+            assert(calls==1 and gun.aimX>x)
+            input:touchreleased('stick')
+            input:touchmoved('new-field',650,350); assert(calls==1)
+            input:touchmoved('old-field',450,320); assert(calls==2)
+            input:touchreleased('old-field'); input:touchreleased('new-field'); input:touchreleased('footer')
+        ''')
+
     def test_no_ready_participant_freezes_convoy_guns_reload_and_health(self):
         self.source()
         self.lua.execute('''

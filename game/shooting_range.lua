@@ -385,6 +385,34 @@ local function superellipsePoint(rx,ry,angle)
     return rx*signedRoot(cosine),ry*signedRoot(sine)
 end
 
+-- Reuse the target's scoring geometry for local aim assistance. Broken rings
+-- remain visible while falling, but are no longer useful aim destinations.
+function Range.assistPoints(session)
+    local points={}
+    for _,target in ipairs(session.targets or {}) do
+        if not target.hit and not target.breaking and not target.clearing
+            and (target.permanent or target.life==nil or target.life>0)
+            and (session.targetPattern~='pop-up' or target.age==nil or target.age>=.05) then
+            if target.material=='sectioned' then
+                for index=1,13 do
+                    local section=target.sections and target.sections[index]
+                    if not (section and (section.hit or section.broken)) then
+                        local x,y,radius=0,0,12
+                        if index<=12 then
+                            local ring=SECTION_RINGS[math.floor((index-1)/4)+1]
+                            local angle=-math.pi+((index-1)%4+.5)*math.pi/2
+                            x,y=superellipsePoint((ring.outer[1]+ring.inner[1])/2,(ring.outer[2]+ring.inner[2])/2,angle)
+                            radius=math.min(ring.outer[1]-ring.inner[1],ring.outer[2]-ring.inner[2])/2
+                        end
+                        points[#points+1]={x=target.x+x*target.scale,y=target.y+y*target.scale,radius=radius*target.scale}
+                    end
+                end
+            else points[#points+1]={x=target.x,y=target.y,radius=target.radius or 0} end
+        end
+    end
+    return points
+end
+
 local sectionedQuadCache=setmetatable({}, {__mode="k"})
 
 local function sectionedQuad(image,index)

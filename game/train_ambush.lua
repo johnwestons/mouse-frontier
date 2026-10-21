@@ -10,6 +10,7 @@ local WorldPause=require('game.world_pause')
 local Typography=require("game.typography")
 local Accessibility=require("game.accessibility")
 local ShooterPad=require("game.mobile_shooter_controls")
+local AimTargets=require('game.mobile_aim_targets')
 local Ambush={}
 
 function Ambush.new(context)
@@ -252,13 +253,14 @@ function Ambush.new(context)
                 return true
             end
         end
+        if aimPad.aimTouch then return true end
         touches[id]="aimdrag"; aim(x,y,true)
         return true
     end
     function service:touchmoved(id,x,y)
         if not self:isCapturing() then return false end
         if aimPad:move(id,x,y,w,h) then return true end
-        if touches[id]=="aimdrag" and not paused then aim(x,y,true) end
+        if touches[id]=="aimdrag" and not paused and not aimPad.aimTouch then aim(x,y,true) end
         return true
     end
     function service:touchreleased(id)
@@ -326,7 +328,9 @@ function Ambush.new(context)
         end
         local bindings=context.controlBindings
         if not inputPaused then
-            local x,y=aimPad:step(dt,gun,w,h)
+            local settings=Accessibility.aimSettings(data)
+            local x,y=aimPad:step(dt,gun,w,h,nil,settings,
+                settings.aimAssist>0 and aimPad.aimTouch and AimTargets.ambush(bound,w,h))
             if x then aim(x,y) end
         end
         local dx,dy=0,0

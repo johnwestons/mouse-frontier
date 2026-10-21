@@ -25,7 +25,7 @@ try {
     $report=[IO.File]::ReadAllText($log)
     if ($process.ExitCode -ne 0 -or $report -notmatch 'MOBILE_SHOOTER_OK') { throw ($report+[IO.File]::ReadAllText($errorLog)) }
     $images=Join-Path $env:APPDATA 'LOVE\mouse-frontier-mobile-shooter-smoke'
-    foreach ($name in @('01-range-tablet.png','02-range-phone.png','03-ambush-phone.png','04-last-stand-phone.png')) {
+    foreach ($name in @('01-range-tablet.png','02-range-phone.png','03-ambush-phone.png','04-last-stand-phone.png','05-aim-settings-phone.png')) {
         $source=Join-Path $images $name
         if (-not (Test-Path -LiteralPath $source -PathType Leaf) -or (Get-Item -LiteralPath $source).Length -eq 0) { throw ('Missing screenshot: '+$name) }
         Copy-Item -LiteralPath $source -Destination (Join-Path $reportRoot $name) -Force

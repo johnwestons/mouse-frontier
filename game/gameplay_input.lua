@@ -620,6 +620,10 @@ local function new(context)
       elseif Util.pointIn(x,y,ui.accessControlHints) then Accessibility.toggle(optionsData(),"controlHints"); ui.playSfx("menu")
       elseif Util.pointIn(x,y,ui.accessTouchFeedback) then Accessibility.toggle(optionsData(),"touchFeedback"); ui.playSfx("menu")
       elseif Util.pointIn(x,y,ui.accessLargeTouchTargets) then Accessibility.toggle(optionsData(),"largeTouchTargets"); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessAimAssistDown) then Accessibility.adjustAim(optionsData(),"aimAssist",-.05); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessAimAssistUp) then Accessibility.adjustAim(optionsData(),"aimAssist",.05); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessAimSensitivityDown) then Accessibility.adjustAim(optionsData(),"aimSensitivity",-.1); ui.playSfx("menu")
+      elseif Util.pointIn(x,y,ui.accessAimSensitivityUp) then Accessibility.adjustAim(optionsData(),"aimSensitivity",.1); ui.playSfx("menu")
       elseif Util.pointIn(x,y,ui.musicDown) then local audio=optionsData().audio; audio.musicVolume=math.max(0,(audio.musicVolume or .10)-.05)
       elseif Util.pointIn(x,y,ui.musicUp) then local audio=optionsData().audio; audio.musicVolume=math.min(1,(audio.musicVolume or .10)+.05)
       elseif Util.pointIn(x,y,ui.sfxDown) then local audio=optionsData().audio; audio.sfxVolume=math.max(0,(audio.sfxVolume or .55)-.05)
@@ -1528,7 +1532,9 @@ local function new(context)
               option("accessibilityTab",ui.optionsAccessTab); option("audioTab",ui.optionsAudioTab); option("controlsTab",ui.optionsControlsTab)
               for _,entry in ipairs({{"textSize",ui.accessTextSize},{"highContrast",ui.accessHighContrast},
                   {"reducedMotion",ui.accessReducedMotion},{"controlHints",ui.accessControlHints},
-                  {"touchFeedback",ui.accessTouchFeedback},{"largeTouchTargets",ui.accessLargeTouchTargets}}) do
+                  {"touchFeedback",ui.accessTouchFeedback},{"largeTouchTargets",ui.accessLargeTouchTargets},
+                  {"aimSensitivityDown",ui.accessAimSensitivityDown},{"aimSensitivityUp",ui.accessAimSensitivityUp},
+                  {"aimAssistDown",ui.accessAimAssistDown},{"aimAssistUp",ui.accessAimAssistUp}}) do
                   option(entry[1],entry[2])
               end
           else

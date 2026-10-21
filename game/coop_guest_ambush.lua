@@ -10,6 +10,7 @@ local Rules=require('game.train_ambush_rules')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
 local ShooterPad=require('game.mobile_shooter_controls')
+local AimTargets=require('game.mobile_aim_targets')
 local Panel={}; Panel.__index=Panel
 local controls={{key='space',label='FIRE\nLMB / SPACE'},{key='aim',label='AIM\nRMB'},
     {key='r',label='RELOAD\nR'},{key='c',label='COVER\nC'},{key='tab',label='WEAPON\nTAB'},
@@ -194,7 +195,9 @@ function Panel:update(dt)
     if self.gun then Actions.update(self.gun,math.min(.1,dt)) end -- Private authored-frame clock only.
     if self.impact then self.impact.time=self.impact.time-dt; if self.impact.time<=0 then self.impact=nil end end
     if self.gun and v.ready and v.focused and not v.controller.menuOpen and not self.paused and not s.outcome then
-        local px,py=self.aimPad:step(dt,self.gun,960,720)
+        local settings=Accessibility.aimSettings(v.runtime.saveData)
+        local px,py=self.aimPad:step(dt,self.gun,960,720,nil,settings,
+            settings.aimAssist>0 and self.aimPad.aimTouch and AimTargets.ambush(State.view(s,'companion'),960,720))
         if px then self:aim(px,py) end
     end
     if self:canAct() then
@@ -252,11 +255,12 @@ function Panel:touchpressed(id,x,y)
         self.touches[id]=control.key
         if control.key=='space' then self:fireHeld('touch:'..tostring(id),true) else self:action(control.key) end; return true
     end end
+    if self.aimPad.aimTouch then return true end
     self.touches[id]='aim'; self:aim(x,y,true); return true
 end
 function Panel:touchmoved(id,x,y)
     if self.aimPad:move(id,x,y,960,720) then return true end
-    if self.touches[id]=='aim' then self:aim(x,y,true) end; return true
+    if self.touches[id]=='aim' and not self.aimPad.aimTouch then self:aim(x,y,true) end; return true
 end
 function Panel:touchreleased(id)
     local action=self.aimPad:release(id)

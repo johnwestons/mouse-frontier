@@ -96,8 +96,10 @@ function Settings:audio(action,value)
     else return false end
     self.notice=nil; return self:savePreferences()
 end
-function Settings:accessibility(key)
-    if key=='textSize' then Accessibility.cycleTextSize(self:values()) else Accessibility.toggle(self:values(),key) end
+function Settings:accessibility(key,delta)
+    if key=='textSize' then Accessibility.cycleTextSize(self:values())
+    elseif key=='aimAssist' or key=='aimSensitivity' then Accessibility.adjustAim(self:values(),key,delta)
+    else Accessibility.toggle(self:values(),key) end
     self.notice=nil; return self:savePreferences()
 end
 function Settings:beginCapture(device,id)
@@ -281,9 +283,16 @@ function Settings:draw()
             local access=Accessibility.ensure(settings)
             for i,entry in ipairs({{'textSize','TEXT SIZE',Accessibility.textLabel(settings)},{'highContrast','HIGH CONTRAST'},
                 {'reducedMotion','REDUCED MOTION'},{'controlHints','CONTROL HINTS'},{'touchFeedback','TOUCH FEEDBACK'},{'largeTouchTargets','LARGE TOUCH TARGETS'}}) do
-                local key=entry[1]; local y=161+(i-1)*68; text(entry[2],80,y,485,48,.94)
-                add(key,entry[3] or (access[key] and 'ON' or 'OFF'),625,y,220,function() self:accessibility(key) end,true,48)
+                local key=entry[1]; local y=150+(i-1)*49; text(entry[2],80,y,485,44,.94)
+                add(key,entry[3] or (access[key] and 'ON' or 'OFF'),625,y,220,function() self:accessibility(key) end,true,44)
             end
+            for i,entry in ipairs({{'aimSensitivity','TOUCH AIM SPEED',.1},{'aimAssist','TOUCH AIM ASSIST',.05}}) do
+                local key,step=entry[1],entry[3]; local y=453+(i-1)*58
+                text(entry[2]..'  '..Accessibility.aimLabel(settings,key),80,y,485,48,.94)
+                add(key..'-','-',625,y,100,function() self:accessibility(key,-step) end,true,48)
+                add(key..'+','+',745,y,100,function() self:accessibility(key,step) end,true,48)
+            end
+            text('Aim assist gently pulls the touch reticle toward nearby targets. Set it to OFF for manual aim.',80,574,765,64,.83)
         else
             for i,id in ipairs({'keyboard','controller','touch'}) do local device=id
                 add('device-'..id,id=='touch' and 'TOUCH LAYOUT' or id:upper(),70+(i-1)*280,151,265,function() self.device=device; self.scroll=0; self.ui={}; self.bindings:cancelCapture() end)

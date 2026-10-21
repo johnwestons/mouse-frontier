@@ -38,6 +38,29 @@ class GuestAmbushTests(unittest.TestCase):
             function accept() local result=deliver(); project(); panel:update(0); return result end
         ''')
 
+    def test_mobile_stick_blocks_new_and_preexisting_field_drags_without_blocking_footer(self):
+        self.panel()
+        self.lua.execute('''
+            local Pad=require('game.mobile_shooter_controls'); local p=Pad.layout(960,720)
+            require('game.accessibility').bind(Players.campaignOf(view.runtime.saveData),{aimAssist=0})
+            require('game.mobile_aim_targets').ambush=function() error('assist OFF must skip target masks') end
+            panel:touchpressed('old-field',400,300)
+            assert(panel.gun.touchAim and panel.touches['old-field']=='aim')
+            panel:touchpressed('stick',p.x,p.y)
+            local x,y=panel.gun.aimX,panel.gun.aimY
+            panel:touchpressed('new-field',600,300); panel:touchmoved('old-field',700,350)
+            assert(panel.gun.aimX==x and panel.gun.aimY==y and not panel.gun.touchAim)
+            assert(panel.touches['new-field']==nil and not panel.pending and not next(panel.held))
+            local r=panel:rect(2); local ads=panel.gun.ads
+            panel:touchpressed('footer',r.x+r.w/2,r.y+r.h/2); assert(panel.gun.ads~=ads)
+            panel:touchmoved('stick',p.x+p.r,p.y); panel:update(.02)
+            assert(panel.gun.aimX>x and not panel.gun.touchAim)
+            panel:touchreleased('stick'); x,y=panel.gun.aimX,panel.gun.aimY
+            panel:touchmoved('new-field',650,350); assert(panel.gun.aimX==x and panel.gun.aimY==y)
+            panel:touchmoved('old-field',450,320); assert(panel.gun.touchAim)
+            panel:touchreleased('old-field'); panel:touchreleased('new-field'); panel:touchreleased('footer')
+        ''')
+
     def enemy_audio(self):
         self.panel()
         self.lua.execute('''

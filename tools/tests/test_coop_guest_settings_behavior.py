@@ -101,6 +101,28 @@ class GuestSettingsTests(unittest.TestCase):
             fs.write=write;s:close();assert(not s.preferencesDirty and Prefs.new(fs).values.audio.sfxVolume==.65);unchanged()
         ''')
 
+    def test_aim_controls_are_touch_sized_keyboard_reachable_and_persist_without_host_changes(self):
+        self.lua.execute('''
+            s:open(); activate('accessibility'); activate('aimSensitivity+'); activate('aimAssist-')
+            assert(Access.aimSettings(runtime.saveData).aimSensitivity==1.1)
+            assert(Access.aimSettings(runtime.saveData).aimAssist==.3)
+            s:draw(); s.ui.keyboardFocusScreen=s:screenKey(); s.ui.keyboardFocusId='aimAssist+'
+            s:keypressed('return'); assert(Access.aimSettings(runtime.saveData).aimAssist==.35)
+            local rects={}
+            for _,t in ipairs(s:targets()) do
+                assert(t.rect.x>=30 and t.rect.y>=20 and t.rect.x+t.rect.w<=930 and t.rect.y+t.rect.h<=700)
+                if t.id:match('^aim') then
+                    assert(t.rect.w>=44 and t.rect.h>=44); rects[#rects+1]=t.rect
+                end
+            end
+            assert(#rects==4)
+            for i=1,6 do activate('aimAssist-') end
+            activate('aimAssist-'); assert(Access.aimLabel(runtime.saveData,'aimAssist')=='OFF')
+            local restored=Prefs.new(fs)
+            assert(restored.values.accessibility.aimAssist==0 and restored.values.accessibility.aimSensitivity==1.1)
+            unchanged()
+        ''')
+
     def test_raw_keyboard_capture_and_original_press_token_survive_binding_change(self):
         self.lua.execute('''
             assert(bindings:assign('key','interact','z'));assert(s:translateGameplayKey('z')=='e')

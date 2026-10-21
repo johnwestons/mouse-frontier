@@ -5,6 +5,7 @@ local Life=require('game.coop_last_stand_lifecycle')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
 local ShooterPad=require('game.mobile_shooter_controls')
+local AimTargets=require('game.mobile_aim_targets')
 local Panel={}; Panel.__index=Panel
 local menuRect={x=764,y=100,w=180,h=38}
 local pauseRect={x=20,y=104,w=170,h=40}
@@ -217,7 +218,9 @@ function Panel:update(dt)
     if self:desiredPaused() or self.serverPaused~=false then self:suspend(); return end
     if self.model then Range.updatePresentation(self.model,math.min(.08,dt)) end
     if self.model and self.model.phase=='play' and v.ready and self:checkedLease() then
-        local px,py=self.aimPad:step(dt,self.pose,960,720,{left=30,top=55,right=930,bottom=625})
+        local settings=Accessibility.aimSettings(v.runtime.saveData)
+        local px,py=self.aimPad:step(dt,self.pose,960,720,{left=30,top=55,right=930,bottom=625},
+            settings,settings.aimAssist>0 and self.aimPad.aimTouch and AimTargets.range(self.model,960,720))
         if px then self:aim(px,py,false) end
     end
     if s and self:canAct() and s.phase=='play' and s.time<=0 then self:configure('complete'); return end

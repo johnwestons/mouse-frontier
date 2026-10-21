@@ -6,6 +6,7 @@ local UIStyle=require("game.ui_layout")
 local ControlLayout=require("game.control_layout")
 local WideLayout=require("game.wide_layout")
 local ShooterPad=require("game.mobile_shooter_controls")
+local AimTargets=require("game.mobile_aim_targets")
 local function rangeIdentity(session)
     -- Shared-host presentation tables are replaced on every snapshot. Retain
     -- the thumb for the same round, but never carry it into a new round/weapon.
@@ -316,7 +317,9 @@ function MobileControls:update(dt)
     end
     self.rangeSession=session
     if not session then return end
-    local x,y=self.rangePad:step(dt,session,self.width,self.height,{left=30,top=55,right=930,bottom=625})
+    local options=Accessibility.aimSettings(self.accessibilityData())
+    local targets=self.rangePad.aimTouch and options.aimAssist>0 and AimTargets.range(session,self.width,self.height)
+    local x,y=self.rangePad:step(dt,session,self.width,self.height,{left=30,top=55,right=930,bottom=625},options,targets)
     if x then self.aimRange(session,x,y) end
 end
 

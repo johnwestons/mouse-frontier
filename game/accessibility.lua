@@ -15,7 +15,18 @@ Accessibility.defaults={
     controlHints=true,
     touchFeedback=true,
     largeTouchTargets=true,
+    aimAssist=.35,
+    aimSensitivity=1,
 }
+
+local aimLimits={aimAssist={0,1},aimSensitivity={.5,2}}
+local function aimValue(name,value)
+    local limits=aimLimits[name]
+    if type(value)~="number" or value~=value or value==math.huge or value==-math.huge then
+        return Accessibility.defaults[name]
+    end
+    return math.max(limits[1],math.min(limits[2],value))
+end
 
 local function boolean(value,default)
     if type(value)=="boolean" then return value end
@@ -32,7 +43,26 @@ function Accessibility.ensure(data)
     for _,name in ipairs({"highContrast","reducedMotion","controlHints","touchFeedback","largeTouchTargets"}) do
         settings[name]=boolean(settings[name],Accessibility.defaults[name])
     end
+    for name in pairs(aimLimits) do settings[name]=aimValue(name,settings[name]) end
     return settings
+end
+
+function Accessibility.aimSettings(data)
+    local settings=Accessibility.ensure(data)
+    return {aimAssist=settings.aimAssist,aimSensitivity=settings.aimSensitivity}
+end
+
+function Accessibility.adjustAim(data,name,delta)
+    assert(aimLimits[name],"unknown aiming preference "..tostring(name))
+    local settings=Accessibility.ensure(data)
+    settings[name]=aimValue(name,math.floor((settings[name]+delta)*100+.5)/100)
+    return settings[name]
+end
+
+function Accessibility.aimLabel(data,name)
+    local value=Accessibility.aimSettings(data)[name]
+    if name=="aimAssist" then return value==0 and "OFF" or (math.floor(value*100+.5).."%") end
+    return string.format("%.1fx",value)
 end
 
 function Accessibility.textScale(data)
@@ -51,7 +81,7 @@ function Accessibility.cycleTextSize(data)
 end
 
 function Accessibility.toggle(data,name)
-    assert(Accessibility.defaults[name]~=nil,"unknown accessibility preference "..tostring(name))
+    assert(type(Accessibility.defaults[name])=="boolean","unknown accessibility toggle "..tostring(name))
     local settings=Accessibility.ensure(data)
     settings[name]=not settings[name]
     return settings[name]

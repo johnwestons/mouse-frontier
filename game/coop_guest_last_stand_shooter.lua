@@ -12,6 +12,7 @@ local Shootout=require('game.last_stand_shootout')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
 local ShooterPad=require('game.mobile_shooter_controls')
+local AimTargets=require('game.mobile_aim_targets')
 local Panel={}; Panel.__index=Panel
 local controls={{key='space',label='FIRE\nLMB / SPACE'},{key='aim',label='AIM\nRMB'},
     {key='r',label='RELOAD\nR'},{key='c',label='COVER\nC'},{key='tab',label='WEAPON\nTAB'},
@@ -259,7 +260,12 @@ function Panel:update(dt)
     end
     if self.gun and v.ready and v.focused and not v.controller.menuOpen and not self.parent.paused
         and self:checkedPosition() and not self.choosing and not q.combat.result then
-        local px,py=self.aimPad:step(dt,self.gun,960,720)
+        local owner=q.combat.defenders.companion
+        local pose={windowId=owner.windowId,ducking=owner.ducking,coverProgress=owner.coverProgress,
+            targets=q.targets,result=q.combat.result}
+        local settings=Accessibility.aimSettings(v.runtime.saveData)
+        local px,py=self.aimPad:step(dt,self.gun,960,720,nil,settings,
+            settings.aimAssist>0 and self.aimPad.aimTouch and AimTargets.lastStand(pose,960,720,true))
         if px then self:aim(px,py) end
     end
     if self:canAct() and self.gun then
@@ -382,7 +388,6 @@ function Panel:draw()
         g.setColor(.18,.12,.075,.96); g.rectangle('fill',350,480,260,52,6,6)
         text('Release your position [BACKSPACE]',355,484,250,44,.65)
     end
-    if v.mobile and v.mobile.enabled and self:checkedPosition() and not self.choosing and not self.parent.paused and not q.combat.result then self.aimPad:draw(960,720) end
     g.setColor(.035,.025,.02,.95); g.rectangle('fill',0,580,960,140)
     text(self.notice or self.parent.paused and 'Your controls are paused. P / START to resume.'
         or q.combat.result and 'The host controls the next phase, retry and return.'
@@ -395,6 +400,7 @@ function Panel:draw()
         local r=self:rect(index); g.setColor(.12,.075,.035,.96); g.rectangle('fill',r.x,r.y,r.w,r.h,5,5)
         text(control.label,r.x+2,r.y+2,r.w-4,r.h-4,.65)
     end
+    if v.mobile and v.mobile.enabled and self:checkedPosition() and not self.choosing and not self.parent.paused and not q.combat.result then self.aimPad:draw(960,720) end
 end
 function Panel:release() self:suspend(); self.gun=nil; self.pending=nil; self.position=nil end
 return Panel

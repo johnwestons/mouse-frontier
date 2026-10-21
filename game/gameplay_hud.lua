@@ -92,9 +92,10 @@ local function new(context)
       ui.controlsReset=nil; ui.controlsScrollUp=nil; ui.controlsScrollDown=nil
       ui.accessTextSize=nil; ui.accessHighContrast=nil; ui.accessReducedMotion=nil
       ui.accessControlHints=nil; ui.accessTouchFeedback=nil; ui.accessLargeTouchTargets=nil
+      ui.accessAimAssistDown=nil; ui.accessAimAssistUp=nil; ui.accessAimSensitivityDown=nil; ui.accessAimSensitivityUp=nil
       runtime.optionsPage=runtime.optionsPage or "audio"
       local mobile=mobileEnabled()
-      local expanded=runtime.optionsPage=="controls"
+      local expanded=runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility"
       local panelX,panelY,panelW,panelH
       if expanded then panelX,panelY,panelW,panelH=42,26,876,668
       else panelX,panelY,panelW,panelH=mobile and 90 or 485,mobile and 55 or 125,mobile and 780 or 460,mobile and 615 or 525 end
@@ -143,17 +144,22 @@ local function new(context)
               {"TOUCH FEEDBACK",access.touchFeedback and "ON" or "OFF","accessTouchFeedback"},
               {"LARGE TOUCH TARGETS",access.largeTouchTargets and "ON" or "OFF","accessLargeTouchTargets"},
           }
-          local startY=panelY+150; local rowGap=mobile and 64 or 55
+          local startY=panelY+138; local rowGap=49
           for index,entry in ipairs(labels) do
               local y=startY+(index-1)*rowGap; love.graphics.setColor(colors.cream)
-              textIn((mobile and "" or (index.."  "))..entry[1],panelX+45,y,panelW-(mobile and 310 or 235),mobile and 58 or 42,mobile and 1 or .72)
-              ui[entry[3]]=button(entry[2],panelX+panelW-(mobile and 245 or 180),y,mobile and 195 or 140,mobile and 58 or 42,true,mobile and 1 or .72)
+              textIn((mobile and "" or (index.."  "))..entry[1],panelX+45,y,panelW-310,44,mobile and 1 or .82)
+              ui[entry[3]]=button(entry[2],panelX+panelW-245,y,195,44,true,mobile and 1 or .82)
           end
-          local note=mobile and (runtime.saveData and "Settings save with this journey."
-              or "These preferences apply now; journey settings load with a save.")
-              or (runtime.saveData and "1–6 change settings  •  TAB switches tabs  •  Saved with this journey."
-              or "1–6 change settings  •  TAB switches tabs  •  Preferences apply now.")
-          love.graphics.setColor(colors.cream); textIn(note,panelX+45,panelY+panelH-(mobile and 67 or 47),panelW-90,mobile and 54 or 40,mobile and .90 or .60,"center")
+          for index,entry in ipairs({{"aimSensitivity","TOUCH AIM SPEED","accessAimSensitivity"},{"aimAssist","TOUCH AIM ASSIST","accessAimAssist"}}) do
+              local y=panelY+441+(index-1)*58
+              love.graphics.setColor(colors.cream)
+              textIn(entry[2].."  "..Accessibility.aimLabel(settings,entry[1]),panelX+45,y,panelW-330,48,mobile and 1 or .82)
+              ui[entry[3].."Down"]=button("-",panelX+panelW-245,y,90,48,true)
+              ui[entry[3].."Up"]=button("+",panelX+panelW-140,y,90,48,true)
+          end
+          love.graphics.setColor(colors.cream)
+          textIn("Aim assist gently pulls the touch reticle toward nearby targets. Set it to OFF for manual aim.",panelX+45,panelY+563,panelW-90,48,mobile and .82 or .72,"center")
+          textIn("Settings save on this device.",panelX+45,panelY+620,panelW-90,30,mobile and .82 or .68,"center")
       else
           local device=runtime.optionsControlDevice or "keyboard"
           runtime.optionsControlDevice=device
@@ -224,7 +230,7 @@ local function new(context)
 
   local function drawOptions()
       local mobile=mobileEnabled()
-      local bounds=runtime.optionsPage=="controls" and {x=42,y=26,w=876,h=668}
+      local bounds=(runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility") and {x=42,y=26,w=876,h=668}
           or {x=mobile and 90 or 485,y=mobile and 55 or 125,w=mobile and 780 or 460,h=mobile and 615 or 525}
       return UIStyle.scope("options",bounds,function()
           drawOptionsRaw()

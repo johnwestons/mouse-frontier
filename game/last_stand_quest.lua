@@ -11,6 +11,7 @@ local Life=require('game.coop_last_stand_lifecycle')
 local AidState=require('game.coop_last_stand_aid_state')
 local PositionState=require('game.coop_last_stand_position_state')
 local ShooterPad=require('game.mobile_shooter_controls')
+local AimTargets=require('game.mobile_aim_targets')
 
 local Quest={}
 local VERSION=1
@@ -911,7 +912,9 @@ function Quest.new(context)
             state.shootout.effectsPaused=false
             if state.aimPad and state.aimTouchSession~=state.shootout then state.aimPad:cancel() end
             if state.aimPad and not privatePaused then
-                local x,y=state.aimPad:step(dt,state.shootout.gun,width,height)
+                local settings=Accessibility.aimSettings(runtime.saveData)
+                local x,y=state.aimPad:step(dt,state.shootout.gun,width,height,nil,
+                    settings,settings.aimAssist>0 and state.aimPad.aimTouch and AimTargets.lastStand(state.shootout,width,height))
                 if x then Shootout.setAim(state.shootout,x,y) end
             end
             local healthBefore=runtime.saveData.health
