@@ -86,6 +86,20 @@ class CoopSewingTests(unittest.TestCase):
             end
         ''')
 
+    def test_guest_finishes_outfit_while_host_is_outside(self):
+        self.lua.execute('''
+            require('game.coop_presence').ensure(data)
+            data.scene='stop'; states.host.scene='stop'
+            local recipe=Definitions.recipes[1]; materials(actors.companion,recipe)
+            local lease=acquire('companion')
+            assert(run('host','acquire').reason=='activity_unavailable')
+            assert(run('companion','start',lease,{recipeId=recipe.id}).result.ok)
+            finishWork('companion',lease)
+            local done=run('companion','collect',lease); assert(done.ok and done.result.ok)
+            assert(Items.get(actors.companion,nil,{kind='inventory',index=done.result.slot}).name==recipe.outputIds.masterwork)
+            assert(data.scene=='stop' and actors.companion.scene=='train')
+        ''')
+
     def test_host_can_finish_guest_work_after_disconnect_without_taking_the_reward(self):
         self.lua.execute('''
             local recipe=Definitions.recipes[1]; materials(actors.companion,recipe)

@@ -92,7 +92,9 @@ def build():
                 'acceleration_multipliers':[.92,.90,1.08,1.10]*2},
         'audit':{'alpha_threshold':16,'edge_margin':2,'detached_component_ratio':.003,'baseline_tolerance':10,'center_tolerance':18},
         'source_notes':{'identity':'Adult tinker-fox idle and carry references; eight repaired authored walk views. No young-tinker-fox or Picture Shop worker frames.',
-                        'framing':{'cell':SIZE,'foot_baseline':BASELINE,'standing_height':TARGET,'body_world_size':82},
+                        'framing':{'cell':SIZE,'foot_baseline':BASELINE,'standing_height':TARGET,'body_world_size':82,
+                            'runtime_scale':'body_world_size / decoded frame height for every action; no cross-strip extent normalization',
+                            'mobile_cells':'All 19 strips use characterAnimationFrameSize with isolated frame resizing.'},
                         'prompts':'docs/home-stop-adult-fox-prompts.txt'}}
     (ROOT/'character-motion/home-tinker-fox.json').write_text(json.dumps(spec,indent=2)+'\n',encoding='utf-8')
     (REVIEW/'import-report.json').write_text(json.dumps(imports,indent=2)+'\n',encoding='utf-8')

@@ -40,6 +40,29 @@ class GameStateTests(unittest.TestCase):
             assert(not getmetatable(replica.data))
         ''')
 
+    def test_staged_snapshot_validates_once_and_commits_only_detached_data(self):
+        self.lua.execute('''
+            local calls=0; local prepare=replica.prepare
+            replica.prepare=function(self,message) calls=calls+1; return prepare(self,message) end
+            local message=capture(); local commit=assert(replica:stage(message))
+            assert(calls==1 and replica.data==nil and replica.revision==0)
+            message.domains={}; message.sceneEpoch=999
+            assert(commit() and calls==1 and replica.sceneEpoch==data.coop.sceneEpoch)
+            assert(replica:actor().character=='cook-mouse.png')
+            assert(not commit())
+        ''')
+
+    def test_staged_delta_cannot_overwrite_a_newer_replica(self):
+        self.lua.execute('''
+            apply(capture()); data.scrap=data.scrap+1
+            local delta=capture(); local commit=assert(replica:stage(delta))
+            apply(delta); local current=replica.data; local revision=replica.revision
+            local ok,reason=commit()
+            assert(not ok and reason=='stale_staged_replica' and replica.data==current and replica.revision==revision)
+            local corrupt=capture(true); corrupt.domains={}
+            assert(not replica:stage(corrupt) and replica.data==current)
+        ''')
+
     def test_secrets_receipts_device_preferences_and_allocation_counters_are_absent(self):
         self.lua.execute('''
             data.coop.network={version=1,campaignId=string.rep('a',32),companionId=string.rep('b',32),

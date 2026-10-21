@@ -186,16 +186,23 @@ end
 function Authority:_prepare(actorId,name,args,draft,activities)
     local allowed,reason=Capabilities.authorize(name,Players.role(draft,actorId))
     if not allowed then return nil,reason end
+    local identity=Players.get(draft,actorId).travelIdentity
+    if identity and identity.status~='active' and name~='traveler.return' and name~='traveler.ack' then return nil,'traveler_returned' end
     if require('game.coop_last_stand_lifecycle').active(draft) and not name:match('^lastStand%.')
         and not name:match('^session%.')
+        and not name:match('^traveler%.')
         and not (name:match('^gun%.') and args.mode=='lastStand')
         and not ({['inventory.swap']=true,['inventory.equip']=true,['inventory.consume']=true,['weapon.select']=true})[name] then
         return nil,'modal_scene'
     end
-    if draft.roamingEncounter and name~='battle.begin' and name~='scene.returnTrain' and name~='session.kick' then return nil,'encounter_pending' end
+    if draft.roamingEncounter and name~='battle.begin' and name~='scene.returnTrain' and name~='session.kick'
+        and name~='traveler.ack' then return nil,'encounter_pending' end
     local handler=self.handlers[name]
     if not handler then return nil,"not_implemented" end
-    local operation,prepareError=handler(draft,actorId,args,activities)
+    -- Guest handlers resolve scene-dependent objects through that actor's
+    -- fixed view. Shared writes still target this detached host-owned draft.
+    local actorData=actorId=='companion' and Players.forActor(draft,actorId) or draft
+    local operation,prepareError=handler(actorData,actorId,args,activities)
     if not operation then return nil,prepareError or "invalid_action" end
     if type(operation)~="table" or type(operation.apply)~="function" or type(operation.scopes)~="table" then
         return nil,"invalid_handler"

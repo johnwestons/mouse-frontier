@@ -85,6 +85,40 @@ class MovementTests(unittest.TestCase):
             assert(math.abs(x-data.players.companion.playerX)<.000001 and sim.tick==30)
         ''')
 
+    def test_held_input_survives_uneven_host_frames_without_speed_loss(self):
+        self.lua.execute('''
+            function trial(fps)
+                clock=0; data.players.companion.playerX=100
+                sim=Movement.host(context); sim:admit(7); assert(sim:ready(7,1,sim.motionId))
+                assert(sim:receive(7,input(1)))
+                local sequence=1; local nextSend=.05
+                for frame=1,fps*3 do
+                    clock=frame/fps
+                    if clock+1e-9>=nextSend then
+                        sequence=sequence+1; assert(sim:receive(7,input(sequence))); nextSend=nextSend+.05
+                    end
+                    assert(sim:update())
+                end
+                assert(sim.tick==90)
+                return sim.actor.x
+            end
+            local baseline=trial(60)
+            for _,fps in ipairs({30,24,20,15}) do assert(math.abs(trial(fps)-baseline)<.000001,fps) end
+        ''')
+
+    def test_direction_changes_apply_at_receive_time_and_queue_is_bounded(self):
+        self.lua.execute('''
+            data.players.companion.character='legacy.png'
+            sim=Movement.host(context); sim:admit(7); assert(sim:ready(7,1,sim.motionId))
+            assert(sim:receive(7,input(1,1000)))
+            clock=.05; assert(sim:receive(7,input(2,-1000))); assert(sim:update())
+            assert(sim.actor.x>100 and sim.ack==1)
+            clock=.1; assert(sim:update()); assert(sim.actor.x<100 and sim.ack==2)
+            for n=3,100 do clock=clock+.0001; assert(sim:receive(7,input(n))) end
+            assert(#sim.inputQueue<=64)
+            sim:disconnect(7); assert(#sim.inputQueue==0 and not sim.heldInput)
+        ''')
+
     def test_stale_intent_stops_and_does_not_resume_on_later_updates(self):
         self.lua.execute('''
             assert(sim:ready(7,1,sim.motionId)); assert(sim:receive(7,input(1)))

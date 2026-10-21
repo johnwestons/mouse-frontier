@@ -73,6 +73,19 @@ class CoopFirstAidTests(unittest.TestCase):
             assert(Schema.migrate(data).helpQuestSessions[request.sessionId].rewardClaimed)
         ''')
 
+    def test_guest_treats_patient_while_host_is_aboard(self):
+        self.lua.execute('''
+            local Presence=require('game.coop_presence')
+            data.players.companion.presence=Presence.capture(data)
+            data.scene='train'; states.host.scene='train'
+            local result=acquire('companion'); assert(result.ok,result.reason)
+            treat('companion',result.result.leaseId)
+            local done=run('companion','firstAid.complete',{leaseId=result.result.leaseId})
+            assert(done.ok and done.result.completed and request.complete)
+            assert(data.players.companion.inventory[1]==nil and data.inventory[1]=='field-bandage-roll')
+            assert(data.scene=='train' and Players.forActor(data,'companion').scene=='stop')
+        ''')
+
     def test_guest_cannot_accept_an_offer_or_target_an_absent_distant_patient(self):
         self.lua.execute('''
             request.accepted=false

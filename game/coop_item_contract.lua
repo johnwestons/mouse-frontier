@@ -20,6 +20,7 @@ function Contract.matches(expected,data,chest,ref)
 end
 function Contract.expected(data,actorId,name,args,catalog)
     local scopes={'player:'..actorId}
+    if name=='inventory.give' or name=='ammo.give' then scopes={'player:host','player:companion','presence:host','presence:companion'} end
     if args.entityId then scopes[#scopes+1]='entity:'..args.entityId end
     if args.containerId then scopes[#scopes+1]='entity:'..args.containerId end
     if name=='inventory.consume' then

@@ -114,7 +114,7 @@ local function finish()
     if restoreWrite then love.filesystem.write=restoreWrite; restoreWrite=nil end
     check(app.quit()~=true,'quit cancelled')
     print('LAN_SMOKE_OK role='..role..' range=true independentLanes=true actualThirtySecondCourses=2'
-        ..' actualControls=true ammoSaveRetry=true partialMagazineResume=true reconnect=true sharedRewardOnce=true privatePause=true'
+        ..' actualControls=true stopMelee=true ammoSaveRetry=true partialMagazineResume=true reconnect=true sharedRewardOnce=true privatePause=true'
         ..' input='..(touch and 'touch-with-host-world-key-movement' or 'desktop'))
     love.event.quit(0)
 end
@@ -128,6 +128,8 @@ local function load()
     if role=='host' then
         Save.remove(1); c.runtime.selectedSlot=1
         local draft=c.newSave(c.characters[1]); draft.location=2; draft.scene='stop'; draft.stopped=true; draft.passengers={}
+        -- This fixture starts after the home-yard tutorial.
+        draft.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
         check(c.enterGame(draft),'initial canonical save seed failed')
         local data=c.runtime.saveData
         data.scene='stop'; data.location=2; data.stopped=true; c.runtime.scene='stop'; c.runtime.state='game'
@@ -144,11 +146,10 @@ local function load()
         local place=lp.context.placeCompanion; lp.context.placeCompanion=function(campaign)
             local ok,why=place(campaign); if not ok then return ok,why end
             local own=Players.forActor(campaign,'companion'); local range=campaign.stopLayouts['2'].shootingRange
-            own.playerX,own.playerY=range.x+20,range.y; Items.write(own,nil,{kind='inventory',index=1},'monocular')
-            Items.write(own,nil,{kind='equipment',index=2},'frontier-22-lever-rifle'); own.ammo['22lr']=40
+            own.playerX,own.playerY=range.x+20,range.y
             check(Items.ensure(campaign),'companion ownership seed failed'); return true
         end
-        lp.port=port; c.runtime.state='slots'; menu(); click('host'); app.draw(); press(c.ui.slots[1]); back()
+        lp.port=port; c.runtime.state='slots'; app.update(0); menu(); click('saveSlot'); click('slot_1'); click('host'); back()
         check(lp.network and c.session.networkMode=='host','actual title saved-host entry failed')
         local remote=lp.network.context.command
         lp.network.context.command=function(generation,request)
@@ -163,7 +164,12 @@ local function load()
         end
         stage='first-host-open'; print('LAN_SMOKE_LISTENING')
     else
-        c.runtime.state='slots'; menu(); click('address','127.0.0.1:'..port); click('name','Range friend'); click('join')
+        Save.remove(1); local own=c.newSave(c.characters[2] or c.characters[1])
+        Items.write(own,nil,{kind='inventory',index=1},'monocular')
+        Items.write(own,nil,{kind='equipment',index=2},'frontier-22-lever-rifle'); own.ammo['22lr']=40
+        check(Items.ensure(own) and Save.write(1,own),'guest range save seed failed')
+        c.runtime.state='slots'; menu(); click('address','127.0.0.1:'..port); click('name','Range friend')
+        click('saveSlot'); click('slot_1'); click('join')
         check(lp.network,'guest join failed '..tostring(lp.error)); stage='joining'
     end
 end
@@ -235,11 +241,28 @@ local function hostUpdate()
         check(data.goodwill==baseGoodwill+1 and own.result.gained==0 and guest.result.gained==0,'replay repeated shared tier reward')
         check(data.scrap==7 and data.players.companion.ammo['22lr']==53,'guest ammo charge or actual shot count duplicated')
         local disk=assert(Save.read(1)); check(disk.goodwill==data.goodwill and disk.scrap==7 and disk.players.companion.ammo['22lr']==53,'range outcomes not durable')
-        file('host.done','true'); capture='repeat-result'; stage='done'
+        capture='repeat-result'; stage='second-result-capture'
+    elseif stage=='second-result-capture' and writtenCaptures['repeat-result'] then
+        button('e'); check(not c.runtime.shootingRange,'host range did not close')
+        check(c.ui.transitionParty('scene.returnTrain').ok,'host could not board independently')
+        check(Players.forActor(data,'companion').scene=='stop','host boarding pulled client out of range')
+        file('host.away','true'); stage='away'
+    elseif stage=='away' and file('guest.alone.hit') then
+        check(c.runtime.scene=='train' and guest.hits==1 and guest.clock>=1,'client range stopped while host was aboard')
+        file('host.alone.checked','true'); stage='returning'
+    elseif stage=='returning' and file('guest.returned') then
+        check(data.players.companion.travelIdentity.status=='closed','range traveler return not acknowledged')
+        check(data.players.companion.ammo['22lr']==52,'independent range shot did not consume personal ammo')
+        file('host.done','true'); stage='done'
     elseif stage=='done' and file('guest.done') then finish() end
 end
 local function guestUpdate()
     local lp=c.ui.localPlay; local view=lp.clientView
+    if stage=='returning' and lp.phase=='idle' then
+        local saved=assert(Save.read(1)); check(not require('game.coop_traveler').isAway(saved) and saved.ammo['22lr']==52,'range progress did not return to local slot')
+        file('guest.returned','true'); stage='returned'
+    end
+    if stage=='returned' and file('host.done') then file('guest.done','true'); finish(); return end
     if not view or not view.ready then return end
     if lp.menuOpen and (stage=='joining' or stage=='rejoin') then back() end
     local panel=view.range; local s=panel:state(); local model=panel.model
@@ -253,7 +276,25 @@ local function guestUpdate()
         check(panel:available(),'ordinary practice UI closed unexpectedly at '..stage)
     end
     check(not c.runtime.saveData,'guest acquired writable campaign')
-    if stage=='joining' and view:inputAllowed() then file('guest.ready','true'); stage='host-open' end
+    if stage=='joining' and view:inputAllowed() then
+        app.draw()
+        local attackRect=view.ui.guestFieldAttack
+        if touch then
+            local key=view.mobile.secondaryAction()
+            local control=key=='space' and view.mobile.secondary or view.mobile.primary
+            check(key=='space' or view.mobile.primaryAction()=='space','ordinary-stop touch melee missing')
+            attackRect={x=control.x-control.radius,y=control.y-control.radius,w=control.radius*2,h=control.radius*2}
+        end
+        check(attackRect,'ordinary-stop melee control missing'); input('space',attackRect)
+        check(view.field.pending,'stop swing control did not submit an owned attack')
+        stage='stop-swing'
+    elseif stage=='stop-swing' and not view.field.pending and view.field.lastOutcome then
+        check(view.field.lastOutcome.ok and view.field.lastOutcome.durable,'ordinary-stop swing failed')
+        check(view.runtime.saveData.roamingCombat.actors.companion.areaId=='stop:2','stop swing saved in wrong scene')
+        check(view.field:presentation('companion').actionTimer>0,'stop swing animation missing')
+        capture='stop-swing'
+        file('guest.ready','true'); stage='host-open'
+    end
     if stage=='host-open' and file('host.lobby') then
         ownClock=lp.motionFrame.companion.y; walkGuest(view); stage='guest-world-move'
     elseif stage=='guest-world-move' and lp.motionFrame.companion.y<ownClock-15000 then
@@ -323,7 +364,7 @@ local function guestUpdate()
         check(model and model.phase=='play' and model.itemId==ownItem and model.loaded==partial
             and s.roundRevision==ownRound,'partial magazine changed before its screenshot completed')
         oldSession=lp.network.sessionId; oldMotion=view.motionId
-        menu(); click('leave'); menu(); click('join'); stage='rejoin'
+        menu(); lp:stop('smoke_connection_drop'); menu(); click('join'); stage='rejoin'
     elseif stage=='rejoin' and lp.phase=='connected' and view:inputAllowed() then
         check(lp.network.sessionId==oldSession and view.motionId~=oldMotion,'manual rejoin did not renew actor motion generation')
         s=panel:state(); check(s.itemId==ownItem and s.loaded==partial and s.roundRevision==ownRound and view.runtime.saveData.ammo['22lr']==54,'disconnect/rejoin reset owned gun/pool/phase')
@@ -349,7 +390,18 @@ local function guestUpdate()
     elseif stage=='second-round' and s.phase=='results' then
         check(s.shots==1 and s.hits==1 and s.result.gained==0 and view.runtime.saveData.goodwill==tonumber(file('base.goodwill'))+1,'replay granted repeated reward')
         file('guest.result.2','true'); capture='repeat-result'; stage='done'
-    elseif stage=='done' and file('host.done') then file('guest.done','true'); finish() end
+    elseif stage=='done' and file('host.away') and panel:canAct() then
+        rangePress({x=238,y=548,w=150,h=58}); stage='alone-start'
+    elseif stage=='alone-start' and s.phase=='results' and panel:canAct() and love.timer.getTime()-lastInput>.6 then
+        rangePress({x=238,y=548,w=150,h=58})
+    elseif stage=='alone-start' and s.phase=='play' and panel:canAct() then stage='alone'
+    elseif stage=='alone' and panel:canAct() and s.phase=='play' then
+        if s.shots==0 and s.cooldown<=0 and s.reloadTimer<=0 then local x,y=target(model); if x then fire(model,x,y) end end
+        if s.hits==1 and s.clock>=1 then file('guest.alone.hit','true') end
+        if file('host.alone.checked') then input('e',{x=816,y=654,w=126,h=42}); stage='alone-close' end
+    elseif stage=='alone-close' and not panel:available() and view:inputAllowed() then
+        check(lp:returnToSave(),'client range return failed'); stage='returning'
+    end
 end
 local function update(dt)
     if not app or finished then return end

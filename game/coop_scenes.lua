@@ -18,7 +18,9 @@ local Caravans=require('game.crow_caravans')
 local Caravan=require('game.crow_caravan_area')
 local Areas=require('game.expedition_areas')
 local Home=require('game.home_stop')
+local Presence=require('game.coop_presence')
 local Commands={}
+function Commands.localScopes(id) return {'presence:'..id,'player:'..id,'rng','people:identities','world:rooms'} end
 local function positionAvailable(state)
     return type(state.x)=='number' and state.x==state.x and math.abs(state.x)<100000
         and type(state.y)=='number' and state.y==state.y and math.abs(state.y)<100000
@@ -29,7 +31,8 @@ local function fields(args,allowed)
 end
 local function trainPositions(data,context,returning)
     return Party.place(data,function(id,actor)
-        if not returning and type(actor.playerX)=="number" and type(actor.playerY)=="number" then return actor.playerX,actor.playerY end
+        local own=Players.forActor(Players.campaignOf(data),id)
+        if not returning and own.scene=='train' and type(actor.playerX)=="number" and type(actor.playerY)=="number" then return actor.playerX,actor.playerY end
         return context.trainSpawn(data,id)
     end,function(x,y,id) return context.trainClamp(data,id,x,y) end)
 end
@@ -37,8 +40,18 @@ function Commands.install(authority,context)
     local catalog=context.catalog
     local function register(name,prepare)
         authority:register(name,function(data,actorId,args,transaction)
+            local localScene=name:match('^scene%.') and name~='scene.rangeEnter' and name~='scene.rangeExit'
+                or name=='home.advance' and (args.action=='enterOffice' or args.action=='exitOffice')
+            if data.roamingEncounter and name=='scene.returnTrain' then
+                if actorId~='host' then return nil,'host_only' end
+                localScene=false
+            end
+            if localScene then
+                local campaign=Players.campaignOf(data); Presence.ensure(campaign)
+                data=Players.forActor(campaign,actorId)
+            end
             local state=context.actorState(actorId)
-            if not state or state.screen~="game" or state.scene~=data.scene or state.changingCar
+            if not state or state.screen~="game" or state.scene~=data.scene or state.changingCar or state.activityBlocked
                 or state.encounterActive then return nil,"scene_unavailable" end
             if data.roamingEncounter and name~='scene.returnTrain' then return nil,'encounter_pending' end
             if Home.isHome(data) and (name=='scene.enterHouse' or name=='scene.caravan' or name=='scene.expedition') then return nil,'home_preparation_incomplete' end
@@ -51,7 +64,8 @@ function Commands.install(authority,context)
             if data.roamingEncounter then scopes[#scopes+1]='combat:roaming' end
             if data.players.companion then scopes[#scopes+1]="player:companion" end
             local homeRoom=name=='home.advance' and (args.action=='enterOffice' or args.action=='exitOffice')
-            return {scopes=scopes,effects=name=='home.advance' and not homeRoom and {story=true} or {scene=true},apply=function()
+            if localScene then scopes=Commands.localScopes(actorId) end
+            return {scopes=scopes,effects=localScene and {localScene=true} or name=='home.advance' and not homeRoom and {story=true} or {scene=true},apply=function()
                 local result,message=apply()
                 if not result then return nil,message end
                 if Items.enabled(data) and not Items.ensure(data) then return nil,"invalid_items" end
@@ -59,7 +73,7 @@ function Commands.install(authority,context)
             end}
         end)
     end
-    register('home.advance',function(data,state,args,transaction)
+    local function advanceHome(data,state,args,transaction)
         if not fields(args,{action=true}) or type(args.action)~='string' then return nil,'invalid_arguments' end
         if state.traveling or state.activityBlocked or data.coop.journey then return nil,'home_step_unavailable' end
         local allowed,reason=Home.canAdvance(data,args.action,state)
@@ -79,6 +93,11 @@ function Commands.install(authority,context)
             end
             return result
         end
+    end
+    register('home.advance',advanceHome)
+    register('scene.office',function(data,state,args,transaction)
+        if args.action~='enterOffice' and args.action~='exitOffice' then return nil,'invalid_arguments' end
+        return advanceHome(data,state,args,transaction)
     end)
     for _,command in ipairs({"scene.leaveTrain","scene.returnTrain","scene.enterHouse","scene.exitHouse"}) do
         local name=command
@@ -96,7 +115,7 @@ function Commands.install(authority,context)
                 if data.scene~="stop" or type(args.door)~="number" or args.door~=math.floor(args.door)
                     or Settlements.nearDoor(state.x,state.y,data.location)~=args.door then return nil,"door_unavailable" end
             elseif name=="scene.exitHouse" and data.scene~="house" then return nil,"wrong_scene"
-            elseif name=="scene.returnTrain" and data.scene=="train" then return nil,"wrong_scene" end
+            elseif name=="scene.returnTrain" and data.scene=="train" and not data.roamingEncounter then return nil,"wrong_scene" end
             if name=='scene.returnTrain' and Home.isHome(data) then
                 if data.homeStop.stage~='ready' then return nil,'home_preparation_incomplete' end
                 local target=Home.interaction(data,state)
@@ -206,7 +225,14 @@ function Commands.install(authority,context)
                 local saved=Areas.state(data,area.id); saved.discovered=true
                 tutorial=area.kind=='surface' and not saved.tutorialSeen
                 if tutorial then saved.tutorialSeen=true end
-                Areas.resetEnvironment(data,area.id)
+                local occupied=false
+                for id in pairs(data.players) do
+                    if id~=Players.actorId(data) then
+                        local other=Players.forActor(data,id)
+                        if other.scene=='expedition' and other.activeExpeditionArea==area.id then occupied=true end
+                    end
+                end
+                if not occupied then Areas.resetEnvironment(data,area.id) end
                 actors,message=Party.place(data,function() return x,y end,function(px,py) return Areas.clamp(data,area.id,px,py) end)
             else
                 data.scene='stop'; data.activeExpeditionArea=nil; data.activeHouseDoor=nil

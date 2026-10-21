@@ -16,12 +16,14 @@ function Host:_synchronize()
     local domain=self.context.domain and self.context.domain()
     local pose=self.context.position and self.context.position('companion') or record
     local epoch=data.coop.sceneEpoch
+    local sceneRevision=require('game.coop_presence').revision(data,'companion')
     if not record then self.actor=nil; self.readyEpoch=nil; self.input=nil; return end
-    if not self.actor or self.epoch~=epoch or self.domain~=domain or self.character~=record.character or self.actor.activeCar~=record.activeCar then
+    if not self.actor or self.epoch~=epoch or self.domain~=domain or self.sceneRevision~=sceneRevision or self.character~=record.character or self.actor.activeCar~=record.activeCar then
         assert(self.motionId<2147483647,'motion generation exhausted')
         self.motionId=self.motionId+1; self.accumulator=0
         self.epoch=epoch; self.character=record.character; self.readyEpoch=nil; self.input=nil; self.simInput=nil
-        self.domain=domain
+        self.inputQueue={}; self.heldInput=nil
+        self.domain=domain; self.sceneRevision=sceneRevision
         self.actor={x=pose.playerX,y=pose.playerY,facing=pose.playerFacing or 1,activeCar=record.activeCar,speed=185,character=record.character}
         Motion.resetActor(self.actor); self.actor.facing=pose.playerFacing or 1
     end
@@ -33,7 +35,8 @@ function Host:admit(generation)
 end
 function Host:disconnect(generation)
     if generation and self.generation~=generation then return false end
-    stop(self.actor); self.generation=nil; self.input=nil; self.readyEpoch=nil; self.simInput=nil; return true
+    stop(self.actor); self.generation=nil; self.input=nil; self.readyEpoch=nil; self.simInput=nil
+    self.inputQueue={}; self.heldInput=nil; return true
 end
 -- Called by the host's world simulation, never by a movement message. A fresh
 -- motion generation discards old predicted inputs while retaining actor/save
@@ -64,6 +67,13 @@ function Host:receive(generation,message)
     if message.sequence<=self.sequence then return false,'stale_input' end
     self.sequence=message.sequence
     self.input={x=message.x/1000,y=message.y/1000,sprint=message.sprint,sequence=message.sequence,received=self.context.clock()}
+    -- Input is sampled in host time. Preserve the previous held sample for
+    -- catch-up steps before this packet arrived; using nil there repeatedly
+    -- stopped the gait on hosts whose frames did not align with 30 Hz ticks.
+    local queue=self.inputQueue
+    if queue[#queue] and queue[#queue].received==self.input.received then queue[#queue]=self.input
+    else queue[#queue+1]=self.input end
+    while #queue>64 do table.remove(queue,1) end
     return true
 end
 function Host:allowed()
@@ -77,16 +87,22 @@ function Host:update()
     self:_synchronize()
     self.accumulator=math.min(Wire.STEP*Wire.MAX_CATCHUP,self.accumulator+now-self.last); self.last=now
     if not self.actor or not self:allowed() then
-        stop(self.actor); self.input=nil; self.simInput=nil; self.accumulator=0; return true
+        stop(self.actor); self.input=nil; self.simInput=nil; self.accumulator=0
+        self.inputQueue={}; self.heldInput=nil; return true
     end
-    if self.input and now-self.input.received>=Wire.STALE_SECONDS then self.input=nil; self.simInput=nil; stop(self.actor) end
+    if self.input and now-self.input.received>=Wire.STALE_SECONDS then
+        self.input=nil; self.simInput=nil; self.inputQueue={}; self.heldInput=nil; stop(self.actor)
+    end
     local record=self.context.campaign.players.companion
     while self.accumulator+1e-9>=Wire.STEP do
         local stepTime=now-self.accumulator+Wire.STEP; self.accumulator=math.max(0,self.accumulator-Wire.STEP)
         if self.tick>=2147483647 then return nil,'motion_tick_exhausted' end
         self.tick=self.tick+1
-        local input=self.input
-        if input and input.received>stepTime+1e-9 then input=nil end
+        while self.inputQueue[1] and self.inputQueue[1].received<=stepTime+1e-9 do
+            self.heldInput=table.remove(self.inputQueue,1)
+        end
+        local input=self.heldInput
+        if input and stepTime-input.received>=Wire.STALE_SECONDS then input=nil; self.heldInput=nil end
         local mover=function(ox,oy,nx,ny) return self.context.move(self.context.campaign,record,ox,oy,nx,ny) end
         Step.advance(self.actor,record,input,Wire.STEP,mover)
         self.simInput=input; self.stateTime=stepTime

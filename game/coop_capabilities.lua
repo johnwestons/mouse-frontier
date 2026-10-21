@@ -11,7 +11,8 @@ local function declare(policy,domain,names)
 end
 
 declare("personal","player","player.move player.pose player.car inventory.swap inventory.equip inventory.consume weapon.select")
-declare("shared_assistance","inventory","storage.transfer loot.pickup loot.drop mailbox.collect")
+declare('personal','session','traveler.return traveler.ack')
+declare("shared_assistance","inventory","storage.transfer loot.pickup loot.drop mailbox.collect inventory.give ammo.give")
 declare("shared_assistance","trade","merchant.buy merchant.sell npc.gift npc.chatter passenger.chatter passenger.equip")
 declare("shared_assistance","train","train.fuel train.upgrade train.engineUpgrade radio.station decoration.acquire decoration.place decoration.collect")
 declare("shared_assistance","activities","firstAid.acquire firstAid.step firstAid.complete maintenance.acquire maintenance.step maintenance.complete weaponRepair.acquire weaponRepair.step weaponRepair.complete outfit.craft activity.release")
@@ -19,12 +20,13 @@ declare("shared_assistance","quests","quest.deliver quest.help expedition.survey
 declare("personal","combat","battle.move battle.attack battle.guard battle.heal battle.ability battle.item battle.swap battle.endTurn roaming.attack gun.aim gun.fire gun.reload gun.cover gun.ads gun.mode gun.select")
 declare("shared_assistance","combat","lastStand.aid lastStand.position lastStand.supply range.acquire range.configure range.ammo range.fire range.reload range.release")
 declare("shared_assistance","requests","progression.request")
-declare("host_progression","scenes","scene.leaveTrain scene.returnTrain scene.enterHouse scene.exitHouse scene.expedition scene.caravan scene.rangeEnter scene.rangeExit")
+declare("personal","scenes","scene.leaveTrain scene.returnTrain scene.enterHouse scene.exitHouse scene.office scene.expedition scene.caravan")
+declare("host_progression","scenes","scene.rangeEnter scene.rangeExit")
 declare("host_progression","story","travel.depart travel.arrive travel.finish event.begin event.choose event.continue quest.offer quest.accept quest.decline quest.storyHandIn passenger.recruit passenger.dismiss conversation.begin conversation.choose conversation.end family.choose finale.choose")
 declare("host_progression","story","home.advance")
 declare("host_progression","combat","encounter.roll battle.begin battle.enemyTurn battle.continue battle.retreat battle.retry lastStand.offer lastStand.decline lastStand.accept lastStand.advance lastStand.start lastStand.retry lastStand.withdraw ambush.start ambush.continue ambush.retry ambush.withdraw")
 declare('host_progression','combat','roaming.pressure')
-declare("host_admin","session","session.host session.end session.enroll session.rebind session.replace session.kick save.select save.write save.reset debug.grant")
+declare("host_admin","session","session.host session.end session.enroll session.rebind session.replace session.kick session.returnTraveler save.select save.write save.reset debug.grant")
 declare("local_presentation","presentation","camera.move camera.zoom settings.change inventory.inspect map.inspect scene.inspect quest.inspect session.inspect session.leave")
 
 -- Domain implementation does not imply network/UI guest readiness. Only

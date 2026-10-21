@@ -102,7 +102,10 @@ local function motionAssets()
             local width,height=image:getDimensions()
             local count=width/height
             assert(count==(action=="walk" and 8 or 2),"Adult home fox requires eight authored walk poses and two idle poses: "..key)
-            local asset={image=image,w=height,h=height,count=count,visibleExtent=height,quads={}}
+            -- Every adult strip shares the same logical body canvas. Mobile
+            -- packs may resize eight-pose walks more than idles/work strips;
+            -- use this decoded cell's size, bypassing cross-strip crop scaling.
+            local asset={image=image,w=height,h=height,count=count,visibleExtent=height,bodyExtent=height,quads={}}
             for frame=1,count do asset.quads[frame]=g.newQuad((frame-1)*height,0,height,height,width,height) end
             motionSet[key]=asset
         end

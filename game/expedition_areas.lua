@@ -770,9 +770,9 @@ local function insideFloodZone(zone,x,y)
     return false
 end
 
-function Areas.isInFlood(data,areaId,x,y)
+function Areas.isInFlood(data,areaId,x,y,readOnly)
     local area=definitions[areaId]
-    local state=area and Areas.state(data,areaId)
+    local state=area and (readOnly and data.expeditions and data.expeditions[areaId] or not readOnly and Areas.state(data,areaId))
     return state and state.environmentPhase=="flooded" and insideFloodZone(area.environment and area.environment.floodZone,x,y) or false
 end
 
@@ -1018,7 +1018,7 @@ function Areas.spawn(areaId,spawnId)
     return spawn and spawn.x,spawn and spawn.y
 end
 
-function Areas.interaction(data,scene,player)
+function Areas.interaction(data,scene,player,readOnly)
     if not data or not player then return nil end
     local stopEntrance=scene=="stop" and Areas.entrance(data.location)
     if scene=="stop" and stopEntrance then
@@ -1032,17 +1032,18 @@ function Areas.interaction(data,scene,player)
     local area=Areas.current(data)
     if not area then return nil end
     local best,bestDistance
-    local state=Areas.state(data,area.id)
+    local state=readOnly and data.expeditions and data.expeditions[area.id] or not readOnly and Areas.state(data,area.id)
+    if not state then return nil end
     for _,definition in ipairs(area.interactions or {}) do
         local d=distance(player.x,player.y,definition.x,definition.y)
-        if d<=definition.radius and Areas.canReach(data,area.id,player.x,player.y,definition.x,definition.y)
+        if d<=definition.radius and Areas.canReach(data,area.id,player.x,player.y,definition.x,definition.y,readOnly)
             and (not bestDistance or d<bestDistance) then best,bestDistance=definition,d end
     end
     for _,mob in ipairs(area.mobs or {}) do
         local saved=state.mobs[mob.id]
-        if mob.boss and not saved.dead and Areas.isMobActive(data,area.id,mob)
+        if mob.boss and saved and not saved.dead and (not mob.requires or state.gates[mob.requires])
             and distance(player.x,player.y,saved.x,saved.y)<=180
-            and Areas.canReach(data,area.id,player.x,player.y,saved.x,saved.y) then
+            and Areas.canReach(data,area.id,player.x,player.y,saved.x,saved.y,readOnly) then
             return {kind="expedition",action="challenge",mobId=mob.id,id="challenge-"..mob.id,areaId=area.id,
                 x=saved.x,y=saved.y,radius=180,hoverRadius=58,
                 label=area.bossInteractionLabel or ("CHALLENGE "..string.upper(mob.name or "THE GUARDIAN"))}

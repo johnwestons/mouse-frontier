@@ -331,8 +331,8 @@ class PersonalPoseGuestTests(unittest.TestCase):
             local _,_,remote=view.ui.coopCompanion();assert(remote.playerPose=='sit')
             view.field.poses.companion={epoch=view.epoch,untilTime=view.elapsed+.3,weapon='frontier-short-sword',facing=-1}
             view.field.poses.host={epoch=view.epoch,untilTime=view.elapsed+.3,weapon='frontier-short-sword',facing=-1}
-            assert(view:update(.02));assert(view.runtime.actionKind=='melee' and view.runtime.actionHeldItem=='frontier-short-sword')
-            _,_,remote=view.ui.coopCompanion();assert(remote.actionKind=='melee' and remote.playerPose=='sit')
+            assert(view:update(.02));assert(view.runtime.actionKind=='swing' and view.runtime.actionHeldItem=='frontier-short-sword')
+            _,_,remote=view.ui.coopCompanion();assert(remote.actionKind=='swing' and remote.playerPose=='sit')
             controller.motionFrame=frame(4);controller.motionFrame.ack=view.sequence;controller.motionFrame.sessionId='old-session';assert(view:update(.01))
             assert(view.poses:presentation('companion').playerPose==nil and view.runtime.playerPose=='idle')
         ''')

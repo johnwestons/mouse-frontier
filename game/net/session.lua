@@ -4,6 +4,7 @@ local P=require('game.net.protocol')
 local Crypto=require('game.net.crypto')
 local Identity=require('game.net.identity')
 local Baseline=require('game.net.baseline')
+local TravelerTransfer=require('game.net.traveler_transfer')
 local Transport=require('game.net.transport_enet')
 local Movement=require('game.net.movement')
 local Roaming=require('game.net.roaming')
@@ -86,12 +87,15 @@ function Host:_drop(reason,graceful)
     if not link then return end
     send(self,link.peer,P.message('reject',{reason=reason}))
     if graceful then
-        self.departing={peer=link.peer,connectionId=link.connectionId,generation=link.generation,deadline=self.time+KICK_GRACE_SECONDS}
-        local ok=type(self.transport.disconnectLater)=='function'
-            and self.transport:disconnectLater(link.peer,Session.KICK_DISCONNECT_CODE)
-        if not ok then
-            self.transport:disconnect(link.peer,Session.KICK_DISCONNECT_CODE,true)
-            self.departing=nil
+        local code=reason=='host_kicked' and Session.KICK_DISCONNECT_CODE or 0
+        self.departing={peer=link.peer,connectionId=link.connectionId,generation=link.generation,code=code,deadline=self.time+KICK_GRACE_SECONDS}
+        -- Transports without disconnectLater still drain the reliable reject
+        -- before the bounded deadline; immediate closure can erase its reason.
+        local deferred=type(self.transport.disconnectLater)=='function' and self.transport:disconnectLater(link.peer,code)
+        if not deferred and reason=='host_kicked' then
+            -- A kick has a native reason code, so older transports can close
+            -- immediately without depending on delivery of the reject packet.
+            self.transport:disconnect(link.peer,code,true); self.departing=nil
         end
     else self.transport:disconnect(link.peer,0,false) end
     self.link=nil; self.reason=reason
@@ -128,7 +132,17 @@ end
 function Host:pending()
     local link=self.link
     if not link or link.phase~='approval' then return nil end
-    return {generation=link.generation,name=link.name,character=link.character}
+    return {generation=link.generation,name=link.name,character=link.character,profile=link.profile}
+end
+function Host:_reviewTraveler()
+    local link=self.link
+    local identity=link.credential and call(self.context.authenticate,link.credential,link.profile)
+    link.credential=nil
+    if identity then self:_welcome(identity)
+    else
+        link.phase='approval'; link.deadline=self.time+P.APPROVAL_SECONDS
+        if not send(self,link.peer,P.message('pending')) then self:_drop('send_failed') end
+    end
 end
 function Host:approve(generation)
     local request=self:pending()
@@ -143,7 +157,8 @@ end
 function Host:decline(generation)
     local request=self:pending()
     if not request or request.generation~=generation then return nil,'stale_approval' end
-    self:_drop('host_declined'); return true
+    local reason=self.context.declineReason and call(self.context.declineReason,self.link.profile) or 'host_declined'
+    self:_drop(reason or 'host_declined',true); return true
 end
 function Host:_baseline(update)
     if call(self.context.preflight)~=true then return self:_drop('save_not_ready') end
@@ -207,7 +222,7 @@ function Host:_receive(event)
         if accepted==nil then return self:_drop('movement_failed') end
         return
     end
-    if event.channel~=P.CONTROL then return self:_drop('unexpected_channel') end
+    if event.channel~=P.CONTROL and not (event.channel==P.STATE and (link.phase=='traveler_header' or link.phase=='traveler_parts')) then return self:_drop('unexpected_channel') end
     local message=P.decode(event.payload or event.data,event.channel)
     if not message then return self:_drop('invalid_packet') end
     if link.admitted and shape(message,'pong') then link.lastReceive=self.time; return end
@@ -229,17 +244,32 @@ function Host:_receive(event)
         return
     end
     if link.phase=='hello' then
-        if not shape(message,'hello',{'build','schema','name','character','credential'})
+        if not shape(message,'hello',{'build','schema','name','character','credential','traveler'})
             or not P.text(message.name,32) or not P.text(message.character,128)
+            or message.traveler~=nil and message.traveler~=true
             or (message.credential~=nil and not Identity.credential(message.credential)) then return self:_drop('invalid_hello') end
         if message.build~=self.context.build or message.schema~=self.context.schema then return self:_drop('incompatible_build') end
         if call(self.context.preflight)~=true then return self:_drop('save_not_ready') end
         link.name=message.name; link.character=message.character
-        local identity=message.credential and call(self.context.authenticate,message.credential)
-        if identity then self:_welcome(identity)
-        else
-            link.phase='approval'; link.deadline=self.time+P.APPROVAL_SECONDS
-            if not send(self,link.peer,P.message('pending')) then self:_drop('send_failed') end
+        link.credential=message.credential
+        if message.traveler then
+            if not self.context.validateTraveler then return self:_drop('traveler_unsupported') end
+            link.phase='traveler_header'; link.deadline=self.time+P.TRANSFER_SECONDS
+            if not send(self,link.peer,P.message('traveler_request')) then self:_drop('send_failed') end
+        elseif self.context.requiresTraveler then self:_drop('traveler_required')
+        else self:_reviewTraveler() end
+    elseif link.phase=='traveler_header' and event.channel==P.STATE then
+        local receiver,reason=TravelerTransfer.receiver(message,self.time,self.context.allowedCharacters,self.context.hash)
+        if not receiver then return self:_drop(reason or 'invalid_traveler') end
+        link.travelerReceiver=receiver; link.phase='traveler_parts'
+    elseif link.phase=='traveler_parts' and event.channel==P.STATE then
+        local profile,reason=link.travelerReceiver:push(message,self.time)
+        if profile==nil then return self:_drop(reason or 'invalid_traveler') end
+        if profile then
+            if profile.actor.character~=link.character then return self:_drop('traveler_character_mismatch') end
+            local accepted,errorMessage=call(self.context.validateTraveler,profile)
+            if accepted~=true then return self:_drop(errorMessage or 'invalid_traveler',true) end
+            link.profile=profile; link.travelerReceiver=nil; self:_reviewTraveler()
         end
     elseif link.phase=='credentials' and shape(message,'welcome_ack',{'sessionId'})
         and message.sessionId==self.context.sessionId then self:_baseline()
@@ -252,7 +282,7 @@ function Host:service()
     if self.closed then return end
     if not now(self) then return self:close('invalid_clock') end
     if self.departing and self.time>=self.departing.deadline then
-        self.transport:disconnect(self.departing.peer,Session.KICK_DISCONNECT_CODE,true)
+        self.transport:disconnect(self.departing.peer,self.departing.code or 0,true)
         self.departing=nil
     end
     self:_checkpointBarrier()
@@ -411,9 +441,20 @@ function Client:_receive(event)
         end
         if credential and (not Identity.credential(credential) or credential.campaignId~=message.campaignId) then credential=nil end
         self.sentCredential=credential; self.campaignId=message.campaignId; self.status='hello'
+        if self.context.traveler then
+            local profile,reason=call(self.context.traveler,message.campaignId)
+            if not profile then return self:_fail(reason or 'traveler_unavailable') end
+            self.travelerTransfer,reason=TravelerTransfer.pack(profile,self.context.hash)
+            if not self.travelerTransfer then return self:_fail(reason or 'invalid_traveler') end
+        end
         if not send(self,event.peer,P.message('hello',{build=self.context.build,schema=self.context.schema,
-            name=self.context.name,character=self.context.character,credential=credential})) then self:_fail('send_failed') end
+            name=self.context.name,character=self.context.character,credential=credential,traveler=self.travelerTransfer and true or nil})) then self:_fail('send_failed') end
     elseif event.channel==P.CONTROL and (self.status=='hello' or self.status=='approval') then
+        if self.status=='hello' and self.travelerTransfer and shape(message,'traveler_request') then
+            self.status='traveler_upload'; self.deadline=self.time+P.TRANSFER_SECONDS
+            if not send(self,event.peer,self.travelerTransfer.header,P.STATE) then self:_fail('send_failed') end
+            return
+        end
         if self.status=='hello' and shape(message,'pending') then
             self.status='approval'; self.deadline=self.time+P.APPROVAL_SECONDS; return
         end
@@ -491,6 +532,14 @@ function Client:update()
         end
     end
     if self.closed then return end
+    if self.status=='traveler_upload' then
+        for _=1,4 do
+            local part=self.travelerTransfer:next()
+            if not part then self.travelerTransfer=nil; self.status='hello'; break end
+            if not send(self,self.peer,part,P.STATE) then return self:_fail('send_failed') end
+            if part.index==self.travelerTransfer.header.parts then self.travelerTransfer=nil; self.status='hello'; break end
+        end
+    end
     if self.pendingCommand and self.time>=self.pendingCommand.nextRetry then
         self.pendingCommand.nextRetry=self.time+.75
         if not self.transport:sendToServer(self.pendingCommand.bytes,P.CONTROL,true) then return self:_fail('send_failed') end

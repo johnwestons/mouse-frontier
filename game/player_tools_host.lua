@@ -29,6 +29,9 @@ function Host.wrap(application,context)
         end,
         save=function() if context.persistence.schedule()==false then return false end; return context.persistence.flush() end,cancelInput=cancelInput})
     local function accessRect()
+        -- The local session stays on the title while a guest plays. Its title
+        -- launcher must not cover the guest joystick or Local Play buttons.
+        if guest() or context.controller and context.controller:captures() then return nil end
         if context.runtime.state=="slots" then return {x=18,y=652,w=250,h=50} end
     end
     local function accessHit(x,y)

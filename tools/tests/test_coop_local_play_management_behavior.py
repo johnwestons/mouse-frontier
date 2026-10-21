@@ -106,7 +106,8 @@ class LocalPlayManagementTests(unittest.TestCase):
             -- Adversarial callback-boundary injection: a new admitted generation
             -- is present before finalization. Normal admission is save-barriered.
             network.link.generation=old+1
-            service:disconnect('companion',old); assert(service:admit('companion',old+1))
+            service:disconnect('companion',old); service:admit('companion',old+1)
+            assert(service.bindings.companion==old+1)
             retry()
             assert(#kicks==0 and host.network.link.generation==old+1)
             assert(service.bindings.companion==old+1 and not host:managementStatus())

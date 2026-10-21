@@ -7,9 +7,18 @@ local Random=require('game.coop_random')
 local Rewards=require('game.expedition_rewards')
 local Schema=require('game.save_schema')
 local State=require('game.roaming_combat_state')
+local Sludges=require('game.stop_sludges')
+local Home=require('game.home_stop')
+local Settlements=require('game.settlements')
 local Commands={}
+function Commands.areaId(data)
+    if data.scene=='stop' and not Home.isHome(data) then return 'stop:'..data.location end
+    if data.scene=='expedition' then return data.activeExpeditionArea end
+end
 function Commands.scopes(data,id)
-    local result={'world:scene','combat:roaming','entity:'..data.expeditions[data.activeExpeditionArea].entityId,
+    local target=data.scene=='stop' and ('stop:sludges:'..data.location)
+        or ('entity:'..data.expeditions[data.activeExpeditionArea].entityId)
+    local result={'world:scene','combat:roaming',target,
         'rng','resources','player:host'}
     if data.players.companion then result[#result+1]='player:companion' end
     return result
@@ -31,17 +40,22 @@ function Commands.install(authority,context)
                 and (not State.point(args.targetX) or not State.point(args.targetY)) then return nil,'invalid_args' end
         local actor=context.actorState(id); local own=Players.forActor(data,id)
         local area=Areas.current(data); local saved=area and data.expeditions[area.id]
-        if not actor or actor.screen~='game' or actor.scene~='expedition' or data.scene~='expedition' or not area
-            or area.stop~=data.location or not saved or args.areaId~=area.id or own.health<=0
+        local stop=data.scene=='stop' and not Home.isHome(data)
+        local areaId=Commands.areaId(data)
+        if not actor or actor.screen~='game' or actor.scene~=data.scene or not areaId or args.areaId~=areaId or own.health<=0
+            or not stop and (not area or area.stop~=data.location or not saved)
             or actor.traveling or actor.changingCar or actor.encounterActive or actor.activityBlocked
             or data.tacticalBattle or data.expeditionBattle or data.roamingEncounter or data.events.current or data.coop.journey
-            or not State.point(actor.x) or not State.point(actor.y) or not Areas.isWalkable(data,area.id,actor.x,actor.y) then return nil,'field_unavailable' end
+            or not State.point(actor.x) or not State.point(actor.y)
+            or stop and not Settlements.isWalkable(data.location,actor.x,actor.y)
+            or not stop and not Areas.isWalkable(data,area.id,actor.x,actor.y) then return nil,'field_unavailable' end
         local ref
         for i=1,2 do
             local item=own.itemSlots and own.itemSlots.equipment[i]
             if item and item.id==args.weaponId then
                 local combat=context.catalog.weaponCombat[item.name]
                 if item.name=='scratch' or not context.catalog.weaponStats[item.name] or combat and combat.kind=='ranged' then return nil,'melee_required' end
+                if (item.durability or 100)<=0 then return nil,'weapon_broken' end
                 ref={kind='equipment',index=i}; break
             end
         end
@@ -52,7 +66,7 @@ function Commands.install(authority,context)
         if cooldown and cooldown.epoch==data.coop.sceneEpoch and t.now+1e-9<cooldown.untilTime then return nil,'attack_cooldown' end
         if data.roamingCombat and data.roamingCombat.serial>=2147483647 then return nil,'field_serial_exhausted' end
         return {scopes=Commands.scopes(data,id),checkpoint=true,apply=function()
-            local sys=context.fieldState and Schema.copy(context.fieldState()) or Roaming.new()
+            local sys=stop and Sludges.new() or context.fieldState and Schema.copy(context.fieldState()) or Roaming.new()
             if not sys then return nil,'field_unavailable' end
             sys.attackTimer=0
             local pose={x=actor.x,y=actor.y,facing=actor.facing or own.playerFacing or 1,intentX=actor.intentX,intentY=actor.intentY}
@@ -66,13 +80,14 @@ function Commands.install(authority,context)
                     local ids=authority.bindings.companion and {'host','companion'} or {'host'}
                     return Rewards.summary(Rewards.claimEnemy(data,context.catalog,definition,mob,ids))
                 end}
-            local used,reason,result=Roaming.attack(sys,ctx,args.targetX,args.targetY)
+            ctx.location=data.location
+            local used,reason,result=(stop and Sludges or Roaming).attack(sys,ctx,args.targetX,args.targetY)
             if not used then return nil,reason and 'weapon_broken' or 'field_unavailable' end
             own.playerFacing=pose.facing
-            Areas.updateGates(data,area.id)
+            if not stop then Areas.updateGates(data,area.id) end
             data.roamingCombat=data.roamingCombat or {version=1,serial=0,actors={}}
             local combat=data.roamingCombat; combat.serial=combat.serial+1
-            result.serial=combat.serial; result.epoch=data.coop.sceneEpoch; result.areaId=area.id; result.actorId=id
+            result.serial=combat.serial; result.epoch=data.coop.sceneEpoch; result.areaId=areaId; result.actorId=id
             result.x=actor.x; result.y=actor.y; result.alerts=alerts
             combat.actors[id]=result
             t.state.fieldCooldowns=t.state.fieldCooldowns or {}

@@ -17,6 +17,7 @@ function Commands.scopes(data)
     local s=data.tacticalBattle
     local e=s and s.battle.encounter
     local entity=e and e.source=='expedition' and data.expeditions[e.areaId].entityId
+        or data.roamingEncounter and data.expeditions[data.roamingEncounter.areaId].entityId
         or data.scene=='expedition' and data.expeditions[data.activeExpeditionArea].entityId
         or s and s.encounterId or data.encounters[tostring(data.location)].entityId
     local result={'party','world:scene','combat:tactical','entity:'..entity,
@@ -59,11 +60,16 @@ function Commands.install(authority,context)
         local host=context.actorState('host')
         if not hostSurface(data,'game') or host.encounterActive or host.activityBlocked or data.health<=0
             or data.tacticalBattle or data.expeditionBattle or data.events.current or data.coop.journey then return nil,'battle_unavailable' end
-        if data.scene=='expedition' then
+        if data.scene=='expedition' or data.roamingEncounter then
             local reason; e,reason=Expedition.entry(data,host,args); if not e then return nil,reason end
         elseif args.enemyIds~=nil then return nil,'invalid_args'
         elseif not e or e.entityId~=args.encounterId or not e.hasMob or e.resolved or not ({train=true,stop=true})[data.scene] then return nil,'battle_unavailable' end
         return {scopes=Commands.scopes(data),apply=function()
+            if e.source=='expedition' and (data.scene~='expedition' or data.activeExpeditionArea~=e.areaId) then
+                data.scene='expedition'; data.activeExpeditionArea=e.areaId; data.activeHouseDoor=nil
+                if data.crowCaravans then data.crowCaravans.activeCampId=nil end
+                data.playerX,data.playerY=e.returnContext.x,e.returnContext.y
+            end
             data.roamingEncounter=nil
             local c=controller(data,nil,context.catalog,t)
             c.actorIds=authority.bindings.companion~=nil and {'host','companion'} or {'host'}

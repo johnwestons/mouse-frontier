@@ -108,15 +108,20 @@ local function new(context)
   ui.refreshWorldInteraction=updateInteraction
 
   local function updateSharedActors(dt)
+    local visitor,companion
+    if ui.remoteWorldActor then visitor,companion=ui.remoteWorldActor() end
+    local hostResidents=runtime.scene=='stop' or runtime.scene=='house'
     if runtime.npcActor and Home.isHome(runtime.saveData) then
         runtime.npcActor.targetX=nil; runtime.npcActor.targetY=nil
         runtime.npcActor.moving=false; runtime.npcActor.velocityX=0; runtime.npcActor.velocityY=0
         runtime.npcActor.intentX=0; runtime.npcActor.intentY=0
-    elseif runtime.scene=='stop' or runtime.scene=='house' then
+    elseif hostResidents or visitor and (visitor.scene=='stop' or visitor.scene=='house') then
         local selected=runtime.saveData.currentNPC
         local locked=SceneNPCs.locked(runtime)
         local story=runtime.saveData.conversations and runtime.saveData.conversations.active
-        local companion=ui.coopCompanion and ui.coopCompanion()
+        companion=companion or ui.coopCompanion and ui.coopCompanion()
+        local companionScene=visitor and visitor.scene or runtime.scene
+        local companionDoor=visitor and visitor.activeHouseDoor or runtime.saveData.activeHouseDoor
         SceneNPCs.update(runtime.saveData,dt,{interiorFiles=scenery.interiorFiles,held=function(actor)
             if locked and actor.file==selected then return true end
             if story and story.phase=='prompt' and story.npc==actor.file then return true end
@@ -124,16 +129,16 @@ local function new(context)
             -- A resident gives an approaching second traveler their attention.
             -- This also holds a guest's selected merchant while their local
             -- panel is open, without trusting any guest-authored NPC state.
-            if companion and actor.scene==runtime.scene
-                and (actor.scene~='house' or actor.homeDoor==(runtime.saveData.activeHouseDoor or 1))
+            if companion and actor.scene==companionScene
+                and (actor.scene~='house' or actor.homeDoor==(companionDoor or 1))
                 and companion.x and companion.y then
                 return (companion.x-actor.x)^2+(companion.y-actor.y)^2<105^2
             end
             return false
         end})
-        SceneNPCs.refresh(runtime,locked)
+        if hostResidents then SceneNPCs.refresh(runtime,locked) end
     end
-    if runtime.scene=="train" then for _,passenger in ipairs(runtime.saveData.passengers or {}) do
+    if runtime.scene=="train" or visitor and visitor.scene=='train' then for _,passenger in ipairs(runtime.saveData.passengers or {}) do
         passenger.carIndex=math.max(1,math.min(#(runtime.saveData.trainCars or {1}),passenger.carIndex or 1)); passenger.wait=(passenger.wait or 1)-dt
         if passenger.wait<=0 then
             local preferred=Passengers.preferredCar(passenger,runtime.saveData.trainCars)

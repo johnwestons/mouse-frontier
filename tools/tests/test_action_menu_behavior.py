@@ -131,6 +131,29 @@ class ActionMenuTests(unittest.TestCase):
             restored:useSlot(2);assert(restored:menuLayout()=='radial')
         ''')
 
+    def test_packed_action_atlases_keep_authored_icon_and_wheel_bounds(self):
+        self.lua.execute('''
+            local noop=function() end;local captured={}
+            love.graphics.newImage=function()
+                return {setFilter=noop,getDimensions=function()return 1024,1024 end}
+            end
+            love.graphics.newQuad=function(...)captured.quad={...};return captured.quad end
+            love.graphics.draw=function(...)captured.draw={...}end
+            love.graphics.setColor=noop
+            package.loaded['game.action_menu_art']=nil
+            local Art=require('game.action_menu_art');local factor=1024/1254
+            Art.icon('idle',10,20,40)
+            assert(math.abs(captured.quad[1]-681*factor)<.000001,'packed icon x crop is not scaled')
+            assert(math.abs(captured.quad[2]-372*factor)<.000001,'packed icon y crop is not scaled')
+            assert(math.abs(captured.quad[3]-188*factor)<.000001,'packed icon width is not scaled')
+            assert(math.abs(captured.quad[4]-247*factor)<.000001,'packed icon height is not scaled')
+            assert(math.abs(captured.draw[6]-40/(247*factor))<.000001,'packed glyph rendered at a different size')
+            Art.wheel('poses',10,20,120)
+            assert(math.abs(captured.draw[5]-240/(1058*factor))<.000001,'packed wheel rendered at a different size')
+            assert(math.abs(captured.draw[7]-626*factor)<.000001,'packed wheel origin x is not scaled')
+            assert(math.abs(captured.draw[8]-622*factor)<.000001,'packed wheel origin y is not scaled')
+        ''')
+
     def test_editor_drags_actual_menu_child_and_undo_restores(self):
         self.lua.execute('''
             ui.uiPanel.x=4;ui.uiPanel.y=4;ui.uiPanel.collapsed=true

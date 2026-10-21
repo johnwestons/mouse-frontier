@@ -28,6 +28,11 @@ param(
     [switch]$LastStandHostRestart,
     [switch]$LastStandPressure,
     [switch]$Range,
+    [switch]$Visits,
+    [switch]$VisitCaravan,
+    [switch]$Sharing,
+    [switch]$TravelerHostRestart,
+    [switch]$IndependentAreas,
     [switch]$Discovery,
     [ValidateSet('fight','withdraw')][string]$PressureOutcome,
     [ValidateSet('ordinary','expedition')][string]$BattleScene,
@@ -64,6 +69,8 @@ $envNames+=@('MOUSE_FRONTIER_LAST_STAND_HOST_RESTART','MOUSE_FRONTIER_LAST_STAND
 $envNames+=@('MOUSE_FRONTIER_AMBUSH_HOST_RESTART','MOUSE_FRONTIER_AMBUSH_RESUMED')
 $envNames+=@('MOUSE_FRONTIER_ADVENTURE_HOST_RESTART','MOUSE_FRONTIER_ADVENTURE_RESUMED')
 $envNames+=@('MOUSE_FRONTIER_BOSS_HOST_RESTART','MOUSE_FRONTIER_BOSS_RESUMED')
+$envNames+=@('MOUSE_FRONTIER_TRAVELER_HOST_RESTART','MOUSE_FRONTIER_TRAVELER_RESUMED')
+$envNames+=@('MOUSE_FRONTIER_VISIT_CARAVAN')
 $previous=@{}
 foreach($name in $envNames){$previous[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 $children=@(); $exitCode=1; $hostRestarts=0
@@ -115,6 +122,11 @@ try {
     if($LastStandLifecycle){$Application=$true}
     if($LastStandPressure){$Application=$true}
     if($Range){$Application=$true}
+    if($VisitCaravan){$Visits=$true; $env:MOUSE_FRONTIER_VISIT_CARAVAN='1'}
+    if($Visits){$Application=$true}
+    if($TravelerHostRestart){$Sharing=$true; $env:MOUSE_FRONTIER_TRAVELER_HOST_RESTART='1'}
+    if($Sharing){$Application=$true}
+    if($IndependentAreas){$Application=$true}
     if($LastStandHostRestart){$LastStandLifecycle=$true; $Application=$true; $env:MOUSE_FRONTIER_LAST_STAND_HOST_RESTART='1'}
     if($LastStandHostRestart -and $BattleHostRestart){throw 'Choose Last Stand or battle host restart for this fixture.'}
     if($AmbushHostRestart -and ($LastStandHostRestart -or $BattleHostRestart)){throw 'Choose one host restart fixture per run.'}
@@ -127,6 +139,7 @@ try {
     if($BossPressure -and $otherFixtures){throw 'Choose one application fixture per run.'}
     if($DeviceControls -and ($otherFixtures -or $BossPressure)){throw 'Choose one application fixture per run.'}
     if($Travel -and ($otherFixtures -or $BossPressure -or $DeviceControls)){throw 'Choose one application fixture per run.'}
+    if((($Visits -or $Sharing -or $IndependentAreas) -and ($otherFixtures -or $BossPressure -or $DeviceControls -or $Travel)) -or ([int][bool]$Visits+[int][bool]$Sharing+[int][bool]$IndependentAreas -gt 1)){throw 'Choose one application fixture per run.'}
     if(([int][bool]$Train+[int][bool]$Objects+[int][bool]$TradeScene+[int][bool]$PeopleScene+[int][bool]$Activities+[int][bool]$Sewing+[int][bool]$FirstAid+[int][bool]$Quests+[int][bool]$Conversations+[int][bool]$QuestDecisions+[int][bool]$Events+[int][bool]$Finale+[int][bool]$Battles+[int][bool]$World+[int][bool]$PartyScene+[int][bool]$Roaming+[int][bool]$Hazards+[int][bool]$RoamingCues+[int][bool]$RoamingPressure+[int][bool]$ExpeditionAssistance+[int][bool]$Ambush+[int][bool]$AmbushPressure+[int][bool]$Adventure+[int][bool]$LastStand+[int][bool]$LastStandShooter+[int][bool]$LastStandLifecycle+[int][bool]$LastStandPressure+[int][bool]$Range+[int][bool]$Discovery) -gt 1){throw 'Choose one application fixture per run.'}
     if(-not (Test-Path -LiteralPath $LovePath -PathType Leaf)){throw 'LÖVE runtime is missing.'}
     New-Item -ItemType Directory -Force -Path $harnessRoot | Out-Null
@@ -162,6 +175,9 @@ try {
     if($LastStandLifecycle){$fixtureName='guest-last-stand-lifecycle-smoke'}
     if($LastStandPressure){$fixtureName='guest-last-stand-pressure-smoke'}
     if($Range){$fixtureName='guest-range-smoke'}
+    if($Visits){$fixtureName='guest-visits-smoke'}
+    if($Sharing){$fixtureName='guest-sharing-smoke'}
+    if($IndependentAreas){$fixtureName='guest-independent-area-smoke'}
     if($Discovery){$fixtureName='guest-discovery-smoke'}
     if($World){$fixtureName='guest-world-smoke'}
     if($PartyScene){$fixtureName='guest-party-smoke'}
@@ -194,7 +210,7 @@ try {
         $child=Start-Process -FilePath $LovePath -ArgumentList ('"'+$harnessRoot+'"') -WorkingDirectory $gameRootPath `
             -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
         $null=$child.Handle
-        $children+=@{process=$child;role=$role;output=$outPath;error=$errPath;restartExpected=($role -eq 'host' -and ($BattleHostRestart -or $LastStandHostRestart -or $AmbushHostRestart -or $AdventureHostRestart -or $BossHostRestart));restarted=$false}
+        $children+=@{process=$child;role=$role;output=$outPath;error=$errPath;restartExpected=($role -eq 'host' -and ($BattleHostRestart -or $LastStandHostRestart -or $AmbushHostRestart -or $AdventureHostRestart -or $BossHostRestart -or $TravelerHostRestart));restarted=$false}
         if($role -eq 'host'){
             # No assumed startup delay: launch the guest only after the host's
             # real ENet socket and durable campaign preflight are ready.
@@ -210,11 +226,11 @@ try {
             if($child.restartExpected -and -not $child.restarted -and $child.process.HasExited){
                 $child.process.WaitForExit()
                 $report=[IO.File]::ReadAllText($child.output); $errors=[IO.File]::ReadAllText($child.error)
-                $restartMarker=if($LastStandHostRestart){'LAN_SMOKE_RESTART role=host lastStandSaved=true'}elseif($AmbushHostRestart){'LAN_SMOKE_RESTART role=host ambushSaved=true'}elseif($AdventureHostRestart){'LAN_SMOKE_RESTART role=host adventureSaved=true'}elseif($BossHostRestart){'LAN_SMOKE_RESTART role=host bossSaved=true'}else{'LAN_SMOKE_RESTART role=host battleSaved=true'}
+                $restartMarker=if($TravelerHostRestart){'LAN_SMOKE_RESTART role=host travelerSaved=true'}elseif($LastStandHostRestart){'LAN_SMOKE_RESTART role=host lastStandSaved=true'}elseif($AmbushHostRestart){'LAN_SMOKE_RESTART role=host ambushSaved=true'}elseif($AdventureHostRestart){'LAN_SMOKE_RESTART role=host adventureSaved=true'}elseif($BossHostRestart){'LAN_SMOKE_RESTART role=host bossSaved=true'}else{'LAN_SMOKE_RESTART role=host battleSaved=true'}
                 if($child.process.ExitCode -ne 42 -or $report -notmatch $restartMarker -or $errors.Length -gt 0){throw ('LAN host restart checkpoint failed: '+$report+$errors)}
                 $child.restarted=$true; $hostRestarts++
                 $env:APPDATA=Join-Path $harnessRoot 'host-appdata'; $env:MOUSE_FRONTIER_LAN_SMOKE_ROLE='host'
-                if($LastStandHostRestart){$env:MOUSE_FRONTIER_LAST_STAND_RESUMED='1'}elseif($AmbushHostRestart){$env:MOUSE_FRONTIER_AMBUSH_RESUMED='1'}elseif($AdventureHostRestart){$env:MOUSE_FRONTIER_ADVENTURE_RESUMED='1'}elseif($BossHostRestart){$env:MOUSE_FRONTIER_BOSS_RESUMED='1'}else{$env:MOUSE_FRONTIER_BATTLE_RESUMED='1'}
+                if($TravelerHostRestart){$env:MOUSE_FRONTIER_TRAVELER_RESUMED='1'}elseif($LastStandHostRestart){$env:MOUSE_FRONTIER_LAST_STAND_RESUMED='1'}elseif($AmbushHostRestart){$env:MOUSE_FRONTIER_AMBUSH_RESUMED='1'}elseif($AdventureHostRestart){$env:MOUSE_FRONTIER_ADVENTURE_RESUMED='1'}elseif($BossHostRestart){$env:MOUSE_FRONTIER_BOSS_RESUMED='1'}else{$env:MOUSE_FRONTIER_BATTLE_RESUMED='1'}
                 $outPath=Join-Path $harnessRoot 'host-resumed.log'; $errPath=Join-Path $harnessRoot 'host-resumed.err'
                 $resumed=Start-Process -FilePath $LovePath -ArgumentList ('"'+$harnessRoot+'"') -WorkingDirectory $gameRootPath `
                     -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
@@ -246,7 +262,7 @@ try {
             throw ('LAN '+$child.role+' failed: '+$report+$errors)
         }
     }
-    if(($BattleHostRestart -or $LastStandHostRestart -or $AmbushHostRestart -or $AdventureHostRestart -or $BossHostRestart) -and $hostRestarts -ne 1){throw 'LAN host did not complete exactly one disk restart.'}
+    if(($BattleHostRestart -or $LastStandHostRestart -or $AmbushHostRestart -or $AdventureHostRestart -or $BossHostRestart -or $TravelerHostRestart) -and $hostRestarts -ne 1){throw 'LAN host did not complete exactly one disk restart.'}
     $exitCode=0
 } catch {
     Write-Output ('LAN_SMOKE_ERROR '+$_.Exception.Message)
@@ -284,6 +300,9 @@ try {
     $summary+=' lastStandPressureFixture='+[bool]$LastStandPressure
     $summary+=' rangeFixture='+[bool]$Range
     $summary+=' discoveryFixture='+[bool]$Discovery
+    $summary+=' visitsFixture='+[bool]$Visits+' visitCaravan='+[bool]$VisitCaravan
+    $summary+=' sharingFixture='+[bool]$Sharing+' travelerHostRestart='+[bool]$TravelerHostRestart
+    $summary+=' independentAreasFixture='+[bool]$IndependentAreas
     Set-Content -LiteralPath (Join-Path $reportRoot 'summary.rpt') -Value $summary
     Write-Output $summary
 }

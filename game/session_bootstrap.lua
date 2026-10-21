@@ -149,6 +149,14 @@ local function new(context)
 
   local function enterGame(data)
       if type(data)~="table" then return false end
+      if require('game.coop_traveler').isAway(data) then
+          if runtime.state=='slots' and ui.localPlay then
+              ui.localPlay:open(); ui.localPlay.selectedLocalSlot=runtime.selectedSlot
+              ui.localPlay.address=data.localTraveler.trip.address; ui.localPlay.error='traveler_away'
+              runtime.selectedSlot=nil
+          end
+          return false,'traveler_away'
+      end
       local migrated,migrationInfo=SaveSchema.migrate(data)
       if not migrated then return false,migrationInfo end
       data=migrated

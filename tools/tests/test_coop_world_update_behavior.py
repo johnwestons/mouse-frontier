@@ -24,13 +24,29 @@ class SharedWorldUpdateTests(unittest.TestCase):
             package.loaded['game.assets']={releaseIntroImages=function() end,releaseDormantSceneArt=function() end}
             package.loaded['game.character_motion']={profileFor=function() end}
             package.loaded['game.accessibility']={motionSpeed=function() return 1 end}
+            -- Isolate routine movement while exercising the production
+            -- SceneNPCs dispatcher and its actor-specific hold callback.
+            package.loaded['game.family']={update=function() count('npc') end}
+            package.loaded['game.npc_routines']={update=function(_,actor,dt,options)
+                if options.held then
+                    actor.targetX=nil; actor.moving=false; actor.velocityX=0
+                else
+                    actor.targetX=700; actor.x=actor.x+32*dt; actor.moving=true
+                end
+            end}
             runtime={state='game',scene='train',session={networkMode='host'},animationClock=0,
                 walkingSoundTimer=0,actionTimer=0,sceneryOffset=0,landscapeOffset=0,
                 player={x=100,y=200,speed=60,moving=true,velocityX=9,velocityY=2},
                 npcActor={x=600,y=430,homeX=600,homeY=430,targetX=700,targetY=430,wait=100},
                 saveData={location=20,character='mouse.png',currentNPC='medic.png',trainCars={'living-car'},
                     passengers={{x=200,y=420,wait=100,targetX=400,targetY=420,npc='friend.png',carIndex=1}}}}
-            ui={playSfx=function() end}; maintenance={open=false}
+            runtime.npcActor.file='medic.png'; runtime.npcActor.scene='house'; runtime.npcActor.homeDoor=1
+            resident=runtime.npcActor
+            runtime.saveData.stopLayouts={['20']={residentVersion=1,residentKeys={'resident:20:medic.png'}}}
+            runtime.saveData.npcStates={['resident:20:medic.png']=runtime.npcActor}
+            ui={playSfx=function() end,remoteWorldActor=function()
+                return {scene='house',activeHouseDoor=1},{x=200,y=250}
+            end}; maintenance={open=false}
             update=require('game.gameplay_update').new({runtime=runtime,width=960,holdPickupSeconds=1,
                 ui=ui,car={x=0,y=0,w=960},landscape={},scenery={},cloudLayer={},maintenanceSession=maintenance,
                 mobileEnabled=function() return false end,mobileMovement=function() return 0,0 end,
@@ -64,13 +80,27 @@ class SharedWorldUpdateTests(unittest.TestCase):
     def test_host_backpack_stops_only_local_input_and_shared_actors_tick_once(self):
         self.lua.execute("runtime.inventoryOpen=true; sharedTick(); assert(counts.interaction==0)")
 
+    def test_unoccupied_stop_residents_do_not_tick_from_a_train_only_scene(self):
+        self.lua.execute('''
+            ui.remoteWorldActor=nil; runtime.inventoryOpen=true; update.update(.1)
+            assert(counts.world==1 and counts.npc==0 and runtime.npcActor.x==600)
+            assert(math.abs(runtime.saveData.passengers[1].x-203.8)<1e-6)
+        ''')
+
     def test_each_host_overlay_preserves_shared_simulation(self):
         for setup in ["ui.escMenuOpen=true", "ui.optionsOpen=true", "runtime.exitPrompt={}",
                       "ui.localPlay={menuOpen=true}", "ui.localPlay={focused=false}", "ui.playerToolsOpen=true",
-                      "maintenance.open=true", "runtime.travelConfirm=true", "runtime.helpDialogue={}"]:
+                      "maintenance.open=true", "runtime.travelConfirm=true"]:
             with self.subTest(setup=setup):
                 self.setUp()
                 self.lua.execute(setup + '; sharedTick()')
+
+    def test_help_dialogue_holds_its_resident_while_other_shared_actors_continue(self):
+        self.lua.execute('''
+            runtime.helpDialogue={}; update.update(.1)
+            assert(counts.world==1 and counts.npc==0 and resident.x==600)
+            assert(runtime.saveData.passengers[1].x>200)
+        ''')
 
     def test_offline_menus_retain_existing_world_pause(self):
         self.lua.execute('''
@@ -91,7 +121,7 @@ class SharedWorldUpdateTests(unittest.TestCase):
         self.lua.execute('''
             update.update(.1)
             assert(runtime.player.x==106 and counts.world==1 and counts.npc==1)
-            assert(math.abs(runtime.npcActor.x-603.2)<1e-6 and counts.interaction==1)
+            assert(math.abs(resident.x-603.2)<1e-6 and counts.interaction==1)
             assert(math.abs(runtime.saveData.passengers[1].x-203.8)<1e-6)
         ''')
 

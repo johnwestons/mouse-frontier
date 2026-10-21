@@ -82,6 +82,30 @@ class RangeCommandTests(unittest.TestCase):
             assert(config('host','mode').reason=='range_not_ready')
         ''')
 
+    def test_guest_range_continues_when_host_visits_another_scene(self):
+        self.range()
+        self.lua.execute('''
+            assert(config('host','start').ok and config('companion','start').ok)
+            require('game.coop_presence').ensure(data)
+            Players.forActor(data,'companion').scene='stop'
+            data.scene='house'; data.activeHouseDoor=1; states.host.scene='house'
+            advance(.4)
+            assert(lane('companion').clock>.39 and lane('host').clock==0)
+            assert(RangeCommands.view(data,service.activityState,service.bindings,clock,'companion',ctx))
+            assert(shootTarget('companion').ok and lane('companion').hits==1)
+            data.scene='train'; states.host.scene='train'; advance(.4)
+            assert(lane('companion').clock>.79 and lane('host').clock==0)
+            assert(config('companion','pause',{paused=true}).ok)
+            local stopped=lane('companion').clock; advance(.3)
+            assert(lane('companion').clock==stopped)
+            assert(config('companion','pause',{paused=false}).ok)
+            data.scene='stop'; states.host.scene='stop'
+            Players.forActor(data,'companion').scene='train'; states.companion.scene='train'
+            advance(.4)
+            assert(lane('companion').clock==stopped and lane('host').clock>.39)
+            assert(rangeRun('companion','range.fire',{x=0,y=0}).reason=='range_unavailable')
+        ''')
+
     def test_forged_score_time_damage_actor_and_target_claims_rejected(self):
         self.range()
         self.lua.execute('''

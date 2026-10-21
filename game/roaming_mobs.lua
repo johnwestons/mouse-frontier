@@ -145,8 +145,10 @@ local function beginBattle(sys,ctx,striker)
 end
 
 function RoamingMobs.update(sys,ctx,dt)
-    sys.attackTimer=math.max(0,(sys.attackTimer or 0)-dt)
-    sys.messageTimer=math.max(0,(sys.messageTimer or 0)-dt)
+    if not ctx.skipActionTimers then
+        sys.attackTimer=math.max(0,(sys.attackTimer or 0)-dt)
+        sys.messageTimer=math.max(0,(sys.messageTimer or 0)-dt)
+    end
     for _,definition in ipairs(ctx.area.mobs or {}) do
         local saved=ctx.areaState.mobs[definition.id]
         local transient=transientFor(sys,ctx.area.id,definition.id)

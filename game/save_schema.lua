@@ -7,7 +7,7 @@ local ItemInstances = require("game.item_instances")
 local ReplicaOwnership = require("game.replica_ownership")
 
 local SaveSchema = {
-    CURRENT_VERSION = 46,
+    CURRENT_VERSION = 47,
     LEGACY_VERSION = 1,
 }
 
@@ -402,6 +402,10 @@ function SaveSchema.validate(data)
     end
     local playersValid,playersError=CoopPlayers.validate(data)
     if not playersValid then return false,playersError end
+    local presenceValid,presenceError=require('game.coop_presence').validate(data)
+    if not presenceValid then return false,presenceError end
+    local travelerValid,travelerError=require('game.coop_traveler').validate(data)
+    if not travelerValid then return false,travelerError end
     local entitiesValid,entitiesError=CoopEntities.validate(data)
     if not entitiesValid then return false,entitiesError end
     local itemsValid,itemsError=ItemInstances.validate(data)

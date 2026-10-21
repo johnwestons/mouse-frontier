@@ -84,6 +84,21 @@ class PlayerToolsHostBehaviorTests(unittest.TestCase):
             end
         ''')
 
+    def test_title_launcher_never_captures_local_play_or_guest_controls(self) -> None:
+        self.lua.execute(r'''
+            context.runtime.state='slots'
+            context.controller={captures=function() return true end}
+            app.touchpressed(1,480,660); app.touchreleased(1,480,660)
+            assert(not menu.open and count('touchpressed')==1 and count('touchreleased')==1)
+            context.controller.captures=function() return false end
+            context.guest=function() return {} end
+            app.mousepressed(480,660,1,false); app.mousereleased(480,660,1,false)
+            assert(not menu.open and count('mousepressed')==1 and count('mousereleased')==1)
+            context.guest=function() return nil end
+            app.touchpressed(2,480,660)
+            assert(menu.open and count('touchpressed')==1)
+        ''')
+
     def test_host_controls_editor_keeps_shared_update_and_local_input_capture(self) -> None:
         self.lua.execute(r'''
             context.runtime.session={networkMode='host'}; openEditor()

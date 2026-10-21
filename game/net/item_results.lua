@@ -11,10 +11,14 @@ local Pose=require('game.net.pose_results')
 local Travel=require('game.net.travel_request_results')
 local R={}
 local fields={
+    ['traveler.return']={returned=true,acknowledged=true},
+    ['traveler.ack']={returned=true,acknowledged=true},
     ['expedition.survey']={areaId=true,markerId=true,already=true,marked=true,total=true,complete=true},
     ['expedition.cache']={areaId=true,containerId=true,opened=true},
     ['roaming.attack']={serial=true,actorId=true,weapon=true,duration=true,facing=true,damage=true,dead=true,shellBroken=true,hitId=true},
     ['inventory.swap']={moved=true},
+    ['inventory.give']={recipient=true,item=true,amount=true},
+    ['ammo.give']={recipient=true,item=true,amount=true},
     ['storage.transfer']={moved=true},
     ['mailbox.collect']={item=true,amount=true},
     ['inventory.consume']={item=true,gained=true,heart=true,potion=true},
@@ -41,6 +45,9 @@ local fields={
     ['weaponRepair.step']={leaseId=true,elapsed=true,expiresIn=true},
     ['weaponRepair.complete']={success=true,reason=true,name=true,cost=true,quality=true,restored=true,part=true},
 }
+local visits={['scene.leaveTrain']=true,['scene.returnTrain']=true,['scene.enterHouse']=true,['scene.exitHouse']=true,
+    ['scene.office']=true,['scene.caravan']=true,['scene.expedition']=true}
+for command in pairs(visits) do fields[command]={actorId=true,scene=true,sceneRevision=true} end
 function R.supports(command) return command=='progression.request' or command=='player.pose' or Range.supports(command) or command=='lastStand.position' or command=='lastStand.aid' or Guns.supports(command) or command=='quest.help' or command=='quest.deliver' or command=='outfit.craft' or command=='firstAid.acquire' or command=='firstAid.step' or command=='firstAid.complete' or fields[command]~=nil end
 local function amount(value) return type(value)=='number' and value==value and value>=0 and value<=1e9 end
 local function doses(value)
@@ -50,6 +57,13 @@ local function doses(value)
 end
 local function lease(value) return P.text(value,32) and value:match('^l[1-9]%d*$')~=nil end
 function R.valid(command,value)
+    if command=='inventory.give' or command=='ammo.give' then
+        return P.fields(value,fields[command]) and (value.recipient=='host' or value.recipient=='companion')
+            and P.text(value.item,128) and P.integer(value.amount,1,1000000)
+    end
+    if visits[command] then return P.fields(value,fields[command]) and (value.actorId=='host' or value.actorId=='companion')
+        and ({train=true,stop=true,house=true,caravan=true,expedition=true})[value.scene]==true
+        and P.integer(value.sceneRevision,1,2147483647) end
     if command=='progression.request' then return Travel.valid(value)end
     if command=='player.pose' then return Pose.valid(value) end
     if Range.supports(command) then return Range.valid(command,value) end
@@ -61,6 +75,7 @@ function R.valid(command,value)
     if command=='outfit.craft' then return Sewing.valid(value) end
     local allowed=fields[command]
     if not allowed or not P.fields(value,allowed) then return false end
+    if command=='traveler.return' or command=='traveler.ack' then return value.returned==true and type(value.acknowledged)=='boolean' end
     if command=='expedition.cache' then return P.text(value.areaId,64) and P.text(value.containerId,64) and value.opened==true end
     if command=='expedition.survey' then
         return P.text(value.areaId,64) and P.text(value.markerId,64) and type(value.already)=='boolean' and type(value.complete)=='boolean'

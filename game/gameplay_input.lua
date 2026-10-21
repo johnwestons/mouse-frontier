@@ -839,6 +839,7 @@ local function new(context)
       x,y=UIStyle.inversePoint(x,y,"inventory",{x=25,y=35,w=910,h=660})
       if Util.pointIn(x,y,{x=545,y=35,w=390,h=660}) then return true end
       if ui.outfitWorkbenchPanel and Util.pointIn(x,y,ui.outfitWorkbenchPanel) then return true end
+      if ui.sharingPanel and Util.pointIn(x,y,ui.sharingPanel) then return true end
       if runtime.chestOpen and Util.pointIn(x,y,{x=25,y=145,w=505,h=490}) then return true end
       if runtime.giftOpen and Util.pointIn(x,y,{x=220,y=170,w=520,h=180}) then return true end
       return false
@@ -1740,6 +1741,9 @@ local function new(context)
                   add("inventory.sewing",UIStyle.transformRectFor("inventory",panel,ui.inventorySewingBench),function()
                       if ui.openOutfitWorkbench then ui.openOutfitWorkbench() end
                   end,ui.inventorySewingBench.enabled)
+              end
+              for _,control in ipairs(ui.sharingControls or {}) do
+                  add('inventory.share.'..control.id,UIStyle.transformRectFor('inventory',panel,control.rect),control.action,control.enabled)
               end
               add("inventory.use",ui.consume,function() if ui.keyboardInventoryConsume then ui.keyboardInventoryConsume() end end)
               add("inventory.drop",ui.drop,function() if runtime.draggedSlot and ui.keyboardInventoryDrop then ui.keyboardInventoryDrop(runtime.draggedSlot) end end)

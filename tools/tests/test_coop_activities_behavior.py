@@ -85,6 +85,20 @@ class CoopActivitiesTests(unittest.TestCase):
             assert(acquire('host').ok)
         ''')
 
+    def test_guest_repairs_on_train_while_host_is_at_stop(self):
+        self.lua.execute('''
+            require('game.coop_presence').ensure(data)
+            data.scene='stop'; states.host.scene='stop'
+            local guest=acquire('companion'); assert(guest.ok)
+            assert(acquire('host').reason=='activity_unavailable')
+            perfect(); local done=complete('companion',guest.result.leaseId)
+            assert(done.ok and done.result.ok and condition('companion')==100)
+            assert(condition('host')==20 and data.scene=='stop' and actors.companion.scene=='train')
+            local maintenance=run('companion','maintenance.acquire',{})
+            assert(maintenance.ok and run('host','maintenance.acquire',{}).reason=='activity_unavailable')
+            assert(run('companion','activity.release',{leaseId=maintenance.result.leaseId}).ok)
+        ''')
+
     def test_prepare_does_not_reserve_and_replays_do_not_charge_or_allocate_twice(self):
         self.lua.execute('''
             local request=req('host','weaponRepair.acquire',{itemId=weapons.host})

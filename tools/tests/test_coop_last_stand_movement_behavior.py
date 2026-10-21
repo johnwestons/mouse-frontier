@@ -111,7 +111,7 @@ class LastStandMovementTests(unittest.TestCase):
             for _,name in ipairs({'loot.pickup','storage.transfer','npc.gift','quest.deliver','merchant.buy','scene.returnTrain'}) do
                 local r=run('host',name,{}); assert(r.reason=='modal_scene',name..':'..tostring(r.reason))
             end
-            assert(run('companion','scene.returnTrain',{}).reason=='host_only')
+            assert(run('companion','scene.returnTrain',{}).reason=='modal_scene')
             assert(sim:relocate(690,515)==false and guest.playerX==ordinaryX)
         ''')
 

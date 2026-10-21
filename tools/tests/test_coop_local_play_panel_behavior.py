@@ -42,6 +42,8 @@ class LocalPlayPanelTests(unittest.TestCase):
             function c:host() events.host=true end
             function c:join() events.join=true end
             function c:stop() events.stop=true end
+            function c:endLocalPlay() events.stop=true end
+            function c:returnToSave() events.stop=true end
             function c:pending() return self.request end
             function c:approve() events.approve=true end
             function c:decline() events.decline=true end

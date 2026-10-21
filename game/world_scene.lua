@@ -257,12 +257,13 @@ local function new(context)
   end
 
   local function updateStopSludges(dt)
-      if runtime.scene~="stop" or not runtime.saveData or not runtime.player then return end
-      if Home.isHome(runtime.saveData) then return end
-      StopSludges.update(activeStopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=isWeapon,clock=runtime.animationClock,
-          clamp=function(x,y) return Settlements.clamp(x,y,runtime.saveData.location) end,
+      local data,player,npc=runtime.saveData,runtime.player,runtime.npcActor
+      if runtime.scene~='stop' and ui.remoteWorldActor then data,player=ui.remoteWorldActor(); npc=nil end
+      if not data or data.scene~='stop' or not player or Home.isHome(data) then return end
+      StopSludges.update(activeStopSludges,{data=data,location=data.location,player=player,npc=npc,catalog=Catalog,isWeapon=isWeapon,clock=runtime.animationClock,
+          clamp=function(x,y) return Settlements.clamp(x,y,data.location) end,
           dropCoal=function(x,y)
-              runtime.saveData.droppedItems[#runtime.saveData.droppedItems+1]={name="coal-chunk",x=x,y=y,scene="stop",location=runtime.saveData.location,droppedByPlayer=false}
+              data.droppedItems[#data.droppedItems+1]={name="coal-chunk",x=x,y=y,scene="stop",location=data.location,droppedByPlayer=false}
               writeSave()
           end},dt)
   end
@@ -270,20 +271,41 @@ local function new(context)
   local function attackStopSludge(x,y)
       if Home.isHome(runtime.saveData) then return false end
       if runtime.scene~="stop" or runtime.inventoryOpen or runtime.mapOpen or runtime.dialogue or runtime.editMode or ui.radioOpen or runtime.trainUpgradeOpen or runtime.poseMenu or ui.optionsOpen then return false end
+      if ui.roamingAttack then return ui.roamingAttack(x,y) end
       return StopSludges.attack(activeStopSludges,{data=runtime.saveData,location=runtime.saveData.location,player=runtime.player,npc=runtime.npcActor,catalog=Catalog,isWeapon=isWeapon,clock=runtime.animationClock,
           onAction=function(weapon) local attack=require('game.character_attack'); runtime.actionHeldItem=attack.heldItem(weapon); runtime.actionKind=attack.action(weapon); runtime.actionTimer=.42; runtime.actionDuration=.42 end,
           playSfx=function(kind) ui.playSfx(kind) end},x,y)
   end
 
+  local function presentFieldAttack(result)
+      if not result.areaId:match('^stop:') then return expedition.presentAttack(result) end
+      if result.epoch~=runtime.saveData.coop.sceneEpoch or result.areaId~='stop:'..runtime.saveData.location then return false end
+      activeStopSludges.message=result.message; activeStopSludges.messageTimer=1.6
+      if not context.readOnlyPresentation then
+          if result.actorId=='host' then
+              local attack=require('game.character_attack')
+              runtime.player.facing=result.facing
+              runtime.actionHeldItem=attack.heldItem(result.weapon); runtime.actionKind=attack.action(result.weapon)
+              runtime.actionTimer=result.duration; runtime.actionDuration=result.duration
+          else
+              runtime.companionFieldAction={epoch=result.epoch,untilTime=(runtime.animationClock or 0)+result.duration,
+                  weapon=result.weapon,facing=result.facing,duration=result.duration}
+          end
+      end
+      if ui.playSfx then ui.playSfx(result.weapon=='scratch' and 'slash' or 'sword') end
+      return true
+  end
+
   local function updateWildlife(dt)
-      if runtime.scene~="stop" or not runtime.saveData then return end
-      if Home.isHome(runtime.saveData) then return end
-      local layout=ensureStopLayout()
-      Wildlife.spawn(layout,runtime.saveData.location,Settlements)
-      local ecology={player=runtime.player}
-      Wildlife.update(layout.wildlife,dt,runtime.saveData.location,Settlements,ecology)
-      Mice.spawn(layout,runtime.saveData.location,Settlements)
-      Mice.update(layout.mice,dt,runtime.saveData.location,Settlements,ecology)
+      local data,player=runtime.saveData,runtime.player
+      if runtime.scene~='stop' and ui.remoteWorldActor then data,player=ui.remoteWorldActor() end
+      if not data or data.scene~='stop' or Home.isHome(data) then return end
+      local layout=data.stopLayouts and data.stopLayouts[tostring(data.location)]; if not layout then return end
+      Wildlife.spawn(layout,data.location,Settlements)
+      local ecology={player=player}
+      Wildlife.update(layout.wildlife,dt,data.location,Settlements,ecology)
+      Mice.spawn(layout,data.location,Settlements)
+      Mice.update(layout.mice,dt,data.location,Settlements,ecology)
   end
 
   local function update(dt)
@@ -291,6 +313,7 @@ local function new(context)
       updateStopSludges(dt)
       updateWildlife(dt)
       expedition.update(dt)
+      if ui.remoteWorldActor then local data,player=ui.remoteWorldActor(); expedition.updateRemote(dt,data,player) end
       if runtime.scene==CrowCaravanArea.SCENE then
           local session=currentCaravanSession()
           if session then CrowCaravanArea.update(session,dt); CrowCaravanArea.savePosition(session,runtime.player) end
@@ -523,7 +546,7 @@ local function new(context)
       attackStopSludge=attackStopSludge,
       attackExpeditionMob=expedition.attack,
       fieldState=expedition.fieldState,
-      presentFieldAttack=expedition.presentAttack,
+      presentFieldAttack=presentFieldAttack,
       presentExpeditionAssistance=expedition.presentAssistance,
       moveExpedition=expedition.move,
       currentExpeditionInteraction=expedition.currentInteraction,

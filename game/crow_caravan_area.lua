@@ -173,7 +173,7 @@ end
 
 local function ensureCaravanRoot(data)
     if type(data)~="table" then return nil end
-    data.crowCaravans=type(data.crowCaravans)=="table" and data.crowCaravans or {}
+    if type(data.crowCaravans)~="table" then data.crowCaravans={} end
     local root=data.crowCaravans
     root.version=math.max(1,math.floor(tonumber(root.version) or 1))
     root.scheduledStops=type(root.scheduledStops)=="table" and root.scheduledStops or {}

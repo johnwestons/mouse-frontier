@@ -9,15 +9,16 @@ local Expedition={}
 local function finite(n) return type(n)=='number' and n==n and math.abs(n)<100000 end
 function Expedition.entry(data,host,args)
     local lead,record=Entities.find(data,args.encounterId)
-    local areaId=data.activeExpeditionArea; local definition=Areas.definition(areaId)
-    if not lead or record.kind~='expeditionMob' or record.areaId~=areaId or data.scene~=Areas.SCENE
+    local pressure=data.roamingEncounter
+    local areaId=pressure and pressure.areaId or data.activeExpeditionArea; local definition=Areas.definition(areaId)
+    if not lead or record.kind~='expeditionMob' or record.areaId~=areaId or not pressure and data.scene~=Areas.SCENE
         or not definition or definition.stop~=data.location or not finite(host.x) or not finite(host.y)
-        or not Areas.isWalkable(data,areaId,host.x,host.y,true) then return nil,'battle_unavailable' end
+        or not pressure and not Areas.isWalkable(data,areaId,host.x,host.y,true) then return nil,'battle_unavailable' end
     local ids=args.enemyIds
     if type(ids)~='table' or #ids<1 or #ids>6 or ids[1]~=args.encounterId then return nil,'invalid_enemies' end
     local count=0; for key in pairs(ids) do if not P.integer(key,1,#ids) then return nil,'invalid_enemies' end; count=count+1 end
     if count~=#ids then return nil,'invalid_enemies' end
-    local anchor=host; local pressure=data.roamingEncounter
+    local anchor=host
     if pressure then
         if not require('game.roaming_encounter_state').validate(data) or pressure.leadId~=args.encounterId
             or #pressure.enemyIds~=#ids then return nil,'pressure_unavailable' end
@@ -36,9 +37,10 @@ function Expedition.entry(data,host,args)
             tier=mob.tier,boss=mob.boss==true,weapon='mob-claw'}
         files[#files+1]=mob.file; boss=boss or mob.boss==true
     end
+    local point=data.scene==Areas.SCENE and data.activeExpeditionArea==areaId and host or anchor
     return {source='expedition',entityId=lead.entityId,areaId=areaId,tier=states[1].tier,boss=boss,
         rolled=true,hasMob=true,resolved=false,mobFiles=files,enemyStates=states,
-        returnContext={scene=Areas.SCENE,areaId=areaId,x=host.x,y=host.y}}
+        returnContext={scene=Areas.SCENE,areaId=areaId,x=point.x,y=point.y}}
 end
 function Expedition.validate(data,battle,id)
     local e=battle.encounter; local area=data.expeditions and data.expeditions[e.areaId]

@@ -16,7 +16,7 @@ function Wire.input(message)
 end
 function Wire.ready(message) return envelope(message,'scene_ready',{}) end
 local actorFields={x=true,y=true,vx=true,vy=true,f=true,ix=true,iy=true,d=true,p=true,idle=true,car=true,moving=true,mode=true,
-    stance=true,poseSerial=true,useRemainingMs=true}
+    stance=true,poseSerial=true,useRemainingMs=true,sceneRevision=true}
 function Wire.actor(actor)
     if not P.fields(actor,actorFields) then return false end
     for _,key in ipairs({'x','y'}) do if not P.integer(actor[key],-100000000,100000000) then return false end end
@@ -24,6 +24,7 @@ function Wire.actor(actor)
     for _,key in ipairs({'ix','iy'}) do if not P.integer(actor[key],-1000,1000) then return false end end
     for _,key in ipairs({'d','p'}) do if not P.integer(actor[key],0,9007199254740991) then return false end end
     return (actor.f==1 or actor.f==-1) and P.integer(actor.idle,0,3600000) and P.integer(actor.car,1,32)
+        and (actor.sceneRevision==nil or P.integer(actor.sceneRevision,0,MAX))
         and type(actor.moving)=='boolean' and (actor.mode=='walk' or actor.mode=='run')
         and ({idle=true,sit=true,lay=true})[actor.stance]==true and P.integer(actor.poseSerial,0,MAX)
         and P.integer(actor.useRemainingMs,0,450)
@@ -43,7 +44,8 @@ function Wire.packActor(actor,record,pose)
     return {x=quantize(actor.x),y=quantize(actor.y),vx=quantize(actor.velocityX),vy=quantize(actor.velocityY),
         f=actor.facing==-1 and -1 or 1,ix=quantize(actor.intentX),iy=quantize(actor.intentY),
         d=quantize(actor.animationDistance),p=quantize(actor.posePhase),idle=quantize(math.min(3600,actor.idleClock or 0)),
-        car=record.activeCar,moving=actor.moving==true,mode=actor.locomotionMode=='run' and 'run' or 'walk',
+        car=record.activeCar,sceneRevision=record.presence and record.presence.revision or 0,
+        moving=actor.moving==true,mode=actor.locomotionMode=='run' and 'run' or 'walk',
         stance=pose and pose.pose or 'idle',poseSerial=pose and pose.serial or 0,useRemainingMs=pose and pose.useMs or 0}
 end
 function Wire.unpackActor(actor)

@@ -125,6 +125,24 @@ class CoopResidentAccessTests(unittest.TestCase):
             assert(Aid.patient(actor,state,layout.entityId,patientNpc,true),'lease cleanup must still release an absent patient')
         ''')
 
+    def test_guest_delivers_in_own_house_while_host_visits_another_house(self):
+        self.lua.execute(r'''
+            data.scene='house'; data.activeHouseDoor=1
+            require('game.coop_presence').ensure(data)
+            local guest=Players.forActor(data,'companion'); guest.activeHouseDoor=2
+            states.host.scene='house'; states.host.houseDoor=1
+            states.companion.scene='house'; states.companion.houseDoor=2
+            states.companion.x=650; states.companion.y=300
+            local quest={origin=1,destination=4,recipient=patientNpc,complete=false}
+            data.mailQuests[#data.mailQuests+1]=quest; assert(Entities.ensure(data))
+            assert(Recipients.nearest(guest,states.companion).npc==patientNpc)
+            local args={targetId=layout.entityId,npc=patientNpc,questId=quest.entityId}
+            assert(not run('host','quest.deliver',args).ok)
+            local result=run('companion','quest.deliver',args)
+            assert(result.ok and quest.complete and quest.completedBy=='companion',result.reason)
+            assert(data.activeHouseDoor==1 and data.currentNPC==hostNpc and guest.activeHouseDoor==2)
+        ''')
+
 
 if __name__ == '__main__':
     unittest.main()

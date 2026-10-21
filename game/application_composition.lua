@@ -132,7 +132,9 @@ local function new(context)
         return rangeStatus
       end
       local lp=ui.localPlay
-      return {active=runtime.scene=='stop',paused=paused,ready=id=='host' or lp and lp.motion
+      local players=require('game.coop_players')
+      local own=runtime.saveData and players.get(runtime.saveData,id) and players.forActor(runtime.saveData,id)
+      return {active=own and own.scene=='stop' or false,paused=paused,ready=lp and lp.motion
         and lp.motion.generation and lp.motion.readyEpoch==lp.motion.epoch}
     end,
     ambushState=function(id) return trainAmbush and trainAmbush:commandState(id) end,
@@ -176,16 +178,30 @@ local function new(context)
     return coopCommands.submit('expedition.cache',{areaId=areaId,containerId=chest and chest.entityId})
   end
   ui.roamingAttack=function(x,y)
-    local name=require('game.coop_roaming').weapon(runtime.saveData,'host',Catalog)
-    local reply=coopCommands.submit('roaming.attack',{areaId=runtime.saveData.activeExpeditionArea,weaponId=name,targetX=x,targetY=y})
+    local commands=require('game.coop_roaming')
+    local name=commands.weapon(runtime.saveData,'host',Catalog)
+    local reply=coopCommands.submit('roaming.attack',{areaId=commands.areaId(runtime.saveData),weaponId=name,targetX=x,targetY=y})
     return reply.ok,reply.reason
   end
-  ui.roamingPressure=function(definition)
-    local data=runtime.saveData; local mob=data.expeditions[data.activeExpeditionArea].mobs[definition.id]
-    local reply=coopCommands.submit('roaming.pressure',{areaId=data.activeExpeditionArea,leadId=mob.entityId})
+  ui.roamingPressure=function(definition,_,areaId)
+    local data=runtime.saveData; areaId=areaId or data.activeExpeditionArea
+    local mob=data.expeditions[areaId].mobs[definition.id]
+    local reply=coopCommands.submit('roaming.pressure',{areaId=areaId,leadId=mob.entityId})
     return reply.ok==true
   end
   ui.changeCar=function(index) return coopCommands.submit('player.car',{car=index}) end
+  ui.shareRecipient=function()
+    local lp=ui.localPlay
+    if not lp or not lp.authority or not lp.authority.bindings.companion then return end
+    return require('game.coop_sharing').recipient(runtime.saveData,'host')
+  end
+  ui.sendPlayerGift=function(command,args)
+    local result=coopCommands.submit(command,args)
+    if result.ok then runtime.draggedSlot=nil; runtime.inventoryDragActive=false end
+    local messages={recipient_out_of_reach='Move closer to the other player.',recipient_full='Their backpack is full.',
+      recipient_offline='The other player is disconnected.',stale_item='Select that item again.',backpack_full='Empty the extra backpack slots first.'}
+    return result.ok,messages[result.reason] or 'Transfer unavailable. Try again when ready.'
+  end
   ui.coopPoseMovement=function(x,y) runtime.coopPoseInputX,runtime.coopPoseInputY=x,y end
   ui.coopPlayerPresentation=function()
     if not WorldPause.isSharedHost(runtime) then return runtime end
@@ -632,6 +648,9 @@ local function new(context)
   local coopCollision=require("game.coop_collision").new({car=car,scenery=scenery})
   local localPlay=require("game.coop_local_play").new({
     runtime=runtime,session=session,commands=coopCommands,filesystem=Filesystem,catalog=Catalog,
+    readSlot=function(slot) return require('game.save').read(slot) end,
+    writeSlot=function(slot,data) return require('game.save').write(slot,data) end,
+    enterSavedJourney=world.sessionBootstrap.enterGame,
     onStop=function() if world.worldScene.closeSharedRange then world.worldScene.closeSharedRange() end end,
     localPlayPreferences=ui.localPreferences:localPlay(),
     saveLocalPlayPreferences=function(value) return ui.localPreferences:setLocalPlay(value) end,
@@ -639,7 +658,9 @@ local function new(context)
     characters=function() return content.characters end,
     managementState=function() return {activityBlocked=maintenanceSession.open==true} end,
     roaming=function()
-      return world.worldScene.fieldState(),require('game.world_pause').isSimulationPaused(runtime,ui) or (runtime.expeditionGraceTimer or 0)>0
+      local shared=runtime.saveData and require('game.coop_presence').same(runtime.saveData,'host','companion')
+      return world.worldScene.fieldState(),require('game.world_pause').isSimulationPaused(runtime,ui)
+        or shared and (runtime.expeditionGraceTimer or 0)>0
     end,
     lastStandEffects=function() return lastStand and lastStand.effectState and lastStand:effectState() end,
     lastStandStage=function() return lastStand and lastStand.stageState and lastStand:stageState() end,
@@ -725,7 +746,10 @@ local function new(context)
     if not motion or not motion.generation or not motion.actor then return nil end
     local input=motion.input
     if input and Engine.timer.getTime()-input.received>=require('game.net.movement').STALE_SECONDS then input=nil end
-    return {screen=runtime.state,scene=runtime.scene,x=motion.actor.x,y=motion.actor.y,
+    local own=require('game.coop_players').forActor(runtime.saveData,'companion')
+    local npc=require('game.scene_npcs').find(own,own.currentNPC,own.scene,own.activeHouseDoor)
+    if not npc and require('game.coop_presence').same(runtime.saveData,'host','companion') then npc=runtime.npcActor end
+    return {screen=runtime.state,scene=own.scene,houseDoor=own.activeHouseDoor,x=motion.actor.x,y=motion.actor.y,
       facing=motion.actor.facing,intentX=motion.actor.intentX,intentY=motion.actor.intentY,
       traveling=runtime.travelTransition~=nil,encounterActive=not not runtime.battle
         or (runtime.lastStand and runtime.lastStand.capture)==true or (runtime.trainAmbush and runtime.trainAmbush.phase~='complete') or false,
@@ -734,19 +758,29 @@ local function new(context)
       motionId=motion.motionId,moving=motion.actor.moving==true,
       inputX=input and input.x or 0,inputY=input and input.y or 0,
       modalDomain=motion.domain,
-      npc=runtime.npcActor and {id=runtime.saveData.currentNPC,x=runtime.npcActor.x,y=runtime.npcActor.y} or nil}
+      npc=npc and {id=own.currentNPC,x=npc.x,y=npc.y} or nil}
   end)
-  ui.expeditionActors=function()
+  ui.remoteWorldActor=function()
+    local motion=localPlay.motion; local campaign=runtime.saveData
+    if not campaign or not motion or not motion.generation or not motion.actor or not localPlay.authority
+        or localPlay.authority.bindings.companion~=motion.generation or motion.readyEpoch~=campaign.coop.sceneEpoch then return end
+    local own=require('game.coop_players').forActor(campaign,'companion')
+    local identity=campaign.players.companion.travelIdentity
+    if own.health<=0 or identity and identity.status~='active' then return end
+    return own,motion.actor
+  end
+  ui.expeditionActors=function(areaData)
     local actors={}
     local campaign=runtime.saveData
     if not campaign or not campaign.players then return actors end
-    if runtime.player and campaign.health>0 then
+    areaData=areaData or campaign
+    if runtime.player and campaign.health>0 and runtime.scene==areaData.scene
+        and campaign.activeExpeditionArea==areaData.activeExpeditionArea then
       actors[1]={id='host',x=runtime.player.x,y=runtime.player.y}
     end
-    local motion=localPlay.motion
-    if motion and motion.generation and motion.actor and motion.epoch==campaign.coop.sceneEpoch
-        and campaign.players.companion and campaign.players.companion.health>0 then
-      actors[#actors+1]={id='companion',x=motion.actor.x,y=motion.actor.y,ready=motion.readyEpoch==motion.epoch}
+    local own,player=ui.remoteWorldActor()
+    if own and own.scene==areaData.scene and own.activeExpeditionArea==areaData.activeExpeditionArea then
+      actors[#actors+1]={id='companion',x=player.x,y=player.y,ready=true}
     end
     return actors
   end

@@ -45,6 +45,11 @@ function GameSession:syncSceneEpoch(scene)
     if changed and self.saveData.coop then
         assert(self.saveData.coop.sceneEpoch<2147483647,"scene epoch exhausted")
         self.saveData.coop.sceneEpoch=self.saveData.coop.sceneEpoch+1
+        -- UI/screen epoch changes do not erase independently saved visits.
+        -- Shared travel/battle commits explicitly reunite the party instead.
+        for _,actor in pairs(self.saveData.players or {}) do
+            if actor.presence then actor.presence.epoch=self.saveData.coop.sceneEpoch end
+        end
         if self.saveData.conversations then self.saveData.conversations.active=nil end
     end
     self.campaignScope=current

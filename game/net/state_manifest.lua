@@ -1,6 +1,6 @@
 -- Every persistent field needs an explicit wire ownership decision. New save
 -- fields fail projection until classified; migration flags stay host-local.
-local M={VERSION=1,SCHEMA=46}
+local M={VERSION=1,SCHEMA=47}
 M.groups={
     journey={'location','scene','stopped','activeHouseDoor','lastStopDoor','activeExpeditionArea','activeHelpQuestId',
         'visitedStops','arrivalNotice'},
@@ -14,8 +14,8 @@ M.groups={
 }
 M.actorFields={'id','character','trait','traitBaselineApplied','health','maxHealth','stats','inventory','inventoryCapacity',
     'equipment','ammo','backpack','wearables','weaponDurability','weaponProficiency','nextBattlePotions',
-    'battlePotionLootChance','playerX','playerY','playerFacing','activeCar','weapons','itemSlots'}
-M.ignored={version=true,coop=true,itemIdentity=true,accessibility=true,weaponDropsAdded=true,ammoDropsAdded=true,
+    'battlePotionLootChance','playerX','playerY','playerFacing','activeCar','weapons','itemSlots','presence','travelIdentity','travelReturn'}
+M.ignored={version=true,coop=true,itemIdentity=true,localTraveler=true,travelerHistory=true,accessibility=true,weaponDropsAdded=true,ammoDropsAdded=true,
     medicalDropsAdded=true,starterChestAdded=true,specialItemsAdded=true,lootContainerMigration=true,expandedLootAdded=true,
     radioAdded=true,lootBalanceVersion=true,trainObjectLayoutVersion=true,forceEventId=true}
 M.order={'journey','train','world','people','quests','story','combat','radio','authority','actor:host','actor:companion'}

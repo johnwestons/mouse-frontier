@@ -1,6 +1,7 @@
 -- Major-scene state is committed with both saved actor positions. Network
 -- presentation/readiness will consume the same result; it cannot choose it.
 local Players=require("game.coop_players")
+local Presence=require('game.coop_presence')
 local Party={MAX=2147483647}
 local function integer(n,low,high) return type(n)=="number" and n==math.floor(n) and n>=low and n<=high end
 function Party.validate(data)
@@ -18,9 +19,10 @@ function Party.validate(data)
 end
 function Party.place(data,spawn,clamp)
     local placed={}
+    local localId=Players.isActorView(data) and Players.actorId(data)
     for _,id in ipairs({Players.HOST,Players.COMPANION}) do
         local actor=Players.get(data,id)
-        if actor then
+        if actor and (not localId or localId==id) then
             local x,y=spawn(id,actor)
             local px,py
             for _,offset in ipairs({{0,0},{36,0},{-36,0},{0,36},{0,-36},{60,36},{-60,-36},{90,0},{-90,0}}) do
@@ -40,7 +42,19 @@ function Party.place(data,spawn,clamp)
     return placed
 end
 function Party.commit(data,activities,actors,screen)
+    if Players.isActorView(data) then
+        local campaign=Players.campaignOf(data); local id=Players.actorId(data)
+        local revision=Presence.revision(campaign,id)
+        if revision>=Party.MAX then return nil,'scene_revision_exhausted' end
+        local actor=Players.get(campaign,id)
+        actor.presence=Presence.capture(data,revision+1)
+        require('game.coop_leases').releaseActor(activities.state,id)
+        if id=='host' and campaign.conversations then campaign.conversations.active=nil end
+        return {ok=true,scene=data.scene,sceneEpoch=data.coop.sceneEpoch,location=data.location,
+            actors=actors,screen=screen or 'game',localTransition=true,actorId=id,sceneRevision=revision+1}
+    end
     if data.coop.sceneEpoch>=Party.MAX then return nil,"scene_epoch_exhausted" end
+    for _,actor in pairs(data.players) do actor.presence=nil end
     data.coop.sceneEpoch=data.coop.sceneEpoch+1
     if data.conversations then data.conversations.active=nil end
     activities.state.resources={}

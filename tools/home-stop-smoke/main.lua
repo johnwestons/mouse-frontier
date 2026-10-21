@@ -209,6 +209,7 @@ local function run()
     gate("briefing")
     local Fox=require("game.home_stop_fox")
     local actor=Fox.actor(data)
+    capture("fox-scale-comparison")
     walk({x=actor.x,y=actor.y,radius=95,kind="homeFox"})
     expect(ui.interaction.kind=="homeFox","adult fox has no Talk action")
     capture("fox-talk-prompt")
@@ -345,6 +346,23 @@ local function run()
 end
 
 function love.load()
+    -- Exercise the real renderer against exported sheets as well as source
+    -- art. Older packages have 256px walk cells and 512px work/idle cells.
+    local foxAssets=os.getenv("MOUSE_FRONTIER_FOX_ASSET_ROOT")
+    if foxAssets and foxAssets~="" then
+        local newImage=love.graphics.newImage
+        love.graphics.newImage=function(path,...)
+            if type(path)=="string" then
+                local name=path:match("^assets/sprites/home%-stop/adult%-tinker%-fox/(.+)$")
+                if name then
+                    local file=assert(io.open(foxAssets.."/"..name,"rb"))
+                    local bytes=file:read("*a"); file:close()
+                    path=love.filesystem.newFileData(bytes,name)
+                end
+            end
+            return newImage(path,...)
+        end
+    end
     routine=coroutine.create(run)
 end
 function love.update()
@@ -362,6 +380,45 @@ end
 function love.draw()
     if app then app.draw() end
     if pendingShot then
+        if pendingShot=="fox-scale-comparison.png" then
+            local Fox=require("game.home_stop_fox")
+            local g=love.graphics
+            g.push("all"); g.origin(); g.setScissor()
+            local width,height=g.getDimensions()
+            local scale=math.min(width/960,height/480)
+            g.clear(.12,.14,.16,1)
+            g.translate((width-960*scale)/2,(height-480*scale)/2); g.scale(scale)
+            g.setFont(g.newFont(12))
+            local directions={{1,0,"E"},{1,-1,"NE"},{0,-1,"N"},{-1,-1,"NW"},
+                {-1,0,"W"},{-1,1,"SW"},{0,1,"S"},{1,1,"SE"}}
+            local sample={npcStates={[Fox.KEY]={x=0,y=0,facing=1}}}
+            local actor=sample.npcStates[Fox.KEY]
+            local function drawCell(column,row,label)
+                local x,y=column*120,row*120
+                g.setColor(row%2==0 and .22 or .3,.24,.27,1)
+                g.rectangle("fill",x+2,y+2,116,116)
+                g.setColor(.5,.7,.6,1); g.line(x+8,y+105,x+112,y+105)
+                g.setColor(1,1,1,1); g.print(label,x+7,y+8)
+                actor.x,actor.y=x+60,y+105
+                Fox.draw({},sample,.8)
+            end
+            for index,direction in ipairs(directions) do
+                actor.intentX,actor.intentY=direction[1],direction[2]
+                actor.work=nil; actor.animationDistance=Fox.profile.pixelsPerFrame
+                actor.moving=false; drawCell(index-1,0,"Idle "..direction[3])
+                actor.moving=true; drawCell(index-1,1,"Walk "..direction[3])
+            end
+            actor.moving=false
+            for index,work in ipairs({"crates","wrench","oil"}) do
+                actor.work=work
+                for frame=0,3 do
+                    actor.workTime=frame/4
+                    local cell=(index-1)*4+frame
+                    drawCell(cell%8,2+math.floor(cell/8),work.." "..(frame+1))
+                end
+            end
+            g.pop()
+        end
         if pendingShot=="office-walkmask.png" then
             local Home=require("game.home_stop")
             local WorldView=require("game.world_view")

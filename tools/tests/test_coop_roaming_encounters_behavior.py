@@ -48,6 +48,35 @@ class RoamingEncounterTests(unittest.TestCase):
             local paused=require('game.world_pause'); assert(paused.isSimulationPaused({state='game',saveData=data,session={networkMode='host'}},{}))
         ''')
 
+    def test_contact_in_guest_area_does_not_move_host_until_host_joins_battle(self):
+        self.pressure()
+        self.lua.execute('''
+            local areaId=data.activeExpeditionArea; require('game.coop_presence').ensure(data)
+            data.scene='train'; data.activeExpeditionArea=nil; states.host.scene='train'; states.host.x=400; states.host.y=420
+            host.playerX,host.playerY=400,420
+            local epoch=data.coop.sceneEpoch
+            local reply=raise({areaId=areaId}); assert(reply.ok and reply.durable,reply.reason)
+            assert(data.scene=='train' and host.playerX==400 and host.playerY==420 and data.coop.sceneEpoch==epoch)
+            assert(Pending.validate(data) and Schema.validate(data))
+            reply=run('host','battle.begin',entry()); assert(reply.ok and reply.durable,reply.reason)
+            assert(data.scene=='expedition' and data.activeExpeditionArea==areaId and data.coop.sceneEpoch==epoch+1)
+            assert(data.tacticalBattle.battle.encounter.returnContext.x==contactSpot.x)
+            assert(not data.players.companion.presence and not data.roamingEncounter and State.validate(data))
+        ''')
+
+    def test_host_can_withdraw_guest_encounter_when_already_on_train(self):
+        self.pressure()
+        self.lua.execute('''
+            local areaId=data.activeExpeditionArea; require('game.coop_presence').ensure(data)
+            data.scene='train'; data.activeExpeditionArea=nil; states.host.scene='train'
+            assert(raise({areaId=areaId}).ok)
+            assert(run('companion','scene.returnTrain',{}).reason=='host_only')
+            local epoch=data.coop.sceneEpoch; local reply=run('host','scene.returnTrain',{})
+            assert(reply.ok and reply.durable,reply.reason)
+            assert(not data.roamingEncounter and not data.players.companion.presence and data.coop.sceneEpoch==epoch+1)
+            assert(data.scene=='train' and Schema.validate(data))
+        ''')
+
     def test_host_engages_guest_roster_while_retaining_actual_distant_host_return_point(self):
         self.pressure()
         self.lua.execute('''

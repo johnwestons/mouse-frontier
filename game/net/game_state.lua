@@ -180,12 +180,29 @@ function Replica:prepare(message)
         authorityRevision=data.coop.revision,scopes=scopes}
 end
 function Replica:validate(message) local prepared,reason=self:prepare(message); return prepared~=nil,reason end
-function Replica:apply(message)
-    local prepared,reason=self:prepare(message)
-    if not prepared then return nil,reason end
+local function commit(self,prepared)
     self.data=prepared.data; self.records=prepared.records; self.revision=prepared.revision; self.sceneEpoch=prepared.sceneEpoch
     self.authorityRevision=prepared.authorityRevision; self.scopes=prepared.scopes
     return true
+end
+-- Stage the fully decoded, validated result while the network acknowledges
+-- receipt. The one-use closure owns that detached result; callers cannot
+-- substitute unvalidated fields or commit it over a newer replica.
+function Replica:stage(message)
+    local prepared,reason=self:prepare(message)
+    if not prepared then return nil,reason end
+    local revision,data=self.revision,self.data
+    local used=false
+    return function()
+        if used or self.revision~=revision or self.data~=data then return nil,'stale_staged_replica' end
+        used=true
+        return commit(self,prepared)
+    end
+end
+function Replica:apply(message)
+    local prepared,reason=self:prepare(message)
+    if not prepared then return nil,reason end
+    return commit(self,prepared)
 end
 function Replica:actor(id) return self.data and Players.forActor(self.data,id or 'companion') end
 State.manifest=M

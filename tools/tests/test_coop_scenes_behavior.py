@@ -24,6 +24,7 @@ class CoopSceneTests(unittest.TestCase):
             Areas=require('game.expedition_areas')
             data=F.campaign(2,{scene='train',npcRoster={'farm-hedgehog.png','harbor-mouse.png'}})
             assert(F.enroll(data)); data.events['2']={id='resolved'}
+            data.players.companion.playerX,data.players.companion.playerY=240,250
             fs,files=F.filesystem(); love.filesystem=fs; Save=require('game.save')
             canSave=true; travelTime=0; writes=0
             context={catalog=Catalog,isFurniture=function(name) return Catalog.storageCapacities[name]~=nil end,
@@ -31,7 +32,7 @@ class CoopSceneTests(unittest.TestCase):
                 trainClamp=function(d,id,x,y) return math.max(150,math.min(800,x)),math.max(400,math.min(450,y)) end,
                 actorState=function(id)
                     local actor=Players.get(data,id)
-                    if actor then return {screen='game',scene=data.scene,x=actor.playerX,y=actor.playerY,travelTime=travelTime} end
+                    if actor then return {screen='game',scene=Players.forActor(data,id).scene,x=actor.playerX,y=actor.playerY,travelTime=travelTime} end
                 end}
             function create()
                 service=Authority.new({campaign=data,sessionId='scene-test',randomSeed=321,
@@ -78,9 +79,7 @@ class CoopSceneTests(unittest.TestCase):
     def test_guest_cannot_progress_any_major_scene_or_travel_stage(self):
         self.lua.execute('''
             local before=assert(Schema.copy(data)); local id=0
-            for _,name in ipairs({'scene.leaveTrain','scene.returnTrain','scene.enterHouse','scene.exitHouse',
-                'scene.caravan','scene.expedition',
-                'travel.depart','travel.arrive','travel.finish'}) do
+            for _,name in ipairs({'travel.depart','travel.arrive','travel.finish'}) do
                 id=id+1
                 local reply=service:execute('companion',1,{sessionId=service.sessionId,requestId=id,
                     sceneEpoch=data.coop.sceneEpoch,command=name,args={},expected={}})
@@ -90,11 +89,12 @@ class CoopSceneTests(unittest.TestCase):
             assert(data.coop.revision==before.coop.revision and writes==1)
         ''')
 
-    def test_train_house_and_return_commit_distinct_party_spawns_and_loot_once(self):
+    def test_train_house_and_return_preserve_other_traveler_and_create_loot_once(self):
         self.lua.execute('''
             local epoch=data.coop.sceneEpoch
             local reply=run('scene.leaveTrain'); assert(reply.durable and data.scene=='stop' and distinct())
-            assert(data.coop.sceneEpoch==epoch+1 and Settlements.isWalkable(data.location,data.playerX,data.playerY))
+            assert(data.coop.sceneEpoch==epoch and Settlements.isWalkable(data.location,data.playerX,data.playerY))
+            assert(Players.forActor(data,'companion').scene=='train' and data.players.companion.playerX==240)
             approachDoor(1); reply=run('scene.enterHouse',{door=1})
             assert(reply.durable and data.scene=='house' and distinct() and data.lootRolls['2:1'])
             local count=#data.droppedItems; local randomState=data.coop.randomState
@@ -128,15 +128,15 @@ class CoopSceneTests(unittest.TestCase):
             run('scene.enterHouse',{door=1}); assert(data.coop.randomState~=before)
         ''')
 
-    def test_transition_releases_both_actors_leases_and_stale_scene_commands_fail(self):
+    def test_local_transition_keeps_other_actors_lease_and_rejects_old_departure(self):
         self.lua.execute('''
             local Leases=require('game.coop_leases')
             local now=service.clock()
             assert(Leases.acquire(service.activityState,'station','companion',1,data.coop.sceneEpoch,now,{}))
             local old=assert(service:prepareRequest('host','travel.depart',{}))
-            run('scene.leaveTrain'); assert(next(service.activityState.resources)==nil)
+            run('scene.leaveTrain'); assert(service.activityState.resources.station.actorId=='companion')
             old.requestId=old.requestId+1
-            assert(service:execute('host',0,old).reason=='stale_scene' and not data.coop.journey)
+            assert(service:execute('host',0,old).reason=='travel_unavailable' and not data.coop.journey)
         ''')
 
     def test_paid_departure_is_replay_safe_and_reload_resumes_without_payment(self):
@@ -217,14 +217,15 @@ class CoopSceneTests(unittest.TestCase):
             assert(service:submitLocal('travel.depart',{}).reason=='travel_unavailable')
         ''')
 
-    def test_caravan_entry_and_return_checkpoint_both_players_and_preserve_stock(self):
+    def test_caravan_entry_and_return_checkpoint_own_visit_and_preserve_stock(self):
         self.lua.execute('''
             local gate=caravanStop(); local epoch=data.coop.sceneEpoch
             love.math.random=function() error('global RNG touched') end
             local reply=run('scene.caravan',{action='enter',stop=9})
             assert(reply.durable and reply.result.firstCaravanVisit and data.scene=='caravan' and distinct())
-            assert(data.coop.sceneEpoch==epoch+1 and data.crowCaravans.meetings==1)
-            for _,actor in pairs(data.players) do assert(Caravan.isWalkable(actor.playerX,actor.playerY)) end
+            assert(data.coop.sceneEpoch==epoch and data.crowCaravans.meetings==1)
+            assert(Caravan.isWalkable(data.playerX,data.playerY))
+            assert(Players.forActor(data,'companion').scene=='stop' and data.players.companion.playerX==180)
             local camp=assert(Caravans.lookup(data,9)); local merchant=camp.merchants[1]
             merchant.listings[1].quantity=0
             local random=data.coop.randomState; local item=merchant.listings[1].item
@@ -294,12 +295,12 @@ class CoopSceneTests(unittest.TestCase):
             local random=data.coop.randomState; local x=data.players.companion.playerX
             assert(service:submitLocal('scene.returnTrain',{}).reason=='save_pending')
             canSave=true; assert(service:retryCheckpoint()); reply=service:execute('host',0,request)
-            assert(reply.durable and data.coop.sceneEpoch==epoch+1 and data.coop.randomState==random)
+            assert(reply.durable and data.coop.sceneEpoch==epoch and data.coop.randomState==random)
             assert(data.crowCaravans.meetings==1 and data.players.companion.playerX==x)
             data=assert(Save.read(1)); create(); assert(data.scene=='caravan' and Caravan.restore(data))
         ''')
 
-    def test_expedition_stop_dungeon_and_return_move_both_actors_to_authored_spawns(self):
+    def test_expedition_stop_dungeon_and_return_move_only_own_actor_to_authored_spawns(self):
         self.lua.execute('''
             local reply=enterExpedition(6)
             assert(reply.durable and reply.result.expeditionTutorial and distinct() and data.activeExpeditionArea==Areas.SURFACE_ID)
@@ -307,7 +308,8 @@ class CoopSceneTests(unittest.TestCase):
             local gate=approachExpedition('dungeon-entrance')
             reply=run('scene.expedition',{action='enterArea',areaId=gate.target,spawn=gate.spawn})
             assert(reply.durable and not reply.result.expeditionTutorial and data.activeExpeditionArea==Areas.DUNGEON_ID and distinct())
-            for _,actor in pairs(data.players) do assert(Areas.isWalkable(data,Areas.DUNGEON_ID,actor.playerX,actor.playerY)) end
+            assert(Areas.isWalkable(data,Areas.DUNGEON_ID,data.playerX,data.playerY))
+            assert(Players.forActor(data,'companion').scene=='stop' and data.players.companion.playerX==180)
             gate=approachExpedition('return-surface')
             reply=run('scene.expedition',{action='enterArea',areaId=gate.target,spawn=gate.spawn})
             assert(not reply.result.expeditionTutorial and data.activeExpeditionArea==Areas.SURFACE_ID and distinct())

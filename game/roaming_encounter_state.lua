@@ -13,12 +13,13 @@ end
 local function point(n) return type(n)=='number' and n==n and math.abs(n)<100000 end
 function State.validate(data)
     local s=data.roamingEncounter; if s==nil then return true end
+    local visitor=require('game.coop_players').forActor(data,'companion')
     if not P.fields(s,{version=true,id=true,epoch=true,areaId=true,actorId=true,leadId=true,enemyIds=true,x=true,y=true})
         or s.version~=1 or not data.coop or s.epoch~=data.coop.sceneEpoch or not P.integer(s.epoch,1,2147483647)
         or not P.text(s.areaId,64) or not P.text(s.leadId,32) or s.id~=State.id(s.epoch,s.leadId)
         or s.actorId~='companion' or not data.players or not data.players.companion
         or not point(data.players.companion.health) or data.players.companion.health<=0
-        or data.scene~='expedition' or data.activeExpeditionArea~=s.areaId or data.tacticalBattle or data.expeditionBattle
+        or not visitor or visitor.scene~='expedition' or visitor.activeExpeditionArea~=s.areaId or data.tacticalBattle or data.expeditionBattle
         or data.events and data.events.current or data.coop.journey or not point(s.x) or not point(s.y)
         or not Areas.isWalkable(data,s.areaId,s.x,s.y,true) or type(s.enemyIds)~='table'
         or #s.enemyIds<1 or #s.enemyIds>6 or s.enemyIds[1]~=s.leadId then return false end

@@ -110,22 +110,33 @@ function Menu:wheel(layout,page,list,cx,cy,radius)
                 local vertices={cx,cy}
                 for n=0,24 do
                     local theta=angle-step/2+step*n/24
-                    vertices[#vertices+1]=cx+math.cos(theta)*radius*1.2
-                    vertices[#vertices+1]=cy+math.sin(theta)*radius*1.2
+                    vertices[#vertices+1]=cx+math.cos(theta)*radius
+                    vertices[#vertices+1]=cy+math.sin(theta)*radius
                 end
                 g.stencil(function() g.polygon('fill',vertices) end,'replace',1)
                 g.setStencilTest('greater',0)
                 local selected=self.focus and self.selected==#self.targets+1
                 g.setColor(disabled and .52 or 1,disabled and .52 or (selected and .82 or 1),disabled and .52 or (selected and .45 or 1),1)
                 Art.wheel(count==4 and 'poses' or 'radial',cx,cy,radius)
+                -- The stencil belongs to the wheel artwork only. Applying it
+                -- to atlas glyphs can shear or erase them on mobile GPUs.
                 g.setStencilTest()
-                local px,py=cx+math.cos(angle)*radius*.67,cy+math.sin(angle)*radius*.67
-                -- Keep the combined glyph/label block inside the wheel outline.
-                py=py-(math.sin(angle)>0 and 13 or 0)
-                Art.icon(id,px,py-13,count==4 and 46 or 42,disabled)
+                -- Use most of each wedge for its glyph while leaving a clear
+                -- gap at the rim. Keep labels small and vertically stacked.
+                local vertical=math.abs(math.cos(angle))<.18
+                local iconSize=count==4 and 52 or 48
+                local iconRadius=radius*(count==4 and .72 or (vertical and .70 or .61))
+                local ix,iy=cx+math.cos(angle)*iconRadius,cy+math.sin(angle)*iconRadius
+                Art.icon(id,ix,iy,iconSize,disabled)
                 local label=a and a.label or labels[id]
                 if id=='leave' then label=({['LEAVE TRAIN']='LEAVE',['BOARD TRAIN']='BOARD',['RETURN TO STOP']='RETURN',['EXIT HOME']='EXIT'})[label] or label end
-                text(label,{x=px-49,y=py+11,w=98,h=32},.82)
+                if id=='backpack' then label='PACK' end
+                local labelDirection
+                if vertical then labelDirection=math.sin(angle)>0 and -1 or 1
+                elseif math.abs(math.sin(angle))<.18 then labelDirection=1
+                else labelDirection=math.sin(angle)>0 and 1 or -1 end
+                local labelY=iy+labelDirection*(iconSize*.5+5)
+                text(label,{x=ix-24,y=labelY-5,w=48,h=10},.68,true)
                 self:target(id,rect,inside)
             end)
         end

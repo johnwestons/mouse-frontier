@@ -9,6 +9,10 @@ local Collision={}
 function Collision.new(context)
     assert(context.car and context.scenery,'co-op collision requires scene assets')
     return function(data,actor,oldX,oldY,x,y)
+        local Players=require('game.coop_players')
+        local campaign=Players.campaignOf(data)
+        local id=actor.id or campaign.players and campaign.players.companion==actor and 'companion'
+        if id and Players.get(campaign,id) then data=Players.forActor(campaign,id) end
         if require('game.coop_last_stand_lifecycle').walking(data) then
             return require('game.last_stand_geometry').move(data.lastStand.lifecycle.mode,oldX,oldY,x,y)
         end

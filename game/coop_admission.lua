@@ -4,6 +4,7 @@ local Connections=require('game.coop_connections')
 local Identity=require('game.net.identity')
 local Crypto=require('game.net.crypto')
 local P=require('game.net.protocol')
+local Traveler=require('game.coop_traveler')
 local Admission={}; Admission.__index=Admission
 local function invoke(fn,...)
     local ok,value=pcall(fn,...); return ok and value or nil
@@ -12,7 +13,7 @@ function Admission.new(authority,context)
     if not authority.checkpoint or authority.pendingSave then return nil,'save_not_ready' end
     if authority.bindings.companion then return nil,'companion_connected' end
     if not authority.handlers['session.host'] then Connections.install(authority,context) end
-    local self=setmetatable({authority=authority,token=context.token or Crypto.token,hash=context.hash or Crypto.hash},Admission)
+    local self=setmetatable({authority=authority,token=context.token or Crypto.token,hash=context.hash or Crypto.hash,allowedCharacters=context.allowedCharacters},Admission)
     if not authority.campaign.coop.network then
         local id=invoke(self.token,16)
         if not Crypto.isHex(id,32) then return nil,'entropy_unavailable' end
@@ -26,8 +27,19 @@ function Admission:preflight()
     return authority.checkpoint~=nil and authority.pendingSave==nil
         and authority.campaign.coop.checkpoints.sessionSerial==authority.sessionSerial
 end
-function Admission:authenticate(credential)
+function Admission:validateTraveler(profile)
+    if not Traveler.validEnvelope(profile,self.allowedCharacters) then return nil,'invalid_traveler' end
+    local previous=self.authority.campaign.travelerHistory and self.authority.campaign.travelerHistory[profile.profileId]
+    if previous and previous.serial>=profile.serial then return nil,'traveler_already_returned' end
+    local actor=self.authority.campaign.players.companion
+    local identity=actor and actor.travelIdentity
+    if identity and not Traveler.sameVisit(identity,profile) and identity.status~='closed' then return nil,'traveler_return_pending' end
+    return true
+end
+function Admission:authenticate(credential,profile)
     local network=self.authority.campaign.coop.network
+    local actor=self.authority.campaign.players.companion; local identity=actor and actor.travelIdentity
+    if profile and not Traveler.sameVisit(identity,profile) or identity and not profile then return end
     if self:preflight() and Identity.matches(network,credential,self.hash) then
         return {campaignId=network.campaignId,companionId=network.companionId}
     end
@@ -36,8 +48,18 @@ function Admission:issue(request)
     if self.management then return nil,'management_busy' end
     if not self:preflight() then return nil,'save_not_ready' end
     if self.authority.bindings.companion then return nil,'companion_connected' end
-    if not P.fields(request,{generation=true,name=true,character=true}) or not P.integer(request.generation,1,2147483647)
+    if not P.fields(request,{generation=true,name=true,character=true,profile=true}) or not P.integer(request.generation,1,2147483647)
         or not P.text(request.name,32) or not P.text(request.character,128) then return nil,'invalid_approval' end
+    local profileKey
+    if request.profile then
+        local valid,reason=self:validateTraveler(request.profile); if not valid then return nil,reason end
+        if request.profile.actor.character~=request.character then return nil,'traveler_character_mismatch' end
+        local wire=Traveler.pack(request.profile)
+        local bytes=wire and require('game.net.codec').encode(wire,{maxBytes=65536,maxDepth=12,maxEntries=4096,maxStringBytes=256})
+        profileKey=bytes and invoke(self.hash,bytes)
+        if not Crypto.isHex(profileKey,64) then return nil,'hash_unavailable' end
+        self.authority.travelerUploads={[profileKey]=assert(Traveler.unpack(wire,self.allowedCharacters))}
+    end
     local network=self.authority.campaign.coop.network
     if self.pending and self.pending.generation==request.generation
         and Identity.matches(network,self.pending.credential,self.hash) then return self.pending.credential end
@@ -49,6 +71,7 @@ function Admission:issue(request)
     local credential={campaignId=network.campaignId,companionId=companionId,token=token}
     local existing=self.authority.campaign.players.companion~=nil
     local args={companionId=companionId,credentialHash=digest}
+    args.profileKey=profileKey
     if not existing then args.character=request.character end
     local result=self.authority:submitLocal(existing and 'session.rebind' or 'session.enroll',args)
     if not result.ok then return nil,result.reason end

@@ -115,6 +115,8 @@ function Runtime.new(context)
             domainContext.rangeState=context.rangeState
             domainContext.rangeRandomSeed=nextAuthority.randomSeed
             InventoryCommands.install(nextAuthority,domainContext)
+            require('game.coop_sharing').install(nextAuthority,domainContext)
+            require('game.coop_traveler_return').install(nextAuthority)
             TradeCommands.install(nextAuthority,domainContext)
             GiftCommands.install(nextAuthority,domainContext)
             ActivityCommands.install(nextAuthority,domainContext)
@@ -161,7 +163,7 @@ function Runtime.new(context)
                 context.applyField(reply.result)
             end
         end
-        if reply.ok and reply.result.partyTransition and context.applyParty then
+        if reply.ok and (reply.result.partyTransition or reply.result.localTransition and actorId=='host') and context.applyParty then
             if name=='ambush.continue' and reply.savePending then
                 pendingAmbushParty={service=service,name=name,reply=reply}
                 return reply
@@ -262,7 +264,9 @@ function Runtime.new(context)
             if not allowed then return {ok=false,reason=errorMessage} end
             -- Expand this list only with each domain's live remote actor/UI audit.
             if not ({['progression.request']=true,['player.pose']=true,['player.car']=true,['inventory.swap']=true,['inventory.consume']=true,['loot.drop']=true,['loot.pickup']=true,
-                ['storage.transfer']=true,['mailbox.collect']=true,['merchant.buy']=true,['merchant.sell']=true,
+                ['storage.transfer']=true,['mailbox.collect']=true,['inventory.give']=true,['ammo.give']=true,['merchant.buy']=true,['merchant.sell']=true,
+                ['scene.leaveTrain']=true,['scene.returnTrain']=true,['scene.enterHouse']=true,['scene.exitHouse']=true,
+                ['scene.office']=true,['scene.caravan']=true,['scene.expedition']=true,['traveler.return']=true,['traveler.ack']=true,
                 ['train.fuel']=true,['train.upgrade']=true,['train.engineUpgrade']=true,['radio.station']=true,
                 ['decoration.acquire']=true,['decoration.place']=true,['decoration.collect']=true,['activity.release']=true,
                 ['npc.gift']=true,['passenger.equip']=true,['npc.chatter']=true,['passenger.chatter']=true,

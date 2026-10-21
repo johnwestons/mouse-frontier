@@ -2,6 +2,7 @@
 -- writer or world-update callback; all movement is an intent sent to the host.
 local Schema=require('game.save_schema')
 local Players=require('game.coop_players')
+local Presence=require('game.coop_presence')
 local Ownership=require('game.replica_ownership')
 local Wire=require('game.net.movement')
 local Prediction=require('game.coop_prediction')
@@ -54,6 +55,7 @@ function View.new(c,controller)
     self.ui={propImages=c.ui.propImages,atlasItems=c.ui.atlasItems,objectTintShader=c.ui.objectTintShader,
         assetStreamer=c.ui.assetStreamer,playSfx=noop,itemOrderRevision=0}
     self.ui.coopCompanion=function()
+        if self.runtime.saveData and not Presence.same(Players.campaignOf(self.runtime.saveData),'host','companion') then return end
         local pose=self.poses and self.poses:presentation('host') or {}
         local cue=self.field and self.field:presentation('host') or {}
         if (cue.actionTimer or 0)>0 then for key,value in pairs(cue) do pose[key]=value end end
@@ -73,13 +75,20 @@ function View.new(c,controller)
         pressPointer=function(x,y) if self.runtime.battle and not self.runtime.inventoryOpen then
             return self.battles:pointer(Viewport.toGame(x,y,960,720)) end end,
         movePointer=noop,releasePointer=noop,
-        gameplayActive=function() return self:inputAllowed() and self:interactionAvailable() end,
-        primaryAction=function() return 'e',self:actionLabel() end,
+        gameplayActive=function() return self:inputAllowed() and (self:interactionAvailable() or self.field and self.field:available()) end,
+        primaryAction=function()
+            if self:interactionAvailable() then return 'e',self:actionLabel() end
+            if self.field and self.field:available() then return 'space','ATTACK' end
+            return 'e',self:actionLabel()
+        end,
+        secondaryAction=function()
+            if self:interactionAvailable() and self.field and self.field:available() then return 'space','ATTACK' end
+        end,
         movementActive=function() return self:inputAllowed() end,
         cameraGesturesActive=function() return self.ready and not self:travelOpen() and not (self.range and self.range:available()) and not (self.lastStand and self.lastStand:available()) and not (self.ambush and self.ambush:available()) and not controller.menuOpen and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen and not self:objectsOpen() and not self.runtime.peopleOpen and not self.runtime.guestActivityOpen end,
         backpackVisible=function() return not self.ui.actionMenuVisible and self.ready and not self:travelOpen() and not (self.range and self.range:available()) and not (self.lastStand and self.lastStand:available()) and not self.runtime.battle and not controller.menuOpen and not self.runtime.inventoryOpen and not self.runtime.tradeOpen and not self.runtime.trainUpgradeOpen and not self:objectsOpen() and not self.runtime.peopleOpen and not self.runtime.guestActivityOpen end,
         backpackAction=function() self.inventory:toggle() end,
-        menuVisible=function() return self.ready and not self.runtime.inventoryOpen end,menuLabel=function() return 'LOCAL PLAY' end,
+        menuVisible=function() return not self.ui.actionMenuVisible and self.ready and not self.runtime.inventoryOpen end,menuLabel=function() return 'LOCAL PLAY' end,
         menuAction=function() controller:open() end,
         getZoom=function() return self.camera.zoom end,
         setZoom=function(zoom,x,y)
@@ -100,6 +109,7 @@ function View.new(c,controller)
     self.battles=GuestBattles.new(self,c)
     self.field=GuestRoaming.new(self,c)
     self.expedition=GuestExpedition.new(self)
+    self.visits=require('game.coop_guest_visits').new(self,c)
     self.ambush=GuestAmbush.new(self,c)
     self.lastStand=GuestLastStand.new(self,c)
     self.range=GuestRange.new(self,c)
@@ -116,6 +126,8 @@ function View:travelOpen()return self.travel and self.travel.opened==true or fal
 function View:activityBusy() return self.range and self.range:busy() or self.expedition and self.expedition.pending or self.field and self.field.pending or self.runtime.guestActivityOpen or self.activities and (self.activities.pending or self.activities.lease or self.activities.wantRelease or self.activities.sewing:busy() or self.activities.firstAid:busy()) end
 function View:objectsOpen() return self.ui.radioOpen or self.runtime.editMode end
 function View:actionsAllowed()
+    local traveler=self.controller.traveler
+    if traveler and (traveler.leaving or traveler.savedReturn or traveler.error) then return false end
     return self.ready and self.focused and not self.paused and not self.carRequest and not self.carTransition
         and not (self.runtime.saveData and self.runtime.saveData.roamingEncounter)
         and not self.controller.menuOpen and not self.prediction:stale()
@@ -129,13 +141,15 @@ function View:inputAllowed()
         and not self:activityBusy() and not self:objectsOpen() and not self.runtime.peopleOpen and not (self.objects and self.objects.pending) and not (self.people and self.people.pending)
         and not (self.inventory and self.inventory.pending) and not (self.trade and self.trade.pending) and not (self.train and self.train.pending)
         and not (self.expedition and self.expedition.pending)
+        and not (self.visits and self.visits.pending)
 end
-function View:interactionAvailable() if self.lastStand:available() then return false end; return self.range:nearest()~=nil or self.expedition:nearest()~=nil or self.inventory:nearest()~=nil or self.inspection:nearest()~=nil or self.trade:nearest()~=nil or self.people:nearest()~=nil or self.train:nearFire() end
-function View:actionLabel() local spot=self.expedition:nearest(); return spot and spot.label or self.range:nearest() and 'TARGET RANGE' or self.inventory:nearest() and self.inventory:actionLabel() or self.inspection:nearest() and 'INSPECT' or self.trade:nearest() and 'TRADE' or self.people:nearest() and (Home.isHome(self.runtime.saveData) and 'TALK' or 'TALK / GIFT') or self.train:nearFire() and 'ADD FUEL' or 'PICK UP' end
+function View:interactionAvailable() if self.lastStand:available() then return false end; return self.range:nearest()~=nil or self.expedition:nearest()~=nil or self.visits:nearest()~=nil or self.inventory:nearest()~=nil or self.inspection:nearest()~=nil or self.trade:nearest()~=nil or self.people:nearest()~=nil or self.train:nearFire() end
+function View:actionLabel() local spot=self.expedition:nearest(); local visit=self.visits:nearest(); return spot and spot.label or self.range:nearest() and 'TARGET RANGE' or visit and visit.label or self.inventory:nearest() and self.inventory:actionLabel() or self.inspection:nearest() and 'INSPECT' or self.trade:nearest() and 'TRADE' or self.people:nearest() and (Home.isHome(self.runtime.saveData) and 'TALK' or 'TALK / GIFT') or self.train:nearFire() and 'ADD FUEL' or 'PICK UP' end
 function View:interact()
     if not self:inputAllowed() then return false end
     if self.expedition:nearest() then return self.expedition:interact() end
     if self.range:nearest() then return self.range:open() end
+    if self.visits:nearest() then return self.visits:interact() end
     if self.inventory:nearest() then return self.inventory:pickup() end
     if self.inspection:nearest() then return self.inspection:open() end
     local merchant=self.trade:nearest()
@@ -181,7 +195,9 @@ function View:update(dt)
         runtime.saveData=data; runtime.scene=data.scene
         runtime.battle=data.tacticalBattle and data.tacticalBattle.battle
         runtime.state=runtime.battle and 'battle' or 'game'
-        local changed=self.epoch~=data.coop.sceneEpoch or self.modalDomain~=Life.key(data)
+        local sceneRevision=Presence.revision(copy,'companion')
+        local changed=self.epoch~=data.coop.sceneEpoch or self.modalDomain~=Life.key(data) or self.sceneRevision~=sceneRevision
+        self.sceneRevision=sceneRevision
         self.modalDomain=Life.key(data)
         if changed then
             self:neutralize(); self.ready=false; self.paused=true; self.lastSerial=0; self.wasAllowed=false
@@ -216,7 +232,8 @@ function View:update(dt)
         self.revision=replica.revision
     end
     local frame=self.controller.motionFrame
-    if frame and frame.sceneEpoch==self.epoch and frame.domain==self.modalDomain and frame.serial>self.lastSerial then
+    if frame and frame.sceneEpoch==self.epoch and frame.domain==self.modalDomain
+        and (frame.companion.sceneRevision or 0)==self.sceneRevision and frame.serial>self.lastSerial then
         if not Wire.snapshot(frame) then return nil,'invalid_motion_state' end
         if self.motionId and frame.motionId<self.motionId then return nil,'invalid_motion_generation' end
         if frame.companion.car>#runtime.saveData.trainCars then return true end -- Wait for the matching consist projection.
@@ -246,7 +263,8 @@ function View:update(dt)
     end
     -- A campaign projection may lag the independent motion channel. Retain the
     -- newest presented personal car instead of blinking back to an older car.
-    if frame and frame.sceneEpoch==self.epoch and frame.domain==self.modalDomain and frame.serial==self.lastSerial then
+    if frame and frame.sceneEpoch==self.epoch and frame.domain==self.modalDomain
+        and (frame.companion.sceneRevision or 0)==self.sceneRevision and frame.serial==self.lastSerial then
         runtime.saveData.players.companion.activeCar=frame.companion.car
         runtime.saveData.players.host.activeCar=frame.host.car
     end
@@ -259,6 +277,7 @@ function View:update(dt)
     self.inventory:update()
     self.inspection:update()
     self.expedition:update()
+    self.visits:update()
     self.trade:update()
     self.train:update()
     self.objects:update()
@@ -408,7 +427,7 @@ function View:draw()
     g.setColor(.045,.035,.025,.9); g.rectangle('fill',16,14,928,52,8,8)
     g.setColor(.96,.88,.69,1)
     g.printf('COMPANION  /  Stop '..runtime.saveData.location..'  /  '..runtime.scene,30,24,470,'left')
-    g.printf('Health '..runtime.saveData.health..' / '..runtime.saveData.maxHealth,self.mobile.enabled and 500 or 700,24,225,'right')
+    g.printf('Health '..runtime.saveData.health..' / '..runtime.saveData.maxHealth,self.mobile.enabled and 500 or 580,24,225,'right')
     g.setColor(.045,.035,.025,.9); g.rectangle('fill',220,660,520,45,8,8)
     g.setColor(.96,.88,.69,1)
     local bindings=self.context.bindings
@@ -417,9 +436,10 @@ function View:draw()
         and (bindings:display('button','guest_actions')..': choose companion actions.')
     g.printf((self.carRequest or self.carTransition) and 'Changing cars...' or self.actionError and 'Car change unavailable. Try again when ready.'
         or self.expedition.pending and self.expedition.notice or self.inventory.pending and self.inventory.notice or self.trade.pending and self.runtime.tradeMessage or self.train.pending and self.train.notice or self.waiting and 'Waiting for the host to continue.'
-        or self.expedition.notice and self.expedition.noticeUntil>self.elapsed and self.expedition.notice
+        or self.visits.notice or self.expedition.notice and self.expedition.noticeUntil>self.elapsed and self.expedition.notice
         or self.activities.notice or self.people.notice or self.objects.notice or self.train.notice or self.trade.notice or self.inventory.notice
-        or controllerHint or 'More shared actions and combat are still in development.',230,667,500,'center')
+        or controllerHint or (self.mobile.enabled and 'Move with the left stick. Tap nearby actions to interact.'
+            or 'WASD: move   E: interact   I: backpack'),230,667,500,'center')
     self.ui.trainCarTabs=nil
     if runtime.scene=='train' and #runtime.saveData.trainCars>1 then
         self.ui.trainCarTabs=Train.consistLayout(960,#runtime.saveData.trainCars,{mobile=self.mobile.enabled})
@@ -774,7 +794,8 @@ function View:mousepressed(x,y,button,istouch)
     if button==1 and gx>=764 and gx<=944 and gy>=78 and gy<=124 then self.controller:open()
     elseif button==1 and self.field:available() then
         local fx,fy=self:focusPoint(); local wx,wy=self.camera:toWorld(gx,gy,fx,fy)
-        local ox,oy=require('game.expedition_areas').cameraOffset(self.runtime.saveData,self.runtime.player,960,720)
+        local ox,oy=0,0
+        if self.runtime.scene=='expedition' then ox,oy=require('game.expedition_areas').cameraOffset(self.runtime.saveData,self.runtime.player,960,720) end
         self.field:attack(wx+ox,wy+oy)
     elseif button==2 or button==3 then self.camera:beginPan(x,y) end
     return true

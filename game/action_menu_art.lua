@@ -2,6 +2,7 @@ local Style=require('game.ui_layout')
 local GuiArt=require('game.gui_art')
 local Art={}
 local images,quads={},{}
+local SOURCE_ATLAS_WIDTH,SOURCE_ATLAS_HEIGHT=1254,1254
 function Art.setFrames(value) GuiArt.setFrames(value) end
 -- Bounds of the authored glyphs (transparent atlas padding is excluded).
 local glyphs={{51,92,243,205},{387,80,219,235},{658,110,263,193},{991,79,192,227},
@@ -24,21 +25,27 @@ function Art.wheel(name,cx,cy,radius)
     local rotation=name=='radial' and math.pi/6 or 0
     local diameter=name=='radial' and 1051 or 1058
     local ox,oy=626,name=='radial' and 625 or 622
-    local scale=radius*2/diameter
-    love.graphics.draw(img,cx,cy,rotation,scale,scale,ox,oy)
+    local width,height=img:getDimensions()
+    local atlasScaleX,atlasScaleY=width/SOURCE_ATLAS_WIDTH,height/SOURCE_ATLAS_HEIGHT
+    local scale=radius*2/(diameter*atlasScaleX)
+    love.graphics.draw(img,cx,cy,rotation,scale,scale,ox*atlasScaleX,oy*atlasScaleY)
 end
 function Art.frame(name,r,highlight,disabled)
     GuiArt.frame(r.x,r.y,r.w,r.h,{circle=name=='center',simple=true,selected=highlight,disabled=disabled})
 end
 function Art.icon(id,x,y,size,disabled)
     local g=love.graphics;local img=Art.image('icons');local index=indexes[id] or 16
+    local atlasWidth,atlasHeight=img:getDimensions()
+    local atlasScaleX,atlasScaleY=atlasWidth/SOURCE_ATLAS_WIDTH,atlasHeight/SOURCE_ATLAS_HEIGHT
     if not quads[index] then
-        local w,h=img:getDimensions();local r=glyphs[index]
-        quads[index]=g.newQuad(r[1]-2,r[2]-2,r[3]+4,r[4]+4,w,h)
+        local r=glyphs[index]
+        quads[index]=g.newQuad((r[1]-2)*atlasScaleX,(r[2]-2)*atlasScaleY,
+            (r[3]+4)*atlasScaleX,(r[4]+4)*atlasScaleY,atlasWidth,atlasHeight)
     end
     size=math.min(size*Style.iconScale(),size*1.7)
     g.setColor(1,1,1,disabled and .5 or 1)
-    local r=glyphs[index];local w,h=r[3]+4,r[4]+4;local scale=size/math.max(w,h)
+    local r=glyphs[index];local w,h=(r[3]+4)*atlasScaleX,(r[4]+4)*atlasScaleY
+    local scale=size/math.max(w,h)
     g.draw(img,quads[index],x,y,0,scale,scale,w/2,h/2)
 end
 return Art

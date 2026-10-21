@@ -147,6 +147,30 @@ class MobilePackageTests(unittest.TestCase):
                         self.assertEqual((count*256,128),image.size)
                         self.assertIsNotNone(image.convert('RGBA').getchannel('A').getbbox())
 
+    def test_home_fox_walk_idle_and_work_keep_the_same_packed_cell_size(self) -> None:
+        spec=json.loads((ROOT/'character-motion/home-tinker-fox.json').read_text())
+        with tempfile.TemporaryDirectory() as temporary:
+            directory=Path(temporary)
+            config={**self.config,'characterAnimationFrameSize':128}
+            with patch('tools.build_mobile_package.CACHE_ROOT',directory/'cache'):
+                for name,animation in spec['animations'].items():
+                    with self.subTest(animation=name):
+                        relative=animation['path']; source=ROOT/relative
+                        count=animation['frame_count']
+                        self.assertTrue(runtime_asset(source))
+                        self.assertEqual((count*128,128),
+                            image_bounds(relative,config,(count*512,512)))
+                        destination=directory/(name+'.png')
+                        optimize_image(source,destination,relative,config)
+                        with Image.open(destination) as packed:
+                            self.assertEqual(packed.size,(count*128,128))
+                            for index in range(count):
+                                alpha=packed.convert('RGBA').crop(
+                                    (index*128,0,(index+1)*128,128)).getchannel('A')
+                                box=alpha.point(lambda a:255 if a>16 else 0).getbbox()
+                                self.assertIsNotNone(box)
+                                self.assertLessEqual(abs(box[3]-458/4),1)
+
     def test_ads_fire_atlases_retain_renderer_compatible_authored_dimensions(self) -> None:
         sources = sorted((ROOT / "assets/sprites/weapons/first-person/actions").glob("*-ads-fire.png"))
         self.assertGreaterEqual(len(sources), 39, "all existing ADS firing sheets must be covered")

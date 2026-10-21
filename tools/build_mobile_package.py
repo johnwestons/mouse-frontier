@@ -64,6 +64,15 @@ TITLE_SNAPSHOT_GRIDS = {
     f"assets/sprites/ui/title/snapshots/{name}.png": (4, 1, 512, 512)
     for name in ("share-water", "share-food", "bandage", "laugh", "help-walk", "handshake")
 }
+HOME_FOX_ANIMATION_FRAMES = {
+    f"assets/sprites/home-stop/adult-tinker-fox/{action}{suffix}.png": count
+    for action, count in (("walk", 8), ("idle", 2))
+    for suffix in ("", "_north", "_northeast", "_northwest", "_west", "_southwest", "_south", "_southeast")
+}
+HOME_FOX_ANIMATION_FRAMES.update({
+    f"assets/sprites/home-stop/adult-tinker-fox/{action}.png": 4
+    for action in ("crates", "wrench", "oil")
+})
 CARAVAN_PACKED_REGIONS = {
     # The third canopy extends beyond its nominal cell; the following canopy
     # starts at x=816. Preserve these authored regions without cross-pose sampling.
@@ -144,6 +153,15 @@ def runtime_asset(source: Path) -> bool:
 
 
 def image_bounds(relative: str, config: dict, source_size: tuple[int, int] | None = None) -> tuple[int, int]:
+    fox_frames = HOME_FOX_ANIMATION_FRAMES.get(relative)
+    if fox_frames:
+        if source_size is None:
+            raise ValueError("Home fox animation bounds require the source dimensions")
+        width, height = source_size
+        if height <= 0 or width != fox_frames * height:
+            raise ValueError(f"Home fox animation requires {fox_frames} square cells: {relative} ({width}x{height})")
+        frame_size = min(height, int(config["characterAnimationFrameSize"]))
+        return fox_frames * frame_size, frame_size
     authored_size = FIXED_RUNTIME_ATLASES.get(relative)
     if authored_size:
         if source_size != authored_size:
@@ -261,6 +279,8 @@ def optimize_image(source: Path, destination: Path, relative: str, config: dict)
     operation = f"png-v3-{max_width}x{max_height}-p{config['imagePaletteColors']}"
     animation_grid = CARAVAN_ANIMATION_GRIDS.get(relative) or TITLE_SNAPSHOT_GRIDS.get(relative)
     packed_regions = CARAVAN_PACKED_REGIONS.get(relative)
+    if relative in HOME_FOX_ANIMATION_FRAMES:
+        animation_grid = (HOME_FOX_ANIMATION_FRAMES[relative], 1)
     if packed_regions:
         layout_key = hashlib.sha256(json.dumps(packed_regions).encode()).hexdigest()[:12]
         operation += f"-isolated-regions-v1-{layout_key}"

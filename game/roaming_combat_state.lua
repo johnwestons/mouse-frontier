@@ -11,11 +11,23 @@ function State.point(n) return type(n)=='number' and n==n and n>=-100000 and n<=
 function State.validCue(data,cue)
     if type(data.coop)~='table' or not P.integer(data.coop.sceneEpoch,1,2147483647)
         or not P.fields(cue,fields) or not P.integer(cue.serial,1,2147483647) or not P.integer(cue.epoch,1,data.coop.sceneEpoch)
-        or not Players.get(data,cue.actorId) or not P.text(cue.areaId,64) or not data.expeditions or not data.expeditions[cue.areaId]
+        or not Players.get(data,cue.actorId) or not P.text(cue.areaId,64)
         or not State.point(cue.x) or not State.point(cue.y) or not P.text(cue.weapon,128) or not P.clock(cue.duration) or cue.duration>1
         or (cue.facing~=1 and cue.facing~=-1) or not P.integer(cue.damage,0,1000000) or type(cue.dead)~='boolean'
         or type(cue.shellBroken)~='boolean' or not P.text(cue.message,512) or type(cue.alerts)~='table' then return false end
-    local area=data.expeditions[cue.areaId]
+    local stop=cue.areaId:match('^stop:([1-9]%d*)$')
+    if stop then
+        local list=data.stopSludges and data.stopSludges[stop]
+        if type(list)~='table' or next(cue.alerts)~=nil or cue.shellBroken or cue.duration~=.42
+            or cue.state~=nil or cue.timer~=nil or cue.staggerCooldown~=nil then return false end
+        if cue.mobId then
+            local index=type(cue.mobId)=='string' and tonumber(cue.mobId)
+            return P.integer(index,1,#list) and tostring(index)==cue.mobId and type(list[index])=='table'
+                and cue.hitId=='sludge:'..stop..':'..index and cue.damage>=1
+        end
+        return cue.hitId==nil and cue.damage==0 and not cue.dead
+    end
+    local area=data.expeditions and data.expeditions[cue.areaId]
     if type(area)~='table' or type(area.mobs)~='table' then return false end
     local count=0; local seen={}
     for index,id in pairs(cue.alerts) do

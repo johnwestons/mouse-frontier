@@ -4,6 +4,7 @@
 local P=require('game.net.protocol')
 local Crypto=require('game.net.crypto')
 local Players=require('game.coop_players')
+local Traveler=require('game.coop_traveler')
 local Commands={}
 function Commands.install(authority,context)
     assert(type(context)=='table' and type(context.placeCompanion)=='function','companion spawn resolver required')
@@ -23,7 +24,7 @@ function Commands.install(authority,context)
         end}
     end)
     local function binding(data,args,enroll)
-        local allowed={credentialHash=true,companionId=true}
+        local allowed={credentialHash=true,companionId=true,profileKey=true}
         if enroll then allowed.character=true end
         local network=data.coop.network
         if not network then return nil,'campaign_identity_required' end
@@ -33,6 +34,12 @@ function Commands.install(authority,context)
         if network.companionId and network.companionId~=args.companionId then return nil,'companion_identity_mismatch' end
         if not enroll and not data.players.companion then return nil,'companion_missing' end
         if network.credentialHash==args.credentialHash then return nil,'credential_unchanged' end
+        local profile=args.profileKey and authority.travelerUploads and authority.travelerUploads[args.profileKey]
+        if args.profileKey and (not Crypto.isHex(args.profileKey,64) or not Traveler.validEnvelope(profile,context.allowedCharacters)) then return nil,'invalid_traveler' end
+        local previous=data.players.companion and data.players.companion.travelIdentity
+        if previous and not profile then return nil,'traveler_required' end
+        local same=profile and Traveler.sameVisit(previous,profile)
+        if previous and not same and previous.status~='closed' then return nil,'traveler_return_pending' end
         local scopes={'session','player:companion'}
         local modal=require('game.coop_last_stand_lifecycle').active(data)
         if modal then scopes[#scopes+1]='entity:'..modal.entityId end
@@ -44,6 +51,19 @@ function Commands.install(authority,context)
             if enroll then
                 local player,reason=Players.enroll(data,'host',args.character,context.catalog,context.allowedCharacters)
                 if not player then return nil,reason end
+            end
+            if profile and not same then
+                local player,reason=Traveler.replaceActor(data,'companion',profile.actor,context.allowedCharacters)
+                if not player then return nil,reason end
+                player.presence=nil
+                player.travelReturn=nil
+                player.travelIdentity={version=1,profileId=profile.profileId,tripId=profile.tripId,serial=profile.serial,status='active'}
+                if data.rangeSessions then data.rangeSessions.companion=nil end
+                for _,container in ipairs({data.lastStand or false,data.trainAmbush or false}) do
+                    if container and container.shooterSessions then container.shooterSessions.companion=nil end
+                end
+            end
+            if enroll or profile and not same then
                 local placed,spawnError=context.placeCompanion(data)
                 if placed~=true then return nil,spawnError or 'spawn_unavailable' end
             end
@@ -78,6 +98,8 @@ function Commands.install(authority,context)
         return network
     end
     register('session.replace',function(data,args,transaction)
+        local visitor=data.players.companion and data.players.companion.travelIdentity
+        if visitor and visitor.status~='closed' then return nil,'traveler_return_pending' end
         if not P.fields(args,{character=true,previousCompanionId=true,companionId=true,credentialHash=true}) then return nil,'invalid_args' end
         local state,reason=managementState(data);if not state then return nil,reason end
         local active=require('game.coop_last_stand_lifecycle').active(data)

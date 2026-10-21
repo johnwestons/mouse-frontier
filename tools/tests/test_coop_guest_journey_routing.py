@@ -142,6 +142,7 @@ class JourneyRoutingTests(unittest.TestCase):
             view.people.nearest=function() return nil end;view.objects.nearestRadio=function() return nil end
             view.range.nearest=function() return nil end;view.activities.eligible=function() return false end
             view.activities.firstAid.nearest=function() return nil end
+            view.visits.nearest=function() return nil end
             for _,mobile in ipairs({false,true}) do
                 view.mobile.enabled=mobile;view.runtime.scene='train';view:draw()
                 assert(view.ui.guestWorkshop,'train workshop not offered')

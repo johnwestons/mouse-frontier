@@ -6,7 +6,7 @@ local Receipts={MAX_COUNT=64,MAX_BYTES=262144,MAX_SEQUENCE=2147483647}
 local LIMITS={maxBytes=16384,maxDepth=16,maxEntries=1024,maxStringBytes=1200}
 local fields={actorId=true,sessionId=true,sessionSerial=true,requestId=true,fingerprint=true,response=true}
 local critical={}
-for name in ("inventory.swap inventory.consume storage.transfer loot.pickup loot.drop mailbox.collect train.fuel train.upgrade train.engineUpgrade "
+for name in ("inventory.swap inventory.consume inventory.give ammo.give storage.transfer loot.pickup loot.drop mailbox.collect train.fuel train.upgrade train.engineUpgrade "
     .."merchant.buy merchant.sell npc.gift passenger.equip firstAid.complete maintenance.complete weaponRepair.complete "
     .."quest.deliver quest.help decoration.collect expedition.cache npc.chatter passenger.chatter"):gmatch("%S+") do critical[name]=true end
 
@@ -18,7 +18,7 @@ function Receipts.required(command,args,operation)
     local policy=Capabilities.commands[command] and Capabilities.commands[command].policy
     local effects=operation.effects or {}
     return critical[command]==true or policy=="host_progression" or policy=="host_admin"
-        or effects.story==true or effects.scene==true or effects.ending==true
+        or effects.story==true or effects.scene==true or effects.localScene==true or effects.ending==true
         or command=="outfit.craft" and (args.action=="start" or args.action=="collect")
         or command=='radio.station' or command=='decoration.place' and next(args.values or {})~=nil
         or operation.checkpoint==true

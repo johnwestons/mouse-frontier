@@ -41,10 +41,11 @@ end
 
 local function meleeWeapon(ctx)
     local p=ctx.player; local data=ctx.data
+    if ctx.unarmed then return 'scratch' end
     for i=1,2 do
         local name=data and data.equipment and data.equipment[i]
         local combat=name and ctx.catalog.weaponCombat and ctx.catalog.weaponCombat[name]
-        if name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged")
+        if (not ctx.weaponRef or ctx.weaponRef.index==i) and name and name~="scratch" and ctx.isWeapon(name) and (not combat or combat.kind~="ranged")
             and (Items.condition(data,name,{kind='equipment',index=i}) or 100)>0 then return name end
     end
     return "scratch"
@@ -61,29 +62,33 @@ function M.attack(sys,ctx,targetX,targetY)
     if dlen<0.01 then
         dtx=(p.facing or 1)*100; dty=0; dlen=100
     end
-    local best,bestScore
-    for _,s in ipairs(M.ensure(sys,ctx.data,ctx.location,ctx)) do
+    local best,bestScore,bestIndex
+    for index,s in ipairs(M.ensure(sys,ctx.data,ctx.location,ctx)) do
         if not s.dead then
             local d=dist(px,py,s.x,s.y)
             -- Damage is proximity-based rather than cursor-based.  The player
             -- can freely swing anywhere; a nearby crawler is hit automatically.
-            if d<=150 and (not bestScore or d<bestScore) then best,bestScore=s,d end
+            if d<=150 and (not bestScore or d<bestScore) then best,bestScore,bestIndex=s,d,index end
         end
     end
     p.facing=dtx>=0 and 1 or -1
     sys.attackTimer=.42
+    local result={weapon=weapon,duration=.42,facing=p.facing,damage=0,dead=false,shellBroken=false}
     if ctx.onAction then ctx.onAction(weapon) end
     if ctx.playSfx then ctx.playSfx(weapon=="scratch" and "slash" or "sword") end
     if not best then
         sys.message=weapon=='scratch' and 'The attack misses.' or 'The swing misses.'; sys.messageTimer=1.2
-        return true
+        result.message=sys.message
+        return true,nil,result
     end
     local stats=ctx.catalog.weaponStats[weapon] or (weapon=='scratch' and {min=1,max=3} or {min=2,max=4})
-    local damage=math.max(1,love.math.random(stats.min or 2,stats.max or 4))
+    local damage=math.max(1,(ctx.rng or love.math.random)(stats.min or 2,stats.max or 4))
     best.hp=math.max(0,best.hp-damage); best.hitTimer=.38; best.healthTimer=3; best.flee=true
     if best.hp<=0 then best.dead=true; best.deathTimer=0; best.dropDone=false end
     sys.message=(best.hp<=0 and "Sludge crawler defeated!" or ("Melee hit for "..damage.." damage.")); sys.messageTimer=1.6
-    return true
+    result.damage=damage; result.dead=best.dead==true; result.mobId=tostring(bestIndex)
+    result.hitId='sludge:'..ctx.location..':'..bestIndex; result.message=sys.message
+    return true,nil,result
 end
 
 function M.update(sys,ctx,dt)

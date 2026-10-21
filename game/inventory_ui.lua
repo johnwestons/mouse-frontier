@@ -92,7 +92,7 @@ function InventoryUI.draw(ctx)
     local capacity=data.inventoryCapacity or 6
     local mobile=ctx.mobileEnabled
     ui.outfitWorkbenchPanel=nil; ui.inventorySewingBench=nil; ui.inventoryWeaponRepair=nil
-    if not ctx.battleMode and not ctx.chestOpen and not ctx.giftOpen
+    if not ctx.battleMode and not ctx.chestOpen and not ctx.giftOpen and not ui.sharingOpen
         and ui.canOpenOutfitWorkbench and ui.canOpenWeaponRepairWorkbench then
         local panel={x=35,y=165,w=490,h=290}; ui.outfitWorkbenchPanel=panel
         ctx.drawMenuFrame(panel.x,panel.y,panel.w,panel.h,3,.97)
@@ -278,6 +278,7 @@ function InventoryUI.draw(ctx)
         love.graphics.setColor(ctx.colors.cream)
         text("NO DROPS\nIN BATTLE",805,mobile and 626 or 628,110,mobile and 48 or 38,.74,.67,"center")
     else ui.drop=ctx.button("DROP",805,mobile and 620 or 628,110,mobile and 62 or 38,ctx.draggedSlot~=nil); ui.drop.enabled=ctx.draggedSlot~=nil end
+    require('game.inventory_sharing_ui').draw(ctx)
 end
 
 function InventoryUI.drawChest(ctx)
@@ -299,6 +300,7 @@ end
 
 function InventoryUI.handleClick(ctx,x,y)
     local ui=ctx.ui
+    if require('game.inventory_sharing_ui').click(ctx,x,y) then return true end
     if not ctx.giftOpen and ui.inventoryWeaponRepair and ui.inventoryWeaponRepair.enabled
         and ctx.pointIn(x,y,ui.inventoryWeaponRepair) then
         if ui.openWeaponRepairWorkbench then ui.openWeaponRepairWorkbench() end

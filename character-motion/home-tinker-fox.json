@@ -263,7 +263,9 @@
       "cell": 512,
       "foot_baseline": 458,
       "standing_height": 385,
-      "body_world_size": 82
+      "body_world_size": 82,
+      "runtime_scale": "body_world_size / decoded frame height for every action; no cross-strip extent normalization",
+      "mobile_cells": "All 19 strips use characterAnimationFrameSize with isolated frame resizing."
     },
     "prompts": "docs/home-stop-adult-fox-prompts.txt"
   }

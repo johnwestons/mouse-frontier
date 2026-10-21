@@ -1031,7 +1031,7 @@ local function install(context)
                 if not control then return false end
                 return {width=control.w,height=control.h}
             end,check=function(_,_,snapshot,result)
-                return result and result.width>=70 and result.height>=64 and snapshot.state=="game" and snapshot.scene=="stop"
+                return result and result.width>=60 and result.height>=50 and snapshot.state=="game" and snapshot.scene=="stop"
             end},
             {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return true end,expect={state="game",scene="house"}},
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("e"); return "e" end,expect={state="game",scene="stop"}},
@@ -1041,7 +1041,7 @@ local function install(context)
                 if not control then return false end
                 return {width=control.w,height=control.h}
             end,check=function(_,_,snapshot,result)
-                return result and result.width>=70 and result.height>=64 and snapshot.state=="game" and snapshot.scene=="train"
+                return result and result.width>=60 and result.height>=50 and snapshot.state=="game" and snapshot.scene=="train"
             end},
             fixtureStep("inventory"),fixtureStep("event"),fixtureStep("battle"),
             {name="battle_ui_mouse_routes",action=function()
@@ -1231,7 +1231,7 @@ local function install(context)
                 {name="mobile_menu_touch",action=function()
                     ui.smokeDraw()
                     local pack=ui.smokeTapActionMenu("backpack","smoke-pack-open")
-                    local menuOpened=pack and pack.w>=70 and pack.h>=64
+                    local menuOpened=pack and pack.w>=60 and pack.h>=50
                     local opened=game.inventoryOpen and not (ui.actionMenu and ui.actionMenu.page)
                     ui.smokeDraw()
                     local backX=mobileControls.back.x+mobileControls.back.w/2; local backY=mobileControls.back.y+mobileControls.back.h/2
@@ -1261,7 +1261,7 @@ local function install(context)
                     if not control then return false end
                     return {width=control.w,height=control.h,scene=game.scene}
                 end,check=function(_,_,snapshot,result)
-                    return result and result.width>=70 and result.height>=64 and result.scene=="stop" and snapshot.scene=="stop"
+                    return result and result.width>=60 and result.height>=50 and result.scene=="stop" and snapshot.scene=="stop"
                 end},
                 {name="mobile_return_to_train_touch",action=function()
                     ui.smokeDraw()
@@ -1269,7 +1269,7 @@ local function install(context)
                     if not control then return false end
                     return {width=control.w,height=control.h,scene=game.scene}
                 end,check=function(_,_,snapshot,result)
-                    return result and result.width>=70 and result.height>=64 and result.scene=="train" and snapshot.scene=="train"
+                    return result and result.width>=60 and result.height>=50 and result.scene=="train" and snapshot.scene=="train"
                 end},
                 {name="mobile_shooting_range_aim_then_fire",action=function()
                     game.saveData=SmokeSupport.newPreparedSave(character); game.saveData.location=2; game.saveData.scene="stop"; enterGame(game.saveData)

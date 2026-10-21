@@ -13,7 +13,7 @@ local names={'range.acquire','range.configure','range.ammo','range.fire','range.
 local function reference(value,prefix) return P.text(value,32) and value:match('^'..prefix..'[1-9]%d*$')~=nil end
 local function ordinary(data,id,context)
     local own=Players.forActor(data,id); local actor=context.actorState(id)
-    if not own or own.health<=0 or not actor or actor.screen~='game' or actor.scene~='stop' or data.scene~='stop'
+    if not own or own.health<=0 or not actor or actor.screen~='game' or actor.scene~='stop' or own.scene~='stop'
         or data.stopped~=true or actor.traveling or actor.changingCar or actor.encounterActive
         or actor.activityBlocked and actor.activeActivity~='range'
         or data.tacticalBattle or data.trainAmbush and data.trainAmbush.active

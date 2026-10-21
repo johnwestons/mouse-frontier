@@ -3,7 +3,14 @@ local GuiArt=require('game.gui_art')
 local Viewport=require('game.viewport')
 local Util=require('game.util')
 local Panel={}; Panel.__index=Panel
-local messages={load_journey_to_host='Continue a journey before hosting.',join_from_title='Return to the title screen to join a friend.',
+local messages={select_local_slot='Choose your save slot in Local Play first.',selected_save_unavailable='That save is no longer available. Choose another slot.',
+    traveler_away='This character is visiting another journey. Reconnect from Local Play and use Return to save before playing solo or hosting.',
+    traveler_ack_pending='Reconnect to the previous host to finish returning this character.',
+    traveler_return_pending='The previous visitor must return to their save before another traveler can join.',
+    traveler_save_failed='Your device could not save this character. Keep Local Play open while the save retries.',
+    traveler_local_combat='Finish the encounter in your selected save before visiting another journey.',
+    traveler_combat_active='Finish the encounter before returning to your save.',
+    load_journey_to_host='Continue a journey before hosting.',join_from_title='Return to the title screen to join a friend.',
     invalid_port='Enter a port from 1 to 65535.',save_not_ready='The host save needs to finish. Retry the save, then try again.',
     incompatible_build='Both players need the same game build.',host_declined='The host declined this request.',
     session_full='This journey already has a guest or a pending request.',credential_not_saved='The reconnect credential could not be saved on this device.',
@@ -111,7 +118,17 @@ function Panel:draw()
     end
     g.setFont(self.titleFont); text('LOCAL PLAY',54,35,850); g.setFont(self.font)
     text('One host and one friend on the same local network',54,83,850,{.7,.65,.54,1})
-    if c.hostingIntent=='failed' then
+    if c.slotPicker then
+        text('CHOOSE YOUR LOCAL SAVE',54,145,852)
+        small('Host this world, or bring this traveler when joining a friend.',54,189,852)
+        for slot=1,3 do
+            local saved=c.localSlots and c.localSlots[slot]
+            local label='SLOT '..slot..' - '..(saved and (Util.titleFromFile(saved.character)..'   LV '..saved.level..'   STOP '..saved.location) or 'EMPTY')
+            button('slot_'..slot,label,54,245+(slot-1)*92,852,function() c:selectSaveSlot(slot) end,saved~=nil,72,c.selectedLocalSlot==slot)
+        end
+        small('Empty slots can be created by starting a new solo journey.',54,540,852)
+        button('close','Back',730,630,176,function() c.slotPicker=nil end)
+    elseif c.hostingIntent=='failed' then
         text('The journey is loaded. Hosting has not started.',54,145,852)
         text('Retry hosting before the journey resumes, or continue solo.',54,195,852,{.7,.65,.54,1})
         adapters(254)
@@ -137,10 +154,16 @@ function Panel:draw()
         control('name',c.name,54,296,626,nil,true,'name',42)
         local savedHosting=c.canHostSavedJourney and c:canHostSavedJourney() or false
         control('port',c.port,710,296,196,nil,c:canHost() or savedHosting,'port',42)
-        small('Companion traveler — reconnect uses the companion saved by the host',54,350,852)
-        button('previous','<',54,375,62,function() c:cycleCharacter(-1) end,true,42)
-        text(c:character() and Util.titleFromFile(c:character()) or 'Loading travelers...',140,384,640)
-        button('next','>',844,375,62,function() c:cycleCharacter(1) end,true,42)
+        if c.context and c.context.readSlot then
+            small('Your local save - hosting world and joining traveler',54,350,852)
+            local selected=c.localSlots and c.localSlots[c.selectedLocalSlot]
+            button('saveSlot',selected and ('SLOT '..c.selectedLocalSlot..' - '..Util.titleFromFile(selected.character)..' - LV '..selected.level) or 'CHOOSE SAVE SLOT',54,375,852,function() c:chooseSaveSlot() end,self.context.runtime.state=='slots',42)
+        else
+            small('Companion traveler',54,350,852)
+            button('previous','<',54,375,62,function() c:cycleCharacter(-1) end,true,42)
+            text(c:character() and Util.titleFromFile(c:character()) or 'Loading travelers...',140,384,640)
+            button('next','>',844,375,62,function() c:cycleCharacter(1) end,true,42)
+        end
         button('autoJoin','AUTO-CONNECT ONE FOUND JOURNEY: '..(c.autoJoin and 'ON' or 'OFF'),54,432,852,function()
             c:setAutoJoin(not c.autoJoin)
         end,true,40,c.autoJoin)
@@ -171,7 +194,7 @@ function Panel:draw()
         button('host',savedHosting and 'Host saved journey' or 'Start hosting',54,630,225,function()
             if savedHosting then c:hostSavedJourney() else c:host() end
         end,c:canHost() or savedHosting)
-        button('join','Join friend',301,630,225,function() c:join() end,self.context.runtime.state=='slots' and not c.hostingIntent)
+        button('join','Join friend',301,630,225,function() c:join() end,c.canJoin and c:canJoin() or not c.canJoin and self.context.runtime.state=='slots' and not c.hostingIntent)
         button('close',c.hostingIntent and 'Cancel hosting' or 'Back',730,630,176,function() c:closeMenu() end)
         if c.hostingIntent=='selecting' then small('Choose a saved slot to start hosting. Cancel hosting to join a friend.',54,605,852) end
     elseif c.phase=='hosting' then
@@ -215,7 +238,8 @@ function Panel:draw()
                 small(c.managementNotice or (not canReplace and messages[replaceReason]) or 'Changing travelers keeps companion equipment and progress.',54,450,852)
             end
         end
-        button('stop','End Local Play',54,630,240,function() c:stop(); c.menuOpen=false end)
+        if c.ending then text('Waiting for the visitor to save their character...',54,552) end
+        button('stop',c.ending and 'End connection now' or 'End Local Play',54,630,240,function() c:endLocalPlay() end)
         button('close','Back to journey',664,630,242,function() c:closeMenu() end)
     else
         if c.replica and c.replica.data then
@@ -229,7 +253,8 @@ function Panel:draw()
                 text('Health '..actor.health..' / '..actor.maxHealth,x+18,310,360)
                 text('Level '..actor.stats.level,x+18,353,360)
             end
-            text('The host owns story decisions and scene progression.',54,467)
+            text('Explore independently. The host controls train travel and story decisions.',54,467)
+            if c.traveler and c.traveler.leaving then text('Saving your character back to the selected slot...',54,550) end
             if c.previewOnly then text('Connection preview: gameplay controls are not available yet.',54,505,852,{.85,.7,.39,1}) end
         else
             local status=c.network and c.network.status
@@ -241,7 +266,7 @@ function Panel:draw()
                 small('Reconnect attempt '..tostring(reconnect.attempt)..' of '..tostring(reconnect.maxAttempts),54,305,852)
             end
         end
-        button('leave',c.phase=='connected' and 'Leave session' or 'Cancel connection',54,630,240,function() c:stop(); c.menuOpen=false end)
+        button('leave',c.phase=='connected' and (c.traveler and 'Return to save' or 'Leave session') or 'Cancel connection',54,630,240,function() c:returnToSave() end)
         if c.clientView and c.clientView.ready then
             if c.clientView.settings then
                 button('settings','Device settings',315,630,320,function() c.clientView.settings:open() end)

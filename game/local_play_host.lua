@@ -24,6 +24,7 @@ function Host.wrap(application,context)
     context.ui.coopCompanion=function()
         local motion=controller.motion
         if motion and motion.generation and motion.actor and controller.campaign then
+            if not require('game.coop_presence').same(controller.campaign,'host','companion') then return end
             local cue=context.runtime.companionFieldAction; local pose
             if cue and cue.epoch==controller.campaign.coop.sceneEpoch then
                 pose={actionTimer=math.max(0,cue.untilTime-(context.runtime.animationClock or 0)),actionDuration=cue.duration,actionKind=Attack.action(cue.weapon),actionHeldItem=Attack.heldItem(cue.weapon),facing=cue.facing}

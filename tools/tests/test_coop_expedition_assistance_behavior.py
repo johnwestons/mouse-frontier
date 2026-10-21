@@ -68,7 +68,7 @@ class ExpeditionAssistanceTests(unittest.TestCase):
             states.companion.movementReady=false; assert(survey('companion','north-cairn').reason=='assistance_unavailable'); states.companion.movementReady=nil
             guest.health=0; assert(survey('companion','north-cairn').reason=='assistance_unavailable'); guest.health=20
             states.companion.x=0/0; assert(survey('companion','north-cairn').reason=='assistance_unavailable')
-            assert(run('companion','scene.expedition',{}).reason=='host_only')
+            assert(run('companion','scene.expedition',{}).reason=='not_implemented')
             assert(run('companion','battle.begin',{}).reason=='host_only' and writes==0 and not area.markers['north-cairn'])
         ''')
 

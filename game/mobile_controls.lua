@@ -480,8 +480,10 @@ local function drawButton(button,label,active,textScale,opacity)
     love.graphics.setColor(1,.93,.75,.86*opacity)
     local width=button.radius*2-14
     local height=button.radius*1.4
+    local singleWord=not label:find('%s')
     Typography.drawText(love.graphics,label,button.x-width/2,button.y-height/2,width,height,{
-        scale=1.05*(textScale or 1),minScale=.90,maxLines=2,align="center",valign="center",
+        scale=1.05*(textScale or 1),minScale=singleWord and .65 or .90,maxLines=2,
+        singleLine=singleWord,align="center",valign="center",
     })
 end
 

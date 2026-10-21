@@ -205,29 +205,30 @@ local function new(context)
         return false
     end
 
-    roamingContext=function()
-        local area=Areas.current(runtime.saveData)
+    roamingContext=function(data,player,actors,grace)
+        data=data or runtime.saveData; player=player or runtime.player
+        local area=Areas.current(data)
         if not area then return nil end
-        local areaState=Areas.state(runtime.saveData,area.id)
+        local areaState=Areas.state(data,area.id)
         return {
-            data=runtime.saveData,area=area,areaState=areaState,player=runtime.player,catalog=Catalog,
-            actors=ui.expeditionActors and ui.expeditionActors() or nil,
-            onContact=ui.roamingPressure and function(definition,target) return ui.roamingPressure(definition,target) end,
+            data=data,area=area,areaState=areaState,player=player,catalog=Catalog,
+            actors=actors or ui.expeditionActors and ui.expeditionActors(data) or nil,
+            onContact=ui.roamingPressure and function(definition,target) return ui.roamingPressure(definition,target,area.id) end,
             isWeapon=isWeapon,clock=runtime.animationClock,assets=actionAssets,
-            grace=(runtime.expeditionGraceTimer or 0)>0,
+            grace=grace==true or grace==nil and (runtime.expeditionGraceTimer or 0)>0,
             onHostileAction=function() runtime.expeditionGraceTimer=0 end,
-            isActive=function(definition) return Areas.isMobActive(runtime.saveData,area.id,definition) end,
-            canReach=function(x1,y1,x2,y2) return Areas.canReach(runtime.saveData,area.id,x1,y1,x2,y2) end,
+            isActive=function(definition) return Areas.isMobActive(data,area.id,definition) end,
+            canReach=function(x1,y1,x2,y2) return Areas.canReach(data,area.id,x1,y1,x2,y2) end,
             pathTarget=function(saved,x,y)
                 local now=runtime.animationClock or 0
                 local route=routes[saved]
                 if route and route.untilTime>now and (route.targetX-x)^2+(route.targetY-y)^2<24^2
                     and (route.x-saved.x)^2+(route.y-saved.y)^2>6^2 then return route.x,route.y end
-                local nx,ny=Areas.pathTarget(runtime.saveData,area.id,saved.x,saved.y,x,y)
+                local nx,ny=Areas.pathTarget(data,area.id,saved.x,saved.y,x,y)
                 if nx then routes[saved]={x=nx,y=ny,targetX=x,targetY=y,untilTime=now+.35} else routes[saved]=nil end
                 return nx,ny
             end,
-            move=function(oldX,oldY,newX,newY) return Areas.move(runtime.saveData,area.id,oldX,oldY,newX,newY) end,
+            move=function(oldX,oldY,newX,newY) return Areas.move(data,area.id,oldX,oldY,newX,newY) end,
             beginEncounter=function(encounter)
                 ensureAssets(area)
                 local begin=getBeginEncounter(); assert(type(begin)=="function","battle runtime is not ready")
@@ -241,6 +242,34 @@ local function new(context)
                 return Rewards.summary(receipt)
             end,
         }
+    end
+
+    local remoteVisit,remoteGrace=nil,0
+    local function updateRemote(dt,data,player)
+        if not data or data.scene~=Areas.SCENE or not player or WorldPause.isSimulationPaused(runtime,ui) then return end
+        if runtime.scene==Areas.SCENE and runtime.saveData.activeExpeditionArea==data.activeExpeditionArea then return end
+        local visit=tostring(data.coop.sceneEpoch)..':'..tostring(require('game.coop_presence').revision(data,'companion'))..':'..tostring(data.activeExpeditionArea)
+        if visit~=remoteVisit then remoteVisit=visit; remoteGrace=1.5 end
+        remoteGrace=math.max(0,remoteGrace-dt)
+        Areas.ensure(data); Areas.updateGates(data,data.activeExpeditionArea)
+        local phase,changed=Areas.updateEnvironment(data,data.activeExpeditionArea,dt)
+        local actors=ui.expeditionActors and ui.expeditionActors(data) or {{id='companion',x=player.x,y=player.y}}
+        if changed and phase=='flooded' then
+            local corrections=Hazards.plan(data,data.activeExpeditionArea,actors)
+            local point=corrections and corrections.companion
+            if point and ui.relocateExpeditionCompanion then
+                ui.relocateExpeditionCompanion(point.x,point.y)
+                for _,actor in ipairs(actors) do if actor.id=='companion' then actor.x,actor.y=point.x,point.y end end
+            end
+        end
+        if changed then writeSave() end
+        local ctx=roamingContext(data,player,actors,remoteGrace>0)
+        if ctx then
+            -- Presentation timers belong to the host's visible area. Each
+            -- area's enemy state still advances exactly once per frame.
+            ctx.skipActionTimers=runtime.scene==Areas.SCENE
+            RoamingMobs.update(roaming,ctx,dt)
+        end
     end
 
     local function update(dt)
@@ -291,9 +320,10 @@ local function new(context)
     end
 
     local function presentAttack(result)
-        if runtime.scene~=Areas.SCENE or result.epoch~=runtime.saveData.coop.sceneEpoch
-            or result.areaId~=runtime.saveData.activeExpeditionArea then return false end
+        if result.epoch~=runtime.saveData.coop.sceneEpoch or not Areas.definition(result.areaId) then return false end
         RoamingMobs.present(roaming,result.areaId,result)
+        if result.actorId=='companion' then remoteGrace=0 end
+        if runtime.scene~=Areas.SCENE or result.areaId~=runtime.saveData.activeExpeditionArea then return true end
         runtime.expeditionGraceTimer=0
         if result.actorId=='host' and not context.readOnlyPresentation then
             runtime.player.facing=result.facing
@@ -548,7 +578,7 @@ local function new(context)
     return {update=update,draw=draw,move=move,attack=attack,currentInteraction=currentInteraction,release=release,
         activateInteraction=activateInteraction,enterArea=enterArea,returnToStop=returnToStop,acceptParty=acceptParty,acceptBattleReturn=acceptBattleReturn,
         cameraOffset=cameraOffset,ensureAssets=ensureAssets,retainAssets=retainAssets,reset=reset,audit=audit,
-        fieldState=function() return roaming end,presentAttack=presentAttack,presentAssistance=presentAssistance,
+        fieldState=function() return roaming end,presentAttack=presentAttack,presentAssistance=presentAssistance,updateRemote=updateRemote,
         updatePresentation=function(dt) RoamingMobs.tickPresentation(roaming,dt) end,
         objective=objective,drawTrailhead=drawTrailhead,drawLocalMap=drawLocalMap}
 end

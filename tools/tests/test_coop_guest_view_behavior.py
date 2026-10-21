@@ -49,6 +49,25 @@ class GuestViewTests(unittest.TestCase):
             function ready() assert(view:update(.05)); controller.motionFrame=frame(1); assert(view:update(.05)) end
         ''')
 
+    def test_touch_attack_uses_existing_controls_with_or_without_nearby_interaction(self):
+        self.lua.execute('''
+            ready(); mobile.enabled=true
+            view.runtime.scene='stop'; view.runtime.saveData.scene='stop'; view.runtime.saveData.location=2
+            local nearby=false; view.interactionAvailable=function() return nearby end
+            view.actionLabel=function() return 'TALK' end
+            assert(mobile.options.gameplayActive())
+            local key,label=mobile.options.primaryAction(); assert(key=='space' and label=='ATTACK')
+            assert(mobile.options.secondaryAction()==nil)
+            nearby=true; key,label=mobile.options.primaryAction(); assert(key=='e' and label=='TALK')
+            key,label=mobile.options.secondaryAction(); assert(key=='space' and label=='ATTACK')
+            local attacked=false; view.field.attack=function() attacked=true end
+            mobile.options.pressKey(key); assert(attacked)
+            view.ui.actionMenuVisible=true; assert(not mobile.options.menuVisible())
+            view.ui.actionMenuVisible=false; assert(mobile.options.menuVisible())
+            view.runtime.scene='house'; view.runtime.saveData.scene='house'; nearby=false
+            assert(not mobile.options.gameplayActive() and mobile.options.secondaryAction()==nil)
+        ''')
+
     def test_scenery_inspection_routes_guest_input_and_blocks_movement(self):
         self.lua.execute('''
             ready()

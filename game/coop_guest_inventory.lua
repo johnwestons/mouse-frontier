@@ -24,6 +24,8 @@ end
 local function copy(ref) return ref and {kind=ref.kind,index=ref.index,slot=ref.slot} end
 function Panel.new(view,c)
     local self=setmetatable({view=view,c=c,runtime=view.runtime,ui=view.ui,pointerX=0,pointerY=0},Panel)
+    self.ui.shareRecipient=function() return self.runtime.saveData and require('game.coop_sharing').recipient(self.runtime.saveData,'companion') end
+    self.ui.sendPlayerGift=function(command,args) return self:submit(command,args) end
     self.presenter=Presenter.new({runtime=self.runtime,ui=self.ui,inventoryUI=InventoryUI,inventory=Inventory,
         catalog=c.catalog,colors=c.colors,mobileEnabled=function() return view.mobile.enabled end,
         pointIn=Util.pointIn,title=Util.titleFromFile,isWeapon=function(name) return Inventory.isWeapon(name,c.catalog.weaponStats or {}) end,
@@ -187,9 +189,11 @@ function Panel:update()
     if result.savePending or result.reason=='save_pending' or result.reason=='busy' then self.notice='Waiting for the host to finish saving...'; return end
     if result.ok and self.runtime.saveData.coop.revision<result.revision then self.notice='Updating items...'; return end
     self.pending=nil
-    if not result.ok then self.notice=failures[result.reason] or 'That action could not be completed. Select the item again.'; return end
+    if not result.ok then self.notice=failures[result.reason] or 'That action could not be completed. Select the item again.'; self.ui.sharingNotice=self.notice; return end
     local detail=result.details or {}
-    if pending.command=='inventory.swap' or pending.command=='storage.transfer' then self.notice='Items updated.'
+    if pending.command=='inventory.give' or pending.command=='ammo.give' then
+        self.notice='Gave '..detail.amount..' '..Util.titleFromFile(detail.item)..'.'; self.ui.sharingNotice=self.notice; self:cancelDrag()
+    elseif pending.command=='inventory.swap' or pending.command=='storage.transfer' then self.notice='Items updated.'
     elseif pending.command=='mailbox.collect' then self.notice='Collected '..detail.amount..' '..Util.titleFromFile(detail.item)..'.'
     elseif pending.command=='loot.drop' then self.notice='Dropped '..Util.titleFromFile(detail.item)..'.'
     elseif pending.command=='loot.pickup' then self.notice='Collected '..Util.titleFromFile(detail.item)..'.'
@@ -249,6 +253,7 @@ function Panel:targets()
         add('take-container',self.takeButton,function() self:takeContainer() end,self.takeButton and self.takeButton.enabled)
     end
     add('use',self.ui.consume,function() self:consume() end,not self.pending and self.ui.consume and self.ui.consume.enabled)
+    for _,control in ipairs(self.ui.sharingControls or {}) do add('share:'..control.id,control.rect,control.action,control.enabled and not self.pending) end
     add('drop',self.ui.drop,function() self:drop(runtime.draggedSlot) end,not self.pending and runtime.draggedSlot~=nil)
     add('close',self.closeButton,function() self:toggle() end)
     return targets
@@ -307,10 +312,12 @@ function Panel:draw()
             end
         else
             Typography.drawText(g,'Inspect, equip and use your items.',55,102,450,30,{align='center',valign='center',scale=.9,minScale=.7})
+            if not self.ui.sharingOpen then
             self:frame(35,175,490,165,3,.97); g.setColor(self.c.colors.cream)
             Typography.drawText(g,self.notice or (self.runtime.battle and 'Use medicine or potions, or move weapons between your backpack and equipped slots.'
                 or 'Drag an item to move it. Select an item to use or drop it.'),55,198,450,120,
                 {align='center',valign='center',scale=.95,minScale=.72})
+            end
             self.closeButton=self:button('CLOSE BACKPACK',35,610,240,64,true)
         end
         if not chest and not self.view.mobile.enabled then

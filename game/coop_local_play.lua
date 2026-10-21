@@ -18,6 +18,7 @@ local LastStandStageWire=require('game.net.last_stand_stage')
 local Discovery=require('game.net.lan_discovery')
 local Reconnect=require('game.net.lan_reconnect')
 local Management=require('game.coop_local_play_management')
+local Traveler=require('game.coop_traveler')
 local LocalPlay={}; LocalPlay.__index=LocalPlay
 local function protected(fn,...)
     local ok,result,reason=pcall(fn,...)
@@ -141,6 +142,7 @@ function LocalPlay:_updateConvenience(dt)
     end
     if self.network or self.hostingIntent or not self.menuOpen or self.phase~='idle' or self.context.runtime.state~='slots'
         or not self.autoJoin or self.manualEntry or self.autoJoinBlocked or self.reconnect:isActive()
+        or self.slotPicker or self.context.readSlot and not self.selectedLocalSlot
         or not P.text(self.name,32) or not self:character() then
         self.autoJoinCandidate=nil; self.autoJoinSince=nil; return
     end
@@ -156,9 +158,33 @@ function LocalPlay:_updateConvenience(dt)
 end
 function LocalPlay:characters() return self.context.characters() end
 function LocalPlay:character()
+    if self.context.readSlot and self.selectedLocalSlot and self.localSlots and self.localSlots[self.selectedLocalSlot] then
+        return self.localSlots[self.selectedLocalSlot].character
+    end
     local characters=self:characters()
     self.characterIndex=math.max(1,math.min(self.characterIndex,#characters))
     return characters[self.characterIndex]
+end
+function LocalPlay:refreshSaveSlots()
+    if not self.context.readSlot then return end
+    self.localSlots={}
+    for slot=1,3 do
+        local data=protected(self.context.readSlot,slot)
+        if data then self.localSlots[slot]={character=data.character,level=data.stats.level,location=data.location} end
+    end
+    if self.selectedLocalSlot and not self.localSlots[self.selectedLocalSlot] then self.selectedLocalSlot=nil end
+end
+function LocalPlay:chooseSaveSlot()
+    if self.network or self.context.runtime.state~='slots' or not self.context.readSlot then return false end
+    self:refreshSaveSlots(); self.slotPicker=true; self.error=nil; return true
+end
+function LocalPlay:selectSaveSlot(slot)
+    if not self.slotPicker or not self.localSlots or not self.localSlots[slot] then return false end
+    self.selectedLocalSlot=slot; self.slotPicker=nil; self:_resetAutoJoin(); return true
+end
+function LocalPlay:canJoin()
+    return self.context.runtime.state=='slots' and not self.network and not self.hostingIntent
+        and (not self.context.readSlot or self.selectedLocalSlot~=nil)
 end
 function LocalPlay:cycleCharacter(direction)
     local count=#self:characters(); if count>0 then self.characterIndex=(self.characterIndex-1+direction)%count+1 end
@@ -174,6 +200,7 @@ function LocalPlay:_build()
 end
 function LocalPlay:open()
     self.menuOpen=true; self.error=nil
+    if not self.network and self.context.readSlot then self:refreshSaveSlots() end
     if not self.network then self:refreshDiscovery() end
     if self.clientView then
         if self.clientView.inventory then self.clientView.inventory:cancelDrag() end
@@ -186,6 +213,7 @@ function LocalPlay:open()
     if self.context.neutralize then self.context.neutralize() end
 end
 function LocalPlay:closeMenu()
+    if self.slotPicker then self.slotPicker=nil; return true end
     if self.hostingIntent then return self:cancelHostingEntry() end
     if self:isClient() and not (self.clientView and self.clientView.ready) then return false end
     self.menuOpen=false
@@ -208,6 +236,17 @@ end
 function LocalPlay:hostSavedJourney()
     if not self:canHostSavedJourney() then return self:_error('hosting_entry_unavailable') end
     if not P.integer(tonumber(self.port),1,65535) then return self:_error('invalid_port') end
+    if self.context.readSlot then
+        if not self.selectedLocalSlot then self:chooseSaveSlot(); return self:_error('select_local_slot') end
+        local data=protected(self.context.readSlot,self.selectedLocalSlot)
+        if not data then self:refreshSaveSlots(); return self:_error('selected_save_unavailable') end
+        if Traveler.isAway(data) then return self:_error('traveler_away') end
+        self.hostingIntent='selecting'; self.menuOpen=false
+        self.context.runtime.selectedSlot=self.selectedLocalSlot
+        local entered,reason=protected(self.context.enterSavedJourney,data)
+        if not entered then self.hostingIntent=nil; self.menuOpen=true; return self:_error(reason or 'selected_save_unavailable') end
+        return self:finishHostingEntry()
+    end
     self.hostingIntent='selecting'; self.error=nil; self.menuOpen=false
     self.reconnect:cancel(false); self.discovery:stop(); self:_resetAutoJoin()
     if self.context.neutralize then self.context.neutralize() end
@@ -254,7 +293,8 @@ function LocalPlay:host()
     local motion=c.movement and Movement.host({campaign=campaign,clock=c.clock,move=c.movement.move,
         domain=c.movement.domain,position=c.movement.position,store=c.movement.store,presentation=c.movement.presentation,
         hostActor=c.movement.hostActor,allowed=function(generation)
-            return authority.bindings.companion==generation and not authority.pendingSave and c.movement.allowed()
+            local identity=campaign.players.companion and campaign.players.companion.travelIdentity
+            return (not identity or identity.status=='active') and authority.bindings.companion==generation and not authority.pendingSave and c.movement.allowed()
         end})
     local function synchronize()
         if runtime.saveData~=campaign or runtime.selectedSlot~=hostedSlot then return nil,'campaign_changed' end
@@ -282,7 +322,14 @@ function LocalPlay:host()
         generationBase=authority.lastGeneration or 0,
         preflight=function() return runtime.saveData==campaign and runtime.selectedSlot==hostedSlot and admission:preflight() end,
         checkpointPending=function() return authority.pendingSave~=nil end,
-        authenticate=function(value) return admission:authenticate(value) end,
+        authenticate=function(value,profile) return admission:authenticate(value,profile) end,
+        validateTraveler=function(profile) return admission:validateTraveler(profile) end,
+        declineReason=function(profile)
+            local actor=campaign.players.companion
+            return actor and Traveler.sameVisit(actor.travelIdentity,profile) and 'traveler_away' or 'host_declined'
+        end,
+        requiresTraveler=c.writeSlot~=nil,
+        allowedCharacters=allowed,
         issue=function(request) return admission:issue(request) end,
         movement=motion and function(generation,message) return motion:receive(generation,message) end,
         sceneReady=motion and function(generation,epoch,motionId) return motion:ready(generation,epoch,motionId) end,
@@ -341,6 +388,7 @@ function LocalPlay:join(reconnecting)
     if self.hostingIntent then return self:_error('hosting_entry_pending') end
     local c=self.context; local runtime=c.runtime
     if runtime.state~='slots' or not c.session:canWriteCampaign() then return self:_error('join_from_title') end
+    if c.readSlot and not self.selectedLocalSlot then self:chooseSaveSlot(); return self:_error('select_local_slot') end
     if not P.text(self.name,32) or not self:character() then return self:_error('invalid_guest_profile') end
     local address,addressError=Address.parse(self.address)
     if not address then return self:_error(addressError) end
@@ -348,17 +396,30 @@ function LocalPlay:join(reconnecting)
     if c.beforeJoin and c.beforeJoin()~=true then return self:_error('save_not_ready') end
     if reconnecting~=true then self.reconnect:cancel(false); self.reconnect:remember(address.endpoint,self.name); self.reconnectArmed=nil end
     local replica=GameState.replica()
-    local roamingPresentation=RoamingPresentation.new({data=function() return replica.data end,clock=c.clock})
+    if c.writeSlot and c.readSlot then
+        local allowed={}; for _,name in ipairs(self:characters()) do allowed[name]=true end
+        self.traveler=require('game.coop_traveler_client').new({read=c.readSlot,write=c.writeSlot,slot=self.selectedLocalSlot,
+            address=address.endpoint,clock=c.clock,token=c.token,allowed=allowed})
+    end
+    local stagedMessage,commitStaged
+    local roamingPresentation=RoamingPresentation.new({data=function()
+        return replica.data and require('game.coop_players').forActor(replica.data,'companion')
+    end,clock=c.clock})
     local lastStandEffects=LastStandEffects.new({data=function() return replica.data end,clock=c.clock})
     local lastStandStage=LastStandStage.new({data=function() return replica.data end,clock=c.clock})
     local network,reason=protected((c.network or Session).join,address.endpoint,{build=build.build,schema=build.schema,
         clock=c.clock,hash=c.hash,name=self.name,character=self:character(),
+        traveler=self.traveler and function(id) return self.traveler:checkout(id) end or nil,
         credentialFor=function(id)
             local data,errorMessage=Credentials.load(c.filesystem)
             return data and Credentials.find(data,id),errorMessage
         end,
         store=function(value) return Credentials.save(value,c.filesystem) end,
-        validate=function(message) return replica:validate(message) end,
+        validate=function(message)
+            local commit,reason=replica:stage(message)
+            stagedMessage=commit and message or nil; commitStaged=commit
+            return commit~=nil,reason
+        end,
         motion=function(message)
             if not replica.data or message.sceneEpoch~=replica.data.coop.sceneEpoch
                 or message.domain~=require('game.coop_last_stand_lifecycle').key(replica.data)
@@ -369,8 +430,15 @@ function LocalPlay:join(reconnecting)
         lastStandEffects=function(message) return lastStandEffects:receive(message) end,
         lastStandStage=function(message) return lastStandStage:receive(message) end,
         apply=function(message)
-            local ok,errorMessage=replica:apply(message)
+            local ok,errorMessage
+            if message==stagedMessage and commitStaged then ok,errorMessage=commitStaged()
+            else ok,errorMessage=replica:apply(message) end
+            stagedMessage=nil; commitStaged=nil
             if ok then
+                if self.traveler then
+                    local valid,why=self.traveler:observe(replica.data)
+                    if not valid then self.error=why; return false end
+                end
                 roamingPresentation:observe()
                 lastStandEffects:observe()
                 lastStandStage:observe()
@@ -416,8 +484,30 @@ function LocalPlay:replacementCharacter()
 end
 function LocalPlay:disconnectCompanion() return Management.begin(self,'kick') end
 function LocalPlay:replaceCompanion() return Management.begin(self,'replace',self:replacementCharacter()) end
+function LocalPlay:returnToSave()
+    if self.traveler and self.traveler.latest then
+        self.traveler:requestReturn(); self.menuOpen=true; self.error=nil
+        if self.clientView then self.clientView:neutralize() end
+        return true
+    end
+    self:stop(); self.menuOpen=false; return true
+end
+function LocalPlay:endLocalPlay()
+    local actor=self.campaign and self.campaign.players.companion
+    local identity=actor and actor.travelIdentity
+    if not self.ending and identity and identity.status~='closed' and self.network and self.network.link and self.network.link.admitted then
+        local reply=self.authority:submitLocal('session.returnTraveler',{tripId=identity.tripId,serial=identity.serial})
+        if not reply.ok then return self:_error(reply.reason) end
+        self.ending=true; self.menuOpen=true; self.error=nil; return true
+    end
+    self:stop(); self.menuOpen=false; return true
+end
 function LocalPlay:stop(reason,keepReconnect)
     local c=self.context
+    if self.traveler then
+        self.traveler:saveLatest(true)
+        if self.origin and self.origin.slot==self.traveler.c.slot and self.traveler.data then self.origin.data=self.traveler.data end
+    end
     self.discovery:stop()
     if not keepReconnect then self.reconnect:cancel(false); self.reconnectArmed=nil end
     if self.authority then
@@ -448,11 +538,18 @@ function LocalPlay:stop(reason,keepReconnect)
     self.motion=nil; self.motionFrame=nil; self.roamingPresentation=nil
     self.lastStandEffects=nil
     self.lastStandStage=nil
+    self.traveler=nil
+    self.travelerError=nil
+    self.ending=nil
     self.phase='idle'; self.lastApproval=nil; self.previewOnly=true; self.hostingIntent=nil
     return true
 end
 local transient={host_disconnected=true,host_timeout=true,transport_failed=true,send_failed=true,join_timeout=true}
 function LocalPlay:_connectionFailed(reason)
+    if self.traveler then
+        self.traveler:connectionFailed(reason)
+        if self.traveler.done then self:stop(); self.error=nil; self.menuOpen=true; return end
+    end
     local reconnecting=self.context.autoReconnect~=false and self:isClient() and transient[reason]
         and (self.reconnectArmed or self.reconnect:isActive())
     self:stop(reason,reconnecting); self:_error(reason); self.menuOpen=true
@@ -482,11 +579,23 @@ function LocalPlay:beginFrame(dt)
         self:_connectionFailed(reason); return
     end
     Management.update(self)
+    if self.ending and not self.authority.pendingSave and not network.link then
+        local identity=self.campaign.players.companion.travelIdentity
+        if identity.status=='closed' then self:stop(); self.menuOpen=false; return end
+    end
     if self.motion then
         local updated,reason=protected(self.motion.update,self.motion)
         if not updated then self:stop('motion_failed'); self:_error(reason or 'motion_failed'); self.menuOpen=true; return end
     end
     if self:isClient() then
+        if self.traveler then
+            self.traveler:update(network)
+            if self.traveler.leaving then self.menuOpen=true end
+            if self.traveler.done then self:stop(); self.error=nil; self.menuOpen=true; self:refreshSaveSlots(); return end
+            if self.traveler.error then self.error=self.traveler.error
+            elseif self.travelerError then self.error=nil end
+            self.travelerError=self.traveler.error
+        end
         if network.status=='ready' then self.reconnectArmed=true; self.reconnect:succeeded() end
         self.phase=self.replica and self.replica.data and 'connected' or 'joining'
         if self.phase=='connected' and self.context.createGuestView then
@@ -565,7 +674,8 @@ function LocalPlay:finishFrame()
         if self.roamingSerial>=2147483647 then self:stop('roaming_serial_exhausted'); self:_error('roaming_serial_exhausted'); self.menuOpen=true; return end
         self.roamingSerial=self.roamingSerial+1
         local system,paused=self.context.roaming()
-        local frames,reason=RoamingPresentation.frames(self.campaign,system,self.authority.sessionId,self.roamingSerial,paused)
+        local own=require('game.coop_players').forActor(self.campaign,'companion')
+        local frames,reason=RoamingPresentation.frames(own,system,self.authority.sessionId,self.roamingSerial,paused)
         if not frames then self:stop(reason); self:_error(reason); self.menuOpen=true; return end
         for _,frame in ipairs(frames) do
             if not network:sendRoaming(frame) then self:stop('roaming_send_failed'); self:_error('roaming_send_failed'); self.menuOpen=true; return end

@@ -3,6 +3,7 @@
 -- Guest domain services must receive an explicit forActor view. Never swap
 -- the host bridge or runtime globals to execute another actor's command.
 local Players={HOST="host",COMPANION="companion",MAX_PLAYERS=2}
+local Presence=require('game.coop_presence')
 
 Players.personalFields={
     character=true,trait=true,traitBaselineApplied=true,
@@ -165,14 +166,17 @@ end
 local actorViews=setmetatable({},{__mode="k"})
 local actorIds=setmetatable({},{__mode="k"})
 function Players.forActor(campaign,id)
+    campaign=actorViews[campaign] or campaign
     assert(Players.get(campaign,id),"unknown actor")
     local view=setmetatable({}, {
         __index=function(_,key)
             if Players.personalFields[key] then return campaign.players[id][key] end
+            local found,value=Presence.read(campaign,id,key); if found then return value end
             return campaign[key]
         end,
         __newindex=function(_,key,value)
             if Players.personalFields[key] then campaign.players[id][key]=value
+            elseif Presence.write(campaign,id,key,value) then return
             else campaign[key]=value end
         end,
     })

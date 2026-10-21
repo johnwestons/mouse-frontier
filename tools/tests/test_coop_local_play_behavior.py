@@ -226,7 +226,7 @@ class LocalPlayTests(unittest.TestCase):
             reply=act('loot.drop',args); assert(not reply.ok and reply.reason=='container_unavailable')
             reply=act('loot.drop',itemArgs(ref),{expected={['player:companion']=999}})
             assert(not reply.ok and reply.reason=='stale_revision')
-            reply=act('scene.leaveTrain',{}); assert(not reply.ok and reply.reason=='host_only')
+            reply=act('travel.depart',{}); assert(not reply.ok and reply.reason=='host_only')
             assert(data.coop.revision==revision and data.scene=='train' and data.players.companion.equipment[1])
         ''')
 
@@ -657,7 +657,7 @@ class LocalPlayTests(unittest.TestCase):
             for i=1,Catalog.storageCapacities['mailbox-reward'] do require('game.item_instances').write(data,mailbox,{kind='chest',index=i},'cowboy-hat') end
             data.mailQuests[2]={origin=1,destination=data.location,recipient='medic.png',complete=false}
             assert(require('game.coop_entities').ensure(data)); assert(service:checkpointNow()); step(22)
-            r=questAct('quest.deliver',data.mailQuests[2]); assert(r.ok and r.durable and r.details.delivery=='local supply crate')
+            r=questAct('quest.deliver',data.mailQuests[2]); assert(r.ok and r.durable and r.details.delivery=='house storage')
             local crate=data.droppedItems[2]; local id=crate.storageInstances[1].id
             assert(crate.entityId and id~=first and crate.storage[1]=='frontier-short-sword' and saved.droppedItems[2].storageInstances[1].id==id)
             guest:stop(); host:update(); assert(guest:join()); step(30)
@@ -1081,19 +1081,19 @@ class LocalPlayTests(unittest.TestCase):
             assert(data.players.companion.activeCar==2 and data.players.host.activeCar==1)
         ''')
 
-    def test_host_departure_interrupts_guest_car_transition_without_replaying_old_motion(self):
+    def test_host_leaving_train_preserves_guests_personal_car_transition(self):
         self.enable_cars()
         self.lua.execute('''
             ready(); motionReady(); data.events['2']={id='resolved'}
             local oldEpoch=data.coop.sceneEpoch; local oldMotion=host.motion.motionId
             local reply=change(2); assert(reply.ok and commands.carBusy('companion'))
             local departed=commands.submit('scene.leaveTrain',{})
-            assert(departed.ok and departed.durable and data.scene=='stop' and data.coop.sceneEpoch==oldEpoch+1)
-            assert(not commands.carBusy('companion'))
-            step(3); local x=data.players.companion.playerX
-            assert(not host.motion:ready(host.generation,oldEpoch,oldMotion))
-            assert(guest.network:sendMovement(1,oldEpoch,1000,0,true,oldMotion)); step(3)
-            assert(data.players.companion.playerX==x and not host.motion.readyEpoch)
+            assert(departed.ok and departed.durable and data.scene=='stop' and data.coop.sceneEpoch==oldEpoch)
+            assert(commands.carBusy('companion'))
+            assert(require('game.coop_players').forActor(data,'companion').scene=='train')
+            hostRuntime.scene='stop'
+            step(12)
+            assert(data.players.companion.activeCar==2)
             assert(saved.scene=='stop' and guest.replica.data.scene=='stop')
         ''')
 
@@ -1524,7 +1524,7 @@ class LocalPlayWrapperTests(unittest.TestCase):
             controller.motion={generation=1,actor={x=200,y=250}};controller.campaign={players={companion={id='companion'}},coop={sceneEpoch=2}}
             local _,_,pose=ui.coopCompanion();assert(pose.playerPose=='sit' and pose.actionKind=='use' and pose.actionTimer==.45)
             runtime.animationClock=1;runtime.companionFieldAction={epoch=2,untilTime=1.2,weapon='sword',facing=-1}
-            _,_,pose=ui.coopCompanion();assert(pose.playerPose=='sit' and pose.actionKind=='melee' and pose.actionHeldItem=='sword')
+            _,_,pose=ui.coopCompanion();assert(pose.playerPose=='sit' and pose.actionKind=='swing' and pose.actionHeldItem=='sword')
             assert(math.abs(pose.actionTimer-.2)<1e-8 and pose.facing==-1)
         ''')
 

@@ -8,8 +8,8 @@ local Access={}
 local function finite(value) return type(value)=='number' and value==value and value>-math.huge and value<math.huge end
 function Access.patient(actor,state,targetId,npc,cleanup)
     local data=Players.campaignOf(actor)
-    if not cleanup and (actor.health<=0 or not state or state.screen~='game' or state.scene~=data.scene
-        or (data.scene~='stop' and data.scene~='house') or state.traveling or state.changingCar or state.encounterActive
+    if not cleanup and (actor.health<=0 or not state or state.screen~='game' or state.scene~=actor.scene
+        or (actor.scene~='stop' and actor.scene~='house') or state.traveling or state.changingCar or state.encounterActive
         or state.activityBlocked and state.activeActivity~='firstAid') then return nil,'activity_unavailable' end
     local target,entry=Entities.find(data,targetId)
     local story=data.conversations and data.conversations.active
@@ -17,7 +17,7 @@ function Access.patient(actor,state,targetId,npc,cleanup)
         and story.targetId==targetId and story.npc==npc then return nil,'activity_busy' end
     if not target or entry.kind~='stop' or target~=data.stopLayouts[tostring(data.location)]
         or not P.text(npc,128) then return nil,'patient_unavailable' end
-    local resident=not cleanup and Recipients.resident(data,npc,state)
+    local resident=not cleanup and Recipients.resident(actor,npc,state)
     if not cleanup and (not resident
         or not finite(state.x) or not finite(state.y) or not finite(resident.x) or not finite(resident.y)
         or (state.x-resident.x)^2+(state.y-resident.y)^2>=95^2) then return nil,'patient_unavailable' end
@@ -32,7 +32,7 @@ function Access.nearest(actor,state)
     local data=Players.campaignOf(actor); local layout=data.stopLayouts[tostring(data.location)]
     if not layout or not layout.entityId then return nil end
     local nearest,distance
-    for _,resident in ipairs(Recipients.residents(data,state)) do
+    for _,resident in ipairs(Recipients.residents(actor,state)) do
         local found=Access.patient(actor,state,layout.entityId,resident.file or resident.id)
         if found then
             local d=(state.x-resident.x)^2+(state.y-resident.y)^2

@@ -198,4 +198,48 @@ class HomeOfficeFoxTests(unittest.TestCase):
                     medians.append(sorted(heights)[len(heights)//2])
         self.assertLess(max(medians)/min(medians),1.06)
 
+    def test_packed_walk_cells_do_not_enlarge_the_fox_at_work_transitions(self):
+        # Older mobile packages halve eight-frame walk sheets, while leaving
+        # two-frame idles and four-frame work sheets at full resolution.
+        self.lua.execute('''
+            local last
+            love={graphics={
+                setColor=function() end,ellipse=function() end,
+                newQuad=function(...) return {...} end,
+                draw=function(image,quad,x,y,rotation,sx,sy,ox,oy)
+                    last={image=image,quad=quad,y=y,sx=sx,sy=sy,ox=ox,oy=oy}
+                end,
+                newImage=function(path)
+                    local count=path:find('/walk',1,true) and 8 or path:find('/idle',1,true) and 2 or 4
+                    local height=count==8 and 256 or 512
+                    return {height=height,setFilter=function() end,release=function() end,
+                        getDimensions=function() return count*height,height end}
+                end
+            },filesystem={getInfo=function() return {} end}}
+            local actor=Fox.ensure(data)
+            local function check()
+                local h=last.image.height
+                assert(math.abs(h*last.sx-Fox.bodySize)<.000001,'packed frame enlarges body')
+                assert(math.abs(h*last.sy-Fox.bodySize)<.000001,'packed frame changes height')
+                assert(last.ox==h/2,'packed frame changes center')
+                assert(math.abs(last.y+(h*Fox.footBaseline-last.oy)*last.sy-actor.y)<.000001,
+                    'packed frame changes foot contact')
+            end
+            for _,direction in ipairs({{1,0},{1,-1},{0,-1},{-1,-1},{-1,0},{-1,1},{0,1},{1,1}}) do
+                actor.intentX,actor.intentY=direction[1],direction[2]
+                for frame=0,7 do
+                    actor.work=nil; actor.moving=true; actor.animationDistance=frame*Fox.profile.pixelsPerFrame
+                    Fox.draw({},data,frame); check()
+                    actor.moving=false
+                    Fox.draw({},data,frame); check()
+                    for _,work in ipairs({'crates','wrench','oil'}) do
+                        actor.work=work; actor.workTime=frame/4
+                        Fox.draw({},data,frame); check()
+                        Fox.draw({},data,frame,true); check()
+                    end
+                end
+            end
+            Fox.release()
+        ''')
+
 if __name__=='__main__': unittest.main()
