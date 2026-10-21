@@ -43,9 +43,14 @@ local function load()
     started=love.timer.getTime(); love.math.setRandomSeed(10112026)
     require('game.smoke_playthrough').install=function(value) c=value end
     app=require('game.application_composition').new({engine=love}); app.installSmoke(); app.load()
-    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'
+    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'; lp.port=port
+    Save.remove(1)
     if role=='host' then
-        c.runtime.selectedSlot=99; Save.remove(99); check(c.enterGame(c.newSave(c.characters[1])),'fixture campaign failed')
+        c.runtime.selectedSlot=1
+        local seed=c.newSave(c.characters[1]); seed.scene='train'; seed.location=2; seed.stopped=true
+        seed.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
+        seed.events['2']={id='resolved'}; seed.encounters['2']={hasMob=false,resolved=true}
+        check(c.enterGame(seed),'fixture campaign failed')
         local data=c.runtime.saveData; data.stopped=true; c.runtime.nextStopDestination=data.location+5
         hostX=c.runtime.player.x; Items.get(data,nil,{kind='equipment',index=1}).durability=67
         hostGear=data.players.host.itemSlots.equipment[1].id; bundles(Players.forActor(data,'host'))
@@ -53,21 +58,22 @@ local function load()
         check(c.ui.openOutfitWorkbench(),'host bench did not open'); app.draw(); app.keypressed('space'); app.keyreleased('space')
         check(Model.project(data) and Model.project(data).ownerPlayerId=='host','host project did not start')
         app.keypressed('escape'); app.keyreleased('escape')
-        local place=lp.context.placeCompanion
-        lp.context.placeCompanion=function(campaign)
-            local ok,reason=place(campaign); if not ok then return ok,reason end
-            bundles(Players.forActor(campaign,'companion')); return true
-        end
-        menu(); click('port',port); click('host'); check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
+        check(Save.write(1,data),'host seed failed'); c.runtime.saveData=nil; c.runtime.selectedSlot=nil; c.runtime.state='slots'
+        app.update(0); menu(); click('saveSlot'); click('slot_1'); click('host')
+        hostX=c.runtime.player.x
+        check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
         stage='hosting'; print('LAN_SMOKE_LISTENING')
     else
-        c.runtime.state='slots'; c.runtime.selectedSlot=nil; menu(); click('address','127.0.0.1:'..port)
-        click('name','Sewing test friend'); click('next'); click('join'); stage='joining'
+        local seed=c.newSave(c.characters[2] or c.characters[1]); bundles(seed)
+        check(Save.write(1,seed),'guest seed failed')
+        c.runtime.state='slots'; c.runtime.selectedSlot=nil; app.update(0); menu(); click('address','127.0.0.1:'..port)
+        click('name','Sewing test friend'); click('saveSlot'); click('slot_1'); click('join'); stage='joining'
     end
 end
 local function update(dt)
     if finished then return end; check(love.timer.getTime()-started<105,'sewing fixture deadline: '..tostring(stage))
     app.update(math.min(.05,dt)); local lp=c.ui.localPlay; local now=love.timer.getTime()
+    if stage~=c.fixtureStage then print('LAN_SEWING_STAGE '..role..' '..tostring(stage)); c.fixtureStage=stage end
     if lp.focused==false then app.focus(true) end
     if role=='host' then
         if lp:pending() then click('approve'); check(not lp.error,'admission failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end end
@@ -77,7 +83,7 @@ local function update(dt)
             if connections==1 then
                 restoreWrite=love.filesystem.write
                 love.filesystem.write=function(path,bytes)
-                    if path==Save.path(99) and not Model.project(c.runtime.saveData) then return false,'injected sewing collection failure' end
+                    if path==Save.path(1) and not Model.project(c.runtime.saveData) then return false,'injected sewing collection failure' end
                     return restoreWrite(path,bytes)
                 end
             end
@@ -91,9 +97,15 @@ local function update(dt)
         local resources=lp.authority and lp.authority.activityState.resources
         if resources and resources['train:sewing'] and not c.fixtureContention then
             check(lp.authority:submitLocal('outfit.craft',{action='acquire'}).reason=='activity_busy','host bypassed occupied sewing bench'); c.fixtureContention=true
+            if lp.menuOpen then click('close') end
+            local lease=resources['train:sewing'].id; local left=c.ui.transitionParty('scene.leaveTrain')
+            check(left.ok,'host could not leave independently: '..tostring(left.reason))
+            check(lp.authority.activityState.resources['train:sewing'].id==lease,'host exit cancelled guest sewing')
+            check(Players.forActor(c.runtime.saveData,'companion').scene=='train','host exit moved guest')
+            hostX=c.runtime.player.x
         end
         if connections==1 and not link then
-            local saved=assert(Save.read(99)); check(retried and c.fixtureContention,'checkpoint or contention not exercised')
+            local saved=assert(Save.read(1)); check(retried and c.fixtureContention,'checkpoint or contention not exercised')
             check(not saved.outfitCrafting.project and saved.inventory[1]==recipe.outputIds.masterwork and saved.players.companion.inventory[1]==recipe.outputIds.masterwork,'owner delivery was not durable')
             check(saved.players.host.itemSlots.equipment[1].id==hostGear and saved.players.host.itemSlots.equipment[1].durability==67 and c.runtime.player.x==hostX,'host gear or position changed')
             check(not next(lp.authority.activityState.resources),'disconnect retained sewing lease')
@@ -102,13 +114,16 @@ local function update(dt)
         if stage=='joining' and lp.phase=='connected' and lp.clientView and lp.motionFrame and lp.motionFrame.ready and not lp.motionFrame.paused then
             epoch=lp.replica.data.coop.sceneEpoch; location=lp.replica.data.location
             click('close'); stage='world'; projectOwner='host'; capture='guest-sewing-world.png'
-        elseif stage=='rejoin' and now-rejoinAt>.4 then menu(); click('join'); stage='resumed'
+        elseif stage=='rejoin' and now-rejoinAt>1 then check(lp:join(),'credential reconnect failed'); stage='resumed'
         elseif stage=='resumed' and lp.phase=='connected' then
             local d=lp.replica.data
             check(d.players.host.itemSlots.inventory[1].id==hostUpgrade and d.players.companion.itemSlots.inventory[1].id==guestUpgrade,'rejoin changed upgrade identity')
-            check(d.coop.sceneEpoch==epoch and d.location==location and d.scene=='train' and not d.outfitCrafting.project,'sewing progressed story or lost work')
-            click('leave'); print('LAN_SEWING_OK role=guest hostOwner=true guestOwner=true timedPull=true saved=true hostOnlyStory=true'); finish()
-        elseif lp.clientView and stage~='joining' then
+            check(d.coop.sceneEpoch==epoch and d.location==location and d.scene=='stop' and Players.forActor(d,'companion').scene=='train' and not d.outfitCrafting.project,'sewing changed independent scenes or lost work')
+            click('leave'); stage='returning'
+        elseif stage=='returning' and not lp.network then
+            local saved=assert(Save.read(1)); check(saved.inventory[1]==recipe.outputIds.masterwork,'crafted upgrade did not return to selected save')
+            print('LAN_SEWING_OK role=guest hostOwner=true guestOwner=true timedPull=true saved=true independentScenes=true portableReturn=true'); finish()
+        elseif lp.clientView and stage~='joining' and stage~='returning' then
             local view=lp.clientView; local panel=view.activities.sewing
             if request then
                 local r=panel.lastOutcome
@@ -154,7 +169,7 @@ local function update(dt)
                 end
             elseif stage=='own-start' then
                 projectOwner='companion'; press(button(panel,'start')); waiting(panel,'start','work')
-            elseif stage=='done' then press(button(panel,'close')); menu(); click('leave'); stage='rejoin'; rejoinAt=now end
+            elseif stage=='done' then press(button(panel,'close')); check(lp:stop(),'temporary disconnect failed'); stage='rejoin'; rejoinAt=now end
         end
     end
 end

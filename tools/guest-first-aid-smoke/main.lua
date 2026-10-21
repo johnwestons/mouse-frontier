@@ -42,9 +42,15 @@ local function load()
     started=love.timer.getTime(); love.math.setRandomSeed(10112026)
     require('game.smoke_playthrough').install=function(value) c=value end
     app=require('game.application_composition').new({engine=love}); app.installSmoke(); app.load()
-    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'
+    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'; lp.port=port
+    Save.remove(1)
     if role=='host' then
-        c.runtime.selectedSlot=99; Save.remove(99); check(c.enterGame(c.newSave(c.characters[1])),'fixture campaign failed')
+        c.runtime.selectedSlot=1
+        local seed=c.newSave(c.characters[1]); seed.location=20; seed.scene='stop'; seed.stopped=true
+        seed.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
+        seed.lastStand={state='complete',completed=true,rewardClaimed=true}
+        seed.events['20']={id='resolved'}; seed.encounters['20']={hasMob=false,resolved=true}
+        check(c.enterGame(seed),'fixture campaign failed')
         local data=c.runtime.saveData; data.location=20; data.scene='stop'; c.runtime.scene='stop'; npc='crow-merchant.png'
         local layout=c.ensureStopLayout(); layout.npcOutside=npc; layout.npc=npc; c.setupNPC()
         c.runtime.npcActor.x=600; c.runtime.npcActor.y=430
@@ -59,20 +65,30 @@ local function load()
         lp.context.placeCompanion=function(campaign)
             local ok,reason=place(campaign); if not ok then return ok,reason end
             local actor=Players.forActor(campaign,'companion')
-            for i=1,actor.inventoryCapacity do Items.write(actor,nil,{kind='inventory',index=i},nil) end
-            Items.write(actor,nil,{kind='inventory',index=1},'field-bandage-roll'); actor.playerX=550; actor.playerY=430
+            actor.playerX=550; actor.playerY=430
             return true
         end
-        menu(); click('port',port); click('host'); check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
+        check(Save.write(1,data),'host seed failed'); c.runtime.saveData=nil; c.runtime.selectedSlot=nil; c.runtime.state='slots'
+        app.update(0); menu(); click('saveSlot'); click('slot_1'); click('host')
+        hostX=c.runtime.player.x
+        check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
         stage='hosting'; print('LAN_SMOKE_LISTENING')
     else
-        c.runtime.state='slots'; c.runtime.selectedSlot=nil; menu(); click('address','127.0.0.1:'..port)
-        click('name','Treatment test friend'); click('next'); click('join'); stage='joining'
+        local seed=c.newSave(c.characters[2] or c.characters[1])
+        for i=1,seed.inventoryCapacity do Items.write(seed,nil,{kind='inventory',index=i},nil) end
+        Items.write(seed,nil,{kind='inventory',index=1},'field-bandage-roll')
+        check(Save.write(1,seed),'guest seed failed')
+        c.runtime.state='slots'; c.runtime.selectedSlot=nil; app.update(0); menu(); click('address','127.0.0.1:'..port)
+        click('name','Treatment test friend'); click('saveSlot'); click('slot_1'); click('join'); stage='joining'
     end
 end
 local function update(dt)
     if finished then return end; check(love.timer.getTime()-started<100,'treatment fixture deadline: '..tostring(stage))
     app.update(math.min(.05,dt)); local lp=c.ui.localPlay; local now=love.timer.getTime()
+    local v=lp.clientView; local p=v and v.activities.firstAid
+    local diagnostic=table.concat({tostring(stage),tostring(lp.phase),tostring(p and p.notice),
+        tostring(p and p.session and p.session.phase),tostring(v and v.runtime.scene)},':')
+    if diagnostic~=c.fixtureDiagnostic then print('LAN_AID_STATE '..role..' '..diagnostic); c.fixtureDiagnostic=diagnostic end
     if lp.focused==false then app.focus(true) end
     if role=='host' then
         if lp:pending() then click('approve'); check(not lp.error,'admission failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end end
@@ -82,7 +98,7 @@ local function update(dt)
             if connections==1 then
                 restoreWrite=love.filesystem.write
                 love.filesystem.write=function(path,bytes)
-                    if path==Save.path(99) and (activeFailure or c.runtime.saveData.helpQuestSessions[questId].rewardClaimed) then return false,'injected treatment checkpoint failure' end
+                    if path==Save.path(1) and (activeFailure or c.runtime.saveData.helpQuestSessions[questId].rewardClaimed) then return false,'injected treatment checkpoint failure' end
                     return restoreWrite(path,bytes)
                 end
             end
@@ -92,6 +108,12 @@ local function update(dt)
             local layout=c.runtime.saveData.stopLayouts[tostring(c.runtime.saveData.location)]
             local reply=lp.authority:submitLocal('firstAid.acquire',{targetId=layout.entityId,npc=npc})
             check(reply.reason=='activity_busy','host acquired guest patient'); captured.hostContention=true
+            if lp.menuOpen then click('close') end
+            local lease=heldLease.id; local boarded=c.ui.transitionParty('scene.returnTrain')
+            check(boarded.ok,'host could not board independently: '..tostring(boarded.reason))
+            check(lp.authority.activityState.resources['firstAid:'..questId].id==lease,'host boarding cancelled guest treatment')
+            check(Players.forActor(c.runtime.saveData,'companion').scene=='stop','host boarding moved patient visit')
+            hostX=c.runtime.player.x
         end
         if connections==2 and heldLease and heldLease.payload.session.phase==4 and not activeAttempted then
             activeAttempted=true; activeFailure=true; activeLease=heldLease.id
@@ -112,11 +134,11 @@ local function update(dt)
             check(not lp.authority.pendingSave,'treatment save retry failed'); retried=true; stage='hosting'
         end
         if connections==1 and not link then
-            local saved=assert(Save.read(99)); local q=saved.helpQuestSessions[questId]
+            local saved=assert(Save.read(1)); local q=saved.helpQuestSessions[questId]
             check(q.paused and q.progress.phase==3 and q.progress.rubDistance==90,'partial treatment not durable')
             check(saved.players.companion.inventory[1]=='field-bandage-roll' and saved.goodwill==0,'pause consumed supply or rewarded')
         elseif connections==2 and not link then
-            local saved=assert(Save.read(99))
+            local saved=assert(Save.read(1))
             check(retried and activeRetried and activeRecovered and captured.hostContention and saved.helpQuestSessions[questId].rewardClaimed,'treatment not committed or recovered')
             check(saved.goodwill==3 and #saved.helpHistory==1 and not saved.players.companion.inventory[1],'treatment repeated or omitted')
             check(saved.players.host.inventory[1]=='field-bandage-roll' and saved.players.host.itemSlots.equipment[1].id==hostGear and c.runtime.player.x==hostX,'host ownership changed')
@@ -128,10 +150,13 @@ local function update(dt)
             click('close'); local data=lp.replica.data; location=data.location; epoch=data.coop.sceneEpoch; npc=data.currentNPC
             questId=data.stopLayouts[tostring(location)].helpRequests[npc].sessionId
             capture='guest-treatment-world.png'; stage='open'
-        elseif stage=='rejoin' and now-rejoinAt>.4 then menu(); click('join'); stage='resumed'
+        elseif stage=='rejoin' and now-rejoinAt>1 then check(lp:join(),'credential reconnect failed'); stage='resumed'
         elseif stage=='resumed' and lp.phase=='connected' and lp.motionFrame and lp.motionFrame.ready and not lp.motionFrame.paused then
             click('close'); check(lp.replica.data.helpQuestSessions[questId].progress.rubDistance==90,'rejoin lost partial treatment'); stage='open-again'
-        elseif lp.clientView and stage~='joining' then
+        elseif stage=='returning' and not lp.network then
+            local saved=assert(Save.read(1)); check(not saved.inventory[1],'medical supply returned after consumption')
+            print('LAN_FIRST_AID_OK role=guest pointer=true hostClock=true partialRejoin=true checkpointRetry=true activeLeaseRecovery=true ownSupply=true independentScenes=true portableReturn=true'); finish()
+        elseif lp.clientView and stage~='joining' and stage~='returning' then
             local view=lp.clientView; local panel=view.activities.firstAid
             if capture or lastAction and now-lastAction<.25 then return end
             if panel.pending or #panel.queue>0 then return end
@@ -160,7 +185,7 @@ local function update(dt)
                 check(panel.session.progress.rubDistance==90,'pointer progress missing')
                 capture='guest-treatment-partial.png'; stage='pause-confirm'; lastAction=now
             elseif stage=='pause-confirm' then app.keypressed('escape'); app.keyreleased('escape'); stage='paused'; lastAction=now
-            elseif stage=='paused' and not panel:busy() then menu(); click('leave'); stage='rejoin'; rejoinAt=now
+            elseif stage=='paused' and not panel:busy() then check(lp:stop(),'temporary disconnect failed'); stage='rejoin'; rejoinAt=now
             elseif stage=='resume-rub' and panel.session then
                 check(panel.session.phase==3 and panel.session.progress.rubDistance==90,'resumed phase missing')
                 pointer('press',410,370); moves={550,410,550,410}; moveIndex=1; stage='rub'; lastAction=now
@@ -195,7 +220,7 @@ local function update(dt)
                 check(panel.completed.gained==3 and view.runtime.saveData.goodwill==3,'completion receipt missing')
                 check(view.runtime.saveData.scene=='stop' and view.runtime.saveData.location==location and view.runtime.saveData.coop.sceneEpoch==epoch,'treatment advanced story')
                 app.draw(); press(panel.closeRect); menu(); click('leave')
-                print('LAN_FIRST_AID_OK role=guest pointer=true hostClock=true partialRejoin=true checkpointRetry=true activeLeaseRecovery=true ownSupply=true hostOnlyStory=true'); finish()
+                stage='returning'
             end
         end
     end

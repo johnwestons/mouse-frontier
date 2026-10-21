@@ -2,11 +2,16 @@
 io.stdout:setvbuf('no')
 local role=os.getenv('MOUSE_FRONTIER_LAN_SMOKE_ROLE'); local port=assert(os.getenv('MOUSE_FRONTIER_LAN_SMOKE_PORT'))
 local touch=os.getenv('MOUSE_FRONTIER_MOBILE')=='1'
+local root=assert(os.getenv('MOUSE_FRONTIER_LAN_SMOKE_ROOT'))
 local Save=require('game.save'); local Viewport=require('game.viewport'); local Items=require('game.item_instances')
 local Players=require('game.coop_players'); local Catalog=require('game.catalog'); local Loot=require('game.loot_progression')
 local app,c,started,finished,stage,capture,restoreWrite,saveRetried,request,command,verify,nextStage,lastAction
 local captured={}; local connections=0; local generation,hostItem,hostX,guestItem,epoch,location,rejoinAt,repairCost,restored,hubAt
 local function check(v,m) assert(v,m) end
+local function file(name,value)
+    local f=io.open(root..'/'..name,value and 'wb' or 'rb'); if not f then return end
+    local result=value and f:write(value) or f:read('*a'); f:close(); return result
+end
 local function press(rect)
     check(rect,'missing activity control'); local ox,oy,sx,sy=Viewport.transform(960,720)
     local x,y=ox+(rect.x+rect.w/2)*sx,oy+(rect.y+rect.h/2)*sy
@@ -32,9 +37,14 @@ local function load()
     started=love.timer.getTime(); love.math.setRandomSeed(9112026)
     require('game.smoke_playthrough').install=function(value) c=value end
     app=require('game.application_composition').new({engine=love}); app.installSmoke(); app.load()
-    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'
+    local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'; lp.port=port
+    Save.remove(1)
     if role=='host' then
-        c.runtime.selectedSlot=99; Save.remove(99); check(c.enterGame(c.newSave(c.characters[1])),'fixture campaign failed')
+        c.runtime.selectedSlot=1
+        local seed=c.newSave(c.characters[1]); seed.scene='train'; seed.location=2; seed.stopped=true
+        seed.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
+        seed.events['2']={id='resolved'}; seed.encounters['2']={hasMob=false,resolved=true}
+        check(c.enterGame(seed),'fixture campaign failed')
         local data=c.runtime.saveData; data.stopped=true; data.resources.oil=20; data.scrap=200
         data.maintenance={condition=40,lastServicedStop=0,totalServices=0,totalWear=0}; c.runtime.nextStopDestination=data.location+5
         Items.get(data,nil,{kind='equipment',index=1}).durability=67
@@ -44,15 +54,21 @@ local function load()
             local ok,reason=place(campaign); if not ok then return ok,reason end
             local own=campaign.players.companion
             own.playerX,own.playerY=require('game.train').clampCharacterToFloor(c.car,c.contentRegistry.scenery.trainCarImages['living-car'],650,520,30)
-            check(Items.ensure(campaign),'companion gear fixture failed')
-            local actor=Players.forActor(campaign,'companion'); local gear=Items.get(actor,nil,{kind='equipment',index=1}); gear.durability=20
-            Items.write(actor,nil,{kind='inventory',index=2},Catalog.weaponRepairParts[gear.name]); return true
+            return true
         end
-        menu(); click('port',port); click('host'); check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
+        check(Save.write(1,data),'host seed failed'); c.runtime.saveData=nil; c.runtime.selectedSlot=nil; c.runtime.state='slots'
+        app.update(0); menu(); click('saveSlot'); click('slot_1'); click('host')
+        hostX=c.runtime.player.x
+        check(lp.network,'hosting failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end
         stage='hosting'; print('LAN_SMOKE_LISTENING')
     else
-        c.runtime.state='slots'; c.runtime.selectedSlot=nil; menu(); click('address','127.0.0.1:'..port)
-        click('name','Activity test friend'); click('next'); click('join'); stage='joining'
+        local seed=c.newSave(c.characters[2] or c.characters[1])
+        Items.write(seed,nil,{kind='equipment',index=1},'frontier-short-sword')
+        Items.get(seed,nil,{kind='equipment',index=1}).durability=20
+        Items.write(seed,nil,{kind='inventory',index=2},Catalog.weaponRepairParts['frontier-short-sword'])
+        check(Save.write(1,seed),'guest seed failed')
+        c.runtime.state='slots'; c.runtime.selectedSlot=nil; app.update(0); menu(); click('address','127.0.0.1:'..port)
+        click('name','Activity test friend'); click('saveSlot'); click('slot_1'); click('join'); stage='joining'
     end
 end
 local function waiting(view,name,after,fn)
@@ -62,6 +78,10 @@ end
 local function update(dt)
     if finished then return end; check(love.timer.getTime()-started<80,'activity fixture deadline exceeded: '..tostring(stage))
     app.update(math.min(.05,dt)); local lp=c.ui.localPlay; local now=love.timer.getTime()
+    local v=lp.clientView; local p=v and v.activities
+    local diagnostic=table.concat({tostring(stage),tostring(lp.phase),tostring(p and p.notice),
+        tostring(p and p.lease),tostring(v and v.runtime.scene),tostring(v and v.runtime.guestActivityOpen)},':')
+    if diagnostic~=c.fixtureDiagnostic then print('LAN_ACTIVITY_STATE '..role..' '..diagnostic); c.fixtureDiagnostic=diagnostic end
     if lp.focused==false then app.focus(true) end
     if role=='host' then
         if lp:pending() then click('approve'); check(not lp.error,'admission failed: '..tostring(lp.error)); if not lp.menuOpen then menu() end end
@@ -72,7 +92,7 @@ local function update(dt)
                 repairCost=Loot.repairStatus(Players.forActor(c.runtime.saveData,'companion'),Catalog,c.runtime.saveData.players.companion.itemSlots.equipment[1].id).cost
                 restoreWrite=love.filesystem.write
                 love.filesystem.write=function(path,bytes)
-                    if path==Save.path(99) and c.runtime.saveData.maintenance.totalServices>=1 then return false,'injected service checkpoint failure' end
+                    if path==Save.path(1) and c.runtime.saveData.maintenance.totalServices>=1 then return false,'injected service checkpoint failure' end
                     return restoreWrite(path,bytes)
                 end
             end
@@ -89,9 +109,16 @@ local function update(dt)
         end
         if resources and resources['train:weapon-repair'] and not c.fixtureRepairContention then
             check(lp.authority:submitLocal('weaponRepair.acquire',{itemId=hostItem}).reason=='activity_busy','host bypassed occupied repair bench'); c.fixtureRepairContention=true
+            if lp.menuOpen then click('close') end
+            local lease=resources['train:weapon-repair'].id
+            local left=c.ui.transitionParty('scene.leaveTrain')
+            check(left.ok,'host could not leave independently: '..tostring(left.reason))
+            check(lp.authority.activityState.resources['train:weapon-repair'].id==lease,'host exit cancelled guest repair')
+            check(Players.forActor(c.runtime.saveData,'companion').scene=='train','host exit moved guest')
+            hostX=c.runtime.player.x; file('host.outside','true')
         end
         if connections==1 and not link then
-            local saved=assert(Save.read(99)); local gear=saved.players.companion.itemSlots.equipment[1]
+            local saved=assert(Save.read(1)); local gear=saved.players.companion.itemSlots.equipment[1]
             check(saveRetried and saved.resources.oil==15 and saved.maintenance.condition==80 and saved.maintenance.totalServices==1,'service not durable once')
             check(saved.scrap==200-repairCost and gear.durability>=75 and not saved.players.companion.inventory[2],'repair costs/part not durable once')
             check(saved.players.host.itemSlots.equipment[1].id==hostItem and saved.players.host.itemSlots.equipment[1].durability==67 and c.runtime.player.x==hostX,'host equipment/position changed')
@@ -102,12 +129,16 @@ local function update(dt)
             local d=lp.replica.data; epoch=d.coop.sceneEpoch; location=d.location; guestItem=d.players.companion.itemSlots.equipment[1].id
             repairCost=Loot.repairStatus(Players.forActor(d,'companion'),Catalog,guestItem).cost
             click('close'); stage='world-ready'; capture='guest-activity-world.png'
-        elseif stage=='rejoin' and now-rejoinAt>.4 then menu(); click('join'); stage='resumed'
+        elseif stage=='rejoin' and now-rejoinAt>1 then check(lp:join(),'credential reconnect failed'); stage='resumed'
         elseif stage=='resumed' and lp.phase=='connected' then
             local d=lp.replica.data; local gear=d.players.companion.itemSlots.equipment[1]
             check(gear.id==guestItem and gear.durability==restored and d.resources.oil==15 and d.scrap==200-repairCost,'rejoin lost service/repair')
-            check(d.coop.sceneEpoch==epoch and d.scene=='train' and d.location==location,'activities progressed story')
-            click('leave'); print('LAN_ACTIVITIES_OK role=guest maintenance=true repair=true saved=true hostOnlyStory=true'); finish()
+            check(d.coop.sceneEpoch==epoch and d.scene=='stop' and Players.forActor(d,'companion').scene=='train' and d.location==location,'activities changed independent scenes or progressed story')
+            click('leave'); stage='returning'
+        elseif stage=='returning' and not lp.network then
+            local saved=assert(Save.read(1)); local gear=saved.itemSlots.equipment[1]
+            check(gear.name=='frontier-short-sword' and gear.durability==restored and not saved.inventory[2],'repaired weapon or consumed part lost on local return')
+            print('LAN_ACTIVITIES_OK role=guest maintenance=true repair=true independentScenes=true saved=true hostOnlyStory=true portableReturn=true'); finish()
         elseif lp.clientView and stage~='joining' then
             local view=lp.clientView; local panel=view.activities
             if request then
@@ -137,7 +168,7 @@ local function update(dt)
                 local status=Loot.repairStatus(view.runtime.saveData,Catalog,panel.selected)
                 check(status.name,'repair selection missing: '..tostring(panel.selected)..' / '..tostring(Items.weapons(view.runtime.saveData,Catalog)[1].id))
                 control(view,'repair'); waiting(view,'weaponRepair.acquire','repair-timing',function(v) check(v.activities.lease,'repair lease missing'); capture='guest-repair-timing.png' end)
-            elseif stage=='repair-timing' then
+            elseif stage=='repair-timing' and file('host.outside') then
                 local phase=panel:phase()
                 if phase and phase>.60 and phase<.66 and not panel.clockUncertain then
                     if touch then control(view,'repair') else app.keypressed('space') end
@@ -147,7 +178,7 @@ local function update(dt)
                         check(not v.runtime.saveData.inventory[2] and v.runtime.saveData.scrap==200-repairCost,'repair did not consume exact part/scrap'); capture='guest-repair-completed.png'
                     end)
                 end
-            elseif stage=='done' then control(view,'close'); menu(); click('leave'); stage='rejoin'; rejoinAt=now
+            elseif stage=='done' then control(view,'close'); check(lp:stop(),'temporary disconnect failed'); stage='rejoin'; rejoinAt=now
             end
         end
     end
