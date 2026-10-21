@@ -58,6 +58,25 @@ class CombatLatencyTests(unittest.TestCase):
     def tearDown(self):
         self.harness.tearDown()
 
+    def test_weapon_selection_and_immediate_target_use_one_round_trip_and_one_cost(self):
+        self.lua.execute('''
+            local b=data.tacticalBattle.battle; local unit=b.units[2]; local enemy=b.units[3]
+            enemy.q,enemy.r=unit.q+1,unit.r; b.obstacles={}
+            step(30); slowStep(4)
+            local own=data.players.companion; local weapon=own.itemSlots.equipment[2]
+            local revision=data.tacticalBattle.revision; local before=writes
+            local ammo=own.ammo.rocks; local condition=weapon.durability
+            assert(panel:chooseWeapon(weapon.id))
+            assert(not guest.network.pendingCommand and not panel.pending and writes==before)
+            assert(panel.mode=='target' and b.phase=='select')
+            assert(panel:submit('battle.attack',{weapon=panel.weapon.key,targetId=enemy.id}))
+            slowStep(60)
+            assert(not panel.pending and panel.lastOutcome.ok)
+            assert(data.tacticalBattle.revision==revision+1 and writes==before+1)
+            assert(own.ammo.rocks==ammo-1 and weapon.durability==condition-1)
+            slowStep(20); assert(own.ammo.rocks==ammo-1 and writes==before+1)
+        ''')
+
     def test_single_guard_press_during_host_animation_completes_without_double_turn(self):
         self.lua.execute('''
             data.tacticalBattle.battle.attackTimer=.6

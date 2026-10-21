@@ -3,6 +3,7 @@ local UI=require('game.battle_ui')
 local Rules=require('game.battle_rules')
 local Grid=require('game.battle_grid')
 local Actors=require('game.battle_actors')
+local Weapons=require('game.battle_weapon_ownership')
 local Commands=require('game.coop_battles')
 local Style=require('game.ui_layout')
 local Focus=require('game.ui_focus')
@@ -24,6 +25,32 @@ function Panel:canAct(unit)
         and self.view.controller.network and not self.view.controller.network.pendingCommand
         and b and not b.finished and unit and unit.hp>0 and Actors.id(unit)=='companion'
 end
+function Panel:chooseWeapon(selector)
+    local b=self.runtime.battle; local unit=b and Rules.activeUnit(b)
+    local s=self.runtime.saveData and self.runtime.saveData.tacticalBattle
+    if not s or not self:canAct(unit) then return false end
+    local info=Weapons.resolve(self.runtime.saveData,unit,selector,self.c.catalog)
+    if not info then return false end
+    -- Selecting a target is a local preview, just like choosing a move cell.
+    -- The one attack request still quotes the exact equipped item and turn.
+    self.weapon={key=info.key,name=info.name,unitId=unit.id,turn=s.revision,encounterId=s.encounterId,
+        epoch=self.view.epoch,network=self.view.controller.network}
+    self.epoch=self.view.epoch; self.turn=s.revision; self.mode='target'
+    self.notice='Choose an enemy within '..Rules.weaponRange(self.c.catalog,info.name)..' terrain space(s).'
+    return true
+end
+function Panel:targetWeapon()
+    local w=self.weapon; if not w then return end
+    local s=self.runtime.saveData and self.runtime.saveData.tacticalBattle
+    local b=self.runtime.battle; local unit=b and Rules.activeUnit(b)
+    local valid=s and not b.finished and s.encounterId==w.encounterId and s.revision==w.turn
+        and unit and unit.id==w.unitId and unit.hp>0 and self.view.epoch==w.epoch
+        and self.view.controller.network==w.network and self.view.focused and not self.view.controller.menuOpen
+    local info=valid and Weapons.resolve(self.runtime.saveData,unit,w.key,self.c.catalog)
+    if info and info.name==w.name then return w end
+    self.weapon=nil
+    if self.mode=='target' then self.mode=nil; self.notice=nil end
+end
 function Panel:submit(name,extra)
     local s=self.runtime.saveData.tacticalBattle; local b=self.runtime.battle
     if not s or not self:canAct(Rules.activeUnit(b)) then return false end
@@ -33,7 +60,7 @@ function Panel:submit(name,extra)
         network=self.view.controller.network,startedAt=self.elapsed or 0}
     local id,reason=self:send(pending)
     if not id then self.notice='Action unavailable. Wait for the battlefield to update.'; return false,reason end
-    self.pending=pending; self.mode=nil; self.notice='Action sent. Waiting for the host...'; return true
+    self.pending=pending; self.mode=nil; self.weapon=nil; self.notice='Action sent. Waiting for the host...'; return true
 end
 function Panel:send(pending)
     local expected={}; for _,scope in ipairs(Commands.scopes(self.runtime.saveData)) do expected[scope]=self.runtime.saveData.coop.revisions[scope] or 0 end
@@ -72,6 +99,7 @@ end
 function Panel:update(dt)
     self.elapsed=(self.elapsed or 0)+(dt or 0)
     local s=self.runtime.saveData and self.runtime.saveData.tacticalBattle
+    self:targetWeapon()
     self:animate(dt,s)
     local p=self.pending
     if p and (not s or p.encounterId~=s.encounterId or p.epoch~=self.view.epoch or p.network~=self.view.controller.network) then
@@ -106,7 +134,9 @@ end
 function Panel:context()
     local content=self.c.content; local r=self.view.renderer
     local b={}; for key,value in pairs(self.runtime.battle) do b[key]=value end
+    local weapon=self:targetWeapon()
     b.phase=self.mode or b.phase; b.selected=self.selected or b.selected; b.logScroll=self.logScroll or 0
+    if weapon then b.chosenWeapon=weapon.name; b.chosenItemId=weapon.key end
     local ctx={W=960,H=720,battle=b,battleGrid=Grid,scenery=content.scenery,colors=self.c.colors,mobileEnabled=self.view.mobile.enabled,
         animationClock=self.runtime.animationClock,characterAnimations=self.c.characterAnimations and self.c.characterAnimations() or {},
         saveData=self.runtime.saveData,inventoryOpen=false,ui=self.ui,playerProgression=require('game.player_progression'),
@@ -117,10 +147,12 @@ function Panel:context()
         canAct=function(unit) return self:canAct(unit) end,hostControls=false,worldView=self.worldView,
         setInventoryOpen=function() self.view.inventory:toggle() end,resetInventoryDrag=function() self.view.inventory:cancelDrag() end,
         handleInventoryClick=function() end,
-        setMoveMode=function() self.mode='move' end,setBattlePrompt=function() end,
-        battleAttack=function(weapon) self:submit('battle.attack',{weapon=weapon}) end,
+        setMoveMode=function() self.mode='move'; self.weapon=nil; self.notice=nil end,setBattlePrompt=function() end,
+        battleAttack=function(weapon) self:chooseWeapon(weapon) end,
         resolveBattleAttack=function(_,target,weapon,id) self:submit('battle.attack',{weapon=id or weapon,targetId=target.id}) end,
-        battleMoveTo=function(q,row) self:submit('battle.move',{q=q,r=row}) end,
+        battleMoveTo=function(q,row)
+            if (self.mode or self.runtime.battle.phase)~='target' then self:submit('battle.move',{q=q,r=row}) end
+        end,
         battleHeal=function() self:submit('battle.heal') end,battleGuard=function() self:submit('battle.guard') end,
         advanceBattleTurn=function() self:submit('battle.endTurn') end,
         useBattleAbility=function(kind) self:submit('battle.ability',{kind=kind}) end,
@@ -156,10 +188,11 @@ function Panel:targets()
         add('potion'..index,rect,function() self:pointer(rect.x+rect.w/2,rect.y+rect.h/2) end)
     end
     local b=self.runtime.battle; local active=Rules.activeUnit(b)
+    self:targetWeapon()
     if self:canAct(active) then
         local cells={}
         if (self.mode or b.phase)=='move' then for _,cell in pairs(Rules.reachable(b,active,active.move)) do cells[#cells+1]=cell end
-        elseif b.phase=='target' then for _,u in ipairs(b.units) do if u.team=='enemy' and u.hp>0 then cells[#cells+1]=u end end end
+        elseif (self.mode or b.phase)=='target' then for _,u in ipairs(b.units) do if u.team=='enemy' and u.hp>0 then cells[#cells+1]=u end end end
         table.sort(cells,function(a,b) return a.q==b.q and a.r<b.r or a.q<b.q end)
         for _,cell in ipairs(cells) do
             local x,y=Grid.boardToScreen(1,cell.q,cell.r); x,y=self.worldView.toScreen(x,y)
@@ -178,8 +211,8 @@ function Panel:keypressed(key)
     if key=='return' then local target=Focus.current(self.ui,self:targets(),'guest-battle'); if target then target.action() end; return true end
     local b=self.runtime.battle; if not self:canAct(Rules.activeUnit(b)) then return true end
     local index=tonumber(key)
-    if index and b.options and b.options[index] then self:submit('battle.attack',{weapon=b.options[index]})
-    elseif key=='m' and not b.moveUsed then self.mode='move'
+    if index and b.options and b.options[index] then self:chooseWeapon(b.options[index])
+    elseif key=='m' and not b.moveUsed then self.mode='move'; self.weapon=nil; self.notice=nil
     elseif key=='g' then self:submit('battle.guard')
     elseif key=='h' then self:submit('battle.heal')
     elseif key=='space' then self:submit('battle.endTurn') end

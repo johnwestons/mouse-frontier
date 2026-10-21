@@ -130,3 +130,15 @@ All three two-process simulated-touch runs passed against build 47's staged game
 - Sewing: `.stabilization/coop-independent-sewing47/run-a332369f417e45809672638d475fb979/`. The client finishes both the host's existing project and its own project while the host is outside. Timed thread pulls, material ownership, output delivery to the correct player, failed collection-save retry and reconnect pass. The client's crafted masterwork returns to its selected solo save.
 
 Repair, first-aid and sewing completion captures were visually inspected. These are stronger native checks of existing gameplay, with test-fixture changes only; the APK 47 gameplay fingerprint remains unchanged. Physical device responsiveness remains unmeasured.
+
+## Immediate client weapon targeting, October 21
+
+Choosing a weapon for a tactical attack previously sent a host command and crossed a save barrier before the client could select an enemy. Weapon selection now previews locally, like movement selection. The next enemy tap submits one attack carrying the exact equipped item, target, encounter and turn. The host still validates ownership, range, line of sight, ammunition and the turn, then applies damage, wear and costs once. No combat outcome is predicted. This removes one round trip and one checkpoint per selection-and-attack sequence.
+
+The preview survives refreshed snapshots of the same turn and supports controller target selection. It clears on turn, encounter, connection, focus, menu or equipment changes. Empty-ground clicks while targeting cannot issue an unintended move. Touch weapon selection and the enemy tap can occur without an intervening network update.
+
+Validation: **1,393 co-op checks passed** (`.stabilization/coop-suite-results/local-targeting.log`). A subsequent focused **23-check** run includes the empty-ground guard. The delayed production session test verifies one attack and one ammo/wear cost at 10 FPS hosting with 100 ms delay each way. Final packaged native touch battle actions passed at `.stabilization/coop-local-targeting-packaged-native/run-ba187fc1cfe34e16a3b34cd3f87b7119/`; the fixture explicitly verifies that choosing the weapon creates no pending command or shared turn change. Packaged mobile autoplay passed **117 checkpoints** (`.stabilization/coop-local-targeting-package.rpt`).
+
+Android **0.7.0-mobile.48** and `output/windows/coop-mobile48-candidate/` use gameplay fingerprint `3280c63120ad83767c705001b9efc14f88ffb22574b29172c670a46913c69a06` (schema 47 / protocol 31). APK signature and source inventory audits passed. Device probing and installation were skipped at the user's request; phone performance is not claimed. Both peers need matching builds for Local Play.
+
+The matching fused Windows executable passed **110 checkpoints** (`.stabilization/coop-suite-results/windows-fused-mobile48.rpt`). The final packaged targeting screenshot was visually inspected. Per-platform acceptance records retain the exact APK, archive and executable hashes.

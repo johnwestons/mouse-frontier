@@ -403,7 +403,11 @@ local function guestUpdate()
             end
             if enemy then
                 shotTarget=enemy.id
-                startAction('weapon','shot',function() press(view.ui.battleWeapons[3]) end,view)
+                local revision=data.tacticalBattle.revision
+                press(view.ui.battleWeapons[3])
+                check(view.battles.mode=='target' and not view.battles.pending,'weapon choice waited for the host')
+                check(data.tacticalBattle.revision==revision and b.phase~='target','weapon preview changed shared battle')
+                capture='guest-weapon-targeting.png'; stage='shot'
             else startAction('approach-end','move',function() press(view.ui.battleEnd) end,view) end
         elseif stage=='shot' then
             local enemy; for _,unit in ipairs(b.units) do if unit.id==shotTarget then enemy=unit end end

@@ -40,6 +40,56 @@ class GuestBattleTests(unittest.TestCase):
             panel=require('game.coop_guest_battles').new(view,{catalog=Catalog,content={},colors={}})
         ''')
 
+    def test_weapon_then_target_can_be_clicked_without_a_network_update_between_them(self):
+        self.lua.execute('''
+            panel:update(); local weapon=own.itemSlots.equipment[2]
+            local ammo=own.ammo.rocks; local condition=weapon.durability
+            b.options={weapon.id}; view.ui.battleWeapons={{x=20,y=592,w=166,h=34}}
+            panel:pointer(30,600,false)
+            assert(#requests==0 and panel.mode=='target' and b.phase=='select')
+            local preview=panel:context().battle
+            assert(preview.chosenItemId==weapon.id and preview.chosenWeapon==weapon.name)
+            assert(own.ammo.rocks==ammo and weapon.durability==condition)
+            local Grid=require('game.battle_grid'); local x,y=Grid.boardToScreen(1,1,4)
+            panel:pointer(x,y,false); assert(#requests==0 and panel.mode=='target')
+            x,y=Grid.boardToScreen(1,2,5)
+            panel:pointer(x,y,false)
+            assert(#requests==1 and requests[1].name=='battle.attack')
+            assert(requests[1].args.weapon==weapon.id and requests[1].args.targetId==b.units[3].id)
+            assert(requests[1].args.turnRevision==copy.tacticalBattle.revision)
+            assert(b.phase=='select' and not panel.weapon and not panel.mode)
+            assert(data.tacticalBattle.revision==0 and own.ammo.rocks==ammo)
+        ''')
+
+    def test_weapon_preview_survives_same_turn_snapshots_and_has_controller_targets(self):
+        self.lua.execute('''
+            panel:update(); b.options={own.itemSlots.equipment[2].id}; panel:keypressed('1')
+            assert(#requests==0 and panel.mode=='target')
+            local fresh=Schema.copy(copy); runtime.saveData=Players.forActor(fresh,'companion')
+            runtime.battle=fresh.tacticalBattle.battle; panel:update(.05)
+            assert(panel:context().battle.phase=='target' and runtime.battle.phase=='select')
+            local found=false
+            for _,target in ipairs(panel:targets()) do if target.id=='cell2:5' then found=true end end
+            assert(found and #requests==0)
+        ''')
+
+    def test_weapon_preview_cannot_cross_turn_focus_connection_or_equipment_change(self):
+        self.lua.execute('''
+            local key=own.itemSlots.equipment[2].id
+            local changes={function() copy.tacticalBattle.revision=copy.tacticalBattle.revision+1 end,
+                function() view.focused=false end,function() view.controller.menuOpen=true end,
+                function() view.controller.network={} end,function() view.epoch=view.epoch+1 end,
+                function() b.active=1 end,function() b.finished='win' end,
+                function() Items.write(own,nil,{kind='equipment',index=2},nil) end}
+            for _,change in ipairs(changes) do
+                view.focused=true; view.controller.menuOpen=false; view.controller.network=network
+                b.active=2; b.finished=nil
+                assert(panel:chooseWeapon(key)); change(); panel:update(.01)
+                assert(not panel.weapon and panel.mode~='target' and #requests==0)
+            end
+            assert(not panel:chooseWeapon(data.players.host.itemSlots.equipment[1].id))
+        ''')
+
     def test_owned_turn_carries_scene_turn_unit_and_every_conflict_scope(self):
         self.lua.execute('''
             assert(panel:submit('battle.guard'))
