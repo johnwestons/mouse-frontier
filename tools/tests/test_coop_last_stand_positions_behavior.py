@@ -223,6 +223,18 @@ class LastStandPositionTests(unittest.TestCase):
             assert(quest.state=='shootout' and not quest.rewardClaimed)
         ''')
 
+    def test_in_flight_free_window_claim_survives_unrelated_host_updates(self):
+        self.firing(False)
+        self.lua.execute('''
+            local args={questId=quest.lifecycle.entityId,revision=quest.lifecycle.revision,
+                phaseRevision=quest.combat.phaseRevision,action='ready',window='tall'}
+            local request=assert(service:prepareRequest('companion','lastStand.position',args))
+            assert(readyPosition('host','wide').ok)
+            local r=service:execute('companion',1,request)
+            assert(r.ok,r.reason); assert(occupied('companion') and PositionState.selected(data,'companion')=='tall')
+            assert(Schema.validate(saved))
+        ''')
+
     def test_failed_ready_checkpoint_and_barrier_recovery_preserve_owned_gun(self):
         self.firing()
         self.lua.execute('''

@@ -87,6 +87,39 @@ class LastStandGunCommandsTests(unittest.TestCase):
             assert(Schema.validate(saved) and saved.lastStand.combat.phaseRevision==r.result.phaseRevision)
         ''')
 
+    def test_in_flight_guest_shot_survives_host_fire_and_is_charged_once(self):
+        self.stand()
+        self.lua.execute('''
+            target.health=100; target.maxHealth=100
+            local request=assert(service:prepareRequest('companion','gun.fire',shotArgs('companion')))
+            assert(shoot('host').ok)
+            local r=service:execute('companion',1,request)
+            assert(r.ok,r.reason); assert(r.durable and guest.ammo['22lr']==8)
+            local hp=target.health
+            assert(service:execute('companion',1,request).durable)
+            assert(guest.ammo['22lr']==8 and target.health==hp and writes==2)
+            local loaded=assert(Schema.migrate(saved))
+            local fresh=Authority.new({campaign=loaded,sessionId='concurrent-restart',checkpoint=function() return true end})
+            fresh:admit('companion',1)
+            local fingerprint=assert(require('game.net.codec').encode(request,{maxBytes=1200,maxDepth=8,maxEntries=80,maxStringBytes=128}))
+            assert(fresh:receipt('companion',1,service.sessionId,request.requestId,fingerprint).durable)
+            assert(loaded.players.companion.ammo['22lr']==8)
+        ''')
+
+    def test_live_shared_conflicts_never_relax_personal_or_future_revisions(self):
+        self.stand()
+        self.lua.execute('''
+            local request=assert(service:prepareRequest('companion','gun.fire',shotArgs('companion')))
+            assert(cover('companion',false).ok)
+            -- Use a new transport request ID with the original stale personal state.
+            request.requestId=request.requestId+1
+            assert(service:execute('companion',1,request).reason=='stale_revision')
+            local future=assert(service:prepareRequest('companion','gun.fire',shotArgs('companion')))
+            future.expected['resources']=(data.coop.revisions.resources or 0)+1
+            assert(service:execute('companion',1,future).reason=='stale_revision')
+            assert(guest.ammo['22lr']==9)
+        ''')
+
     def test_miss_cost_and_blocked_aperture_without_cost(self):
         self.stand()
         self.lua.execute('''
@@ -189,7 +222,7 @@ class LastStandGunCommandsTests(unittest.TestCase):
             assert(Schema.validate(data))
         ''')
 
-    def test_one_elimination_and_stale_conflicting_finishing_shot(self):
+    def test_concurrent_finishing_shots_cost_each_shooter_but_award_one_kill(self):
         self.stand()
         self.lua.execute('''
             target.health=.01
@@ -197,7 +230,8 @@ class LastStandGunCommandsTests(unittest.TestCase):
             local guestRequest=assert(service:prepareRequest('companion','gun.fire',shotArgs('companion')))
             local r=service:execute('companion',1,guestRequest); assert(r.ok and r.result.hit)
             assert(quest.kills==1 and target.status=='dying')
-            assert(not service:execute('host',0,hostRequest).ok and host.ammo['22lr']==20)
+            local second=service:execute('host',0,hostRequest)
+            assert(second.ok and not second.result.hit and host.ammo['22lr']==19)
             assert(service:execute('companion',1,guestRequest).durable and quest.kills==1 and guest.ammo['22lr']==8)
         ''')
 

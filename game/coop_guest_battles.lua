@@ -7,6 +7,8 @@ local Commands=require('game.coop_battles')
 local Style=require('game.ui_layout')
 local Focus=require('game.ui_focus')
 local WorldView=require('game.world_view')
+local Animation=require('game.battle_controller')
+local Accessibility=require('game.accessibility')
 local Panel={}; Panel.__index=Panel
 function Panel.new(view,c)
     local self=setmetatable({view=view,c=c,runtime=view.runtime,ui=view.ui},Panel)
@@ -27,13 +29,50 @@ function Panel:submit(name,extra)
     if not s or not self:canAct(Rules.activeUnit(b)) then return false end
     local args={encounterId=s.encounterId,turnRevision=s.revision,unitId=b.units[b.active].id}
     for key,value in pairs(extra or {}) do args[key]=value end
-    local expected={}; for _,scope in ipairs(Commands.scopes(self.runtime.saveData)) do expected[scope]=self.runtime.saveData.coop.revisions[scope] or 0 end
-    local id,reason=self.view.controller.network:submitCommand(name,args,self.view.epoch,expected)
+    local pending={name=name,args=args,epoch=self.view.epoch,encounterId=s.encounterId,
+        network=self.view.controller.network,startedAt=self.elapsed or 0}
+    local id,reason=self:send(pending)
     if not id then self.notice='Action unavailable. Wait for the battlefield to update.'; return false,reason end
-    self.pending={id=id,epoch=self.view.epoch,encounterId=s.encounterId,network=self.view.controller.network}; self.mode=nil; self.notice='Waiting for the host to save this action...'; return true
+    self.pending=pending; self.mode=nil; self.notice='Action sent. Waiting for the host...'; return true
 end
-function Panel:update()
+function Panel:send(pending)
+    local expected={}; for _,scope in ipairs(Commands.scopes(self.runtime.saveData)) do expected[scope]=self.runtime.saveData.coop.revisions[scope] or 0 end
+    local id,reason=pending.network:submitCommand(pending.name,pending.args,pending.epoch,expected)
+    if id then pending.id=id; pending.retryAt=nil; pending.sourceRevision=self.runtime.saveData.coop.revision end
+    return id,reason
+end
+-- These timers only animate the private presentation copy. HP, board positions,
+-- RNG, turn advancement and inventory still come exclusively from the host.
+function Panel:animate(dt,s)
+    local b=self.runtime.battle; local previous=self.visual
+    if not b or not s then self.visual=nil; return end
+    if previous and previous.battle~=b and previous.epoch==self.view.epoch
+        and previous.encounterId==s.encounterId and previous.turn==s.revision then
+        local old=previous.battle
+        for _,key in ipairs({'attackTimer','enemyDelay','hitFlash'}) do b[key]=math.min(b[key] or 0,old[key] or 0) end
+        if not old.intro then b.intro=nil elseif b.intro then b.intro=math.max(b.intro,old.intro) end
+        local function motion(current,prior)
+            if not prior then return nil end
+            if current and current.fromQ==prior.fromQ and current.fromR==prior.fromR
+                and current.toQ==prior.toQ and current.toR==prior.toR then current.t=math.max(current.t,prior.t) end
+            return current
+        end
+        b.projectile=motion(b.projectile,old.projectile)
+        for i,u in ipairs(b.units) do
+            local prior=old.units[i]
+            if prior and u.id==prior.id then
+                for _,key in ipairs({'actionTimer','hitTimer','damageNumberTimer'}) do u[key]=math.min(u[key] or 0,prior[key] or 0) end
+                u.moveAnim=motion(u.moveAnim,prior.moveAnim)
+            end
+        end
+    end
+    Animation.animate({battle=b},math.min(.25,dt or 0)*Accessibility.motionSpeed(self.runtime.saveData))
+    self.visual={battle=b,epoch=self.view.epoch,encounterId=s.encounterId,turn=s.revision}
+end
+function Panel:update(dt)
+    self.elapsed=(self.elapsed or 0)+(dt or 0)
     local s=self.runtime.saveData and self.runtime.saveData.tacticalBattle
+    self:animate(dt,s)
     local p=self.pending
     if p and (not s or p.encounterId~=s.encounterId or p.epoch~=self.view.epoch or p.network~=self.view.controller.network) then
         self.pending=nil; self.notice=nil; self.mode=nil; self.selected=nil
@@ -41,9 +80,26 @@ function Panel:update()
     if not s or self.epoch~=self.view.epoch then self.mode=nil; self.selected=nil; self.epoch=self.view.epoch end
     if s and self.turn~=s.revision then self.mode=nil; self.turn=s.revision end
     local p=self.pending; local reply=self.view.controller.network and self.view.controller.network.lastCommandResult
+    if p and p.retryAt then
+        local active=Rules.activeUnit(self.runtime.battle)
+        if not s or s.revision~=p.args.turnRevision or not active or active.id~=p.args.unitId
+            or self.runtime.battle.finished or not self.view.focused or self.view.controller.menuOpen
+            or self.elapsed-p.startedAt>5 then
+            self.pending=nil; self.notice='Action canceled. Review the current turn.'; return
+        end
+        if self.elapsed>=p.retryAt and self.view.ready and not p.network.pendingCommand
+            and (not p.needsUpdate or self.runtime.saveData.coop.revision>p.sourceRevision) then
+            self:send(p)
+        end
+        return
+    end
     if not p or not reply or reply.requestId~=p.id then return end
     if reply.savePending or reply.reason=='save_pending' or reply.reason=='busy' then self.notice='Waiting for the host to finish saving...'; return end
     if reply.ok and (reply.durable~=true or self.runtime.saveData.coop.revision<reply.revision) then return end
+    if not reply.ok and (reply.reason=='battle_busy' or reply.reason=='stale_revision') then
+        p.id=nil; p.retryAt=self.elapsed+.15; p.needsUpdate=reply.reason=='stale_revision'
+        self.notice='Action queued. Waiting for the battlefield...'; return
+    end
     self.pending=nil; self.lastOutcome=reply
     self.notice=not reply.ok and 'The turn changed or this action is unavailable. Review the battlefield.' or nil
 end

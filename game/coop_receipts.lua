@@ -47,7 +47,7 @@ local function encoded(entry,state)
     end
     for scope,revision in pairs(response.revisions) do
         if type(scope)~="string" or #scope>80 or not integer(revision,1) or revision>response.revision then return nil end
-        if request.expected[scope]~=revision-1 then return nil end
+        if not require('game.coop_command_conflicts').accepts(request.command,request.args,scope,request.expected[scope],revision-1) then return nil end
     end
     for scope in pairs(request.expected) do if response.revisions[scope]==nil then return nil end end
     return Codec.encode(entry,LIMITS)

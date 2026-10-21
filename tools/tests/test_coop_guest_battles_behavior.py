@@ -51,6 +51,49 @@ class GuestBattleTests(unittest.TestCase):
             assert(data.players.companion.health==own.health and data.tacticalBattle.revision==0)
         ''')
 
+    def test_animation_advances_between_packets_without_changing_the_host(self):
+        self.lua.execute('''
+            b.intro=1.5; b.introDuration=1.65; b.attackTimer=.4
+            b.units[2].moveAnim={fromQ=1,fromR=4,toQ=1,toR=5,t=0,duration=.5}
+            local hostIntro=data.tacticalBattle.battle.intro
+            panel:update(.2)
+            assert(not b.intro and math.abs(b.attackTimer-.2)<.001)
+            assert(math.abs(b.units[2].moveAnim.t-.2)<.001)
+            assert(data.tacticalBattle.battle.intro==hostIntro)
+            local fresh=Schema.copy(copy); fresh.tacticalBattle.battle.attackTimer=.35
+            fresh.tacticalBattle.battle.units[2].moveAnim.t=.05
+            runtime.saveData=Players.forActor(fresh,'companion'); runtime.battle=fresh.tacticalBattle.battle
+            panel:update(.1)
+            assert(math.abs(runtime.battle.attackTimer-.1)<.001)
+            assert(math.abs(runtime.battle.units[2].moveAnim.t-.3)<.001)
+        ''')
+
+    def test_one_press_waits_out_host_animation_and_never_repeats_success(self):
+        self.lua.execute('''
+            assert(panel:submit('battle.guard'))
+            network.lastCommandResult={requestId=1,ok=false,reason='battle_busy'}
+            panel:update(.1); assert(panel.pending and #requests==1)
+            panel:update(.25); assert(#requests==2 and requests[2].name=='battle.guard')
+            assert(not panel:submit('battle.guard'))
+            network.lastCommandResult={requestId=2,ok=true,durable=true,revision=copy.coop.revision}
+            panel:update(.1); panel:update(1)
+            assert(not panel.pending and #requests==2 and panel.lastOutcome.ok)
+        ''')
+
+    def test_busy_retry_cannot_cross_turn_focus_or_connection(self):
+        self.lua.execute('''
+            for _,change in ipairs({function() copy.tacticalBattle.revision=1 end,
+                function() view.focused=false end,function() view.controller.network={} end}) do
+                copy.tacticalBattle.revision=0; view.focused=true; view.controller.network=network
+                panel.pending=nil; network.lastCommandResult=nil
+                assert(panel:submit('battle.endTurn'))
+                local count=#requests
+                network.lastCommandResult={requestId=count,ok=false,reason='battle_busy'}
+                panel:update(.01); change(); panel:update(.5)
+                assert(#requests==count and not panel.pending)
+            end
+        ''')
+
     def test_save_retry_and_replica_revision_hold_pending_without_resubmit(self):
         self.lua.execute('''
             assert(panel:submit('battle.guard')); panel.mode='move'

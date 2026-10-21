@@ -106,7 +106,8 @@ local function load()
         else
             Save.remove(1); c.runtime.selectedSlot=1
             local draft=c.newSave(c.characters[1]); draft.location=2; draft.scene='stop'; draft.stopped=true; draft.passengers={}
-            check(c.enterGame(draft),'initial canonical seed failed'); local data=c.runtime.saveData
+            draft.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
+            local entered,reason=c.enterGame(draft); check(entered,'initial canonical seed failed: '..tostring(reason)); local data=c.runtime.saveData
             data.scene='stop'; data.location=2; data.stopped=true; c.runtime.scene='stop'; c.runtime.state='game'; c.ensureStopLayout()
             data.encounters['2']={rolled=true,hasMob=true,resolved=false,tier='easy',
                 mobFiles={c.catalog.mobTiers.easy[1],c.catalog.mobTiers.easy[2]}}
@@ -127,7 +128,7 @@ local function load()
                 check(Items.ensure(campaign),'companion kit seed failed'); return true
             end
         end
-        lp.port=port; c.runtime.state='slots'; menu(); click('host'); app.draw(); press(c.ui.slots[1])
+        lp.port=port; c.runtime.state='slots'; menu(); click('saveSlot'); click('slot_1'); click('host')
         check(lp.network and c.session.networkMode=='host','real saved-slot hosting entry failed'); menu(); hostCommands(lp)
         if resumed then
             check(c.runtime.state=='battle','real saved-slot entry did not restore tactical state')
@@ -141,10 +142,15 @@ local function load()
         stage=resumed and 'resume-wait' or 'hosting'; print('LAN_SMOKE_LISTENING')
     else
         c.runtime.state='slots'; menu(); click('address','127.0.0.1:'..port); click('name','Battle friend')
-        -- Select an existing support traveler through the actual profile control.
-        local limit=#lp:characters(); local allowed={heal=true,nourish=true,repair=true,rally=true,protect=true,haste=true,disarm=true}
-        for _=1,limit do if allowed[c.catalog.characterAbility(lp:character()).kind] then break end; click('next') end
-        check(allowed[c.catalog.characterAbility(lp:character()).kind],'no support traveler available'); click('join'); stage='joining'
+        local allowed={heal=true,nourish=true,repair=true,rally=true,protect=true,haste=true,disarm=true}
+        local character; for _,file in ipairs(c.characters) do if allowed[c.catalog.characterAbility(file).kind] then character=file; break end end
+        check(character,'no support traveler available')
+        local own=c.newSave(character); own.health=math.min(12,own.maxHealth-8)
+        Items.write(own,nil,{kind='equipment',index=2},'frontier-22-lever-rifle'); own.ammo['22lr']=9
+        Items.write(own,nil,{kind='inventory',index=1},'field-bandage-roll')
+        Items.write(own,nil,{kind='inventory',index=2},'green-regeneration-vial')
+        check(Save.write(1,own),'guest selected slot seed failed')
+        click('saveSlot'); click('slot_1'); click('join'); stage='joining'
     end
 end
 local function denied(name,data)

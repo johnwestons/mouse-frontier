@@ -143,7 +143,8 @@ class LastStandLifecycleAcceptanceTests(unittest.TestCase):
             local guestRequest=assert(service:prepareRequest('companion','gun.fire',shot('companion')))
             local r=service:execute('companion',1,guestRequest); assert(r.ok and r.durable and r.result.hit,r.reason)
             assert(quest.kills==1 and target.status=='dying' and guest.ammo['22lr']==8)
-            assert(service:execute('host',0,hostRequest).reason=='stale_revision' and host.ammo['22lr']==20)
+            local simultaneous=service:execute('host',0,hostRequest)
+            assert(simultaneous.ok and not simultaneous.result.hit and host.ammo['22lr']==19)
             local morale,integrity=quest.enemyMorale,quest.positionIntegrity
             local fingerprint=assert(require('game.net.codec').encode(guestRequest,{maxBytes=1200,maxDepth=8,maxEntries=80,maxStringBytes=128}))
             restartAuthority()
@@ -152,7 +153,8 @@ class LastStandLifecycleAcceptanceTests(unittest.TestCase):
             assert(receipt.ok and receipt.durable and receipt.result.hit and quest.kills==1 and guest.ammo['22lr']==8)
             assert(service:execute('companion',1,guestRequest).reason=='wrong_session')
             assert(readyPosition('host','wide').ok and readyPosition().ok)
-            local after=run('host','gun.fire',shot('host')); assert(after.ok and not after.result.hit)
+            -- Restart retains the first shot's cooldown as well as its ammo cost.
+            local after=run('host','gun.fire',shot('host')); assert(not after.ok)
             assert(quest.kills==1 and guest.ammo['22lr']==8 and host.ammo['22lr']==19 and Schema.validate(saved))
         ''')
 

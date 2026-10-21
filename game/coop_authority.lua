@@ -242,7 +242,9 @@ function Authority:_execute(actorId,request,fingerprint)
     if expectedCount~=#operation.scopes then return failure("invalid_revisions") end
     for _,scope in ipairs(operation.scopes) do
         local revision=self.campaign.coop.revisions[scope] or 0
-        if request.expected[scope]~=revision then return failure("stale_revision") end
+        if not require('game.coop_command_conflicts').accepts(request.command,request.args,scope,request.expected[scope],revision) then
+            return failure('stale_revision')
+        end
         if not operation.transientOnly and revision>=MAX_REVISION then return failure("revision_exhausted") end
     end
     if not operation.transientOnly and draft.coop.revision>=MAX_REVISION then return failure("revision_exhausted") end

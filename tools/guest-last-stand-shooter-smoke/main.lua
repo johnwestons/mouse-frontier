@@ -88,7 +88,7 @@ end
 local function injectFailure(label)
     check(not restoreWrite,'overlapping failure injection'); restoreWrite=love.filesystem.write
     love.filesystem.write=function(path,...)
-        if path=='saves/slot99.lua.tmp' then return false,label..' fixture failure' end
+        if path=='saves/slot1.lua.tmp' then return false,label..' fixture failure' end
         return restoreWrite(path,...)
     end
 end
@@ -100,10 +100,11 @@ local function load()
     love.keyboard.isDown=function(key,...) if key==movementKey then return true end; return oldKeyboard(key,...) end
     local lp=c.ui.localPlay; lp.context.bind='127.0.0.1'
     if role=='host' then
-        c.runtime.selectedSlot=99; Save.remove(99)
+        c.runtime.selectedSlot=1; Save.remove(1)
         local draft=c.newSave(c.characters[1]); draft.location=12; draft.scene='stop'; draft.passengers={}
+        draft.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
         draft.lastStand={state='interior',originStop=12,returnX=270,returnY=490}
-        check(c.enterGame(draft),'host load failed'); app.update(.01)
+        local entered,reason=c.enterGame(draft); check(entered,'host load failed: '..tostring(reason)); app.update(.01)
         local data=c.runtime.saveData
         Items.write(data,nil,{kind='equipment',index=2},'frontier-22-lever-rifle')
         check(Items.owned(data,'frontier-22-lever-rifle'),'host firearm seed failed')
@@ -155,8 +156,11 @@ local function load()
         button('p'); check(c.runtime.lastStand.paused,'host pause failed')
         stage='interior'; print('LAN_SMOKE_LISTENING')
     else
+        local own=c.newSave(c.characters[2] or c.characters[1])
+        Items.write(own,nil,{kind='equipment',index=2},'frontier-22-lever-rifle'); own.ammo['22lr']=40
+        check(Save.write(1,own),'guest selected slot seed failed')
         c.runtime.state='slots'; c.runtime.selectedSlot=nil
-        menu(); click('address','127.0.0.1:'..port); click('name','Defense friend'); click('join')
+        menu(); click('address','127.0.0.1:'..port); click('name','Defense friend'); click('saveSlot'); click('slot_1'); click('join')
         check(lp.network,'guest join failed '..tostring(lp.error)); stage='joining'
     end
 end
@@ -204,7 +208,7 @@ local function hostUpdate()
         check(data.players.companion.ammo['22lr']==39 and data.ammo['22lr']==40 and q.weaponSession.itemId==hostGun,'shot changed host firearm')
         check(q.targets[targetIndex].health<q.targets[targetIndex].maxHealth,'guest missed actual aperture/target')
         ownGun=q.shooterSessions.companion.weaponSession.itemId; check(ownGun~=hostGun,'actors shared a gun identity')
-        local disk=assert(Save.read(99)); check(disk.players.companion.ammo['22lr']==39 and disk.lastStand.shooterSessions.companion.weaponSession.itemId==ownGun,'shot disk receipt missing')
+        local disk=assert(Save.read(1)); check(disk.players.companion.ammo['22lr']==39 and disk.lastStand.shooterSessions.companion.weaponSession.itemId==ownGun,'shot disk receipt missing')
         marker('host.shot.disk',ownGun); stage='controls'
     elseif stage=='controls' and read('guest.controls.saved') then
         local own=q.shooterSessions.companion.weaponSession
@@ -215,7 +219,7 @@ local function hostUpdate()
             and not q.loanActive and (q.loanAmmo or 0)==0,'personal loan supply/shot leaked or refilled')
         check(lp.authority:checkpointNow(),'controls checkpoint failed'); marker('host.controls.disk',own.magazine); stage='rejoin'
     elseif stage=='rejoin' and read('guest.rejoined') then
-        local disk=assert(Save.read(99)); local own=disk.lastStand.shooterSessions.companion.weaponSession
+        local disk=assert(Save.read(1)); local own=disk.lastStand.shooterSessions.companion.weaponSession
         check(approvals>=1 and lp.generation>firstGeneration and own.itemId==ownGun and disk.players.companion.ammo['22lr']==39,'reconnect reset gun, ammunition or connection generation')
         check(disk.lastStand.combat.phaseRevision==phaseRevision and disk.lastStand.combat.entityId==encounterId,'reconnect reset encounter')
         check(disk.lastStand.shooterSessions.companion.loanAmmo==47 and not own.borrowed,'reconnect refilled loan or changed selected firearm')
@@ -280,7 +284,7 @@ local function hostUpdate()
             check(data.ammo['22lr']==39 and data.players.companion.ammo['22lr']==38
                 and q.shooterSessions.companion.loanAmmo==47,'enemy pressure changed ammunition pools')
             check(lp.authority:checkpointNow(),'pressure outcome checkpoint failed')
-            local disk=assert(Save.read(99)); check(disk.lastStand.kills==simultaneousKills+1
+            local disk=assert(Save.read(1)); check(disk.lastStand.kills==simultaneousKills+1
                 and disk.lastStand.combat.defenders.companion.playerDamage>0,'pressure settlement was not saved')
             marker('host.done'); stage='done'
         end
@@ -403,7 +407,9 @@ local function guestUpdate()
         marker('guest.controls.saved'); stage='disconnect'
     elseif stage=='disconnect' and read('host.controls.disk') then
         baselineMagazine=tonumber(read('host.controls.disk')); firstGeneration=view.motionId
-        lp:stop('fixture_rejoin'); menu(); click('join'); stage='reconnecting'
+        lp:stop('fixture_rejoin'); submittedAt=love.timer.getTime(); stage='reconnect-delay'
+    elseif stage=='reconnect-delay' and love.timer.getTime()-submittedAt>1 then
+        menu(); click('join'); stage='reconnecting'
     elseif stage=='reconnecting' and lp.phase=='connected' and view and panel:canAct() then
         check(view.motionId~=firstGeneration and panel.position and not next(panel.held),'rejoin lacked fresh checked readiness')
         check(panel.gun.itemId==ownGun and panel.gun.magazine==baselineMagazine and view.runtime.saveData.ammo['22lr']==39,'rejoin refilled or replaced owned gun')

@@ -818,7 +818,13 @@ local function install(context)
                     and result.from==1 and result.committed and result.savedCar==7
                     and snapshot.activeCar==7 and snapshot.carTransitioning
             end},
-            {name="complete_train_car_transition",action=function() return true end,
+            {name="complete_train_car_transition",action=function()
+                    -- Fast packaged runs can exhaust the simulated timeout
+                    -- before this real authority deadline elapses.
+                    local remaining=.8-(love.timer.getTime()-ui.smokeCarTransitionStarted)
+                    if remaining>0 then love.timer.sleep(remaining) end
+                    return true
+                end,
                 -- Autoplay advances simulation faster than wall time. The
                 -- authority uses host time, so also wait for its transition
                 -- before testing an activity that would correctly be blocked.
