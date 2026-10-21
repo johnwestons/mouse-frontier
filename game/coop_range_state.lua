@@ -10,7 +10,7 @@ local function reference(v,prefix) return P.text(v,32) and v:match('^'..prefix..
 local function contains(values,v) for _,entry in ipairs(values) do if entry==v then return true end end end
 local function fields(names) local result={}; for name in names:gmatch('%S+') do result[name]=true end; return result end
 local gunFields=fields('weapon itemId ammoType capacity loaded needsReload cooldown reloadTimer fireMode weaponAction '
-    ..'weaponActionElapsed weaponReloadDuration tubeReloadTotalRounds tubeReloadRemaining tubeReloadCompleted '
+    ..'weaponActionElapsed weaponActionSerial weaponReloadDuration tubeReloadTotalRounds tubeReloadRemaining tubeReloadCompleted '
     ..'tubeReloadRoundTimer weaponViewSequence weaponViewState weaponViewPlacement')
 local sessionFields=fields('version entityId spotId location roundRevision phase weapons selected clock score shots hits '
     ..'targets dirtImpacts spawnIndex nextSpawn time message motion material targetPattern stageLength distance sectionsHit '
@@ -33,6 +33,7 @@ local function gun(g)
         or not number(g.cooldown,0,60) or not number(g.reloadTimer,0,120)
         or not Manifest.fireModeValid(g.weapon,g.fireMode) and g.fireMode~='single' then return false end
     if g.weaponAction~=nil and g.weaponAction~='fire' and g.weaponAction~='reload' then return false end
+    if g.weaponActionSerial~=nil and not P.integer(g.weaponActionSerial,1,1000000000) then return false end
     for _,key in ipairs({'weaponActionElapsed','weaponReloadDuration','tubeReloadRoundTimer'}) do
         if g[key]~=nil and not number(g[key],0,120) then return false end
     end

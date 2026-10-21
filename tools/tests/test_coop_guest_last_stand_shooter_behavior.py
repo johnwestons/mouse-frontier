@@ -44,6 +44,37 @@ class GuestLastStandShooterTests(unittest.TestCase):
             end
         ''')
 
+    def test_late_snapshot_does_not_rewind_or_replay_the_same_authored_shot(self):
+        self.shooter()
+        self.lua.execute('''
+            positioned(); local Actions=require('game.first_person_weapon_actions')
+            local saved=view.runtime.saveData.lastStand.shooterSessions.companion.weaponSession
+            Actions.beginFire(saved); saved.weaponActionElapsed=.02; view.revision=4
+            panel:update(.05); panel:update(.08); local elapsed=panel.gun.weaponActionElapsed
+            saved.weaponActionElapsed=.04; view.revision=5; panel:update(.01)
+            assert(panel.gun.weaponActionElapsed>=elapsed,'late snapshot rewound fire frames')
+            assert(saved.weaponActionElapsed==.04 and saved.magazine==3)
+            panel:update(.1); assert(panel.gun.weaponAction==nil)
+            saved.weaponActionElapsed=.12; view.revision=6; panel:update(.01)
+            assert(panel.gun.weaponAction==nil,'completed shot replayed')
+            Actions.beginFire(saved); view.revision=7; panel:update(.01)
+            assert(panel.gun.weaponAction=='fire' and panel.gun.weaponActionElapsed<.075,'new shot did not restart')
+        ''')
+
+    def test_reload_frames_keep_progress_but_new_encounter_phase_resets_presentation(self):
+        self.shooter()
+        self.lua.execute('''
+            positioned(); local A=require('game.first_person_weapon_actions')
+            local q=view.runtime.saveData.lastStand; local saved=q.shooterSessions.companion.weaponSession
+            A.beginReload(saved,3); saved.reloadTimer=2; view.revision=4
+            panel:update(.05); panel:update(.08); local elapsed=panel.gun.weaponActionElapsed
+            view.revision=5; panel:update(.01)
+            assert(panel.gun.weaponActionElapsed>=elapsed and saved.weaponActionElapsed==0)
+            assert(panel.gun.reloadTimer==2 and panel.gun.magazine==saved.magazine)
+            q.combat.phaseRevision=q.combat.phaseRevision+1; view.revision=6; panel:sync()
+            assert(panel.gun.weaponActionElapsed==0)
+        ''')
+
     def test_position_ready_bootstraps_even_when_nonwalking_frame_is_paused(self):
         self.shooter()
         self.lua.execute('''

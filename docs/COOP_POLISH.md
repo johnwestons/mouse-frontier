@@ -142,3 +142,18 @@ Validation: **1,393 co-op checks passed** (`.stabilization/coop-suite-results/lo
 Android **0.7.0-mobile.48** and `output/windows/coop-mobile48-candidate/` use gameplay fingerprint `3280c63120ad83767c705001b9efc14f88ffb22574b29172c670a46913c69a06` (schema 47 / protocol 31). APK signature and source inventory audits passed. Device probing and installation were skipped at the user's request; phone performance is not claimed. Both peers need matching builds for Local Play.
 
 The matching fused Windows executable passed **110 checkpoints** (`.stabilization/coop-suite-results/windows-fused-mobile48.rpt`). The final packaged targeting screenshot was visually inspected. Per-platform acceptance records retain the exact APK, archive and executable hashes.
+
+## Client firearm animation continuity, October 21
+
+Reproduced delayed snapshots rewinding client fire frames in both Last Stand and the gun range, including replaying a muzzle flash after the private animation had finished. Fire and reload actions now carry an optional bounded serial in their owned gun record. Refreshing a detached client presentation keeps the furthest authored frame clock for the same action; a completed shot stays completed. A new shot, reload, weapon, encounter phase or range round starts its own presentation. Older saves without the optional serial remain valid. The serial survives gun caches and save/load and is strictly validated.
+
+This changes only authored sprite playback. The client does not advance authoritative cooldowns, complete reloads, load ammunition, spend reserves, damage enemies or award hits. Tube-reload frame clocks may progress privately while the displayed ammunition and controls continue to use host state.
+
+Validation: **1,400 co-op regression checks passed**, with seven new checks covering delayed snapshots, completed-shot replay, subsequent shots, reload continuity, round/phase resets, legacy records, bounded serial validation and save/cache persistence (`.stabilization/coop-suite-results/weapon-continuity49.log`). Both delayed-shot reproductions failed before the fix. Native two-process tests used the final optimized package and simulated touch controls:
+
+- Last Stand: `.stabilization/coop-weapon-continuity49-laststand/run-ea0533d19e80476b82333cbedeb972a8/`. Client shooting, owned reloads, gun switching, fire modes, loans, supply, independent positions, simultaneous settlement, enemy pressure, cover, reconnect and failed ready/gun checkpoint recovery passed.
+- Gun range: `.stabilization/coop-weapon-continuity49-range/run-02cfd2ac237646719f7b3c255c57ea2a/`. Both players completed independent timed courses with touch controls; private pause, partial magazine/reload resume, reconnect, one shared reward, failed ammo-save recovery and client stop melee passed.
+
+Both reload captures were visually inspected. Packaged mobile autoplay passed **117 checkpoints** (`.stabilization/coop-weapon-continuity49-package.rpt`). Android **0.7.0-mobile.49** and `output/windows/coop-mobile49-candidate/` share fingerprint `97d9cdadf77556dc9c23f7817c6cb9ce3b04ca040c4038805fda849f31c3bca4` (schema 47 / protocol 31). APK signing and source/embedded-package audits passed. Device probing and installation remain disabled at the user's request; actual phone responsiveness has not been measured. Existing user saves were not touched.
+
+The matching fused Windows executable passed **110 checkpoints** (`.stabilization/coop-suite-results/windows-fused-mobile49.rpt`). Acceptance records store the matching package, executable and APK hashes. Install build 49 on both peers for matching Local Play files.

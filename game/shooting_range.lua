@@ -1329,7 +1329,7 @@ end
 -- injected randomness, and finite, detached records. Device pose never enters
 -- these records; presentation reconstructs it from the local controls.
 local gunFields={"weapon","itemId","ammoType","capacity","loaded","needsReload","cooldown","reloadTimer",
-    "fireMode","weaponAction","weaponActionElapsed","weaponReloadDuration","tubeReloadTotalRounds",
+    "fireMode","weaponAction","weaponActionElapsed","weaponActionSerial","weaponReloadDuration","tubeReloadTotalRounds",
     "tubeReloadRemaining","tubeReloadCompleted","tubeReloadRoundTimer","weaponViewSequence",
     "weaponViewState","weaponViewPlacement"}
 local privateFields={"spot","npc","aimX","aimY","aimMode","touchAim","fireHeld","hasMonocular","monocularActive","menuRow","reloadPulse"}

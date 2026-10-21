@@ -87,6 +87,7 @@ function Panel:sync()
         local saved=scope and scope.weaponSession
         if saved then
             local old=self.gun; self.gun=Sessions.view(assert(Schema.copy(saved)),960,720)
+            Actions.preservePresentation(self.gun,old)
             if old then Shooting.setAim(self.gun,old.aimX,old.aimY); Shooting.setADS(self.gun,old.ads); self.gun.touchAim=old.touchAim end
         else self.gun=nil end
         self.seenRevision=v.revision

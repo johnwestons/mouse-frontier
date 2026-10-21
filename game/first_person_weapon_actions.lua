@@ -128,6 +128,7 @@ function Actions.adsFrameIndex(state)
 end
 
 function Actions.beginFire(state)
+    state.weaponActionSerial=((state.weaponActionSerial or 0)%1000000000)+1
     state.weaponAction="fire"
     state.weaponActionElapsed=0
 end
@@ -143,6 +144,7 @@ function Actions.reloadDuration(state,rounds)
 end
 
 function Actions.beginReload(state,rounds)
+    state.weaponActionSerial=((state.weaponActionSerial or 0)%1000000000)+1
     state.weaponAction="reload"
     state.weaponActionElapsed=0
     local profile=Manifest.reloadProfileFor(state.weapon)
@@ -196,6 +198,19 @@ function Actions.consumeTubeRounds(state)
     local count=math.max(0,math.floor(tonumber(state and state.tubeReloadCompleted) or 0))
     if state then state.tubeReloadCompleted=0 end
     return count
+end
+
+-- Use only on detached presentation models, within the same encounter/round.
+-- A snapshot can trail the local authored frames. The serial distinguishes a
+-- new action from an older observation of one we have already displayed.
+function Actions.preservePresentation(state,previous)
+    if not previous or not state.weaponActionSerial or state.weaponActionSerial~=previous.weaponActionSerial
+        or state.weapon~=previous.weapon or state.itemId~=previous.itemId then return end
+    if state.weaponAction=='fire' and previous.weaponAction==nil then
+        Actions.finish(state)
+    elseif state.weaponAction and state.weaponAction==previous.weaponAction then
+        Actions.update(state,math.max(0,(previous.weaponActionElapsed or 0)-(state.weaponActionElapsed or 0)))
+    end
 end
 
 return Actions

@@ -58,6 +58,21 @@ class RangeCommandTests(unittest.TestCase):
             assert(acquire('host').ok); assert(acquire('companion').ok)
         ''')
 
+    def test_action_serial_survives_range_cache_and_save_and_rejects_malformed_values(self):
+        self.range()
+        self.lua.execute('''
+            assert(acquire('companion').ok); assert(config('companion','start').ok)
+            assert(rangeRun('companion','range.fire',{x=500000,y=500000}).ok)
+            local s=lane('companion'); assert(s.weaponActionSerial==1)
+            assert(s.weaponSessions[s.itemId].weaponActionSerial==1)
+            local restored=assert(Schema.migrate(assert(Schema.copy(data))))
+            assert(restored.rangeSessions.companion.weaponActionSerial==1 and RangeState.validate(restored))
+            for _,bad in ipairs({0,-1,1.5,1000000001,'1',math.huge}) do
+                local copy=assert(Schema.copy(data)); copy.rangeSessions.companion.weaponActionSerial=bad
+                assert(not RangeState.validate(copy))
+            end
+        ''')
+
     def test_two_independent_lanes_and_own_revision_scopes(self):
         self.range()
         self.lua.execute('''

@@ -1,6 +1,7 @@
 -- Private practice controls. Targets, ammunition and rewards belong to the host.
 local Range=require('game.shooting_range')
 local Shooting=require('game.first_person_shooting')
+local Actions=require('game.first_person_weapon_actions')
 local Life=require('game.coop_last_stand_lifecycle')
 local Typography=require('game.typography')
 local Accessibility=require('game.accessibility')
@@ -147,11 +148,13 @@ function Panel:sync()
     local s=self:state(); local v=self.view
     if not s then self.model=nil; return end
     local identity=s.spotId..':'..s.roundRevision..':'..tostring(s.itemId or s.weapon)..':'..s.phase
-    if self.identity~=identity then self:suspend(); self.identity=identity; self.modelRevision=nil end
+    if self.identity~=identity then self:suspend(); self.identity=identity; self.modelRevision=nil; self.model=nil end
     if self.modelRevision~=v.revision then
         self.pose.hasMonocular=Range.hasMonocular(v.runtime.saveData)
         if not self.pose.hasMonocular then self.pose.monocularActive=false end
+        local previous=self.model
         self.model=Range.presentation(s,self.pose); self.modelRevision=v.revision
+        Actions.preservePresentation(self.model,previous)
         self.pose.aimX,self.pose.aimY,self.pose.touchAim=self.model.aimX,self.model.aimY,self.model.touchAim
     end
     v.runtime.shootingRange=self.opened and self.model or nil

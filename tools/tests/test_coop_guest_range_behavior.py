@@ -47,6 +47,34 @@ class GuestRangeTests(unittest.TestCase):
             end
         ''')
 
+    def test_late_snapshot_does_not_rewind_or_replay_the_same_authored_shot(self):
+        self.range()
+        self.lua.execute('''
+            playing(); local Actions=require('game.first_person_weapon_actions'); local s=panel:state()
+            Actions.beginFire(s); s.weaponActionElapsed=.02; panel.modelRevision=nil
+            panel:update(.05); panel:update(.08); local elapsed=panel.model.weaponActionElapsed
+            s.weaponActionElapsed=.04; view.revision=view.revision+1; panel:update(.01)
+            assert(panel.model.weaponActionElapsed>=elapsed,'late snapshot rewound range fire frames')
+            assert(s.weaponActionElapsed==.04)
+            panel:update(.08); assert(panel.model.weaponAction==nil)
+            s.weaponActionElapsed=.12; view.revision=view.revision+1; panel:update(.01)
+            assert(panel.model.weaponAction==nil,'completed range shot replayed')
+            Actions.beginFire(s); view.revision=view.revision+1; panel:update(.01)
+            assert(panel.model.weaponAction=='fire' and panel.model.weaponActionElapsed<.075,'new range shot did not restart')
+        ''')
+
+    def test_reload_frames_keep_progress_but_new_round_resets_presentation(self):
+        self.range()
+        self.lua.execute('''
+            playing(); local A=require('game.first_person_weapon_actions'); local s=panel:state()
+            A.beginReload(s,3); s.reloadTimer=2; view.revision=view.revision+1
+            panel:update(.05); panel:update(.08); local elapsed=panel.model.weaponActionElapsed
+            view.revision=view.revision+1; panel:update(.01)
+            assert(panel.model.weaponActionElapsed>=elapsed and s.weaponActionElapsed==0)
+            assert(panel.model.reloadTimer==2 and panel.model.loaded==s.loaded)
+            s.roundRevision=s.roundRevision+1; panel:sync(); assert(panel.model.weaponActionElapsed==0)
+        ''')
+
     def test_actual_proximity_opens_private_lane_without_host_range(self):
         self.range()
         self.lua.execute('''

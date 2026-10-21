@@ -46,6 +46,48 @@ class ShooterSessionTests(unittest.TestCase):
             assert(ggun.cooldown==gg.cooldown and h.ammo['22lr']==20 and g.ammo['22lr']==8)
         ''')
 
+    def test_action_serial_survives_save_cache_and_legacy_missing_serial(self):
+        self.lua.execute('''
+            assert(gg.weaponActionSerial==nil and Schema.validate(data))
+            assert(Shooting.fire(gg,guest,quest)); local serial=gg.weaponActionSerial
+            assert(serial==1 and Schema.validate(data))
+            local d,h,g,hgun,ggun=loaded(); assert(ggun.weaponActionSerial==serial)
+            Shooting.update(ggun,1,g,d.trainAmbush,960,720)
+            ggun.magazine=1
+            assert(Shooting.reload(ggun,g,d.trainAmbush) and ggun.weaponActionSerial==serial+1)
+            Shooting.useLoan(ggun,g,Catalog,d.trainAmbush)
+            assert(d.trainAmbush.shooterSessions.companion.weaponSessions[gg.itemId].weaponActionSerial==serial+1)
+            assert(Schema.validate(d))
+            for _,bad in ipairs({0,-1,1.5,1000000001,'1',math.huge}) do
+                local copy=assert(Schema.copy(d))
+                copy.trainAmbush.shooterSessions.companion.weaponSession.weaponActionSerial=bad
+                assert(not Schema.validate(copy))
+            end
+        ''')
+
+    def test_private_reload_frames_advance_without_loading_or_spending_and_reset_on_new_action(self):
+        self.lua.execute('''
+            local A=require('game.first_person_weapon_actions')
+            gg.magazine=1; assert(Shooting.reload(gg,guest,quest))
+            local source=assert(Schema.copy(Sessions.record(gg)))
+            local private=assert(Schema.copy(source)); local profile=require('game.first_person_weapon_manifest').reloadProfileFor(gg.weapon)
+            A.update(private,profile.startSeconds+profile.roundSeconds+.03)
+            local nextFrame=assert(Schema.copy(source)); A.preservePresentation(nextFrame,private)
+            assert(nextFrame.weaponActionElapsed==private.weaponActionElapsed)
+            assert(nextFrame.tubeReloadRemaining==private.tubeReloadRemaining and nextFrame.tubeReloadRoundTimer==private.tubeReloadRoundTimer)
+            assert(nextFrame.magazine==source.magazine and nextFrame.reloadTimer==source.reloadTimer and guest.ammo['22lr']==9)
+            assert(gg.weaponActionElapsed==0 and gg.tubeReloadRemaining==source.tubeReloadRemaining)
+            A.finish(nextFrame); A.preservePresentation(nextFrame,private); assert(nextFrame.weaponAction==nil)
+            for _,reset in ipairs({
+                function(s) A.beginReload(s,2) end,
+                function(s) s.itemId='i9999' end,
+                function(s) s.weaponActionSerial=nil end}) do
+                local nextFrame=assert(Schema.copy(source)); reset(nextFrame); A.preservePresentation(nextFrame,private)
+                assert(nextFrame.weaponActionElapsed==0)
+            end
+            gg.weaponActionSerial=1000000000; A.beginFire(gg); assert(gg.weaponActionSerial==1)
+        ''')
+
     def test_aim_ads_touch_held_fire_and_device_geometry_are_private(self):
         self.lua.execute('''
             Shooting.setAim(hg,220,170); Shooting.setADS(hg,true); hg.fireHeld=true; hg.fireHeldSources={mouse=true}

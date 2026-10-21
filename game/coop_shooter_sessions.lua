@@ -5,7 +5,7 @@ local Items=require('game.item_instances')
 local P=require('game.net.protocol')
 local Sessions={VERSION=1}
 local persistent={actorId=true,weapon=true,itemId=true,ammoType=true,capacity=true,borrowed=true,magazine=true,
-    reloadTimer=true,cooldown=true,fireMode=true,weaponAction=true,weaponActionElapsed=true,
+    reloadTimer=true,cooldown=true,fireMode=true,weaponAction=true,weaponActionElapsed=true,weaponActionSerial=true,
     weaponReloadDuration=true,tubeReloadTotalRounds=true,tubeReloadRemaining=true,
     tubeReloadCompleted=true,tubeReloadRoundTimer=true}
 local views=setmetatable({},{__mode='kv'})
@@ -114,6 +114,7 @@ function Sessions.prepare(data)
 end
 local function validGun(gun,catalog,actor,key)
     if type(gun)~='table' or getmetatable(gun)~=nil or not P.fields(gun,persistent) then return false end
+    if gun.weaponActionSerial~=nil and not P.integer(gun.weaponActionSerial,1,1000000000) then return false end
     if gun.actorId~=actor.id then return false end
     if gun.weapon==nil then
         return key==nil and gun.itemId==nil and gun.ammoType==nil and gun.capacity==nil and gun.borrowed==nil
