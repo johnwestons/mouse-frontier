@@ -91,6 +91,9 @@ local function load()
         Save.remove(1); c.runtime.selectedSlot=1
         local draft=c.newSave(c.characters[1]); draft.location=stop; draft.scene='stop'; draft.stopped=true
         draft.homeStop={version=1,stage='departed',suppliesCollected=true,repairComplete=true,inOffice=false}
+        -- Keep the independently tested Last Stand offer from interrupting this
+        -- visits fixture while the client is still loading larger desktop art.
+        draft.lastStand={state='complete',completed=true,rewardClaimed=true}
         draft.events[tostring(stop)]={id='resolved'}
         draft.encounters[tostring(stop)]={hasMob=false,resolved=true}
         if caravan then draft.crowCaravans={scheduledStops={9,24,40},scheduleVersion=1,scheduleMode='journey',camps={}} end
