@@ -95,7 +95,7 @@ class HomeStopTests(unittest.TestCase):
                 command='home.advance',args={action='talk'},expected={}}
             assert(service:execute('companion',1,req).reason=='host_only')
             states.host.x,states.host.y=465,455; states.host.activityBlocked=true
-            assert(advance('talk').reason=='home_step_unavailable')
+            assert(advance('talk').reason=='scene_unavailable') -- Generic activity gate precedes the home-step gate.
             states.host.activityBlocked=false; states.host.screen='battle'
             assert(advance('talk').reason=='scene_unavailable')
             assert(data.homeStop.dialogueLine==nil and data.resources.food==0)

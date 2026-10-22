@@ -4,6 +4,8 @@ local Viewport=require("game.viewport")
 local WorldView=require("game.world_view")
 local UIStyle=require("game.ui_layout")
 local Items=require("game.item_instances")
+local Native=require('game.battle_native_ui')
+local Field=require('game.battle_field')
 
 local function required(context,name,kind)
     local value=context[name]
@@ -44,6 +46,11 @@ local function steps(context)
         tap(rect.x+rect.w/2,rect.y+rect.h/2)
     end
     local function board(q,r)
+        if game.battle and game.battle.field then
+            local camera=Native.camera(ui,game.battle)
+            camera:focus(q,r,Field.cellHeight(game.battle.field,q,r));draw()
+            local x,y=Native.project({ui=ui,battle=game.battle},q,r);tap(x,y);return
+        end
         local x,y=Grid.boardToScreen(1,q,r)
         x,y=WorldView.toScreen(x,y)
         local point=UIStyle.transformRectFor("battle",{x=0,y=0,w=960,h=720},{x=x,y=y,w=0,h=0})
@@ -62,6 +69,22 @@ local function steps(context)
         control(ui.battleWeapons[3])
         assert(game.battle.phase=="target","weapon button did not enter targeting")
         board(enemy.q,enemy.r)
+    end
+    local function crossToExit()
+        for _=1,16 do
+            local battle=game.battle;if battle.finished then return end
+            waitUntil(function()return not Native.busy(battle)end,'crossing animations never settled')
+            draw();local player=Rules.activeUnit(battle)
+            assert(player.team=='ally','crossing fixture did not return to its player')
+            if not battle.moveUsed then
+                control(ui.battleMove)
+                board(math.min(battle.field.exitColumn,player.q+Grid.moveBudget(battle,player)),player.r)
+                if battle.finished then return end
+                waitUntil(function()return not Native.busy(battle)end,'march animation never settled')
+            end
+            draw();control(ui.battleEnd)
+        end
+        error('crossing never reached its far-side exit')
     end
 
     local function fixture(seed,options,run)
@@ -177,7 +200,9 @@ local function steps(context)
         scenario("combat_victory_rewards_and_continue",404,{enemyHP=1},function(data,battle,_,enemy,encounter)
             local scrap,coal,xp=data.scrap,data.resources.coal,data.stats.xp
             shoot(enemy)
-            assert(enemy.hp==0 and battle.finished=="win" and encounter.resolved,"real attack did not finish and resolve the encounter")
+            assert(enemy.hp==0 and not battle.finished and not encounter.resolved,'defeating enemies bypassed the far-side exit')
+            crossToExit()
+            assert(battle.finished=='win'and encounter.resolved,'reaching the far-side exit did not complete the operation')
             assert(data.scrap>scrap and data.resources.coal>coal and data.stats.xp>xp,"victory did not award scrap, coal and XP")
             local awardedScrap,awardedCoal,awardedXP=data.scrap,data.resources.coal,data.stats.xp
             draw();control(ui.battleContinue)

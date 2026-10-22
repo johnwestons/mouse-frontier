@@ -8,7 +8,8 @@ local boss=os.getenv('MOUSE_FRONTIER_BATTLE_BOSS')=='1'
 local hostRestart=os.getenv('MOUSE_FRONTIER_BATTLE_HOST_RESTART')=='1'
 local resumed=os.getenv('MOUSE_FRONTIER_BATTLE_RESUMED')=='1'
 local harnessRoot=os.getenv('MOUSE_FRONTIER_LAN_SMOKE_ROOT')
-local outcome=os.getenv('MOUSE_FRONTIER_BATTLE_OUTCOME') or 'win'
+local requestedOutcome=os.getenv('MOUSE_FRONTIER_BATTLE_OUTCOME')
+local outcome=({win=true,loss=true,retreat=true})[requestedOutcome]and requestedOutcome or'win'
 local Areas=require('game.expedition_areas')
 local areaId=boss and Areas.DUNGEON_ID or Areas.SURFACE_ID
 local mobId=boss and 'sludge-badger-boss' or 'surface-bandit-a'
@@ -17,6 +18,8 @@ local Save=require('game.save'); local Items=require('game.item_instances'); loc
 local Viewport=require('game.viewport'); local Grid=require('game.battle_grid'); local Style=require('game.ui_layout')
 local BattleCommands=require('game.coop_battles')
 local Inventory=require('game.inventory')
+local Native=require('game.battle_native_ui')
+local Field=require('game.battle_field')
 local app,c,stage,started,finished,capture,restoreWrite,requestId,rejoinAt,encounterId
 local captured={}; local denied=0; local generation; local connections=0; local diagnosticAt=0
 local enemyHP,shotSignature,oldSessionId
@@ -52,8 +55,14 @@ local function press(rect)
     else app.mousepressed(x,y,1,false); app.mousereleased(x,y,1,false) end
 end
 local function cell(q,r)
-    local x,y=Grid.boardToScreen(1,q,r)
     local view=c.ui.localPlay.clientView
+    local b=role=='guest'and view and view.runtime.battle or c.runtime.battle
+    local ui=role=='guest'and view and view.ui or c.ui
+    if b and b.field then
+        app.draw();local camera=assert(Native.camera(ui,b));camera:focus(q,r,Field.cellHeight(b.field,q,r));app.draw()
+        local x,y=Native.project({battle=b,ui=ui},q,r);press({x=x,y=y,w=0,h=0});return
+    end
+    local x,y=Grid.boardToScreen(1,q,r)
     if role=='guest' and view then x,y=view.battles.worldView.toScreen(x,y) end
     press(Style.transformRectFor('battle',{x=0,y=0,w=960,h=720},{x=x,y=y,w=0,h=0}))
 end
@@ -99,7 +108,12 @@ local function load()
         if resumed then
             data=assert(Save.read(99)); check(signature(data)==file('battle-resume.expected'),'disk checkpoint changed before load')
         else
-            Save.remove(99); data=c.newSave(c.characters[1]); data.location=stopId; data.passengers={}
+            Save.remove(99); data=c.newSave(c.characters[1]);local home=require('game.home_stop')
+            assert(home.advance(data,'enterOffice'));for _=1,6 do assert(home.advance(data,'talk'))end
+            assert(home.advance(data,'exitOffice'));assert(home.advance(data,'supplies'));assert(home.advance(data,'repair'))
+            assert(home.advance(data,'enterOffice'));assert(home.advance(data,'talk'));assert(home.advance(data,'talk'))
+            assert(home.advance(data,'exitOffice'));assert(home.depart(data))
+            data.location=stopId; data.passengers={}
             if expedition then
                 data.scene=Areas.SCENE; data.activeExpeditionArea=areaId; Areas.ensure(data)
                 if boss then
@@ -140,8 +154,11 @@ local function load()
         end
         stage='hosting'; print('LAN_SMOKE_LISTENING')
     else
-        c.runtime.state='slots'; c.runtime.selectedSlot=nil; menu(); click('address','127.0.0.1:'..port)
-        click('name','Battle test friend'); click('next'); click('join'); stage='joining'
+        -- Current Local Play joins with a selected owned save, rather than
+        -- the retired next/previous transient-character controls.
+        assert(Save.write(1,c.newSave(c.characters[2]or c.characters[1])))
+        c.runtime.state='slots';c.runtime.selectedSlot=nil;menu();click('address','127.0.0.1:'..port)
+        click('name','Battle test friend');click('saveSlot');click('slot_1');click('join');stage='joining'
     end
 end
 local function stable(b)
@@ -217,6 +234,13 @@ local function update(dt)
                 b.active=3; b.enemyDelay=0; stage='losing'
             else
                 b.units[3].hp=1; b.units[1].perfectAccuracy=true
+                if b.field then
+                    -- Stage the result near extraction. Full route traversal
+                    -- is covered separately; this fixture tests wire/UI costs.
+                    b.units[1].q,b.units[1].r=b.field.exitColumn,3
+                    b.units[2].q,b.units[2].r=b.field.exitColumn,5
+                    b.units[3].q,b.units[3].r=b.field.exitColumn-1,4
+                end
                 app.draw(); press(c.ui.battleWeapons[3]); cell(b.units[3].q,b.units[3].r)
                 if b.finished=='win' then capture='host-battle-victory.png'; stage='won' end
             end
@@ -239,6 +263,9 @@ local function update(dt)
         end
     else
         if lp.error and not (hostRestart and stage=='host-lost' and (lp.error=='host_disconnected' or lp.error=='application_closed')) then error('Local Play failed '..lp.error) end
+        if stage=='leaving'and lp.phase=='idle'and not lp.network then
+            print('LAN_TACTICAL_OK role=guest ownTurn=true ownAmmo=true saveRetry=true reconnect=true hostContinueOnly=true');finish();return
+        end
         if stage=='joining' and lp.phase=='connected' and lp.clientView and lp.motionFrame and lp.motionFrame.ready then
             click('close'); local d=lp.replica.data
             requestId=assert(lp.network:submitCommand('battle.begin',{encounterId=enemyId(d)},d.coop.sceneEpoch,{})); stage='start-denied'
@@ -246,6 +273,8 @@ local function update(dt)
             local r=lp.network.lastCommandResult
             if r and r.requestId==requestId then check(not r.ok and r.reason=='host_only','guest started battle'); stage='start' end
         elseif stage=='rejoin' and now-rejoinAt>.5 then menu(); click('join'); stage='resumed'
+        elseif stage=='host-lost'and lp.phase=='connected'and lp.network and lp.network.sessionId~=oldSessionId then
+            stage='resumed' -- The current reconnect policy may finish automatically.
         elseif stage=='host-lost' and not lp.network and lp.phase=='idle' then
             check(c.runtime.state=='slots' and not c.session.replicaData,'host loss did not release guest replica')
             if not captured['guest-host-disconnected.png'] then capture='guest-host-disconnected.png'
@@ -274,14 +303,14 @@ local function update(dt)
                 view.camera:setZoom(1.15); app.draw(); press(view.ui.battleMove); cell(1,6); stage='moved'
             elseif stage=='moved' and not view.battles.pending and b.units[2].r==6 and stable(b) then
                 app.draw(); press(view.ui.battleWeapons[3]); stage='target'
-            elseif stage=='target' and b and b.phase=='target' and not view.battles.pending then cell(2,5); stage='shot'
+            elseif stage=='target' and b and(view.battles.mode or b.phase)=='target'and not view.battles.pending then cell(2,5);stage='shot'
             elseif stage=='shot' and d.players.companion.ammo['22lr']==8 and not view.battles.pending then
                 check(d.players.host.ammo['22lr']==20,'guest shot consumed host ammo'); capture='guest-battle-shot.png'; stage='disconnect'
             elseif stage=='disconnect' and captured['guest-battle-shot.png'] then
                 if hostRestart then
                     shotSignature=signature(d); oldSessionId=lp.network.sessionId
                     check(file('guest-shot.ready','captured'),'guest restart barrier failed'); stage='host-lost'
-                else menu(); click('leave'); rejoinAt=now; stage='rejoin' end
+                else lp:stop('test_connection_drop');rejoinAt=now;stage='rejoin'end
             elseif stage=='resumed' and lp.phase=='connected' and lp.motionFrame and lp.motionFrame.ready then
                 check(b and #b.units==3 and d.players.companion.ammo['22lr']==8,'battle reconnect lost model/ammo')
                 check(view.battles:context().mobImages[b.units[3].file],'guest resumed enemy sprite missing')
@@ -298,7 +327,7 @@ local function update(dt)
                 capture='guest-battle-victory.png'; requestId=assert(lp.network:submitCommand('battle.continue',{encounterId=s.encounterId,turnRevision=s.revision},d.coop.sceneEpoch,{})); stage='continued'
             elseif (stage=='continued' or stage=='victory' and outcome=='retreat') and not s and d.scene==destination() then
                 check((resolved(d)==true)==(outcome=='win') and d.players.companion.ammo['22lr']==8,'committed result differs')
-                menu(); click('leave'); print('LAN_TACTICAL_OK role=guest ownTurn=true ownAmmo=true saveRetry=true reconnect=true hostContinueOnly=true'); finish()
+                menu();click('leave');stage='leaving'
             end
         end
     end

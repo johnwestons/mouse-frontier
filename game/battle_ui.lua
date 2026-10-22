@@ -10,6 +10,7 @@ local Accessibility = require("game.accessibility")
 local Typography = require("game.typography")
 local UIStyle = require("game.ui_layout")
 local MobCombat = require("game.mob_combat_animation")
+local Native=require('game.battle_native_ui')
 
 local BattleUI = {}
 local function text(value,x,y,w,h,scale,minimum,align)
@@ -26,11 +27,15 @@ local function boardToScreen(ctx,q,r)
 end
 
 function BattleUI.screenToBoardSpace(ctx,x,y)
+    if ctx.battle and ctx.battle.field then
+        local state=ctx.ui and ctx.ui.nativeBattle;if state then return state.renderer:pick(x,y)end;return nil
+    end
     x,y=(ctx.worldView or WorldView).toWorld(x,y)
     return Grid.screenToBoardSpace(ctx.battle,1,x,y)
 end
 
 function BattleUI.draw(ctx)
+    if ctx.battle and ctx.battle.field then return Native.draw(ctx)end
     return UIStyle.scope("battle",{x=0,y=0,w=ctx.W,h=ctx.H},function()
     local W,H=ctx.W,ctx.H
     local worldView=ctx.worldView or WorldView
@@ -307,6 +312,7 @@ end
 function BattleUI.handleMouse(ctx,x,y,rightClick)
     local battle,ui=ctx.battle,ctx.ui
     if not battle then return "missing" end
+    if battle.field then return Native.handleMouse(ctx,x,y,rightClick)end
     if battle.intro then return "handled" end
     local sceneX,sceneY=UIStyle.inversePoint(x,y,"battle",{x=0,y=0,w=ctx.W,h=ctx.H})
     if ctx.inventoryOpen then

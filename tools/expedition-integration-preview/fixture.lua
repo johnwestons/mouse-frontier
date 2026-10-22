@@ -67,6 +67,10 @@ function Fixture.resolveStagedBattle(runtime,commands,catalog,outcome)
         elseif not active and unit.hp>0 then active=i end
         unit.actionTimer=0; unit.hitTimer=0; unit.moveAnim=nil
     end
+    if outcome=='win'and battle.field then
+        for i,u in ipairs(require('game.battle_actors').units(battle))do if u.hp>0 then u.q,u.r=battle.field.exitColumn,2+i*2 end end
+        require('game.battle_fog').update(battle)
+    end
     battle.active=assert(active,'staged result has no living active unit')
     battle.intro=nil; battle.attackTimer=0; battle.enemyDelay=0; battle.projectile=nil
     runtime.battle=battle

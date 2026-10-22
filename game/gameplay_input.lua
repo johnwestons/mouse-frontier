@@ -10,6 +10,8 @@ local Home=require("game.home_stop")
 local HomeDialogue=require("game.home_stop_dialogue")
 local Identity=require('game.npc_identity')
 local HomeFox=require("game.home_stop_fox")
+local NativeBattle=require('game.battle_native_ui')
+local BattleGraphics=require('game.battle_graphics')
 
 local CoopProgression=require("game.coop_progression")
 local function required(context, name, expectedType)
@@ -241,7 +243,7 @@ local function new(context)
   local function handleOptionsKey(key)
       if key=="tab" then
           runtime.optionsPage=runtime.optionsPage=="audio" and "accessibility"
-              or (runtime.optionsPage=="accessibility" and "controls" or "audio")
+              or (runtime.optionsPage=="accessibility" and "controls"or runtime.optionsPage=='controls'and'graphics'or "audio")
           ui.playSfx("menu")
       elseif runtime.optionsPage=="controls" and (key=="pageup" or key=="pagedown") then
           local device=runtime.optionsControlDevice or "keyboard"
@@ -252,6 +254,8 @@ local function new(context)
           runtime.optionsControlScroll=math.max(0,math.min(math.max(0,#list-visible),
               (runtime.optionsControlScroll or 0)+(key=="pageup" and -pageSize or pageSize)))
           return true
+      elseif runtime.optionsPage=='graphics'and(key=='-'or key=='='or key=='+')then
+          BattleGraphics.adjust(optionsData(),key=='-'and -1 or 1,mobileEnabled());persistOptions();ui.playSfx('menu')
       elseif runtime.optionsPage=="accessibility" then
           local data=optionsData()
           local changed=true
@@ -570,6 +574,10 @@ local function new(context)
       if Util.pointIn(x,y,ui.optionsAudioTab) then runtime.optionsPage="audio"; ui.playSfx("menu"); return true
       elseif Util.pointIn(x,y,ui.optionsAccessTab) then runtime.optionsPage="accessibility"; ui.playSfx("menu"); return true
       elseif Util.pointIn(x,y,ui.optionsControlsTab) then runtime.optionsPage="controls"; runtime.optionsControlDevice=runtime.optionsControlDevice or "keyboard"; runtime.optionsControlScroll=0; ui.playSfx("menu"); return true
+      elseif Util.pointIn(x,y,ui.optionsGraphicsTab)then runtime.optionsPage='graphics';ui.playSfx('menu');return true
+      elseif Util.pointIn(x,y,ui.battleDistanceDown)then BattleGraphics.adjust(optionsData(),-1,mobileEnabled());ui.playSfx('menu')
+      elseif Util.pointIn(x,y,ui.battleDistanceUp)then BattleGraphics.adjust(optionsData(),1,mobileEnabled());ui.playSfx('menu')
+      elseif Util.pointIn(x,y,ui.battleDistanceAuto)then BattleGraphics.automatic(optionsData());ui.playSfx('menu')
       elseif runtime.optionsPage=="controls" then
           if Util.pointIn(x,y,ui.controlsKeyboardTab) then runtime.optionsControlDevice="keyboard"; runtime.optionsControlScroll=0; ui.playSfx("menu"); return true
           elseif Util.pointIn(x,y,ui.controlsControllerTab) then runtime.optionsControlDevice="controller"; runtime.optionsControllerSection=runtime.optionsControllerSection or "buttons"; runtime.optionsControlScroll=0; ui.playSfx("menu"); return true
@@ -1067,6 +1075,10 @@ local function new(context)
           runtime.dialogue=nil
           return
       end
+      if runtime.state=='battle'and runtime.battle and runtime.battle.field and not runtime.inventoryOpen then
+          local gx,gy=screenToGame(x,y)
+          if NativeBattle.beginDrag(ui,runtime.battle,gx,gy,button,love.keyboard and love.keyboard.isDown('lshift','rshift'))then return end
+      end
       if button==3 then if not runtime.trainUpgradeOpen then beginCameraPan(x,y) end; return end
       -- Check the persistent campsite exit before any modal input capture. This
       -- lets it dismiss inventory, trade, settings, dialogue, and even stale
@@ -1260,6 +1272,11 @@ local function new(context)
   end
 
   local function mousereleased(x,y,button)
+      if runtime.state=='battle'and ui.nativeBattle and ui.nativeBattle.drag then
+          local drag=NativeBattle.endDrag(ui)
+          if drag and not drag.moved and drag.button==2 then local gx,gy=screenToGame(x,y);ui.handleBattleMousePressed(gx,gy,true)end
+          return
+      end
       if button==3 then endCameraPan(); return end
       if button==1 and runtime.weaponRepairDrag then
           local drag=runtime.weaponRepairDrag
@@ -1519,6 +1536,12 @@ local function new(context)
                   ..":"..tostring(runtime.optionsControllerSection or "buttons")
           end
           local function option(id,rect) clickHandler("options."..id,rect,ui.handleOptionsMousePressed) end
+          option('graphicsTab',ui.optionsGraphicsTab)
+          if runtime.optionsPage=='graphics'then
+              option('audioTab',ui.optionsAudioTab);option('accessibilityTab',ui.optionsAccessTab);option('controlsTab',ui.optionsControlsTab)
+              option('battleDistanceDown',ui.battleDistanceDown);option('battleDistanceUp',ui.battleDistanceUp)
+              option('battleDistanceAuto',ui.battleDistanceAuto)
+          end
           if runtime.optionsPage=="audio" then
               option("audioTab",ui.optionsAudioTab); option("accessibilityTab",ui.optionsAccessTab); option("controlsTab",ui.optionsControlsTab)
               for _,entry in ipairs({{"station8bit",ui.optionsStation8bit},{"stationChill",ui.optionsStationChill},
@@ -1537,7 +1560,7 @@ local function new(context)
                   {"aimAssistDown",ui.accessAimAssistDown},{"aimAssistUp",ui.accessAimAssistUp}}) do
                   option(entry[1],entry[2])
               end
-          else
+          elseif runtime.optionsPage=='controls'then
               option("controlsTab",ui.optionsControlsTab); option("audioTab",ui.optionsAudioTab); option("accessibilityTab",ui.optionsAccessTab)
               add("controls.keyboard",ui.controlsKeyboardTab,function() runtime.optionsControlDevice="keyboard"; runtime.optionsControlScroll=0 end)
               add("controls.controller",ui.controlsControllerTab,function() runtime.optionsControlDevice="controller"; runtime.optionsControllerSection=runtime.optionsControllerSection or "buttons"; runtime.optionsControlScroll=0 end)
@@ -1576,6 +1599,24 @@ local function new(context)
           add("journey-log.down",ui.journeyLogDown,function()
               runtime.journeyLogScroll=math.min(ui.journeyLogMaxScroll or 0,(runtime.journeyLogScroll or 0)+math.max(1,ui.journeyLogPageSize or 1))
           end,(runtime.journeyLogScroll or 0)<(ui.journeyLogMaxScroll or 0))
+      elseif runtime.state=='battle'and runtime.battle and runtime.battle.field and not runtime.inventoryOpen then
+          screenKey='battle'
+          local function nativeControl(id,rect,enabled)
+              add(id,rect,function()ui.handleBattleMousePressed(rect.x+rect.w/2,rect.y+rect.h/2,false)end,enabled)
+          end
+          for i,item in ipairs(ui.battleOptions or{})do nativeControl('battle.action.'..i,item.rect,item.enabled)end
+          for i,item in ipairs(ui.battleCameraButtons or{})do nativeControl('battle.camera.'..i,item.rect,true)end
+          local b=runtime.battle;local active=BattleRules.activeUnit(b)
+          if active and active.team=='ally'and ownsBattleTurn(active)and not b.finished and not NativeBattle.busy(b)then
+              local cells={}
+              if b.phase=='move'then for _,p in pairs(BattleRules.reachable(b,active,require('game.battle_grid').moveBudget(b,active)))do cells[#cells+1]=p end
+              elseif b.phase=='target'then for _,u in ipairs(b.units)do if u.team=='enemy'and u.hp>0 and require('game.battle_fog').unitVisible(b,u)then cells[#cells+1]=u end end end
+              table.sort(cells,function(a,b)return a.q==b.q and a.r<b.r or a.q<b.q end)
+              for _,p in ipairs(cells)do
+                  local x,y=NativeBattle.project({ui=ui,battle=b},p.q,p.r)
+                  if x and NativeBattle.camera(ui,b):contains(x,y)then nativeControl('battle.cell.'..p.q..':'..p.r,{x=x-14,y=y-12,w=28,h=24},true)end
+              end
+          end
       elseif runtime.state=="slots" then
           screenKey="title-slots"
           for index=1,3 do
@@ -1782,6 +1823,7 @@ local function new(context)
 
   local function handleKeyboardFocus(key)
       local targets,screenKey=focusTargets()
+      if screenKey=='battle'and(key=='space'or((key=='return'or key=='kpenter')and not ui.keyboardFocusVisible))then return false end
       if not screenKey or #targets==0 then return false end
       local direction=key
       if key=="a" then direction="left" elseif key=="d" then direction="right"
@@ -1806,6 +1848,9 @@ local function new(context)
   end
 
   local function keypressed(key,scancode,isrepeat)
+      if runtime.state=='battle'and runtime.battle and runtime.battle.field and not runtime.inventoryOpen and not runtime.exitPrompt and not ui.escMenuOpen and not ui.optionsOpen then
+          if NativeBattle.key(ui,runtime.battle,key,love.keyboard and love.keyboard.isDown('lalt','ralt'))then return true end
+      end
       if runtime.pendingConfirmation then
           if key=="escape" or key=="q" or key=="n" then commitConfirmation(false); return true end
           if key=="y" then commitConfirmation(true); return true end

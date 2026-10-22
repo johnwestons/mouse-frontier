@@ -1,0 +1,226 @@
+<div id="mf-terrain-study">
+  <div class="mf-top"><div><span class="mf-brand">MOUSE FRONTIER</span><span class="mf-sub">Battle terrain study</span></div><span class="mf-study">VISUAL PROTOTYPE</span></div>
+  <div class="mf-tools">
+    <label>Environment <select name="biome"><option value="wasteland">Wasteland</option><option value="forest">Forest</option><option value="ruins">Town ruins</option><option value="mountains">Mountains</option></select></label>
+    <label>Relief <input name="relief" type="range" min="0" max="1.6" step="0.1" value="1"><output data-value="relief">1.0</output></label>
+    <label>Detail <select name="detail"><option value="rich">Rich</option><option value="essential">Essential</option></select></label>
+    <button type="button" data-action="generate">New terrain</button>
+  </div>
+  <div class="mf-stage">
+    <canvas aria-label="Rotatable procedural terrain with hills, ruins, railway, and three existing directional critter sprites">Interactive terrain preview requires WebGL.</canvas>
+    <div class="mf-corner mf-region"><span data-read="biome">WASTELAND</span><span class="mf-secondary">10 × 6 tactical spaces</span></div>
+    <div class="mf-compass" aria-hidden="true"><span data-read="north">N ↑</span></div>
+    <div class="mf-status" role="status" aria-live="polite">Preparing terrain…</div>
+  </div>
+  <div class="mf-dock">
+    <div class="mf-unit"><span class="mf-unit-dot"></span><div>TRAIL FOX<span class="mf-secondary">Existing directional artwork</span></div></div>
+    <label class="mf-check"><input name="grid" type="checkbox"> Tactical grid</label>
+    <label class="mf-check"><input name="shadows" type="checkbox" checked> Prop shadows</label>
+    <span class="mf-seed" data-read="seed">Seed 1847</span>
+  </div>
+  <div class="mf-camera" aria-label="Camera controls">
+    <label>Rotate <output data-value="yaw">45°</output><input name="yaw" type="range" min="0" max="360" step="1" value="45"></label>
+    <label>Zoom <output data-value="zoom">1.0×</output><input name="zoom" type="range" min="0.65" max="2.4" step="0.05" value="1"></label>
+    <label>Tilt <output data-value="tilt">48°</output><input name="tilt" type="range" min="30" max="68" step="1" value="48"></label>
+    <div class="mf-pan"><button type="button" data-action="left" aria-label="Pan left">←</button><button type="button" data-action="right" aria-label="Pan right">→</button><button type="button" data-action="up" aria-label="Pan up">↑</button><button type="button" data-action="down" aria-label="Pan down">↓</button><button type="button" data-action="frame">Frame map</button></div>
+  </div>
+  <div class="mf-bottom"><span>Drag: rotate · Shift / middle drag: pan · Wheel / pinch: zoom · Tap: inspect</span><span data-read="stats"></span></div>
+  <div class="mf-error" role="alert" hidden></div>
+</div>
+<style>
+  #mf-terrain-study{color-scheme:light dark;--mf-bg:light-dark(#e8dec8,#161710);--mf-panel:light-dark(#f3ead6,#242319);--mf-text:light-dark(#392f1d,#eee1bc);--mf-soft:light-dark(#6c5b40,#b9ac8a);--mf-brass:light-dark(#74551e,#e0b865);--mf-line:light-dark(#bfaf8c,#494331);background:var(--mf-bg);color:var(--mf-text);font:14px/1.4 "Courier New",monospace;overflow:hidden;border-radius:10px}
+  #mf-terrain-study *{box-sizing:border-box}
+  #mf-terrain-study .mf-top{display:flex;justify-content:space-between;align-items:center;padding:14px 116px 12px 18px;gap:12px;background:var(--mf-panel);border-bottom:1px solid var(--mf-line)}
+  #mf-terrain-study .mf-brand{letter-spacing:2px;color:var(--mf-brass);font-weight:500}
+  #mf-terrain-study .mf-sub{display:inline-block;margin-left:18px;color:var(--mf-soft)}
+  #mf-terrain-study .mf-study{font-size:11px;color:var(--mf-soft);white-space:nowrap}
+  #mf-terrain-study .mf-tools{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:10px 18px}
+  #mf-terrain-study label{display:flex;align-items:center;gap:8px;min-width:0}
+  #mf-terrain-study select,#mf-terrain-study button{font:inherit;color:var(--mf-text);background:var(--mf-panel);border:1px solid var(--mf-line);border-radius:4px;padding:6px 9px;min-height:32px}
+  #mf-terrain-study button:hover{border-color:var(--mf-brass)}
+  #mf-terrain-study input[type=range]{width:94px;min-width:0;accent-color:var(--mf-brass)}
+  #mf-terrain-study input[type=checkbox]{accent-color:var(--mf-brass);margin:0;width:16px;height:16px}
+  #mf-terrain-study output{min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+  #mf-terrain-study .mf-stage{position:relative;height:540px;background:#acac8b}
+  #mf-terrain-study canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline-offset:-4px}
+  #mf-terrain-study canvas:active{cursor:grabbing}
+  #mf-terrain-study .mf-corner{position:absolute;top:18px;left:20px;color:#f2e3b5;text-shadow:0 1px 3px #292c23;pointer-events:none}
+  #mf-terrain-study .mf-region{letter-spacing:1px}
+  #mf-terrain-study .mf-secondary{display:block;color:var(--mf-soft);font-size:11px;letter-spacing:0}
+  #mf-terrain-study .mf-region .mf-secondary{color:#e8dfc4;text-shadow:0 1px 3px #292c23}
+  #mf-terrain-study .mf-compass{position:absolute;right:24px;top:22px;color:#fff0c4;pointer-events:none;text-shadow:0 1px 3px #292c23}
+  #mf-terrain-study .mf-compass span{display:block}
+  #mf-terrain-study .mf-status{position:absolute;left:16px;bottom:12px;max-width:calc(100% - 32px);padding:6px 10px;background:var(--mf-panel);border-radius:4px;font-size:12px;color:var(--mf-text);pointer-events:none}
+  #mf-terrain-study .mf-dock{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:var(--mf-panel);border-top:1px solid var(--mf-line)}
+  #mf-terrain-study .mf-unit{display:flex;align-items:center;gap:10px}
+  #mf-terrain-study .mf-unit-dot{width:9px;height:9px;border-radius:50%;background:#e7b95d;box-shadow:0 0 0 4px #a7864140}
+  #mf-terrain-study .mf-check{font-size:12px;min-height:28px}
+  #mf-terrain-study .mf-seed{font-size:12px;color:var(--mf-soft);font-variant-numeric:tabular-nums}
+  #mf-terrain-study .mf-camera{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:10px 18px}
+  #mf-terrain-study .mf-camera label{display:grid;grid-template-columns:1fr auto;gap:2px 10px;flex:1 1 120px}
+  #mf-terrain-study .mf-camera input{grid-column:1/-1;width:100%}
+  #mf-terrain-study .mf-pan{display:flex;gap:5px;flex-wrap:wrap}
+  #mf-terrain-study .mf-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0 18px 12px;color:var(--mf-soft);font-size:11px}
+  #mf-terrain-study .mf-error{padding:16px;color:var(--mf-text)}
+  @media(max-width:700px){#mf-terrain-study .mf-top{padding-right:100px}#mf-terrain-study .mf-sub{display:block;margin:3px 0 0}#mf-terrain-study .mf-study{display:none}#mf-terrain-study .mf-stage{height:460px}#mf-terrain-study .mf-tools{gap:9px}#mf-terrain-study .mf-tools label{flex:1 1 180px;justify-content:space-between}#mf-terrain-study .mf-tools select{flex:1;max-width:150px}#mf-terrain-study .mf-camera{gap:10px}#mf-terrain-study .mf-pan{flex:1 1 100%;justify-content:center}}
+  @media(max-width:400px){#mf-terrain-study .mf-stage{height:400px}#mf-terrain-study .mf-dock{gap:8px}#mf-terrain-study .mf-unit{flex-basis:100%}#mf-terrain-study .mf-camera label{flex-basis:85px}#mf-terrain-study .mf-brand{letter-spacing:1px}}
+  @media(pointer:coarse){#mf-terrain-study button,#mf-terrain-study select,#mf-terrain-study .mf-check{min-height:44px}#mf-terrain-study input[type=range]{min-height:32px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+<script>
+(function(){
+  const root=document.getElementById('mf-terrain-study');
+  const sprites=/* SPRITE_DATA */{};
+  const el=n=>root.querySelector('[name="'+n+'"]');
+  const read=n=>root.querySelector('[data-read="'+n+'"]');
+  const value=n=>root.querySelector('[data-value="'+n+'"]');
+  const canvas=root.querySelector('canvas'), status=root.querySelector('.mf-status');
+  if(!globalThis.THREE){root.querySelector('.mf-error').hidden=false;root.querySelector('.mf-error').textContent='The 3D library could not load. Reopen with a network connection.';return}
+  const T=THREE,rad=Math.PI/180,clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  root.querySelectorAll('button,select').forEach(e=>e.classList.add('cursor-interaction'));
+  let state={version:1,seed:1847,biome:'wasteland',relief:1.2,detail:'rich',yaw:45,zoom:1.2,tilt:42,panX:0,panZ:0,grid:false,shadows:true};
+  const restore=stored=>{if(!stored||stored.version!==1)return;const n={...state,...stored};
+    if(!['wasteland','forest','ruins','mountains'].includes(n.biome))n.biome='wasteland';
+    n.seed=clamp(Math.floor(Number(n.seed)||1847),1,999999);n.relief=clamp(Number(n.relief)||0,0,1.6);
+    n.yaw=clamp(Number(n.yaw)||0,0,360);n.zoom=clamp(Number(n.zoom)||1,.65,2.4);n.tilt=clamp(Number(n.tilt)||48,30,68);
+    n.panX=clamp(Number(n.panX)||0,-5,5);n.panZ=clamp(Number(n.panZ)||0,-5,5);n.detail=n.detail==='essential'?'essential':'rich';state=n};
+  restore(window.openai?.widgetState?.privateContent);
+  const save=()=>window.openai?.setWidgetState?.({modelContent:{environment:state.biome,seed:state.seed,relief:state.relief,detail:state.detail,rotation:Math.round(state.yaw),zoom:state.zoom,grid:state.grid},privateContent:{...state}})?.catch(()=>{});
+  let renderer;
+  try{renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,preserveDrawingBuffer:true})}catch(e){root.querySelector('.mf-error').hidden=false;root.querySelector('.mf-error').textContent='WebGL is unavailable on this device.';return}
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+  renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;
+  const scene=new T.Scene(),camera=new T.OrthographicCamera(-10,10,6,-6,.1,100);
+  scene.add(new T.HemisphereLight(0xffebc4,0x5e6659,2.0));
+  const sun=new T.DirectionalLight(0xffe0a5,3.1);sun.position.set(-8,15,7);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10,near:.5,far:40});sun.shadow.bias=-.0004;sun.shadow.normalBias=.045;scene.add(sun);
+  let world,terrain,grid,selection,actors=[],terrainRange=[0,0],scheduled=false;
+  const palettes={
+    wasteland:{soil:0x9a7849,rock:0x6b6651,grass:0x8c843c,wood:0x5c4930,metal:0x6b4d36,sky:0x8f9b88,path:0xb39a6c},
+    forest:{soil:0x5d6a3d,rock:0x68705b,grass:0x6a7b39,wood:0x584430,metal:0x655743,sky:0x8a9f8e,path:0x9c8b5c},
+    ruins:{soil:0x8e825f,rock:0x777768,grass:0x797c45,wood:0x635541,metal:0x77513c,sky:0x9da79b,path:0xa29578},
+    mountains:{soil:0x827f66,rock:0x747b78,grass:0x747746,wood:0x5b5041,metal:0x6b5744,sky:0x9aaba8,path:0xaaa18a}
+  };
+  let rng,mat,geom,palette;
+  const random=()=>{let t=state.seed;return()=>{t+=0x6D2B79F5;let x=t;x=Math.imul(x^x>>>15,x|1);x^=x+Math.imul(x^x>>>7,x|61);return((x^x>>>14)>>>0)/4294967296}};
+  const hash=(x,z)=>{let n=Math.imul(x,374761393)+Math.imul(z,668265263)+Math.imul(state.seed,1013904223);n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967296};
+  const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+  function noise(x,z){const a=Math.floor(x),b=Math.floor(z),u=smooth(x-a),v=smooth(z-b);return T.MathUtils.lerp(T.MathUtils.lerp(hash(a,b),hash(a+1,b),u),T.MathUtils.lerp(hash(a,b+1),hash(a+1,b+1),u),v)}
+  const trail=x=>Math.sin(x*.53+state.seed*.001)*.55;
+  function height(x,z){
+    const shift=(hash(7,2)-.5)*2;
+    let hills=1.8*Math.exp(-((x-2.7-shift)**2/8+(z+2.7)**2/5))+1.1*Math.exp(-((x+4.4)**2/5+(z-2.6-shift)**2/4));
+    const valley=smooth(Math.abs(z-trail(x))/1.45);hills*=valley;
+    let y=.05+state.relief*(hills+.18*noise(x*.8,z*.8)+.06*noise(x*3,z*3));
+    const pad=1-smooth((Math.hypot(x+1.5,z+1.8)-.65)/.75);y=T.MathUtils.lerp(y,.05+.17*state.relief,pad);
+    return y;
+  }
+  function material(color,extra={}){return new T.MeshStandardMaterial({color,roughness:1,metalness:0,...extra})}
+  function mesh(g,m,x,y,z,sx=1,sy=1,sz=1){const o=new T.Mesh(g,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;world.add(o);return o}
+  function box(m,x,y,z,sx,sy,sz){return mesh(geom.box,m,x,y,z,sx,sy,sz)}
+  function beam(a,b,r,m){const delta=new T.Vector3().subVectors(b,a);const o=mesh(geom.cylinder,m,0,0,0,r,delta.length(),r);o.position.copy(a).add(b).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),delta.normalize());return o}
+  function disposeWorld(){if(!world)return;const gs=new Set(),ms=new Set(),ts=new Set();world.traverse(o=>{if(o.geometry)gs.add(o.geometry);if(o.material&&!o.userData.persistent){for(const m of(Array.isArray(o.material)?o.material:[o.material])){ms.add(m);if(m.map&&!m.map.userData.persistent)ts.add(m.map)}}});scene.remove(world);gs.forEach(g=>g.dispose());ms.forEach(m=>m.dispose());ts.forEach(t=>t.dispose())}
+  const textureCache={};const loader=new T.TextureLoader();
+  function spriteTexture(name,index){const key=name+index;if(textureCache[key])return textureCache[key];const t=loader.load(sprites[name].directions[index],()=>draw());t.magFilter=T.NearestFilter;t.minFilter=T.NearestFilter;t.colorSpace=T.SRGBColorSpace;t.userData.persistent=true;textureCache[key]=t;return t}
+  function addActor(name,x,z,heading,accent){
+    const h=1.65,w=h*sprites[name].aspect;
+    const m=new T.MeshBasicMaterial({map:spriteTexture(name,2),alphaTest:.48,side:T.DoubleSide,toneMapped:false});
+    const o=mesh(new T.PlaneGeometry(w,h),m,x,height(x,z)+h/2,z);o.castShadow=false;o.receiveShadow=false;
+    const circle=mesh(new T.CircleGeometry(.30,24),new T.MeshBasicMaterial({color:0x252923,transparent:true,opacity:.25,depthWrite:false}),x,height(x,z)+.016,z);circle.rotation.x=-Math.PI/2;
+    const ring=mesh(new T.RingGeometry(.35,.39,32),new T.MeshBasicMaterial({color:accent,side:T.DoubleSide}),x,height(x,z)+.025,z);ring.rotation.x=-Math.PI/2;ring.castShadow=false;
+    actors.push({name,o,m,heading,index:-1,h,foot:new T.Vector3(x,height(x,z)+.025,z)});
+  }
+  function soilTexture(){const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d'),d=ctx.createImageData(128,128);for(let i=0;i<d.data.length;i+=4){const n=190+Math.floor(rng()*60);d.data[i]=n;d.data[i+1]=n;d.data[i+2]=n;d.data[i+3]=255}ctx.putImageData(d,0,0);ctx.strokeStyle='#756c58';ctx.globalAlpha=.2;for(let i=0;i<100;i++){const x=rng()*128,z=rng()*128;ctx.beginPath();ctx.moveTo(x,z);ctx.lineTo(x+2+rng()*6,z+2+rng()*5);ctx.stroke()}const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.NearestFilter;t.minFilter=T.NearestMipmapNearestFilter;return t}
+  function terrainMesh(){
+    const p=[],c=[],uv=[],base=new T.Color(palette.soil),path=new T.Color(palette.path);let min=Infinity,max=-Infinity;
+    const vertex=(x,z)=>{const y=height(x,z);min=Math.min(min,y);max=Math.max(max,y);p.push(x,y,z);const k=1-smooth((Math.abs(z-trail(x))-.20)/.45),ridge=smooth((y-1.1)/.9),col=base.clone().lerp(new T.Color(palette.rock),ridge*.55).lerp(path,k*.8).multiplyScalar(.88+noise(x*2,z*2)*.2);c.push(col.r,col.g,col.b);uv.push(x/1.7,z/1.7)};
+    const nx=80,nz=56,dx=14/nx,dz=10/nz;
+    for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){const x=-7+i*dx,z=-5+j*dz;vertex(x,z);vertex(x,z+dz);vertex(x+dx,z);vertex(x+dx,z);vertex(x,z+dz);vertex(x+dx,z+dz)}
+    const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('color',new T.Float32BufferAttribute(c,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.computeVertexNormals();
+    terrain=mesh(g,material(0xffffff,{vertexColors:true,map:soilTexture()}),0,0,0);terrain.castShadow=false;
+    const edges=[];for(let i=0;i<=nx;i++)edges.push([-7+i*dx,-5]);for(let i=1;i<=nz;i++)edges.push([7,-5+i*dz]);for(let i=1;i<=nx;i++)edges.push([7-i*dx,5]);for(let i=1;i<=nz;i++)edges.push([-7,5-i*dz]);
+    const side=[];for(let i=0;i<edges.length-1;i++){const[a,z]=edges[i],[b,w]=edges[i+1];side.push(a,height(a,z),z,b,height(b,w),w,a,-.7,z,b,height(b,w),w,b,-.7,w,a,-.7,z)}
+    const sg=new T.BufferGeometry();sg.setAttribute('position',new T.Float32BufferAttribute(side,3));sg.computeVertexNormals();mesh(sg,material(new T.Color(palette.soil).multiplyScalar(.6),{side:T.DoubleSide}),0,0,0);terrainRange=[min,max];
+  }
+  function makeGrid(){const pts=[];for(let x=-5;x<=5;x++)for(let k=0;k<60;k++){const z=-3+k*.1;pts.push(x,height(x,z)+.025,z,x,height(x,z+.1)+.025,z+.1)}for(let z=-3;z<=3;z++)for(let k=0;k<100;k++){const x=-5+k*.1;pts.push(x,height(x,z)+.025,z,x+.1,height(x+.1,z)+.025,z)}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pts,3));grid=new T.LineSegments(g,new T.LineBasicMaterial({color:0xf8df9d,transparent:true,opacity:.35}));world.add(grid);grid.visible=state.grid}
+  function ruin(){
+    const x=-1.5,z=-1.8,y=height(x,z);box(mat.stone,x,y+.06,z,1.9,.12,1.5);
+    // Broken walls are assembled as masonry, so every camera side has geometry.
+    for(let row=0;row<5;row++)for(let col=0;col<7;col++){
+      if((row>2&&col>3)||(row>3&&col===0))continue;
+      box(col%3?mat.stone:mat.darkStone,x-.85+col*.27+(row%2)*.035,y+.15+row*.20,z-.65,.26,.19,.20);
+    }
+    for(let row=0;row<5;row++)for(let col=0;col<5;col++){
+      if(row>1&&col>2)continue;
+      box(mat.stone,x-.9,y+.15+row*.2,z-.5+col*.27,.20,.19,.26);
+    }
+    const post=box(mat.wood,x+.7,y+.65,z+.6,.1,1.2,.1);post.rotation.z=.1;
+    for(let i=0;i<5;i++){let o=box(mat.wood,x-.6+i*.30,y+.9,z-.28,.12,.1,1.7);o.rotation.x=.25;o.rotation.z=-.12}
+    for(let i=0;i<12;i++){const a=x+(rng()-.5)*2.5,b=z+(rng()-.5)*2;const o=box(mat.darkStone,a,height(a,b)+.10,b,.22,.17,.25);o.rotation.y=rng()*6}
+    box(mat.metal,x+.4,y+.17,z+.5,.45,.22,.32);
+  }
+  function railway(){for(let i=0;i<27;i++){const x=-6.4+i*.49,z=3.9+.12*Math.sin(x*.6),y=height(x,z);const tie=box(mat.wood,x,y+.04,z,.18,.10,1.0);tie.rotation.y=.08*Math.cos(x*.6);if(i<26)for(const d of[-.33,.33]){const a=new T.Vector3(x,y+.12,z+d),b=new T.Vector3(x+.49,height(x+.49,3.9+.12*Math.sin((x+.49)*.6))+.12,3.9+.12*Math.sin((x+.49)*.6)+d);beam(a,b,.035,mat.rail)}}}
+  function rock(x,z,size){const y=height(x,z);const o=mesh(geom.rock,mat.rock,x,y+size*.3,z,size,size*.7,size*.8);o.rotation.set(rng()*.3,rng()*6,rng()*.3);return o}
+  function tree(x,z,s){const y=height(x,z);beam(new T.Vector3(x,y,z),new T.Vector3(x+.1*s,y+1.8*s,z),.08*s,mat.wood);
+    if(state.biome==='forest'){for(let i=0;i<3;i++)mesh(geom.cone,mat.foliage,x,y+(1+i*.48)*s,z,(.8-i*.15)*s,.95*s,(.8-i*.15)*s)}
+    else if(state.biome==='wasteland'){beam(new T.Vector3(x,y+.75*s,z),new T.Vector3(x-.5*s,y+1.25*s,z+.13),.045*s,mat.wood);beam(new T.Vector3(x+.05,y+1.1*s,z),new T.Vector3(x+.6*s,y+1.5*s,z-.2),.045*s,mat.wood)}
+    else {for(let i=0;i<2;i++)beam(new T.Vector3(x,y+(1+i*.4)*s,z),new T.Vector3(x+(i?-.5:.5)*s,y+(1.5+i*.4)*s,z-.15),.04*s,mat.wood)}
+  }
+  const spawn=[[-3.5,1],[-4,-1],[2.5,.8]];
+  function reserved(x,z){return Math.hypot(x+1.5,z+1.8)<1.65||Math.abs(z-trail(x))<.5||spawn.some(p=>Math.hypot(x-p[0],z-p[1])<.65)||z>3.25}
+  function details(){
+    const count=state.detail==='rich'?850:150;
+    const pebbles=new T.InstancedMesh(geom.rock,mat.rock,count),tmp=new T.Object3D();pebbles.receiveShadow=true;
+    for(let i=0;i<count;i++){const x=rng()*13.5-6.75,z=rng()*9.4-4.7,s=.025+rng()*.07;tmp.position.set(x,height(x,z)+s*.2,z);tmp.rotation.set(0,rng()*6,rng()*.5);tmp.scale.set(s,s*.5,s);tmp.updateMatrix();pebbles.setMatrixAt(i,tmp.matrix)}world.add(pebbles);
+    const grassCount=state.detail==='rich'?700:110;
+    const blades=new T.InstancedMesh(new T.ConeGeometry(.025,.22,3),mat.grass,grassCount);
+    for(let i=0;i<grassCount;i++){let x=rng()*13-6.5,z=rng()*9-4.5;if(reserved(x,z)){x=6+(rng()-.5)*.6;z=(rng()-.5)*8}const s=.45+rng();tmp.position.set(x,height(x,z)+.10*s,z);tmp.rotation.set((rng()-.5)*.5,rng()*6,(rng()-.5)*.5);tmp.scale.set(s,s,s);tmp.updateMatrix();blades.setMatrixAt(i,tmp.matrix)}world.add(blades);
+    for(let i=0;i<(state.detail==='rich'?27:10);i++){const x=rng()*12-6,z=rng()*8-4;if(!reserved(x,z))rock(x,z,.25+rng()*.55)}
+    for(let i=0;i<10;i++){const x=rng()*12-6,z=rng()*8-4;if(!reserved(x,z))tree(x,z,.5+rng()*.5)}
+    for(let i=0;i<6;i++){const x=3.8+rng()*1.4,z=-2.9+rng()*1.2;if(reserved(x,z))continue;const y=height(x,z);const barrel=mesh(geom.cylinder,mat.metal,x,y+.24,z,.16,.46,.16);for(const h of[-.12,.12])mesh(geom.cylinder,mat.rail,x,y+.24+h,z,.17,.035,.17);barrel.rotation.y=rng()*6}
+    if(state.biome==='ruins'){for(let i=0;i<32;i++){const x=2.0+(i%8)*.37,z=-2.3+Math.floor(i/8)*.37;box(mat.darkStone,x,height(x,z)+.025,z,.34,.05,.34)}}
+  }
+  function generate(){
+    disposeWorld();actors=[];selection=null;world=new T.Group();scene.add(world);rng=random();palette=palettes[state.biome];
+    scene.background=new T.Color(palette.sky);scene.fog=new T.Fog(palette.sky,29,55);
+    mat={stone:material(0xa29975),darkStone:material(0x6d6c57),wood:material(palette.wood),metal:material(palette.metal),rail:material(0x4f5650,{metalness:.45,roughness:.7}),rock:material(palette.rock),grass:material(palette.grass),foliage:material(0x425d36)};
+    geom={box:new T.BoxGeometry(1,1,1),cylinder:new T.CylinderGeometry(1,1,1,7),rock:new T.IcosahedronGeometry(1,0),cone:new T.ConeGeometry(1,1,7)};
+    terrainMesh();ruin();railway();details();makeGrid();
+    addActor('trail-fox',-3.5,1,Math.PI/2,0xffcf70);addActor('watch-raccoon',-4,-1,Math.PI/2,0x8cbfd0);addActor('botanist-frog',2.5,.8,-Math.PI/2,0xa9cb6c);
+    status.textContent='Terrain relief '+(terrainRange[1]-terrainRange[0]).toFixed(2)+' world units · decorative terrain study';
+    sync();draw();
+  }
+  function sync(){for(const n of['biome','relief','detail','yaw','zoom','tilt'])el(n).value=state[n];el('grid').checked=!!state.grid;el('shadows').checked=!!state.shadows;value('relief').textContent=state.relief.toFixed(1);value('yaw').textContent=Math.round(state.yaw)+'°';value('zoom').textContent=state.zoom.toFixed(1)+'×';value('tilt').textContent=Math.round(state.tilt)+'°';read('seed').textContent='Seed '+state.seed;read('biome').textContent=state.biome==='ruins'?'TOWN RUINS':state.biome.toUpperCase()}
+  function render(){
+    scheduled=false;const rect=canvas.getBoundingClientRect();if(rect.width<1||rect.height<1)return;
+    renderer.setSize(rect.width,rect.height,false);const aspect=rect.width/rect.height,span=Math.max(14.8,17.3/aspect)/state.zoom;
+    camera.left=-span*aspect/2;camera.right=span*aspect/2;camera.top=span/2;camera.bottom=-span/2;camera.updateProjectionMatrix();
+    const yaw=state.yaw*rad,tilt=state.tilt*rad,target=new T.Vector3(state.panX,.35+state.relief*.25,state.panZ);
+    camera.position.set(target.x+24*Math.cos(tilt)*Math.sin(yaw),target.y+24*Math.sin(tilt),target.z+24*Math.cos(tilt)*Math.cos(yaw));camera.lookAt(target);camera.updateMatrixWorld();
+    const cameraUp=new T.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+    for(const a of actors){a.o.quaternion.copy(camera.quaternion);a.o.position.copy(a.foot).addScaledVector(cameraUp,a.h/2);const idx=((2-Math.round((a.heading-yaw)/(Math.PI/4)))%8+8)%8;if(a.index!==idx){a.m.map=spriteTexture(a.name,idx);a.index=idx}}
+    grid.visible=state.grid;renderer.shadowMap.enabled=!!state.shadows;sun.castShadow=!!state.shadows;renderer.render(scene,camera);
+    read('north').style.transform='rotate('+(-state.yaw)+'deg)';read('stats').textContent=renderer.info.render.triangles.toLocaleString()+' triangles';
+    root.dataset.ready='true';root.dataset.seed=String(state.seed);root.dataset.yaw=state.yaw.toFixed(1);root.dataset.zoom=state.zoom.toFixed(2);root.dataset.pan=state.panX.toFixed(2)+','+state.panZ.toFixed(2);root.dataset.spriteViews=actors.map(a=>a.index).join(',');
+  }
+  function draw(){if(!scheduled){scheduled=true;requestAnimationFrame(render)}}
+  function pan(dx,dy){const a=state.yaw*rad,step=1/state.zoom;state.panX=clamp(state.panX+(dx*Math.cos(a)+dy*Math.sin(a))*step,-5,5);state.panZ=clamp(state.panZ+(-dx*Math.sin(a)+dy*Math.cos(a))*step,-5,5);draw()}
+  function inspect(clientX,clientY){const r=canvas.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-(clientY-r.top)/r.height*2+1),camera);const hit=ray.intersectObject(terrain)[0];if(!hit)return;const q=Math.floor(hit.point.x+5),rnum=Math.floor(hit.point.z+3)+1;if(q<0||q>9||rnum<1||rnum>6){status.textContent='Scenery outside the 60 tactical spaces';return}if(selection){world.remove(selection);selection.geometry.dispose();selection.material.dispose()}const pts=[];const x=q-5,z=rnum-4;for(let i=0;i<=32;i++){const side=Math.min(3,Math.floor(i/8)),t=(i-side*8)/8;const px=side===0?x+t:side===1?x+1:side===2?x+1-t:x,pz=side===0?z:side===1?z+t:side===2?z+1:z+1-t;pts.push(new T.Vector3(px,height(px,pz)+.045,pz))}selection=new T.Line(new T.BufferGeometry().setFromPoints(pts),new T.LineBasicMaterial({color:0xffe4a1}));world.add(selection);status.textContent='Space '+q+':'+rnum+' · height '+height(q-4.5,rnum-3.5).toFixed(2)+' world units';draw()}
+  for(const n of['yaw','zoom','tilt'])el(n).addEventListener('input',()=>{state[n]=Number(el(n).value);sync();draw()});
+  for(const n of['yaw','zoom','tilt'])el(n).addEventListener('change',save);
+  for(const n of['biome','detail'])el(n).addEventListener('change',()=>{state[n]=el(n).value;generate();save()});
+  el('relief').addEventListener('input',()=>{state.relief=Number(el('relief').value);generate()});el('relief').addEventListener('change',save);
+  for(const n of['grid','shadows'])el(n).addEventListener('change',()=>{state[n]=el(n).checked;draw();save()});
+  root.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.action;if(a==='generate'){state.seed=state.seed%999999+1;generate()}else if(a==='frame'){Object.assign(state,{yaw:45,zoom:1,tilt:48,panX:0,panZ:0});sync();draw()}else{pan(a==='left'?-.6:a==='right'?.6:0,a==='up'?-.6:a==='down'?.6:0)}save()}));
+  const pointers=new Map();let start,gesture;
+  canvas.addEventListener('pointerdown',e=>{if(e.button===2)return;canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});start={x:e.clientX,y:e.clientY,moved:false,pan:e.shiftKey||e.button===1};if(pointers.size===2){const p=[...pointers.values()];gesture={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}}});
+  canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;const prev=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){const p=[...pointers.values()],d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),x=(p[0].x+p[1].x)/2,y=(p[0].y+p[1].y)/2;if(gesture){state.zoom=clamp(state.zoom*d/Math.max(1,gesture.d),.65,2.4);pan(-(x-gesture.x)*.018,-(y-gesture.y)*.025)}gesture={d,x,y};start.moved=true}else if(pointers.size===1){const dx=e.clientX-prev.x,dy=e.clientY-prev.y;if(Math.hypot(e.clientX-start.x,e.clientY-start.y)>3)start.moved=true;if(start.pan||e.shiftKey){pan(-dx*.018,-dy*.025)}else{state.yaw=(state.yaw-dx*.45+360)%360;draw()}}sync()});
+  function endPointer(e){if(!pointers.has(e.pointerId))return;const tap=pointers.size===1&&start&&!start.moved&&!start.pan;pointers.delete(e.pointerId);gesture=null;if(start)start.moved=true;if(tap)inspect(e.clientX,e.clientY);save()}
+  canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);gesture=null;if(start)start.moved=true});
+  canvas.addEventListener('wheel',e=>{e.preventDefault();state.zoom=clamp(state.zoom*Math.exp(-e.deltaY*.001),.65,2.4);sync();draw();clearTimeout(root._wheelSave);root._wheelSave=setTimeout(save,200)},{passive:false});
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  new ResizeObserver(draw).observe(root.querySelector('.mf-stage'));
+  window.addEventListener('openai:set_globals',e=>{const s=e.detail?.globals?.widgetState?.privateContent;if(s){restore(s);generate()}});
+  generate();
+})();
+</script>

@@ -10,6 +10,7 @@ local Focus=require('game.ui_focus')
 local WorldView=require('game.world_view')
 local Animation=require('game.battle_controller')
 local Accessibility=require('game.accessibility')
+local Native=require('game.battle_native_ui')
 local Panel={}; Panel.__index=Panel
 function Panel.new(view,c)
     local self=setmetatable({view=view,c=c,runtime=view.runtime,ui=view.ui},Panel)
@@ -99,6 +100,7 @@ end
 function Panel:update(dt)
     self.elapsed=(self.elapsed or 0)+(dt or 0)
     local s=self.runtime.saveData and self.runtime.saveData.tacticalBattle
+    if not s then Native.release(self.ui)end
     self:targetWeapon()
     self:animate(dt,s)
     local p=self.pending
@@ -138,6 +140,8 @@ function Panel:context()
     b.phase=self.mode or b.phase; b.selected=self.selected or b.selected; b.logScroll=self.logScroll or 0
     if weapon then b.chosenWeapon=weapon.name; b.chosenItemId=weapon.key end
     local ctx={W=960,H=720,battle=b,battleGrid=Grid,scenery=content.scenery,colors=self.c.colors,mobileEnabled=self.view.mobile.enabled,
+        statusText=self.notice or(b.finished and'The host will continue when ready.'or b.pendingActorId=='companion'and'You will enter at the next turn.'
+            or Actors.id(Rules.activeUnit(b))=='companion'and'Your turn. Choose an action.'or'Waiting for the active player.'),
         animationClock=self.runtime.animationClock,characterAnimations=self.c.characterAnimations and self.c.characterAnimations() or {},
         saveData=self.runtime.saveData,inventoryOpen=false,ui=self.ui,playerProgression=require('game.player_progression'),
         drawLandscape=r.drawLandscape,drawGround=r.drawGround,drawAnimatedCharacter=r.drawAnimatedCharacter,
@@ -159,7 +163,7 @@ function Panel:context()
         useBattlePotion=function(name) self:submit('battle.item',{name=name}) end}
     local images=self.view.scene and self.view.scene.battleImages or {}
     for _,key in ipairs({'characterImages','npcImages','mobImages','characterWalkImages','npcWalkImages','mobAttackImages',
-        'mobIdleImages','mobHitImages','mobDeathImages','mobWalkImages','mobRangedImages'}) do ctx[key]=images[key] or content[key] end
+        'mobIdleImages','mobHitImages','mobDeathImages','mobWalkImages','mobRangedImages'}) do ctx[key]=images[key] or content[key]or{}end
     return ctx
 end
 function Panel:draw()
@@ -169,7 +173,7 @@ function Panel:draw()
     local text=self.notice or (b.finished and 'The host will continue when ready.'
         or b.pendingActorId=='companion' and 'You will enter at the next turn.'
         or Actors.id(active)=='companion' and 'Your turn. Choose an action.' or 'Waiting for the active player.')
-    love.graphics.setColor(1,.9,.7,1); love.graphics.printf(text,110,690,740,'center')
+    if not b.field then love.graphics.setColor(1,.9,.7,1);love.graphics.printf(text,110,690,740,'center')end
 end
 function Panel:pointer(x,y,right)
     local ctx=self:context(); UI.handleMouse(ctx,x,y,right)
@@ -183,6 +187,9 @@ function Panel:targets()
     for _,key in ipairs({'battleMove','battleHeal','battleGuard','battleAbility','battleEnd','battleInventory'}) do
         local rect=self.ui[key]; add(key,rect,function() self:pointer(rect.x+rect.w/2,rect.y+rect.h/2) end)
     end
+    for i,control in ipairs(self.ui.battleCameraButtons or{})do
+        local rect=control.rect;add('camera'..i,rect,function()self:pointer(rect.x+rect.w/2,rect.y+rect.h/2)end)
+    end
     for index,entry in ipairs(self.ui.battlePotionButtons or {}) do
         local rect=entry[1]
         add('potion'..index,rect,function() self:pointer(rect.x+rect.w/2,rect.y+rect.h/2) end)
@@ -191,11 +198,14 @@ function Panel:targets()
     self:targetWeapon()
     if self:canAct(active) then
         local cells={}
-        if (self.mode or b.phase)=='move' then for _,cell in pairs(Rules.reachable(b,active,active.move)) do cells[#cells+1]=cell end
-        elseif (self.mode or b.phase)=='target' then for _,u in ipairs(b.units) do if u.team=='enemy' and u.hp>0 then cells[#cells+1]=u end end end
+        if (self.mode or b.phase)=='move' then for _,cell in pairs(Rules.reachable(b,active,Grid.moveBudget(b,active))) do cells[#cells+1]=cell end
+        elseif (self.mode or b.phase)=='target' then for _,u in ipairs(b.units) do if u.team=='enemy' and u.hp>0 and require('game.battle_fog').unitVisible(b,u)then cells[#cells+1]=u end end end
         table.sort(cells,function(a,b) return a.q==b.q and a.r<b.r or a.q<b.q end)
         for _,cell in ipairs(cells) do
-            local x,y=Grid.boardToScreen(1,cell.q,cell.r); x,y=self.worldView.toScreen(x,y)
+            local x,y
+            if b.field then x,y=Native.project(self:context(),cell.q,cell.r)
+            else x,y=Grid.boardToScreen(1,cell.q,cell.r);x,y=self.worldView.toScreen(x,y)end
+            x,y=x or -1000,y or -1000
             local rect=Style.transformRectFor('battle',{x=0,y=0,w=960,h=720},{x=x-20,y=y-12,w=40,h=24})
             add('cell'..cell.q..':'..cell.r,rect,function() self:pointer(rect.x+20,rect.y+12) end)
         end
@@ -203,6 +213,7 @@ function Panel:targets()
     return targets
 end
 function Panel:keypressed(key)
+    if self.runtime.battle and self.runtime.battle.field and Native.key(self.ui,self.runtime.battle,key,love.keyboard and love.keyboard.isDown('lalt','ralt'))then return true end
     if key=='i' then self.view.inventory:toggle(); return true end
     if key=='escape' or key=='acback' then self.view.controller:open(); return true end
     if key=='tab' or key=='up' or key=='down' or key=='left' or key=='right' then

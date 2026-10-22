@@ -2,7 +2,7 @@
 local Checks = {}
 local patterns = {
     "^STOP ", "^HEALTH", "^LEVEL ", "^LV ", "^GOODWILL ", "^TRAIN ", "^CARS ", "^AMMUNITION$",
-    "^TIME  ", "^AMMO  ", "^TACTICAL ENCOUNTER", "^OBJECTIVE", "^JOURNEY MENU$",
+    "^TIME  ", "^AMMO  ", "^TACTICAL ", "^OBJECTIVE", "^JOURNEY MENU$",
     "^PAUSE", "^JOYSTICK  MOVE", "^HOLD  ", "^HOSTILES  ", "^MORALE  ", "^POSITION  ",
     "^MAG  ", "^ROUNDS  ", "^FIRE MODE  ", "^PHASE ",
 }
@@ -10,7 +10,7 @@ Checks.required = {
     train = {"^STOP ", "^HEALTH", "^LEVEL ", "^GOODWILL ", "^AMMUNITION$"},
     stop = {"^STOP ", "^HEALTH", "^LV ", "^GOODWILL ", "^TRAIN ", "^CARS "},
     house = {"^STOP ", "^HEALTH", "^LV ", "^GOODWILL ", "^TRAIN ", "^CARS "},
-    battle = {"^TACTICAL ENCOUNTER", "^OBJECTIVE"},
+    battle = {"^TACTICAL ", "^OBJECTIVE"},
     range = {"^TIME  ", "^AMMO  "},
     interior = {"^PAUSE", "^JOYSTICK  MOVE"},
     shootout = {"^HOLD  ", "^HOSTILES  ", "^MORALE  ", "^HEALTH", "^POSITION  ", "^MAG  ", "^ROUNDS  ", "^FIRE MODE  "},

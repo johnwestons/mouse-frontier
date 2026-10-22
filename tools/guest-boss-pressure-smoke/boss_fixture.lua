@@ -7,7 +7,7 @@ local Rules=require('game.battle_rules'); local Weapons=require('game.battle_wea
 local Actors=require('game.battle_actors')
 local GameState=require('game.net.game_state'); local Ownership=require('game.replica_ownership')
 local Fixture={STOP=35,LEVEL=8,AMMO=60}
-local limits={maxBytes=131072,maxDepth=20,maxEntries=8192,maxStringBytes=2048}
+local limits={maxBytes=524288,maxDepth=20,maxEntries=16384,maxStringBytes=8192}
 function Fixture.encode(value)
     local function map(v)
         if type(v)~='table' then return v end
@@ -93,7 +93,7 @@ function Fixture.publicState(data)
     return {epoch=data.coop.sceneEpoch,scene=data.scene,location=data.location,encounter=data.encounters[tostring(Fixture.STOP)],
         battle=b and {encounterId=s.encounterId,revision=s.revision,active=b.active,round=b.round,phase=b.phase,
             finished=b.finished,moveUsed=b.moveUsed,chosenWeapon=b.chosenWeapon,chosenItemId=b.chosenItemId,
-            units=units,tiles=b.tiles,tileVariants=b.tileVariants,obstacles=b.obstacles,abilitiesUsed=b.abilitiesUsed},
+            units=units,field=b.field,fog=b.fog,tiles=b.tiles,tileVariants=b.tileVariants,obstacles=b.obstacles,abilitiesUsed=b.abilitiesUsed},
         host=Fixture.ownership(data.players.host),guest=Fixture.ownership(data.players.companion),
         scrap=data.scrap,goodwill=data.goodwill,resources=data.resources,droppedItems=data.droppedItems}
 end
@@ -142,11 +142,28 @@ function Fixture.plan(data,b,id,catalog,pressure,needsHeal,needsMove)
             if effect and effect.health and not effect.potion then return {kind='heal'} end
         end
     end
-    if not pressure then return {kind='guard'} end
+    -- Large operations start outside combat. Advance through unexplored ground
+    -- until there is a visible threat before waiting for real incoming damage.
     local nearest
     for _,enemy in ipairs(b.units) do if enemy.team=='enemy' and enemy.hp>0
+        and require('game.battle_fog').unitVisible(b,enemy)
         and (not nearest or Rules.distance(u,enemy)<Rules.distance(u,nearest)) then nearest=enemy end end
-    if not nearest then return nil end
+    if not nearest then
+        if not b.field then return nil end
+        if not b.moveUsed and b.phase~='action'and b.phase~='target'then
+            local budget=require('game.battle_grid').moveBudget(b,u)
+            local Field=require('game.battle_field');local Fog=require('game.battle_fog');local f=b.field
+            local center=math.floor(f.columns*.55);local east=f.columns-5
+            local waypoints={{q=math.floor(f.columns*.28),r=3},{q=center,r=math.floor(Field.route(f,center)+.5)},
+                {q=math.floor(f.columns*.8),r=f.rows-2},{q=east,r=math.floor(Field.route(f,east)+.5)}}
+            local goal={q=f.exitColumn,r=u.r}
+            for _,p in ipairs(waypoints)do if not Fog.explored(b,p.q,p.r)then goal=p;break end end
+            local point=Rules.bestAdvance(b,u,goal,budget,0)
+            if point and Rules.canMove(b,u,point.q,point.r,budget)then return{kind='move',q=point.q,r=point.r}end
+        end
+        return{kind='endTurn'}
+    end
+    if not pressure then return {kind='guard'} end
     if needsMove and not b.moveUsed and b.phase~='action' and b.phase~='target' then
         local point=Rules.bestAdvance(b,u,nearest,u.move,1)
         if point and (point.q~=u.q or point.r~=u.r) and Rules.canMove(b,u,point.q,point.r,u.move) then
@@ -156,7 +173,7 @@ function Fixture.plan(data,b,id,catalog,pressure,needsHeal,needsMove)
     if b.phase=='target' then
         local info=Weapons.resolve(data,u,b.chosenItemId or b.chosenWeapon,catalog)
         for _,enemy in ipairs(b.units) do if info and enemy.team=='enemy' and enemy.hp>0
-            and Rules.distance(u,enemy)<=Rules.weaponRange(catalog,info.name) and Rules.lineOfSight(b,u,enemy) then
+            and require('game.battle_fog').unitVisible(b,enemy)and Rules.distance(u,enemy)<=Rules.weaponRange(catalog,info.name) and Rules.lineOfSight(b,u,enemy) then
             return {kind='target',q=enemy.q,r=enemy.r} end end
         return nil -- Wait; never manufacture a target or edit the turn.
     end
@@ -165,7 +182,7 @@ function Fixture.plan(data,b,id,catalog,pressure,needsHeal,needsMove)
         local info=Weapons.resolve(data,u,selector,catalog); local combat=info and catalog.weaponCombat[info.name]
         if info and info.durability>0 and (not combat.ammo or (actor.ammo[combat.ammo] or 0)>0) then
             for _,enemy in ipairs(b.units) do if enemy.team=='enemy' and enemy.hp>0
-                and Rules.distance(u,enemy)<=Rules.weaponRange(catalog,info.name)
+                and require('game.battle_fog').unitVisible(b,enemy)and Rules.distance(u,enemy)<=Rules.weaponRange(catalog,info.name)
                 and (combat.kind~='ranged' or Rules.lineOfSight(b,u,enemy)) then
                 local maximum=catalog.weaponStats[info.name].max
                 if not power or maximum>power then best,power=index,maximum end

@@ -40,6 +40,7 @@ local Finale=require('game.coop_finale')
 local FinaleUI=require('game.finale_ui')
 local Typography=require('game.typography')
 local Focus=require('game.ui_focus')
+local NativeBattle=require('game.battle_native_ui')
 local View={}; View.__index=View
 local function noop() end
 local function actor(record)
@@ -90,14 +91,21 @@ function View.new(c,controller)
         backpackAction=function() self.inventory:toggle() end,
         menuVisible=function() return not self.ui.actionMenuVisible and self.ready and not self.runtime.inventoryOpen end,menuLabel=function() return 'LOCAL PLAY' end,
         menuAction=function() controller:open() end,
-        getZoom=function() return self.camera.zoom end,
+        getZoom=function()local c=NativeBattle.camera(self.ui,self.runtime.battle);return c and c.zoom or self.camera.zoom end,
         setZoom=function(zoom,x,y)
+            local camera=NativeBattle.camera(self.ui,self.runtime.battle);if camera then return camera:setZoom(zoom)end
             local gx,gy=Viewport.toGame(x,y,960,720); local fx,fy=self:focusPoint()
             return self.camera:setZoomAt(zoom,gx,gy,fx,fy)
         end,
-        beginCameraPan=function(x,y) self.camera:beginPan(x,y) end,
-        moveCameraPan=function(x,y) local _,_,scale=Viewport.transform(960,720); self.camera:movePan(x,y,scale) end,
-        endCameraPan=function() self.camera:endPan() end,
+        beginCameraPan=function(x,y)
+            if NativeBattle.camera(self.ui,self.runtime.battle)then local gx,gy=Viewport.toGame(x,y,960,720);return NativeBattle.beginDrag(self.ui,self.runtime.battle,gx,gy,3)end
+            self.camera:beginPan(x,y)
+        end,
+        moveCameraPan=function(x,y)
+            if NativeBattle.camera(self.ui,self.runtime.battle)then return NativeBattle.drag(self.ui,Viewport.toGame(x,y,960,720))end
+            local _,_,scale=Viewport.transform(960,720);self.camera:movePan(x,y,scale)
+        end,
+        endCameraPan=function()NativeBattle.endDrag(self.ui);self.camera:endPan()end,
         accessibilityData=function() return self.runtime.saveData or {} end})
     self.inventory=GuestInventory.new(self,c)
     self.inspection=require('game.coop_guest_inspection').new(self)
@@ -169,6 +177,7 @@ function View:_send(x,y,sprint)
     self.lastX,self.lastY=x,y; return true
 end
 function View:neutralize()
+    if self.ui and self.ui.nativeBattle then self.ui.nativeBattle.drag=nil end
     self.controllerPressed={}
     if self.settings then self.settings.pressedKeys={}; self.settings.pressedButtons={} end
     if self.range then self.range:suspend() end
@@ -769,7 +778,10 @@ function View:mousepressed(x,y,button,istouch)
     if self.lastStand and self.lastStand:available() then self.lastStand:pointer(gx,gy,button); return true end
     if self.ambush:available() then return self.ambush:pointer(gx,gy,button) end
     if self.range and self.range:available() then return self.range:pointer(gx,gy,button) end
-    if self.runtime.battle and not self.runtime.inventoryOpen then return self.battles:pointer(gx,gy,button~=1) end
+    if self.runtime.battle and not self.runtime.inventoryOpen then
+        if NativeBattle.beginDrag(self.ui,self.runtime.battle,gx,gy,button,love.keyboard and love.keyboard.isDown('lshift','rshift'))then return true end
+        return self.battles:pointer(gx,gy,button~=1)
+    end
     if self.runtime.guestActivityOpen then if button==1 then self.activities:press(gx,gy) end; return true end
     if self.runtime.peopleOpen then if button==1 then self.people:press(gx,gy) end; return true end
     if self:objectsOpen() then if button==1 then self.objects:press(gx,gy) end; return true end
@@ -801,6 +813,7 @@ function View:mousepressed(x,y,button,istouch)
     return true
 end
 function View:mousemoved(x,y)
+    if self.runtime.battle and self.ui.nativeBattle and self.ui.nativeBattle.drag then return NativeBattle.drag(self.ui,Viewport.toGame(x,y,960,720))end
     if self.inspection.opened then return true end
     if self.travel and self.travel.opened then return true end
     if self.journey and self.journey.opened or self.controllerFocus or self.poses and self.poses.opened then return true end
@@ -820,6 +833,11 @@ function View:mousemoved(x,y)
     local _,_,scale=Viewport.transform(960,720); self.camera:movePan(x,y,scale); return true
 end
 function View:mousereleased(x,y,button)
+    if self.runtime.battle and self.ui.nativeBattle and self.ui.nativeBattle.drag then
+        local drag=NativeBattle.endDrag(self.ui)
+        if drag and not drag.moved and drag.button==2 then local gx,gy=Viewport.toGame(x,y,960,720);return self.battles:pointer(gx,gy,true)end
+        return true
+    end
     if self.lastStand and self.lastStand:available() then
         if self.lastStand.shooter:available() then return self.lastStand.shooter:mousereleased(button) end
         if button==1 and self.lastStand.aid.opened then local gx,gy=Viewport.toGame(x,y,960,720); self.lastStand.aid:releasePointer(gx,gy) end
@@ -849,6 +867,8 @@ function View:wheelmoved(_,dy)
     if self.runtime.guestActivityOpen then return self.activities:wheel(dy) end
     if self.runtime.inventoryOpen or self.runtime.tradeOpen or self.runtime.trainUpgradeOpen or self:objectsOpen() or self.runtime.peopleOpen or self.runtime.guestActivityOpen then return true end
     local x,y=love.mouse.getPosition(); x,y=Viewport.toGame(x,y,960,720)
+    local camera=NativeBattle.camera(self.ui,self.runtime.battle)
+    if camera then camera:setZoom(camera.zoom*1.13^dy);return true end
     local fx,fy=self:focusPoint(); self.camera:wheel(dy,x,y,fx,fy); return true
 end
 function View:touchpressed(id,x,y,...)
@@ -972,6 +992,7 @@ function View:focus(focused)
     if self.context.audio then self.context.audio.focus(focused,self.runtime) end; return true
 end
 function View:release()
+    require('game.battle_native_ui').release(self.ui)
     self.inspection:close()
     if self.travel then self.travel:release()end
     if self.journey then self.journey:release() end

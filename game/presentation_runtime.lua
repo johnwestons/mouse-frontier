@@ -1,6 +1,7 @@
 local WorldView=require("game.world_view")
 local TrainView=require("game.train_view")
 local SceneFit=require("game.scene_fit")
+local NativeBattle=require('game.battle_native_ui')
 
 local function required(context,name,expected)
   local value=context[name]
@@ -147,6 +148,7 @@ local function new(context)
   end
 
   local function draw()
+      if runtime.state~='battle'then NativeBattle.release(ui)end
       love.graphics.clear(0.025,0.02,0.025,1)
       if screens:is("intro") then
           screens:draw(love.graphics.getDimensions())
@@ -179,21 +181,28 @@ local function new(context)
       markFirstFrame()
   end
 
-  local function isPanning() return Camera.panning end
-  local function beginPan(x,y) activateSurface(); return Camera:beginPan(x,y) end
+  local function battleCamera()return runtime.state=='battle'and not runtime.inventoryOpen and NativeBattle.camera(ui,runtime.battle)or nil end
+  local function isPanning() return ui.nativeBattle and ui.nativeBattle.drag~=nil or Camera.panning end
+  local function beginPan(x,y)
+      if battleCamera()then local gx,gy=viewportToGame(x,y);return NativeBattle.beginDrag(ui,runtime.battle,gx,gy,3)end
+      activateSurface();return Camera:beginPan(x,y)
+  end
   local function movePan(x,y)
+      if battleCamera()then return NativeBattle.drag(ui,viewportToGame(x,y))end
       local _,_,viewportScale=Viewport.transform(W,H)
       return Camera:movePan(x,y,viewportScale)
   end
-  local function endPan() return Camera:endPan() end
+  local function endPan() NativeBattle.endDrag(ui);return Camera:endPan() end
   local function wheel(delta,x,y)
+      local camera=battleCamera();if camera then return camera:setZoom(camera.zoom*1.13^delta)end
       activateSurface()
       if x and y then x,y=viewportToGame(x,y) else x,y=W/2,H/2 end
       local focusX,focusY=focus()
       return Camera:wheel(delta,x,y,focusX,focusY)
   end
-  local function getZoom() activateSurface(); return Camera.zoom end
+  local function getZoom()local camera=battleCamera();if camera then return camera.zoom end;activateSurface();return Camera.zoom end
   local function setZoom(value,x,y)
+      local camera=battleCamera();if camera then return camera:setZoom(value)end
       activateSurface()
       if x and y then
           x,y=viewportToGame(x,y)
@@ -202,8 +211,11 @@ local function new(context)
       end
       return Camera:setZoom(value)
   end
-  local function resetCamera(all) activateSurface(); if all then Camera:resetAll() else Camera:reset() end end
-  local function panCamera(dx,dy) activateSurface(); return Camera:panBy(dx,dy) end
+  local function resetCamera(all)
+      if battleCamera()then NativeBattle.cameraAction(ui,runtime.battle,'focus');return end
+      activateSurface();if all then Camera:resetAll()else Camera:reset()end
+  end
+  local function panCamera(dx,dy)local camera=battleCamera();if camera then return camera:pan(dx,dy)end;activateSurface();return Camera:panBy(dx,dy)end
   local function cameraAudit() return Camera:audit() end
   local function getSurface() activateSurface(); return Camera.scope end
 

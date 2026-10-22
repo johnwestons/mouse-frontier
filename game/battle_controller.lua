@@ -8,6 +8,10 @@ local WeaponOwnership=require("game.battle_weapon_ownership")
 local Actors=require('game.battle_actors')
 local Players=require('game.coop_players')
 local Random=require('game.coop_random')
+local Field=require('game.battle_field')
+local Operation=require('game.battle_operation')
+local Motion=require('game.battle_motion')
+local Fog=require('game.battle_fog')
 local function random(c,low,high) return Random.range(c.rng)(low,high) end
 
 local function applyPotionToPlayer(c,unit,name)
@@ -70,6 +74,16 @@ function Battle.addCompanion(c)
     if b.pendingActorId~='companion' then return false end
     for _,unit in ipairs(b.units) do if Actors.id(unit)=='companion' then b.pendingActorId=nil; return false end end
     local spots={{q=1,r=5}}
+    if b.field then
+        spots={}
+        local host=b.units[1]
+        for radius=1,5 do for dq=-radius,radius do for dr=-radius,radius do
+            if math.abs(dq)+math.abs(dr)==radius then
+                local q,r=host.q+dq,host.r+dr
+                if c.BattleRules.isBoardSpace(b,q,r)then spots[#spots+1]={q=q,r=r}end
+            end
+        end end end
+    end
     for q=0,2 do for r=1,c.BOARD_ROWS do spots[#spots+1]={q=q,r=r} end end
     for _,spot in ipairs(spots) do
         if not c.BattleRules.unitAt(b,spot.q,spot.r) and not b.obstacles[spot.q..':'..spot.r] then
@@ -136,17 +150,16 @@ function Battle.begin(c,encounter)
             q=c.BOARD_COLS,r=row,hp=unitHP,maxHP=unitMaxHP,move=unitProfile.move,armor=unitProfile.armor+(boss and 1 or 0),
             aim=unitProfile.aim+(boss and 1 or 0),attackStyle=combat.kind=="ranged" and "ranged" or "melee",weapon=weapon,boss=boss}
     end
-    local tiles,vars={},{ }
-    for q=0,c.BOARD_COLS do
-        tiles[q]={}; vars[q]={}
-        for r=1,c.BOARD_ROWS do
-            tiles[q][r]=terrain(c); vars[q][r]=random(c,1,3)
-        end
-    end
-    local obstacles=c.BattleGrid.generateObstacles(d.location,tier,Random.range(c.rng))
+    local biome=((d.location-1)%4)+1
+    local seed=random(c,1,2147483646)
+    local field,tiles,vars,obstacles=Field.generate(seed,biome,tier)
+    Operation.placeEnemies(field,units,obstacles)
     for _,unit in ipairs(units) do obstacles[tostring(unit.q)..":"..tostring(unit.r)]=nil end
-    local objective=encounter.boss and "Defeat the alpha threat" or (encounter.defenseBattle and "Protect the settlement defenders" or "Defeat all threats")
-    c.battle={encounter=encounter,units=units,tiles=tiles,tileVariants=vars,obstacles=obstacles,biome=((d.location-1)%4)+1,active=1,round=1,phase="select",selected=1,reachable={},objective=objective,message="Move between highlighted terrain pieces, or choose an attack.",log={"OBJECTIVE: "..objective,"Battle begins."},logScroll=0,terrainSeed=d.location*19,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
+    local objective=encounter.boss and "Defeat the alpha threat, then reach the eastern exit" or
+        (encounter.defenseBattle and "Defeat the attackers, then reach the eastern exit" or "Reach the eastern exit with every surviving player")
+    c.battle={field=field,encounter=encounter,units=units,tiles=tiles,tileVariants=vars,obstacles=obstacles,biome=biome,active=1,round=1,phase="select",selected=1,reachable={},objective=objective,message="Cross the battlefield to the eastern exit. Clear ground allows longer march moves.",log={"OBJECTIVE: "..objective,"Battle begins."},logScroll=0,terrainSeed=seed,attackTimer=0,hitFlash=0,intro=0,introDuration=1.65,abilitiesUsed={}}
+    Operation.awaken(c.battle)
+    Fog.update(c.battle)
     for _,unit in ipairs(Actors.units(c.battle)) do
         local actor=Actors.data(d,unit)
         for name in pairs(actor.nextBattlePotions or {}) do applyPotionToPlayer(c,unit,name) end
@@ -158,8 +171,11 @@ end
 function Battle.advance(c)
     local b=c.battle; if not b or b.finished then return true end
     Battle.addCompanion(c)
+    Operation.awaken(b)
+    Fog.update(b)
     local enemy,ally=false,false; for _,u in ipairs(b.units) do if u.hp>0 then if u.team=="enemy" then enemy=true else ally=true end end end
-    if not enemy then
+    if (not b.field and not enemy)or Operation.ready(b)then
+        if b.field then Operation.complete(b)end
         b.encounter.resolved=true; local d=c.saveData; local C=c.Catalog
         for _,unit in ipairs(Actors.units(b)) do if unit.hp<=0 then unit.hp=1 end; Actors.syncHealth(d,unit) end
         if b.encounter.source=="expedition" then
@@ -168,7 +184,7 @@ function Battle.advance(c)
             msg(c,"Victory! "..ExpeditionRewards.summary(b.expeditionRewardReceipt))
             b.finished="win"; c.writeSave(); return true
         end
-        local enemyCount=0; for _,unit in ipairs(b.units) do if unit.team=="enemy" then enemyCount=enemyCount+1 end end
+        local enemyCount=0; for _,unit in ipairs(b.units) do if unit.team=="enemy" and (not b.field or unit.hp<=0)then enemyCount=enemyCount+1 end end
         local rewards=c.CombatBalance.rewardProfile(b.encounter.tier,enemyCount,b.encounter.defenseBattle,b.encounter.boss)
         local trait=d.trait or C.characterTraitProfiles[1]; local reward=random(c,rewards.coalMin,rewards.coalMax); local scrap=math.max(1,math.floor(random(c,rewards.scrapMin,rewards.scrapMax)*(trait.reward or 1)))+(trait.scrapBonus or 0); local xp=rewards.xp; local defenseBonus=""
         if b.encounter.defenseBattle then local food=c.TrainUpgradeBalance.addResource(d,"food",2); local water=c.TrainUpgradeBalance.addResource(d,"water",2); defenseBonus=" The survivors share +"..food.." food and +"..water.." water." end
@@ -184,14 +200,17 @@ function Battle.advance(c)
         end
         d.scrap=d.scrap+scrap; local coal=c.TrainUpgradeBalance.addResource(d,"coal",reward); msg(c,"Victory! +"..xp.." XP, +"..coal.." coal, +"..scrap.." scrap."..defenseBonus..loot..(levels>0 and " LEVEL UP!" or "")); b.finished="win"; c.writeSave(); return true
     end
-    if not ally then
+    if not ally or b.field and not Operation.hasLivingPlayer(b)then
         for _,unit in ipairs(Actors.units(b)) do
             local actor=Actors.data(c.saveData,unit); actor.health=math.max(1,math.floor(actor.maxHealth/2)); actor.battlePotionLootChance=nil
         end
         msg(c,"Your party was overwhelmed and returned to the train."); b.finished="loss"; c.writeSave(); return true
     end
     local ended=c.BattleRules.activeUnit(b); c.BattleRules.endTurn(ended); ended.staggeredRounds=math.max(0,(ended.staggeredRounds or 0)-1); ended.extraAttacks=nil; ended.extraMoves=nil; ended.perfectAccuracy=nil
-    local start=b.active; repeat b.active=b.active%#b.units+1 until b.units[b.active].hp>0 or b.active==start; if b.active==1 then b.round=b.round+1 end
+    local start=b.active; repeat
+        b.active=b.active%#b.units+1
+        if b.active==1 then b.round=b.round+1 end
+    until b.units[b.active].hp>0 and Operation.active(b,b.units[b.active])or b.active==start
     local active=b.units[b.active]; active.guarding=false
     if (active.bleedRounds or 0)>0 then
         local bleed=math.max(1,active.bleedDamage or 1); active.hp=math.max(0,active.hp-bleed); active.bleedRounds=active.bleedRounds-1; active.hitTimer=.38; active.damageNumber=bleed; active.damageNumberTimer=.7
@@ -248,9 +267,17 @@ end
 function Battle.move(c,q,r)
     local b=c.battle; local u=c.BattleRules.activeUnit(b); if not u or u.team~="ally" then return end
     if b.moveUsed or b.phase=="action" or b.phase=="target" then prompt(c,"Movement has already been used this turn."); return end
-    local allowed=c.BattleRules.canMove(b,u,q,r,u.move)
+    local budget=c.BattleGrid.moveBudget(b,u)
+    local allowed=c.BattleRules.canMove(b,u,q,r,budget)
     if not allowed then prompt(c,"No clear path reaches that terrain space this turn."); return end
-    u.moveAnim={fromQ=u.q,fromR=u.r,toQ=q,toR=r,t=0,duration=.48}; u.q,u.r=q,r; b.moveUsed=true
+    local path=b.field and c.BattleGrid.path(b,u,q,r,budget)or nil
+    local length=path and Motion.routeLength(b.field,path)or 0
+    u.moveAnim={fromQ=u.q,fromR=u.r,toQ=q,toR=r,path=path,fromDistance=u.routeDistance or 0,t=0,duration=path and math.min(2.8,.28*(#path-1))or .48}
+    if b.field then local previous=path[#path-1];u.intentQ,u.intentR=q-previous.q,r-previous.r;u.routeDistance=(u.routeDistance or 0)+length end
+    u.q,u.r=q,r;b.moveUsed=true
+    Fog.update(b,u,path)
+    Operation.awaken(b)
+    if Operation.ready(b)then Battle.advance(c);return end
     if Actors.id(u) and (u.extraMoves or 0)>0 then u.extraMoves=u.extraMoves-1; b.moveUsed=false; b.phase="select"; prompt(c,u.name.." moved. One extra move remains.") else b.phase="action"; prompt(c,u.name.." moved. Choose an attack or end the turn.") end
 end
 function Battle.heal(c)
@@ -292,6 +319,7 @@ function Battle.ability(c,kind)
     Battle.advance(c)
 end
 function Battle.resolve(c,attacker,target,weaponName,itemId)
+    if attacker.team=='ally'and target.team=='enemy'and not Fog.unitVisible(c.battle,target)then return false,'target_hidden' end
     local weaponInfo=WeaponOwnership.resolve(c.saveData,attacker,itemId or weaponName,c.Catalog)
     if not weaponInfo then return false,"ownership" end
     weaponName=weaponInfo.name
@@ -320,7 +348,9 @@ function Battle.resolve(c,attacker,target,weaponName,itemId)
     msg(c,attacker.name.." used "..name.." on "..target.name.." — HIT for "..damage.." damage."..effect); b.attackTimer=attacker.team=="enemy" and .95 or .45; b.hitFlash=.18; b.lastTarget=target.id; advanceAttack(c,attacker); return true
 end
 function Battle.enemyTurn(c)
+    Operation.awaken(c.battle)
     local b=c.battle; local enemy=c.BattleRules.activeUnit(b); if not enemy or enemy.team~="enemy" or b.finished then return end
+    if not Operation.active(b,enemy)then Battle.advance(c);return end
     if (enemy.sleepRounds or 0)>0 or (enemy.paralyzedRounds or 0)>0 then local status=(enemy.sleepRounds or 0)>0 and "asleep" or "paralyzed"; enemy.sleepRounds=math.max(0,(enemy.sleepRounds or 0)-1); enemy.paralyzedRounds=math.max(0,(enemy.paralyzedRounds or 0)-1); msg(c,enemy.name.." is "..status.." and loses its turn."); Battle.advance(c); return end
     local target; for _,u in ipairs(b.units) do if u.team=="ally" and u.hp>0 and (not target or c.BattleRules.distance(enemy,u)<c.BattleRules.distance(enemy,target)) then target=u end end
     if not target then Battle.advance(c); return end
@@ -329,7 +359,11 @@ function Battle.enemyTurn(c)
     local hasSight=c.BattleRules.lineOfSight(b,enemy,target)
     if not inRange or (enemy.attackStyle=="ranged" and not hasSight) then
         local step=c.BattleRules.bestAdvance(b,enemy,target,enemy.move,preferred)
-        local q,r=step.q,step.r; if q~=enemy.q or r~=enemy.r then enemy.moveAnim={fromQ=enemy.q,fromR=enemy.r,toQ=q,toR=r,t=0,duration=.68} end
+        local q,r=step.q,step.r; if q~=enemy.q or r~=enemy.r then
+            local path=b.field and c.BattleGrid.path(b,enemy,q,r,enemy.move)or nil
+            enemy.moveAnim={fromQ=enemy.q,fromR=enemy.r,toQ=q,toR=r,path=path,fromDistance=enemy.routeDistance or 0,t=0,duration=path and math.min(2.8,.28*(#path-1))or .68}
+            if path then local previous=path[#path-1];enemy.intentQ,enemy.intentR=q-previous.q,r-previous.r;enemy.routeDistance=(enemy.routeDistance or 0)+Motion.routeLength(b.field,path)end
+        end
         enemy.q,enemy.r=q,r; prompt(c,enemy.name.." maneuvers around the battlefield."); b.attackTimer=.82; Battle.advance(c)
     else Battle.resolve(c,enemy,target,weapon) end
 end

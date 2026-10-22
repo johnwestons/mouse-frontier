@@ -1037,7 +1037,8 @@ local function install(context)
                 if not control then return false end
                 return {width=control.w,height=control.h}
             end,check=function(_,_,snapshot,result)
-                return result and result.width>=60 and result.height>=50 and snapshot.state=="game" and snapshot.scene=="stop"
+                local ok=result and result.width>=60 and result.height>=50 and snapshot.state=="game" and snapshot.scene=="stop"
+                return ok,'exit control='..(result and string.format('%.17g x %.17g',result.width,result.height)or'absent')..' state='..snapshot.state..' scene='..snapshot.scene
             end},
             {name="reenter_house_after_button",action=function() ui.interaction={kind="house",index=1}; love.keypressed("e"); return true end,expect={state="game",scene="house"}},
             {name="exit_house_key",action=function() ui.interaction={kind="houseExit"}; love.keypressed("e"); return "e" end,expect={state="game",scene="stop"}},

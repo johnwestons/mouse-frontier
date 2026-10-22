@@ -8,7 +8,7 @@ function Checkpoint.encode(value)
         local result={}; for k,item in pairs(v) do result[type(k)..':'..tostring(k)]=mapped(item) end
         return result
     end
-    return assert(Codec.encode(mapped(value),{maxBytes=32768,maxDepth=16,maxEntries=2048,maxStringBytes=2048}))
+    return assert(Codec.encode(mapped(value),{maxBytes=262144,maxDepth=16,maxEntries=16384,maxStringBytes=8192}))
 end
 function Checkpoint.ownership(actor)
     return {id=actor.id,character=actor.character,health=actor.health,maxHealth=actor.maxHealth,stats=actor.stats,
@@ -26,7 +26,7 @@ local function publicState(data)
     assert(data.players.host.id=='host' and data.players.companion.id=='companion','wrong battle actor identity')
     return {epoch=data.coop.sceneEpoch,scene=data.scene,location=data.location,encounterId=s.encounterId,revision=s.revision,
         active=b.active,round=b.round,phase=b.phase,moveUsed=b.moveUsed,chosenItemId=b.chosenItemId,
-        units=units,tiles=b.tiles,tileVariants=b.tileVariants,obstacles=b.obstacles,abilitiesUsed=b.abilitiesUsed,
+        units=units,field=b.field,fog=b.fog,tiles=b.tiles,tileVariants=b.tileVariants,obstacles=b.obstacles,abilitiesUsed=b.abilitiesUsed,
         host=Checkpoint.ownership(data.players.host),guest=Checkpoint.ownership(data.players.companion),scrap=data.scrap,
         goodwill=data.goodwill,encounter=data.encounters['2']}
 end

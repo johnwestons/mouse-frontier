@@ -57,6 +57,7 @@ Android controls, installation, update flow, and device verification are documen
 - Move with **WASD** or the **arrow keys**.
 - Use the mouse wheel or **+ / -** to zoom any gameplay scene, battle, menu, or overlay. Middle-drag to pan, **Alt + arrow keys** to nudge the view, and **0** to reset the current view. Hold **Shift** while using the wheel on the journey map or character list to scroll that interface instead.
 - On Android, pinch anywhere outside the fixed thumb controls to zoom and use a two-finger drag to pan. Camera views are remembered separately for worlds and interfaces, while the edge controls remain fixed and reachable.
+- In new battles, right-drag or **Q / E** rotates the camera; **[ / ]** changes tilt, **O** frames the map, and **Home** focuses a unit. **Settings → Graphics** adjusts terrain draw distance. Fog remembers explored ground while enemies require current party sight.
 - Open **Settings → Accessibility** for three text sizes, high contrast, reduced motion, optional control hints, visual/haptic touch feedback, and larger Android thumb controls. On Windows, use **Tab** to change settings pages and **1–6** to change accessibility preferences.
 - The shared interface uses Courier Prime typewriter text with measured wrapping. On mobile, the journey HUD spans the physical screen width and stays fixed during world zoom; roomier menus and clearer inventory, battle, dialogue, trading, and activity panels improve readability.
 - Use the travel control to preview the next leg's food, water, and coal cost. Costs rise at clear journey milestones, with terrain, passengers, engine upgrades, traits, and maintenance modifying the total.
@@ -85,7 +86,7 @@ Android controls, installation, update flow, and device verification are documen
 - Winning an encounter clears that stop permanently and awards coal. Player health is retained in the save file.
 - Weapons must be carried and placed into one of the two equipment slots before they appear in battle. Scratch is always available.
 - Equipped weapons wear by one point on every attack attempt, including misses. Broken weapons cannot attack; repair the most damaged equipped weapon for scrap at the train workshop.
-- Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands; larger enemy groups award more coal, scrap, and experience. Tactical battles use a 60-space board with path-blocking dead trees, cars, ruins, rocks, barricades, and rail carts; ranged attacks respect line of sight and the whole board zooms together.
+- Weapon damage and mob difficulty increase across smooth easy, medium, and hard journey bands. New tactical crossings use a 72 × 40 procedural field with hills, cover, shared fog of war, and a far-side exit. Every surviving participating player must extract; boss and defense objectives also require their threats to be defeated. Saved 60-space battles retain their original rules. See [implementation and verification status](docs/BATTLE_ENVIRONMENT_IMPLEMENTATION.md).
 - On the train, click **MOVE / SCALE** to drag, resize, rotate, or collect placed decorations. Click **DONE** to save the arrangement.
 - Hold **Shift** while moving to sprint.
 - Battles and quests award experience. Levels improve maximum health, aim, armor, movement, and the player's four-rank special ability; the HUD shows every active bonus.

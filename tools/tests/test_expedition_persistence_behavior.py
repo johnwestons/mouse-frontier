@@ -92,7 +92,13 @@ function startBattle(runtime,api,twoEnemies)
     local files={}; for i,enemy in ipairs(states) do files[i]=enemy.file end
     api.beginEncounter{source="expedition",areaId=Areas.SURFACE_ID,tier="easy",mobFiles=files,enemyStates=states,
         returnContext={scene="expedition",areaId=Areas.SURFACE_ID,x=RETURN_X,y=RETURN_Y}}
-    return runtime.battle
+    -- This harness represents the old single-player checkpoint format. Keep
+    -- its historical 60-space board while production new battles use fields.
+    local b=runtime.battle;b.field=nil;b.fog=nil;b.crossingComplete=nil;b.obstacles={};b.tiles={};b.tileVariants={}
+    for q=0,9 do b.tiles[q]={};b.tileVariants[q]={};for r=1,6 do b.tiles[q][r]=1;b.tileVariants[q][r]=1 end end
+    for i,u in ipairs(b.units)do if u.team=='enemy'then u.q,u.r=9,i-1;u.alerted=nil;u.pocket=nil end end
+    b.objective='Defeat all threats'
+    return b
 end
 
 function newBootstrap(runtime,useTacticalCommands)

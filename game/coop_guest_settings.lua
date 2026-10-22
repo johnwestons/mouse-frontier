@@ -1,5 +1,6 @@
 -- Device-only guest settings. No campaign writer or gameplay command is available.
 local Preferences=require('game.local_preferences')
+local BattleGraphics=require('game.battle_graphics')
 local Accessibility=require('game.accessibility')
 local Bindings=require('game.control_bindings')
 local Layout=require('game.control_layout')
@@ -259,8 +260,8 @@ function Settings:draw()
     Style.scope('guest-settings',bounds,function()
         g.setColor(.075,.055,.035,1); g.rectangle('fill',bounds.x,bounds.y,bounds.w,bounds.h,9,9)
         text('DEVICE SETTINGS',60,36,590,40,1.2); add('close','BACK TO LOCAL PLAY',690,36,210,function() self:close() end)
-        for i,page in ipairs({'audio','accessibility','controls'}) do local chosen=page
-            add(page,page:upper(),60+(i-1)*285,94,270,function() self.page=chosen; self.scroll=0; self.ui={} end)
+        for i,page in ipairs({'audio','accessibility','controls','graphics'}) do local chosen=page
+            add(page,page:upper(),60+(i-1)*215,94,200,function() self.page=chosen; self.scroll=0; self.ui={} end)
         end
         if self.page=='audio' then
             for i,entry in ipairs({{'musicVolume','MUSIC'},{'sfxVolume','SOUND FX'},{'rainVolume','RAIN'}}) do
@@ -279,6 +280,16 @@ function Settings:draw()
                 add(action,entry[2],80+(i-1)*195,496,180,function() self:audio(action) end)
             end
             text('Personal station: '..settings.audio.station..'. Volume and playback apply to this device.',80,558,765,64,.83)
+        elseif self.page=='graphics'then
+            local mobile=self:mobile();local enabled=mobile and mobile.enabled
+            text('BATTLE TERRAIN DRAW DISTANCE',80,166,765,44,1)
+            text(BattleGraphics.label(settings,enabled),80,225,480,52,1.15)
+            add('battle-distance-','-',625,225,100,function() BattleGraphics.adjust(self:values(),-1,enabled);self:savePreferences()end,true,52)
+            add('battle-distance+','+',745,225,100,function() BattleGraphics.adjust(self:values(),1,enabled);self:savePreferences()end,true,52)
+            add('battle-distance-auto','AUTO',625,286,220,function() BattleGraphics.automatic(self:values());self:savePreferences()end,true,42)
+            text('Lower distances draw fewer terrain chunks and props around the party. AUTO uses 10 spaces on mobile and 14 on desktop.',80,345,765,64,.94)
+            text('Explore to reveal ground. Previously explored ground is dimmed. Enemies appear only within shared party sight, which terrain and cover can block.',80,412,765,110,.94)
+            text('Draw distance saves on this device. Tactical sight stays the same for both players.',80,570,765,64,.86)
         elseif self.page=='accessibility' then
             local access=Accessibility.ensure(settings)
             for i,entry in ipairs({{'textSize','TEXT SIZE',Accessibility.textLabel(settings)},{'highContrast','HIGH CONTRAST'},

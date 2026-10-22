@@ -64,7 +64,7 @@ class ExpeditionTacticalTests(unittest.TestCase):
     def test_expedition_win_pays_each_owner_once_and_waits_for_host_before_return(self):
         self.expedition()
         self.lua.execute('''
-            assert(start().ok); local b=ready(); b.units[3].hp=0; b.units[4].hp=0
+            assert(start().ok); local b=ready(); b.units[3].hp=0; b.units[4].hp=0;atExit(b)
             local xp=host.stats.xp; local gxp=guest.stats.xp; local epoch=data.coop.sceneEpoch
             local request=assert(service:prepareRequest('host','battle.endTurn',args()))
             assert(service:execute('host',0,request).ok and b.finished=='win')
@@ -110,7 +110,7 @@ class ExpeditionTacticalTests(unittest.TestCase):
         self.lua.execute('''
             failSave=true; local r=start(); assert(r.ok and r.savePending)
             local rng=data.coop.randomState; failSave=false; assert(service:retryCheckpoint() and saved.coop.randomState==rng)
-            local b=ready(); b.units[3].hp=0; assert(action('host','battle.endTurn').ok)
+            local b=ready(); b.units[3].hp=0;atExit(b); assert(action('host','battle.endTurn').ok)
             local scrap=data.scrap; local xp=guest.stats.xp; failSave=true
             r=run('host','battle.continue',{encounterId=data.tacticalBattle.encounterId,turnRevision=data.tacticalBattle.revision})
             assert(r.ok and r.savePending and data.scene=='expedition' and not data.tacticalBattle)
@@ -149,7 +149,7 @@ class ExpeditionTacticalTests(unittest.TestCase):
             Areas.updateGates(data,Areas.DUNGEON_ID)
             assert(start().ok); local b=ready()
             assert(b.encounter.boss and b.encounter.enemyStates[1].boss and b.units[3].hp==58)
-            b.units[3].hp=0; assert(action('host','battle.endTurn').ok and b.finished=='win')
+            b.units[3].hp=0;atExit(b); assert(action('host','battle.endTurn').ok and b.finished=='win')
             local scrap=data.scrap; local hxp=host.stats.xp; local gxp=guest.stats.xp
             assert(a.dead and a.rewardResolved and area.gates.bossDefeated and area.completed)
             assert(not area.chests['boss-vault'].opened and data.tacticalBattle)

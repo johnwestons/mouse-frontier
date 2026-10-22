@@ -2,18 +2,19 @@
 
 Combat pacing is owned by `game/combat_balance.lua` so ordinary encounters, trail events, battle setup, rewards, desktop builds, and Android builds all use the same rules.
 
-Board geometry, pathfinding, line of sight, obstacles, zoom coordinates, and obstacle generation are owned by `game/battle_grid.lua`. The battle controller and interface consume the same rules, preventing visual highlights from disagreeing with legal movement or attacks.
+Shared movement and sight rules live in `game/battle_grid.lua`; canonical procedural geometry lives in `game/battle_field.lua`. The controller and interface consume the same rules. Crossing and exploration rules live in `game/battle_operation.lua` and `game/battle_fog.lua`.
 
 ## Tactical board
 
-- The battlefield contains 10 columns by 6 rows, for 60 traversable grid spaces before obstacles.
-- Movement uses breadth-first pathfinding. Units cannot jump through allies, enemies, or blocked spaces.
-- The mouse wheel scales the entire tactical layer around one origin: terrain, units, obstacles, projectiles, effects, health bars, and hit testing remain aligned.
-- Each biome now has three six-tile atlases, providing 18 terrain appearances per biome and 72 across the four route biomes.
+- New battlefields contain 72 columns by 40 rows: 2,880 spaces, four times the reviewed 720-space preview. At least 2,400 reachable spaces are guaranteed. Existing flat 60-space and native 720-space checkpoints retain their saved dimensions.
+- Weighted pathfinding accounts for uphill costs and steep slopes. Units cannot jump through occupied or blocked cells. Distant threats permit an eight-space march budget; nearby enemies restore the unit’s tactical movement budget.
+- Every surviving participating player must reach the eastern exit. Ordinary kills alone do not finish the crossing. Boss and defense threats must also be defeated. Fallen players and NPC followers cannot block extraction.
+- Native fields use continuous textured terrain and solid scenery with local orbit, tilt, zoom, pan, and terrain ray picking. HUD controls remain fixed. Legacy flat boards retain their sprite renderer and biome tile atlases.
+- Party sight has an eight-space radius and respects terrain and cover. Exploration persists; enemies outside current sight cannot be inspected or targeted. Draw distance is separately adjustable in device Graphics settings.
 
 ## Obstacles and cover
 
-Every battle places five to seven deterministic obstacles according to difficulty. The generated obstacle atlas contains a dead tree, rusty car, ruined shack, boulders, barricade, and rail cart.
+New fields normally place 224, 256, or 288 deterministic obstacles by difficulty. Reserved routes and a connectivity fallback protect traversal. Saved flat battles retain their five-to-seven-obstacle layouts. The scenery kit contains dead trees, rusty cars, ruins, boulders, barricades, and rail carts.
 
 All six block movement. Trees, cars, shacks, and boulders block ranged line of sight completely. Barricades and rail carts can be fired across, but add cover to the defender. Existing terrain cover still contributes to defense.
 
@@ -35,16 +36,16 @@ The previous ordinary-encounter rules made stop 9 and all 41 later stops hard, w
 
 ## Rewards
 
-Base coal, scrap, and experience increase with the tier. Every additional enemy also adds tier-scaled coal, scrap, and experience, so a three-enemy encounter is always worth more than a single-enemy encounter. Defense battles retain their extra resource and experience bonus. Boss encounters at stops 15, 35, and 47 feature an alpha enemy with additional health, armor, aim, a dedicated objective/music category, and bonus rewards.
+Base coal, scrap, and experience increase with tier. Defeated enemies contribute to ordinary crossing rewards; bypassed surviving enemies do not add a kill bonus. Defense battles retain their extra resource and experience bonus. Boss encounters at stops 15, 35, and 47 feature an alpha enemy with additional health, armor, aim, an explicit objective/music category, and bonus rewards. Expedition rewards retain their per-enemy receipts. Results wait for host dismissal and cannot be paid again by retry or reload.
 
 ## Allies, AI, and statuses
 
 - Every passenger and temporary settlement defender receives a route-scaled fallback weapon if they entered battle unarmed. Late-route allies use at least uncommon weapon rolls.
 - Enemy movement searches every reachable space for a useful approach, goes around occupied or blocked squares, and repositions ranged enemies when an obstacle breaks line of sight.
 - Ally abilities scale with route progress instead of remaining at rank one for the entire campaign.
-- Boss, guard, regeneration, sleep, paralysis, and snare states are labeled directly on units.
+- Both battle renderers show boss, guard, regeneration, sleep, paralysis, and snare states. The native view also offers unit inspection, personal ammo/equipment information, scrollable battle history, and authored projectile sprites, subject to current party sight. See [implementation evidence](docs/BATTLE_ENVIRONMENT_IMPLEMENTATION.md) for tested layouts and device limits.
 - Every battle displays its objective in the tactical header and battle feed.
 
 ## Automated guarantee
 
-The deterministic combat and grid audits verify all 50 tier assignments, boundary health and combat statistics, representative group-count rolls, boss and multi-enemy reward growth, 60-space geometry, obstacle counts, path detours, blocked line of sight, and zoom-aware hit testing. They run in both the desktop and mobile smoke suites.
+The combat audit verifies tier assignments, boundary statistics, group rolls, boss and reward growth. The legacy grid audit retains its 60-space regression cases. Dedicated native tests cover 100 large-field seeds, three routes, reachable area, weighted movement, hill sight blocking, camera picking, exploration persistence, local graphics settings, hidden-target rejection, extraction, and compact co-op replication. Desktop and forced-mobile smoke exercise real input flows; physical Android acceptance remains outstanding when no device is connected.

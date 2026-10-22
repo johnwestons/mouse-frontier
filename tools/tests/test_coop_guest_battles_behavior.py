@@ -37,7 +37,10 @@ class GuestBattleTests(unittest.TestCase):
             view.inventory={toggle=function() runtime.inventoryOpen=not runtime.inventoryOpen end,
                 button=function(self,label,x,y,w,h,enabled) return {x=x,y=y,w=w,h=h,enabled=enabled} end,cancelDrag=function() end}
             function view.controller:open() self.menuOpen=true end
+            NativeFixture=require('tools.tests.lua.native_battle_ui_fixture');NativeFixture.install()
             panel=require('game.coop_guest_battles').new(view,{catalog=Catalog,content={},colors={}})
+            NativeFixture.prepare(view.ui,b,own)
+            function boardPoint(q,r)return require('game.battle_native_ui').project(panel:context(),q,r)end
         ''')
 
     def test_weapon_then_target_can_be_clicked_without_a_network_update_between_them(self):
@@ -45,14 +48,15 @@ class GuestBattleTests(unittest.TestCase):
             panel:update(); local weapon=own.itemSlots.equipment[2]
             local ammo=own.ammo.rocks; local condition=weapon.durability
             b.options={weapon.id}; view.ui.battleWeapons={{x=20,y=592,w=166,h=34}}
+            view.ui.battleOptions={{rect=view.ui.battleWeapons[1],action='weapon1',enabled=true}}
             panel:pointer(30,600,false)
             assert(#requests==0 and panel.mode=='target' and b.phase=='select')
             local preview=panel:context().battle
             assert(preview.chosenItemId==weapon.id and preview.chosenWeapon==weapon.name)
             assert(own.ammo.rocks==ammo and weapon.durability==condition)
-            local Grid=require('game.battle_grid'); local x,y=Grid.boardToScreen(1,1,4)
+            local x,y=boardPoint(1,4)
             panel:pointer(x,y,false); assert(#requests==0 and panel.mode=='target')
-            x,y=Grid.boardToScreen(1,2,5)
+            x,y=boardPoint(2,5)
             panel:pointer(x,y,false)
             assert(#requests==1 and requests[1].name=='battle.attack')
             assert(requests[1].args.weapon==weapon.id and requests[1].args.targetId==b.units[3].id)
@@ -244,16 +248,16 @@ class GuestBattleTests(unittest.TestCase):
     def test_move_keyboard_and_pointer_keep_preview_local_and_send_board_intent(self):
         self.lua.execute('''
             panel:update(); panel:keypressed('m'); assert(panel.mode=='move' and b.phase=='select')
-            local Grid=require('game.battle_grid'); local x,y=Grid.boardToScreen(1,1,4)
+            local x,y=boardPoint(1,4)
             panel:pointer(x,y,false); assert(requests[1].name=='battle.move' and requests[1].args.q==1 and requests[1].args.r==4)
             assert(b.units[2].q==1 and b.units[2].r==5 and data.tacticalBattle.battle.units[2].r==5)
         ''')
 
     def test_guest_camera_hit_test_and_focus_targets_are_isolated_from_host(self):
         self.lua.execute('''
-            camera:setZoom(2); camera.panX=12; camera.panY=-8
+            local native=require('game.battle_native_ui').camera(view.ui,b);native:setZoom(2);native:pan(12,-8)
             local Grid=require('game.battle_grid'); local UI=require('game.battle_ui')
-            local x,y=Grid.boardToScreen(1,2,5); local sx,sy=panel.worldView.toScreen(x,y)
+            local sx,sy=boardPoint(2,5)
             local q,r=UI.screenToBoardSpace(panel:context(),sx,sy); assert(q==2 and r==5)
             b.phase='target'; local targets=panel:targets(); assert(#targets==1 and targets[1].id=='cell2:5')
             assert(math.abs(targets[1].rect.x+20-sx)<.001 and require('game.camera').zoom==1)
@@ -300,6 +304,7 @@ class GuestBattleTests(unittest.TestCase):
             -- Match BattleUI.draw's actual named record rather than an
             -- artificial array; pointer and focus must send that owned name.
             view.ui.battlePotionButtons={{r,name='green-regeneration-vial'}}
+            view.ui.battleOptions={{rect=r,action='potion',name='green-regeneration-vial',enabled=true}}
             local targets=panel:targets(); assert(#targets==1 and targets[1].id=='potion1')
             panel:keypressed('tab'); panel:keypressed('return')
             assert(requests[1].name=='battle.item' and requests[1].args.name=='green-regeneration-vial')
@@ -313,7 +318,7 @@ class GuestBattleTests(unittest.TestCase):
             local UI=require('game.battle_ui'); local Style=require('game.ui_layout')
             Style.scope=function(_,_,callback) return callback() end
             require('game.typography').drawText=function() end
-            love.graphics={setColor=function() end,rectangle=function() end,setLineWidth=function() end}
+            NativeFixture.graphics()
             local ctx=panel:context(); ctx.animationClock=0; ctx.scenery={}
             for _,key in ipairs({'characterImages','npcImages','mobImages','characterWalkImages','npcWalkImages',
                 'mobAttackImages','mobIdleImages','mobHitImages','mobDeathImages','mobWalkImages','mobRangedImages'}) do ctx[key]={} end

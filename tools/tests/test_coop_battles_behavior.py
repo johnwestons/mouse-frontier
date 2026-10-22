@@ -56,6 +56,9 @@ class TacticalCommandTests(unittest.TestCase):
                 return a
             end
             function action(id,name,extra) return run(id,name,args(extra)) end
+            function atExit(b)
+                for i,u in ipairs(Actors.units(b))do u.q,u.r=b.field.exitColumn,2+i*2 end
+            end
             setup()
         ''')
 
@@ -155,7 +158,7 @@ class TacticalCommandTests(unittest.TestCase):
 
     def test_victory_awards_both_players_once_and_guest_cannot_continue(self):
         self.lua.execute('''
-            assert(begin().ok); local b=ready(); b.units[3].hp=0
+            assert(begin().ok); local b=ready(); b.units[3].hp=0;atExit(b)
             local hostXP=host.stats.xp; local guestXP=guest.stats.xp
             local request=assert(service:prepareRequest('host','battle.endTurn',args()))
             assert(service:execute('host',0,request).ok); local scrap=data.scrap; local rng=data.coop.randomState
@@ -218,7 +221,7 @@ class TacticalCommandTests(unittest.TestCase):
             local rng=data.coop.randomState; local b=ready()
             assert(begin().reason=='save_pending' and data.tacticalBattle.battle==b)
             failSave=false; assert(service:retryCheckpoint() and saved.coop.randomState==rng)
-            b.units[3].hp=0; assert(action('host','battle.endTurn').ok and b.finished=='win')
+            b.units[3].hp=0;atExit(b);assert(action('host','battle.endTurn').ok and b.finished=='win')
             local xp=host.stats.xp; local a={encounterId=data.tacticalBattle.encounterId,turnRevision=data.tacticalBattle.revision}
             failSave=true; local r=run('host','battle.continue',a); assert(r.ok and r.savePending and not data.tacticalBattle)
             failSave=false; assert(service:retryCheckpoint() and not saved.tacticalBattle and host.stats.xp==xp)
@@ -242,7 +245,7 @@ class TacticalCommandTests(unittest.TestCase):
 
     def test_companion_loot_potion_helps_one_shared_roll_then_clears_both_flags(self):
         self.lua.execute('''
-            assert(begin().ok); local b=ready(); b.units[3].hp=0
+            assert(begin().ok); local b=ready(); b.units[3].hp=0;atExit(b)
             host.battlePotionLootChance=.15; guest.battlePotionLootChance=.9
             local Events=require('game.events'); local original=Events.grantBattleLoot; local chance; local calls=0
             Events.grantBattleLoot=function(d,...) chance=d.battlePotionLootChance; calls=calls+1; return original(d,...) end

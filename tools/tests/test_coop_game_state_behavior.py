@@ -115,7 +115,7 @@ class GameStateTests(unittest.TestCase):
             apply(second); apply(third); assert(replica.data.scrap==data.scrap)
             assert(not replica:apply(second) and not replica:apply(initial) and replica.revision==3)
             data.coop.sceneEpoch=2; local scene=capture()
-            assert(scene.mode=='baseline' and #scene.domains==11)
+            assert(scene.mode=='baseline' and #scene.domains==12)
             table.remove(scene.domains); assert(not replica:apply(scene) and replica.sceneEpoch==1)
             apply(assert(producer:baseline())); assert(replica.sceneEpoch==2)
         ''')

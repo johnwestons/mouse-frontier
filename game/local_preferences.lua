@@ -14,6 +14,9 @@ local LIMITS={maxBytes=8192,maxDepth=5,maxEntries=80,maxStringBytes=128}
 local function normalized(value)
     value=type(value)=="table" and value or {}
     local result={version=1,configured=value.configured==true,audio={},accessibility={}}
+    local graphics=type(value.graphics)=='table'and value.graphics or{}
+    local distance=graphics.renderDistance
+    result.graphics={renderDistance=({[10]=true,[14]=true,[20]=true,[28]=true})[distance]and distance or 0}
     local localPlay=type(value.localPlay)=='table' and value.localPlay or {}
     result.localPlay={connectionMode=CONNECTION_MODES[localPlay.connectionMode] and localPlay.connectionMode or 'auto',
         autoJoin=localPlay.autoJoin==true}
@@ -111,7 +114,7 @@ function Store:bind(data,mode)
             else error("unknown local audio setting: "..tostring(key)) end
         end,
     })
-    local view={audio=audio,accessibility=self.values.accessibility}
+    local view={audio=audio,accessibility=self.values.accessibility,graphics=self.values.graphics}
     local binding={owner=owner,view=view}
     if data then bindings[data]=binding; Accessibility.bind(data,self.values.accessibility,mode) end
     bindings[view]={owner=owner}; Accessibility.bind(view,self.values.accessibility,mode)

@@ -115,8 +115,9 @@ function Commands.install(authority,context)
     end
     local function valid() return true end
     action('battle.move',{q=true,r=true},function(data,b,u,args)
-        if not P.integer(args.q,0,Grid.COLS) or not P.integer(args.r,1,Grid.ROWS) then return nil,'invalid_args' end
-        if b.moveUsed or b.phase=='action' or b.phase=='target' or not Rules.canMove(b,u,args.q,args.r,u.move) then return nil,'move_unavailable' end
+        local cols,rows=Grid.dimensions(b)
+        if not P.integer(args.q,0,cols) or not P.integer(args.r,1,rows) then return nil,'invalid_args' end
+        if b.moveUsed or b.phase=='action' or b.phase=='target' or not Rules.canMove(b,u,args.q,args.r,Grid.moveBudget(b,u)) then return nil,'move_unavailable' end
         return true
     end,function(c,u,args) Controller.move(c,args.q,args.r) end)
     action('battle.attack',{weapon=true,targetId=true},function(data,b,u,args)
@@ -125,6 +126,7 @@ function Commands.install(authority,context)
         if args.targetId then
             local target; for _,unit in ipairs(b.units) do if unit.id==args.targetId then target=unit end end
             if not target or target.team~='enemy' or target.hp<=0 then return nil,'invalid_target' end
+            if not require('game.battle_fog').unitVisible(b,target)then return nil,'target_hidden' end
         end
         return true
     end,function(c,u,args)

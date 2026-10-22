@@ -1,4 +1,5 @@
 local Grid={}
+local Field=require('game.battle_field')
 
 Grid.COLS=9
 Grid.ROWS=6
@@ -18,6 +19,12 @@ Grid.obstacleProfiles={
 }
 
 local function key(q,r) return tostring(q)..":"..tostring(r) end
+
+function Grid.dimensions(battle)
+    local field=battle and battle.field
+    return field and field.columns-1 or Grid.COLS,field and field.rows or Grid.ROWS
+end
+function Grid.elevation(battle,q,r)return Field.cellHeight(battle and battle.field,q,r)end
 
 function Grid.boardToScreen(zoom,q,r)
     zoom=zoom or 1
@@ -44,6 +51,15 @@ function Grid.blocksMovement(battle,q,r) local p=Grid.profile(Grid.obstacleAt(ba
 local directions={{1,0},{0,-1},{-1,0},{0,1}}
 Grid.directions=directions
 
+function Grid.moveBudget(battle,unit)
+    local base=math.max(0,unit.move or 0)
+    if not battle.field or unit.team~='ally'then return base end
+    for _,enemy in ipairs(battle.units or {})do
+        if enemy.team=='enemy' and enemy.hp>0 and Grid.distance(unit,enemy)<=9 then return base end
+    end
+    return math.max(base,8)
+end
+
 local function occupied(battle,q,r,ignoreUnit)
     for _,unit in ipairs(battle and battle.units or {}) do if unit~=ignoreUnit and unit.hp>0 and unit.q==q and unit.r==r then return true end end
     return false
@@ -51,17 +67,41 @@ end
 
 function Grid.reachable(battle,unit,maximum)
     local result={[key(unit.q,unit.r)]={q=unit.q,r=unit.r,cost=0}}
-    local queue={{q=unit.q,r=unit.r,cost=0}}; local head=1
-    while queue[head] do
-        local current=queue[head]; head=head+1
-        if current.cost<maximum then for _,direction in ipairs(directions) do
-            local q,r=current.q+direction[1],current.r+direction[2]; local k=key(q,r)
-            if not result[k] and Grid.isBoardSpace(battle,q,r) and not Grid.blocksMovement(battle,q,r) and not occupied(battle,q,r,unit) then
-                result[k]={q=q,r=r,cost=current.cost+1}; queue[#queue+1]=result[k]
-            end
-        end end
+    local cols,rows=Grid.dimensions(battle)
+    maximum=math.max(0,math.min(math.floor(maximum or 0),(cols+1)*rows*2))
+    -- Integer movement costs use bounded buckets, avoiding a whole-map sort.
+    local buckets={[0]={result[key(unit.q,unit.r)]}}
+    for cost=0,maximum do
+        local queue=buckets[cost] or {};local head=1
+        while queue[head]do
+            local current=queue[head];head=head+1
+            if current==result[key(current.q,current.r)] and cost<maximum then for _,direction in ipairs(directions)do
+                local q,r=current.q+direction[1],current.r+direction[2];local k=key(q,r)
+                if Grid.isBoardSpace(battle,q,r) and not Grid.blocksMovement(battle,q,r) and not occupied(battle,q,r,unit)then
+                    local step=battle.field and Field.traversalCost(battle.field,current.q,current.r,q,r)or(not battle.field and 1)
+                    local nextCost=step and cost+step
+                    if nextCost and nextCost<=maximum and (not result[k]or nextCost<result[k].cost)then
+                        local node={q=q,r=r,cost=nextCost,fromQ=current.q,fromR=current.r};result[k]=node
+                        buckets[nextCost]=buckets[nextCost]or{};buckets[nextCost][#buckets[nextCost]+1]=node
+                    end
+                end
+            end end
+        end
     end
     return result
+end
+
+function Grid.path(battle,unit,q,r,maximum,reachable)
+    reachable=reachable or Grid.reachable(battle,unit,maximum)
+    local current=reachable[key(q,r)];if not current then return nil end
+    local reverse={}
+    while current do
+        reverse[#reverse+1]={q=current.q,r=current.r}
+        if current.fromQ==nil then break end
+        current=reachable[key(current.fromQ,current.fromR)]
+    end
+    local path={};for i=#reverse,1,-1 do path[#path+1]=reverse[i]end
+    return path
 end
 
 function Grid.canMove(battle,unit,q,r,maximum)
@@ -70,6 +110,27 @@ function Grid.canMove(battle,unit,q,r,maximum)
 end
 
 function Grid.lineOfSight(battle,a,b)
+    if battle.field then
+        local field=battle.field;local x,z=a.q+.5,a.r-.5;local dx,dz=b.q-a.q,b.r-a.r
+        local steps=math.max(1,math.ceil(math.sqrt(dx*dx+dz*dz)*4))
+        local startHeight=Field.cellHeight(field,a.q,a.r)+.7
+        local endHeight=Field.cellHeight(field,b.q,b.r)+.7
+        local cover=0
+        local heights={['dead-tree']=1.7,['rusty-car']=.84,['ruined-shack']=1.35,boulders=1.3,barricade=.78,['rail-cart']=.84}
+        for i=1,steps-1 do
+            local t=i/steps;local px,pz=x+dx*t,z+dz*t;local y=startHeight+(endHeight-startHeight)*t
+            local q,r=math.floor(px),math.floor(pz)+1
+            if Field.heightAt(field,px,pz)>y+.025 then return false,{kind='terrain-rise',q=q,r=r},cover end
+            if not(q==a.q and r==a.r)and not(q==b.q and r==b.r)then
+                local obstacle=Grid.obstacleAt(battle,q,r);local profile=Grid.profile(obstacle)
+                if profile and y<Field.cellHeight(field,q,r)+(heights[obstacle.kind]or 1.3)then
+                    cover=math.max(cover,profile.cover or 0)
+                    if profile.blocksSight then return false,obstacle,cover end
+                end
+            end
+        end
+        return true,nil,cover
+    end
     local dq,dr=b.q-a.q,b.r-a.r; local steps=math.max(math.abs(dq),math.abs(dr))
     if steps<=1 then return true,nil,0 end
     local checked={}; local cover=0
@@ -91,7 +152,7 @@ function Grid.bestAdvance(battle,unit,target,maximum,preferred)
     for _,node in pairs(reachable) do
         local distance=Grid.distance(node,target); local sight=Grid.lineOfSight(battle,node,target)
         local score=math.abs(distance-preferred)*10+(distance<preferred and 8 or 0)+(sight and 0 or 5)-node.cost*.05
-        if score<bestScore then best,bestScore=node,score end
+        if score<bestScore or (battle.field and score==bestScore and (node.q<best.q or node.q==best.q and node.r<best.r)) then best,bestScore=node,score end
     end
     return best
 end

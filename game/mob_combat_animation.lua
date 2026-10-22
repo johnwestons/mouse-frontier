@@ -49,7 +49,7 @@ function Animation.frame(unit,clock,facing,state)
     return action,math.min(6,math.max(1,math.floor(progress*6+.000001)+1)),facing
 end
 
-function Animation.draw(context,unit,x,y,width,height,facing,clock)
+function Animation.sample(context,unit,width,height,facing,clock)
     local owner=context.ui or context
     local battle=context.battle
     local saved=context.saveData and context.saveData.tacticalBattle
@@ -75,9 +75,14 @@ function Animation.draw(context,unit,x,y,width,height,facing,clock)
     -- bodyExtent is measured from the neutral pose against the existing mob
     -- art, so attacks and collapsed bodies retain the same world scale.
     local scale=height/(profile.bodyExtent*cached.h/256)
+    return {image=image,quad=cached.quads[frame],scale=scale,mirror=(poseFacing or 1)*profile.baseFacing,
+        width=cached.w,height=cached.h,originY=cached.h,offsetY=0,action=action,frame=frame}
+end
+function Animation.draw(context,unit,x,y,width,height,facing,clock)
+    local sample=Animation.sample(context,unit,width,height,facing,clock)
+    if not sample then return false end
     love.graphics.setColor(1,1,1)
-    love.graphics.draw(image,cached.quads[frame],x,y,0,scale*(poseFacing or 1)*profile.baseFacing,
-        scale,cached.w/2,cached.h)
+    love.graphics.draw(sample.image,sample.quad,x,y,0,sample.scale*sample.mirror,sample.scale,sample.width/2,sample.originY)
     return true
 end
 

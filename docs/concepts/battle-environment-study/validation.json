@@ -1,0 +1,27 @@
+{
+  "checks": [
+    "same seed and parameters reproduce identical terrain pixels",
+    "360 degree orbit selects camera-relative authored sprite views",
+    "zoom reaches close detail view",
+    "camera pan changes world target",
+    "pointer drag rotates camera",
+    "shift drag pans camera",
+    "wheel zoom changes camera scale",
+    "terrain picking identifies logical tactical space after camera transforms",
+    "relief slider changes terrain height",
+    "all four route environments regenerate",
+    "seed change generates a new environment",
+    "360px layout has no horizontal overflow",
+    "320px layout has no horizontal overflow",
+    "emulated two-pointer gesture zooms and pans"
+  ],
+  "errors": [],
+  "screenshots": [
+    "terrain-wasteland-overview.png",
+    "terrain-detail.png",
+    "terrain-reverse-view.png",
+    "terrain-forest.png",
+    "terrain-mobile-layout.png"
+  ],
+  "note": "Browser prototype checks only; no LÖVE or Android performance claims."
+}

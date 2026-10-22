@@ -245,7 +245,7 @@ local function poseFrame(set,action,phase,clock,motion,facing)
     return action,nil,poseFacing
 end
 
-function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,phase,clock,motion)
+function CharacterAnimation.sample(sets,file,action,maxWidth,maxHeight,facing,phase,clock,motion)
     local set=sets[file]
     local pose
     if set then action,pose,facing=poseFrame(set,action,phase,clock,motion,facing) end
@@ -300,7 +300,6 @@ function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,
     local bodyExtent=animation.bodyExtent or (chore and animation.h)
     local scale=bodyExtent and math.min((maxWidth or 76)/bodyExtent,(maxHeight or 96)/bodyExtent)
         or math.min((maxWidth or 76)/animation.w,(maxHeight or 96)/animation.h)*normalize
-    love.graphics.setColor(1,1,1)
     -- Central walk sheets were authored opposite to the runtime facing
     -- convention.  Correct only the walking action; idle/pose art keeps its
     -- normal orientation and legacy walk sheets are corrected by their caller.
@@ -309,7 +308,16 @@ function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,
     local drawFacing = (chore and 1 or (directionalLocomotion and directionalMirror or (facing or 1)))
         * (layCorrection and -1 or 1) * walkCorrection
     local anchorOffset = CharacterAnimation.anchorOffsets[file] or 0
-    love.graphics.draw(animation.image,animation.quads[frame],x,y + anchorOffset + (layCorrection and 20 or 0),0,scale*drawFacing,scale,animation.w/2,animation.originY or animation.h)
+    return {image=animation.image,quad=animation.quads[frame],scale=scale,mirror=drawFacing,
+        width=animation.w,height=animation.h,originY=animation.originY or animation.h,
+        offsetY=anchorOffset+(layCorrection and 20 or 0),action=action,frame=frame}
+end
+
+function CharacterAnimation.draw(sets,file,action,x,y,maxWidth,maxHeight,facing,phase,clock,motion)
+    local sample=CharacterAnimation.sample(sets,file,action,maxWidth,maxHeight,facing,phase,clock,motion)
+    if not sample then return false end
+    love.graphics.setColor(1,1,1)
+    love.graphics.draw(sample.image,sample.quad,x,y+sample.offsetY,0,sample.scale*sample.mirror,sample.scale,sample.width/2,sample.originY)
     return true
 end
 

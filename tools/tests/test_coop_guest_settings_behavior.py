@@ -67,6 +67,15 @@ class GuestSettingsTests(unittest.TestCase):
             end
         ''')
 
+    def test_graphics_options_persist_locally_without_commands(self):
+        self.lua.execute('''
+            s:open();activate('graphics');activate('battle-distance+');activate('battle-distance+')
+            assert(Prefs.new(fs).values.graphics.renderDistance==20)
+            activate('battle-distance-');assert(Prefs.new(fs).values.graphics.renderDistance==14)
+            activate('battle-distance-auto');assert(Prefs.new(fs).values.graphics.renderDistance==0)
+            s:close();unchanged()
+        ''')
+
     def test_open_close_keeps_local_play_private_pause_and_neutralizes_without_commands(self):
         self.lua.execute('''
             assert(s:open() and controller.menuOpen and s:isOpen() and neutral>=2)

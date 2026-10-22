@@ -3,6 +3,7 @@ local WorldView=require("game.world_view")
 local AudioCatalog = require("game.audio_catalog")
 local Accessibility = require("game.accessibility")
 local Preferences = require("game.local_preferences")
+local BattleGraphics=require('game.battle_graphics')
 local WorldPause = require("game.world_pause")
 local Typography = require("game.typography")
 local TrainView = require("game.train_view")
@@ -86,6 +87,7 @@ local function new(context)
       ui.optionsStation8bit=nil; ui.optionsStationChill=nil; ui.optionsStationVibes=nil; ui.optionsStationRain=nil
       ui.optionsFollowRadio=nil
       ui.optionsAudioTab=nil; ui.optionsAccessTab=nil; ui.optionsControlsTab=nil; ui.optionsBack=nil; ui.controlsEditorButton=nil
+      ui.optionsGraphicsTab=nil;ui.battleDistanceDown=nil;ui.battleDistanceUp=nil;ui.battleDistanceAuto=nil
       ui.controlsKeyboardTab=nil; ui.controlsControllerTab=nil; ui.controlsTouchTab=nil
       ui.controlsButtonsTab=nil; ui.controlsAxesTab=nil; ui.controlBindingRows=nil
       ui.controlBindingVisibleRows=nil
@@ -95,17 +97,18 @@ local function new(context)
       ui.accessAimAssistDown=nil; ui.accessAimAssistUp=nil; ui.accessAimSensitivityDown=nil; ui.accessAimSensitivityUp=nil
       runtime.optionsPage=runtime.optionsPage or "audio"
       local mobile=mobileEnabled()
-      local expanded=runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility"
+      local expanded=runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility"or runtime.optionsPage=='graphics'
       local panelX,panelY,panelW,panelH
       if expanded then panelX,panelY,panelW,panelH=42,26,876,668
       else panelX,panelY,panelW,panelH=mobile and 90 or 485,mobile and 55 or 125,mobile and 780 or 460,mobile and 615 or 525 end
       drawMenuFrame(panelX,panelY,panelW,panelH,2,.99); love.graphics.setColor(colors.cream)
       textIn("SETTINGS",panelX+20,panelY+18,panelW-(mobile and 185 or 150),38,mobile and 1.28 or .90,"left")
       ui.optionsBack=button("BACK",panelX+panelW-(mobile and 160 or 120),panelY+14,mobile and 130 or 96,mobile and 52 or 34,true,mobile and 1 or .72)
-      local tabW=(panelW-100)/3
+      local tabW=(panelW-115)/4
       ui.optionsAudioTab=button("AUDIO",panelX+35,panelY+68,tabW,mobile and 58 or 42,runtime.optionsPage=="audio",mobile and .90 or .66)
       ui.optionsAccessTab=button("ACCESSIBILITY",panelX+50+tabW,panelY+68,tabW,mobile and 58 or 42,runtime.optionsPage=="accessibility",mobile and .84 or .62)
       ui.optionsControlsTab=button("CONTROLS",panelX+65+tabW*2,panelY+68,tabW,mobile and 58 or 42,runtime.optionsPage=="controls",mobile and .90 or .66)
+      ui.optionsGraphicsTab=button('GRAPHICS',panelX+80+tabW*3,panelY+68,tabW,mobile and 58 or 42,runtime.optionsPage=='graphics',mobile and .90 or .66)
       if runtime.optionsPage=="audio" then
           local labelX=panelX+65; local downX=panelX+panelW-250; local upX=panelX+panelW-135
           local row1,row2,row3=panelY+155,panelY+225,panelY+295
@@ -134,6 +137,16 @@ local function new(context)
           local controlsY=panelY+(mobile and 475 or 465); local bw=(panelW-90)/4
           ui.musicPrevious=button(mobile and "PREV" or "|<",panelX+30,controlsY,bw,mobile and 58 or 42,true); ui.musicPause=button(settings.audio.musicPaused and "PLAY" or "PAUSE",panelX+40+bw,controlsY,bw,mobile and 58 or 42,true,mobile and 1 or .72)
           ui.musicNext=button(mobile and "NEXT" or ">|",panelX+50+bw*2,controlsY,bw,mobile and 58 or 42,true); ui.musicMute=button(settings.audio.musicMuted and "UNMUTE" or "MUTE",panelX+60+bw*3,controlsY,bw,mobile and 58 or 42,true,mobile and 1 or .72)
+      elseif runtime.optionsPage=='graphics'then
+          love.graphics.setColor(colors.cream)
+          textIn('BATTLE TERRAIN DRAW DISTANCE',panelX+45,panelY+161,panelW-90,40,1)
+          textIn(BattleGraphics.label(settings,mobile),panelX+45,panelY+214,panelW-330,52,1.15)
+          ui.battleDistanceDown=button('-',panelX+panelW-245,panelY+214,90,52,true)
+          ui.battleDistanceUp=button('+',panelX+panelW-140,panelY+214,90,52,true)
+          ui.battleDistanceAuto=button('AUTO',panelX+panelW-245,panelY+277,195,42,true,.75)
+          textIn('Lower distances draw fewer terrain chunks and props around the party. AUTO uses 10 spaces on mobile and 14 on desktop.',panelX+45,panelY+331,panelW-90,64,.9)
+          textIn('Fog of war: explore to reveal ground. Previously explored ground is dimmed. Enemies are shown only within shared party sight; terrain and cover can block sight.',panelX+45,panelY+395,panelW-90,110,.9)
+          textIn('Draw distance saves on this device. Tactical sight is the same for both players.',panelX+45,panelY+558,panelW-90,65,.85,'center')
       elseif runtime.optionsPage=="accessibility" then
           local access=Accessibility.ensure(settings)
           local labels={
@@ -230,7 +243,7 @@ local function new(context)
 
   local function drawOptions()
       local mobile=mobileEnabled()
-      local bounds=(runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility") and {x=42,y=26,w=876,h=668}
+      local bounds=(runtime.optionsPage=="controls" or runtime.optionsPage=="accessibility"or runtime.optionsPage=='graphics') and {x=42,y=26,w=876,h=668}
           or {x=mobile and 90 or 485,y=mobile and 55 or 125,w=mobile and 780 or 460,h=mobile and 615 or 525}
       return UIStyle.scope("options",bounds,function()
           drawOptionsRaw()

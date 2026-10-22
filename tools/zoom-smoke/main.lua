@@ -14,6 +14,11 @@ local function run()
     local g,ui,p=c.runtime,c.ui,c.presentationRuntime
     g.selectedSlot=99; require("game.save").remove(99)
     local data=c.newSave(c.characters[1])
+    local home=require('game.home_stop');assert(home.advance(data,'enterOffice'))
+    for _=1,6 do assert(home.advance(data,'talk'))end
+    assert(home.advance(data,'exitOffice'));assert(home.advance(data,'supplies'));assert(home.advance(data,'repair'))
+    assert(home.advance(data,'enterOffice'));assert(home.advance(data,'talk'));assert(home.advance(data,'talk'))
+    assert(home.advance(data,'exitOffice'));assert(home.depart(data));data.scene='train'
     c.enterGame(data)
     data=g.saveData
     g.dialogue=nil
@@ -58,6 +63,10 @@ local function run()
     ui.mobileMenuOpen=true; draw("menu",2)
     local mx,my=p.screenToWorld(940,440); close(mx,wx); close(my,wy)
     local menu=ui.backpack
+    if not menu and ui.actionMenu then
+        for _,target in ipairs(ui.actionMenu.targets)do if target.id=='backpack'then menu=target.rect;break end end
+    end
+    expect(menu,'backpack menu target missing at zoom 2')
     app.touchpressed("menu-tap",300+menu.x+menu.w/2,menu.y+menu.h/2)
     app.touchreleased("menu-tap",300+menu.x+menu.w/2,menu.y+menu.h/2)
     expect(g.inventoryOpen,"fixed backpack button did not open at zoom 2")
@@ -83,9 +92,8 @@ local function run()
     g.saveData.encounters[tostring(g.saveData.location)]=encounter; assert(require('game.coop_entities').ensure(g.saveData)); assert(c.beginEncounter(encounter))
     g.battle.intro=nil; pair("battle")
     local unit=g.battle.units[1]
-    local bx,by=require("game.battle_grid").boardToScreen(1,unit.q,unit.r)
-    bx,by=world.toScreen(bx,by)
-    local q,r=require("game.battle_ui").screenToBoardSpace({battle=g.battle},bx,by)
+    local bx,by=require('game.battle_native_ui').project({battle=g.battle,ui=ui},unit.q,unit.r)
+    local q,r=require("game.battle_ui").screenToBoardSpace({battle=g.battle,ui=ui},bx,by)
     expect(q==unit.q and r==unit.r,"zoomed battle tile inverse")
     g.state="game"; g.battle=nil
     local items=require("game.item_instances")

@@ -105,7 +105,8 @@ class CombatLatencyTests(unittest.TestCase):
             slowStep(70)
             assert(delayed and not panel.pending and panel.lastOutcome.ok)
             assert(data.tacticalBattle.revision==revision+1 and writes==before+1)
-            assert(data.tacticalBattle.battle.active==3)
+            local b=data.tacticalBattle.battle
+            assert(b.units[b.active].actorId=='host'and not b.units[3].alerted,'dormant enemy delayed the next player')
         ''')
 
     def test_single_move_press_after_previous_animation_uses_the_original_cell(self):

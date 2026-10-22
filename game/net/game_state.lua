@@ -7,6 +7,7 @@ local M=require('game.net.state_manifest')
 local Schema=require('game.save_schema')
 local Players=require('game.coop_players')
 local Ownership=require('game.replica_ownership')
+local Field=require('game.battle_field')
 local State={}; local Producer={}; Producer.__index=Producer; local Replica={}; Replica.__index=Replica
 local LIMITS={maxBytes=P.BASELINE_BYTES,maxDepth=16,maxEntries=200000,maxStringBytes=Records.MAX_STRING}
 local MAX=2147483647
@@ -32,6 +33,16 @@ local function assemble(values,epoch)
         local group=values[name]
         if not P.fields(group,M.allowed[name]) then return fail('invalid_'..name..'_fields') end
         for _,field in ipairs(fields) do data[field]=group[field] end
+    end
+    local geometry=values.battlefield
+    if not P.fields(geometry,M.allowed.battlefield)then return fail('invalid_battlefield_domain')end
+    local checkpoint=data.tacticalBattle;local battle=type(checkpoint)=='table'and checkpoint.battle
+    if type(battle)=='table'and battle.field~=nil then return fail('duplicate_battlefield_geometry')end
+    if next(geometry)then
+        if type(battle)~='table'or geometry.encounterId~=checkpoint.encounterId or not Field.validate(geometry.field)
+            or type(geometry.obstacles)~='table'then return fail('invalid_battlefield_reference')end
+        battle.field=geometry.field;battle.obstacles=geometry.obstacles
+        battle.tiles,battle.tileVariants=Field.tileArrays(geometry.field)
     end
     for _,id in ipairs({'host','companion'}) do
         local actor=values['actor:'..id]
@@ -87,6 +98,16 @@ function State.project(campaign)
     if not campaign.players.companion then return fail('companion_missing') end
     local source={}
     for name,fields in pairs(M.groups) do source[name]=pick(campaign,fields) end
+    source.battlefield={}
+    local checkpoint=campaign.tacticalBattle;local battle=checkpoint and checkpoint.battle
+    if battle and battle.field then
+        source.battlefield={encounterId=checkpoint.encounterId,field=battle.field,obstacles=battle.obstacles}
+        local turn={};for k,v in pairs(battle)do
+            if k~='field'and k~='obstacles'and k~='tiles'and k~='tileVariants'then turn[k]=v end
+        end
+        local state={};for k,v in pairs(checkpoint)do state[k]=k=='battle'and turn or v end
+        source.combat.tacticalBattle=state
+    end
     for _,id in ipairs({'host','companion'}) do
         source['actor:'..id]=pick(campaign.players[id],M.actorFields)
     end
