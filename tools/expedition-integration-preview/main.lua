@@ -211,6 +211,12 @@ function love.load()
         game,ui,services=ctx.state.runtime,ctx.state.ui,ctx.services
         Areas=require("game.expedition_areas")
         local data=services.sessionBootstrap.newSave("mail-mouse.png")
+        local home=require('game.home_stop')
+        assert(home.advance(data,'enterOffice'))
+        for _=1,6 do assert(home.advance(data,'talk')) end
+        assert(home.advance(data,'exitOffice')); assert(home.advance(data,'supplies')); assert(home.advance(data,'repair'))
+        assert(home.advance(data,'enterOffice')); assert(home.advance(data,'talk')); assert(home.advance(data,'talk'))
+        assert(home.advance(data,'exitOffice')); assert(home.depart(data))
         data.location=6; data.scene="stop"; data.playerX,data.playerY=790,420
         data.audio.musicVolume=0; data.audio.sfxVolume=0; data.audio.rainVolume=0
         check(services.sessionBootstrap.enterGame(data),"fresh isolated journey loads in full application")

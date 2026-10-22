@@ -1413,8 +1413,7 @@ local function install(context)
                         local resources=game.saveData.resources
                         local before={food=resources.food,water=resources.water,coal=resources.coal}
                         game.dialogue=nil;ui.smokeDraw()
-                        local control=assert(ui.travel,"route travel control was not drawn")
-                        love.mousepressed(control.x+control.w/2,control.y+control.h/2,1)
+                        assert(ui.smokeTapActionMenu("travel","smoke-route-travel"),"route travel action was not drawn")
                         assert(game.travelConfirm,"route travel input did not open confirmation")
                         love.keypressed("return")
                         assert(game.travelTransition,"route confirmation did not start travel")
