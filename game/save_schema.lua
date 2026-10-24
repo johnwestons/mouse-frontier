@@ -7,7 +7,7 @@ local ItemInstances = require("game.item_instances")
 local ReplicaOwnership = require("game.replica_ownership")
 
 local SaveSchema = {
-    CURRENT_VERSION = 49,
+    CURRENT_VERSION = 50,
     LEGACY_VERSION = 1,
 }
 
@@ -73,6 +73,7 @@ local function validateShape(data)
     if not require('game.coop_events').validateCurrent(data) then return false,'invalid saved event' end
     if not require('game.coop_finale').validate(data) then return false,'invalid saved finale' end
     if not require('game.tactical_battle_state').validate(data) then return false,'invalid saved tactical battle' end
+    if not require('game.battle_search').validate(data) then return false,'invalid saved ruin caches' end
     if not require('game.roaming_combat_state').validate(data) then return false,'invalid saved field combat' end
     if not require('game.roaming_encounter_state').validate(data) then return false,'invalid saved field encounter' end
     if not require('game.coop_shooter_sessions').validate(data) then return false,'invalid saved shooter session' end

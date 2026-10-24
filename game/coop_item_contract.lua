@@ -23,6 +23,10 @@ function Contract.expected(data,actorId,name,args,catalog)
     if name=='inventory.give' or name=='ammo.give' then scopes={'player:host','player:companion','presence:host','presence:companion'} end
     if args.entityId then scopes[#scopes+1]='entity:'..args.entityId end
     if args.containerId then scopes[#scopes+1]='entity:'..args.containerId end
+    if args.containerId and(name=='inventory.swap'or name=='storage.transfer'or name=='mailbox.collect')then
+        local chest=Entities.find(data,args.containerId)
+        if chest and chest.name=='mailbox-reward'and chest.scene=='train'then scopes[#scopes+1]='world:rewardDelivery'end
+    end
     if name=='inventory.consume' then
         local actor=data.players[actorId]
         local chest=args.containerId and Entities.find(data,args.containerId)

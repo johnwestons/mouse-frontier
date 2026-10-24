@@ -165,6 +165,12 @@ local function new(context)
   local function moveTo(q,r) if tactical() then return act('battle.move',{q=q,r=r}) end; BattleController.move(controllerContext(),q,r); writeBattleSave() end
   local function heal() if tactical() then return act('battle.heal') end; BattleController.heal(controllerContext()); writeBattleSave() end
   local function guard() if tactical() then return act('battle.guard') end; BattleController.guard(controllerContext()); writeBattleSave() end
+  local function search(id)
+      local b=runtime.battle;local cache=id and {id=id}or b and require('game.battle_search').nearby(runtime.saveData,b,BattleRules.activeUnit(b))
+      if not cache then setPrompt('Move onto or next to a ruin cache to search it.');return false end
+      if tactical() then return act('battle.search',{cacheId=cache.id})end
+      local ok=BattleController.search(controllerContext(),cache.id);if ok then writeBattleSave()end;return ok
+  end
   local function useAbility(kind) if tactical() then return act('battle.ability',{kind=kind}) end; BattleController.ability(controllerContext(),kind); writeBattleSave() end
   local function usePotion(name) if tactical() then return act('battle.item',{name=name}) end; return BattleController.usePotion(controllerContext(),name) end
   local function useHealingItem(name) if tactical() then return act('battle.item',{name=name}) end; return BattleController.useHealingItem(controllerContext(),name) end
@@ -207,7 +213,7 @@ local function new(context)
           setInventoryOpen=function(value) runtime.inventoryOpen=value end,
           resetInventoryDrag=function() runtime.draggedSlot=nil; runtime.inventoryDragActive=false end,
           handleInventoryClick=handleInventoryClick,
-          battleAttack=attack,setBattlePrompt=setPrompt,battleHeal=heal,battleGuard=guard,
+          battleAttack=attack,setBattlePrompt=setPrompt,battleHeal=heal,battleGuard=guard,battleSearch=search,
           useBattleAbility=useAbility,useBattlePotion=usePotion,advanceBattleTurn=advanceTurn,
           resolveBattleAttack=resolveAttack,battleMoveTo=moveTo,
       }
@@ -267,6 +273,7 @@ local function new(context)
       moveTo=moveTo,
       heal=heal,
       guard=guard,
+      search=search,
       useAbility=useAbility,
       usePotion=usePotion,
       useHealingItem=useHealingItem,

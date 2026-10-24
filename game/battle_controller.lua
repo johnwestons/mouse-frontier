@@ -294,6 +294,18 @@ function Battle.guard(c)
     local u=c.BattleRules.activeUnit(c.battle); if u and u.team=="ally" then u.guarding=true; msg(c,u.name.." braces behind cover."); Battle.advance(c) end
 end
 
+function Battle.search(c,id)
+    local b=c.battle;local u=c.BattleRules.activeUnit(b);local Search=require('game.battle_search')
+    local cache=id and {id=id}or Search.nearby(c.saveData,b,u)
+    if not cache then prompt(c,'Move onto or next to a ruin cache to search it.');return false,'cache_out_of_reach' end
+    local receipt,message=Search.claim(c.saveData,b,u,cache.id,c.Catalog,function()return random(c)end)
+    if not receipt then return false,message end
+    Operation.noise(b,u,4)
+    Battle.advance(c)
+    msg(c,message)
+    return true
+end
+
 local function advanceAttack(c,attacker)
     local b=c.battle
     if Actors.id(attacker) and (attacker.extraAttacks or 0)>0 then

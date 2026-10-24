@@ -91,6 +91,7 @@ local BUTTON_ACTIONS={
     {id="battle_heal",label="Heal",group="Battle",scope="battle",token="h",default="x"},
     {id="battle_move",label="Move",group="Battle",scope="battle",token="m",default="leftshoulder"},
     {id="battle_guard",label="Guard",group="Battle",scope="battle",token="g",default="rightshoulder"},
+    {id="battle_search",label="Search ruin",group="Battle",scope="battle",token="f"},
     {id="battle_advance",label="Advance turn / continue",group="Battle",scope="battle",token="space",default="a"},
     {id="battle_retreat",label="Retreat",group="Battle",scope="battle",token="r",default="b"},
     {id="battle_attack_1",label="Attack option 1",group="Battle",scope="battle",token="1",default="dpup"},

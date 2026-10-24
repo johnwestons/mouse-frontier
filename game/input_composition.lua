@@ -76,7 +76,7 @@ local function new(context)
     continueEvent=adventure.eventRuntime.continueEvent,
     handleEventClick=adventure.eventRuntime.handleClick,enterStop=adventure.journeyRules.enterStop,
     handleBattleMouse=adventure.battleRuntime.handleMouse,battleAttack=adventure.battleRuntime.attack,
-    battleHeal=adventure.battleRuntime.heal,battleGuard=adventure.battleRuntime.guard,
+    battleHeal=adventure.battleRuntime.heal,battleGuard=adventure.battleRuntime.guard,battleSearch=adventure.battleRuntime.search,
     advanceBattleTurn=adventure.battleRuntime.advanceTurn,setBattlePrompt=adventure.battleRuntime.setPrompt,
     finishBattle=adventure.battleRuntime.finishBattle,
     beginCarTransition=platform.trainCarRuntime.beginTransition,talkToNPC=adventure.journeyRules.talkToNPC,

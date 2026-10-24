@@ -273,7 +273,7 @@ function Runtime.new(context)
                 ['maintenance.acquire']=true,['maintenance.step']=true,['maintenance.complete']=true,
                 ['weaponRepair.acquire']=true,['weaponRepair.step']=true,['weaponRepair.complete']=true,
                 ['outfit.craft']=true,['firstAid.acquire']=true,['firstAid.step']=true,['firstAid.complete']=true,
-                ['quest.help']=true,['quest.deliver']=true,['battle.move']=true,['battle.attack']=true,['battle.guard']=true,
+                ['quest.help']=true,['quest.deliver']=true,['battle.move']=true,['battle.attack']=true,['battle.search']=true,['battle.guard']=true,
                 ['battle.heal']=true,['battle.item']=true,['battle.swap']=true,['battle.ability']=true,['battle.endTurn']=true,
                 ['roaming.attack']=true,['expedition.survey']=true,['expedition.cache']=true,
                 ['gun.fire']=true,['gun.reload']=true,['gun.cover']=true,['gun.mode']=true,['gun.select']=true,

@@ -6,6 +6,8 @@ local expedition=os.getenv('MOUSE_FRONTIER_BATTLE_SCENE')=='expedition'
 local lateJoin=os.getenv('MOUSE_FRONTIER_BATTLE_LATE_JOIN')=='1'
 local boss=os.getenv('MOUSE_FRONTIER_BATTLE_BOSS')=='1'
 local hostRestart=os.getenv('MOUSE_FRONTIER_BATTLE_HOST_RESTART')=='1'
+local searchRuins=os.getenv('MOUSE_FRONTIER_BATTLE_SEARCH')=='1'
+local Search=require('game.battle_search')
 local resumed=os.getenv('MOUSE_FRONTIER_BATTLE_RESUMED')=='1'
 local harnessRoot=os.getenv('MOUSE_FRONTIER_LAN_SMOKE_ROOT')
 local requestedOutcome=os.getenv('MOUSE_FRONTIER_BATTLE_OUTCOME')
@@ -35,7 +37,7 @@ local function signature(data)
         guestQ=b.units[2].q,guestR=b.units[2].r,guestHP=b.units[2].hp,enemyHP=b.units[3].hp,
         hostAmmo=h.ammo['22lr'],guestAmmo=g.ammo['22lr'],hostWeapon=h.itemSlots.equipment[2].id,
         guestWeapon=g.itemSlots.equipment[2].id,hostWear=h.itemSlots.equipment[2].durability,
-        guestWear=g.itemSlots.equipment[2].durability}))
+        guestWear=g.itemSlots.equipment[2].durability,ruinClaim=Search.receipt(data,b,1)or false,guestInventory=g.inventory,scrap=data.scrap}))
 end
 local function destination() return outcome=='win' and (expedition and 'expedition' or 'stop') or 'train' end
 local function enemyId(data)
@@ -213,7 +215,19 @@ local function update(dt)
         elseif stage=='retry' and captured['host-battle-retry.png'] then
             love.filesystem.write=restoreWrite; restoreWrite=nil
             if touch then press({x=190,y=438,w=185,h=58}) else app.keypressed('r'); app.keyreleased('r') end
-            check(not lp.authority.pendingSave and data.players.companion.ammo['22lr']==8,'shot retry repeated cost'); stage=hostRestart and 'restart-pending' or 'reconnect'
+            check(not lp.authority.pendingSave and data.players.companion.ammo['22lr']==8,'shot retry repeated cost')
+            if searchRuins then
+                local p=Search.list(b)[1];local u=b.units[2];u.q,u.r=p.q,p.r;u.moveAnim=nil;b.active=2;b.enemyDelay=0;b.attackTimer=0
+                u.actionTimer=0;u.hitTimer=0;b.projectile=nil
+                check(file('ruin-search.ready','ready'),'search barrier failed');stage='search-wait'
+            else stage=hostRestart and 'restart-pending' or 'reconnect'end
+        elseif stage=='search-wait'and Search.receipt(data,b,1)and stable(b)and b.units[b.active].actorId=='host'then
+            local receipt=Search.receipt(data,b,1)
+            check(receipt.actorId=='companion'and receipt.delivery=='inventory','search paid the wrong player')
+            local disk=assert(Save.read(99));check(Search.receipt(disk,disk.tacticalBattle.battle,1),'search receipt was not durable')
+            app.draw();press(c.ui.battleEnd);check(b.units[b.active].actorId=='companion','search restart barrier has no guest turn')
+            print('LAN_RUIN_SEARCH_OK role=host durable=true companionOwnsLoot=true')
+            stage=hostRestart and 'restart-pending' or 'reconnect'
         elseif stage=='restart-pending' and stable(b) and file('guest-shot.ready') then
             local before=signature(data); check(app.quit()~=true,'restart quit cancelled')
             local disk=assert(Save.read(99)); check(signature(disk)==before,'shutdown changed the saved turn or equipment')
@@ -305,7 +319,19 @@ local function update(dt)
                 app.draw(); press(view.ui.battleWeapons[3]); stage='target'
             elseif stage=='target' and b and(view.battles.mode or b.phase)=='target'and not view.battles.pending then cell(2,5);stage='shot'
             elseif stage=='shot' and d.players.companion.ammo['22lr']==8 and not view.battles.pending then
-                check(d.players.host.ammo['22lr']==20,'guest shot consumed host ammo'); capture='guest-battle-shot.png'; stage='disconnect'
+                check(d.players.host.ammo['22lr']==20,'guest shot consumed host ammo')
+                if searchRuins then
+                    local p=Search.list(b)[1]
+                    if file('ruin-search.ready')and b.units[2].q==p.q and b.units[2].r==p.r and stable(b)then
+                        app.draw();check(view.ui.battleSearch,'guest ruin search control missing');press(view.ui.battleSearch);stage='searched'
+                    end
+                else capture='guest-battle-shot.png';stage='disconnect'end
+            elseif stage=='searched'and not view.battles.pending and Search.receipt(d,b,1)and stable(b)and b.units[b.active].actorId=='companion'then
+                local receipt=Search.receipt(d,b,1);local found=false
+                for _,item in pairs(d.players.companion.inventory)do if item==receipt.item then found=true end end
+                check(found and receipt.actorId=='companion','replicated personal loot missing')
+                print('LAN_RUIN_SEARCH_OK role=guest replicated=true input='..(touch and'touch'or'desktop'))
+                capture='guest-battle-shot.png';stage='disconnect'
             elseif stage=='disconnect' and captured['guest-battle-shot.png'] then
                 if hostRestart then
                     shotSignature=signature(d); oldSessionId=lp.network.sessionId

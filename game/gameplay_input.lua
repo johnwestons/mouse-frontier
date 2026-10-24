@@ -99,6 +99,7 @@ local function new(context)
   local battleAttack=required(context,"battleAttack","function")
   local battleHeal=required(context,"battleHeal","function")
   local battleGuard=required(context,"battleGuard","function")
+  local battleSearch=context.battleSearch
   local advanceBattleTurn=required(context,"advanceBattleTurn","function")
   local setBattlePrompt=required(context,"setBattlePrompt","function")
   local finishBattle=required(context,"finishBattle","function")
@@ -1419,6 +1420,7 @@ local function new(context)
           elseif not runtime.battle.finished and key=="h" then battleHeal()
           elseif not runtime.battle.finished and key=="m" and not runtime.battle.moveUsed then runtime.battle.phase="move"; setBattlePrompt("Choose a highlighted terrain piece to move.")
           elseif not runtime.battle.finished and key=="g" then battleGuard()
+          elseif not runtime.battle.finished and key=="f" and battleSearch then battleSearch()
           elseif not runtime.battle.finished and key=="space" then advanceBattleTurn()
           end
           return

@@ -187,6 +187,13 @@ function G.ruinCell(chunk,field,site,q,r,rich)
     local dx,dz=q-site.q,r-site.r
     local floor=site.style==1 and {.55,.51,.43}or{.48,.47,.42}
     G.box(chunk.props,x,y+.025,z,1.01,.05,1.01,site.style==2 and 5 or 4,floor)
+    if dx==math.floor(site.w/2)and dz==math.floor(site.d/2)then
+        -- Low-cost supply chest; it occupies no collision cell or doorway.
+        G.box(chunk.props,x,y+.24,z,.70,.38,.52,5,wood)
+        G.box(chunk.props,x,y+.46,z,.76,.09,.58,5,wood)
+        for _,ox in ipairs({-.23,.23})do G.box(chunk.props,x+ox,y+.30,z,.045,.45,.56,6,steel)end
+        G.box(chunk.props,x,y+.35,z+.28,.10,.13,.04,6,{.72,.58,.27})
+    end
     if dx==1 and dz==1 then
         -- A surviving hearth and chimney give the room a recognisable scale.
         G.box(chunk.props,x,y+.16,z,.85,.32,.80,7,{.48,.42,.34})

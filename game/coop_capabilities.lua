@@ -17,7 +17,7 @@ declare("shared_assistance","trade","merchant.buy merchant.sell npc.gift npc.cha
 declare("shared_assistance","train","train.fuel train.upgrade train.engineUpgrade radio.station decoration.acquire decoration.place decoration.collect")
 declare("shared_assistance","activities","firstAid.acquire firstAid.step firstAid.complete maintenance.acquire maintenance.step maintenance.complete weaponRepair.acquire weaponRepair.step weaponRepair.complete outfit.craft activity.release")
 declare("shared_assistance","quests","quest.deliver quest.help expedition.survey expedition.cache")
-declare("personal","combat","battle.move battle.attack battle.guard battle.heal battle.ability battle.item battle.swap battle.endTurn roaming.attack gun.aim gun.fire gun.reload gun.cover gun.ads gun.mode gun.select")
+declare("personal","combat","battle.move battle.attack battle.search battle.guard battle.heal battle.ability battle.item battle.swap battle.endTurn roaming.attack gun.aim gun.fire gun.reload gun.cover gun.ads gun.mode gun.select")
 declare("shared_assistance","combat","lastStand.aid lastStand.position lastStand.supply range.acquire range.configure range.ammo range.fire range.reload range.release")
 declare("shared_assistance","requests","progression.request")
 declare("personal","scenes","scene.leaveTrain scene.returnTrain scene.enterHouse scene.exitHouse scene.office scene.expedition scene.caravan")
@@ -67,12 +67,12 @@ for _,name in ipairs({'event.begin','event.choose','event.continue'}) do
 end
 Capabilities.commands['finale.choose'].status='domain_implemented'
 Capabilities.commands['encounter.roll'].status='domain_implemented'
-for _,name in ipairs({'battle.begin','battle.move','battle.attack','battle.guard','battle.heal','battle.item','battle.swap','battle.ability','battle.endTurn','battle.enemyTurn','battle.continue','battle.retreat'}) do
+for _,name in ipairs({'battle.begin','battle.move','battle.attack','battle.search','battle.guard','battle.heal','battle.item','battle.swap','battle.ability','battle.endTurn','battle.enemyTurn','battle.continue','battle.retreat'}) do
     Capabilities.commands[name].status='domain_implemented'
 end
 -- These owned actions use the same guest panel for ordinary and expedition
 -- tactical boards. First-person and special combat remain separate work.
-for _,name in ipairs({'battle.move','battle.attack','battle.guard','battle.heal','battle.item','battle.swap','battle.ability','battle.endTurn'}) do
+for _,name in ipairs({'battle.move','battle.attack','battle.search','battle.guard','battle.heal','battle.item','battle.swap','battle.ability','battle.endTurn'}) do
     Capabilities.commands[name].status='network_tactical'
 end
 -- Owned expedition melee swings have desktop/touch source-app evidence.

@@ -39,6 +39,7 @@ param(
     [switch]$BattleLateJoin,
     [switch]$BattleBoss,
     [switch]$BattleHostRestart,
+    [switch]$BattleSearch,
     [switch]$BattleActions,
     [switch]$AmbushPressure,
     [switch]$AmbushHostRestart,
@@ -62,7 +63,7 @@ if(-not (Test-Path -LiteralPath (Join-Path $gameRootPath 'game') -PathType Conta
 $reportRoot=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ReportDirectory)
 $runId=[guid]::NewGuid().ToString('N')
 $harnessRoot=Join-Path $reportRoot ('run-'+$runId)
-$envNames=@('APPDATA','MOUSE_FRONTIER_LAN_SMOKE_ROLE','MOUSE_FRONTIER_LAN_SMOKE_PORT','MOUSE_FRONTIER_LAN_DISCOVERY_PORT','MOUSE_FRONTIER_LAN_SMOKE_ROOT','MOUSE_FRONTIER_MOBILE','MOUSE_FRONTIER_TRADE_SCENE','MOUSE_FRONTIER_PEOPLE_SCENE','MOUSE_FRONTIER_PARTY_SCENE','MOUSE_FRONTIER_BATTLE_SCENE','MOUSE_FRONTIER_BATTLE_LATE_JOIN','MOUSE_FRONTIER_BATTLE_OUTCOME','MOUSE_FRONTIER_BATTLE_BOSS','MOUSE_FRONTIER_BATTLE_HOST_RESTART','MOUSE_FRONTIER_BATTLE_RESUMED','MOUSE_FRONTIER_PRESSURE_OUTCOME')
+$envNames=@('APPDATA','MOUSE_FRONTIER_LAN_SMOKE_ROLE','MOUSE_FRONTIER_LAN_SMOKE_PORT','MOUSE_FRONTIER_LAN_DISCOVERY_PORT','MOUSE_FRONTIER_LAN_SMOKE_ROOT','MOUSE_FRONTIER_MOBILE','MOUSE_FRONTIER_TRADE_SCENE','MOUSE_FRONTIER_PEOPLE_SCENE','MOUSE_FRONTIER_PARTY_SCENE','MOUSE_FRONTIER_BATTLE_SCENE','MOUSE_FRONTIER_BATTLE_LATE_JOIN','MOUSE_FRONTIER_BATTLE_OUTCOME','MOUSE_FRONTIER_BATTLE_BOSS','MOUSE_FRONTIER_BATTLE_HOST_RESTART','MOUSE_FRONTIER_BATTLE_RESUMED','MOUSE_FRONTIER_BATTLE_SEARCH','MOUSE_FRONTIER_PRESSURE_OUTCOME')
 $envNames+=@(Get-ChildItem Env: | Where-Object {$_.Name -match '^MOUSE_FRONTIER_SMOKE'} | ForEach-Object {$_.Name})
 $envNames=@($envNames | Select-Object -Unique)
 $envNames+=@('MOUSE_FRONTIER_LAST_STAND_HOST_RESTART','MOUSE_FRONTIER_LAST_STAND_RESUMED')
@@ -105,6 +106,7 @@ try {
     if($BattleLateJoin){$Battles=$true; $Application=$true; $env:MOUSE_FRONTIER_BATTLE_LATE_JOIN='1'}
     if($BattleBoss){$Battles=$true; $Application=$true; $env:MOUSE_FRONTIER_BATTLE_BOSS='1'}
     if($BattleHostRestart){$Battles=$true; $Application=$true; $env:MOUSE_FRONTIER_BATTLE_HOST_RESTART='1'}
+    if($BattleSearch){$Battles=$true; $Application=$true; $env:MOUSE_FRONTIER_BATTLE_SEARCH='1'}
     if($BattleHostRestart -and $BattleLateJoin){throw 'Choose host restart or late admission for this fixture.'}
     if($BattleOutcome){$Battles=$true; $Application=$true; $env:MOUSE_FRONTIER_BATTLE_OUTCOME=$BattleOutcome}
     if($World){$Application=$true}
@@ -277,6 +279,7 @@ try {
     $summary+=' conversationFixture='+[bool]$Conversations+' questDecisionsFixture='+[bool]$QuestDecisions+' eventFixture='+[bool]$Events
     $summary+=' finaleFixture='+[bool]$Finale
     $summary+=' battleFixture='+[bool]$Battles+' battleScene='+$BattleScene
+    $summary+=' battleSearch='+[bool]$BattleSearch
     $summary+=' battleLateJoin='+[bool]$BattleLateJoin
     $summary+=' battleOutcome='+$BattleOutcome
     $summary+=' battleBoss='+[bool]$BattleBoss+' hostRestarts='+$hostRestarts+' hostProcessStarts='+(1+$hostRestarts)

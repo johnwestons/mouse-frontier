@@ -279,7 +279,7 @@ local function scaledItem(catalog,location,quality,rng)
 end
 
 local function giveItem(data,catalog,item)
-    for index=1,(data.inventoryCapacity or 6) do if not data.inventory[index] then Items.write(data,nil,{kind="inventory",index=index},item); return item end end
+    for index=1,(data.inventoryCapacity or 6) do if not data.inventory[index] then Items.write(data,nil,{kind="inventory",index=index},item); return item,'inventory' end end
     -- Event/battle rewards that do not fit go to the train mailbox.  Supplies
     -- quests do not use this helper; their food/water is applied directly to
     -- the resource stores, so their overflow remains intentionally excluded.
@@ -290,11 +290,22 @@ local function giveItem(data,catalog,item)
     if mailbox then
         mailbox.storage=mailbox.storage or {}
         for slot=1,(catalog.storageCapacities["mailbox-reward"] or 20) do
-            if not mailbox.storage[slot] then Items.write(data,mailbox,{kind="chest",index=slot},item); mailbox.mailUnread=true; return item end
+            if not mailbox.storage[slot] then Items.write(data,mailbox,{kind="chest",index=slot},item); mailbox.mailUnread=true; return item,'mailbox' end
         end
     end
     data.pendingRewards=data.pendingRewards or {}; data.pendingRewards[#data.pendingRewards+1]=item
-    return item
+    return item,'pending'
+end
+Events.giveItem=giveItem
+
+-- Queued rewards become reachable as soon as a mailbox slot is cleared.
+function Events.refillMailbox(data,catalog,mailbox)
+    if not mailbox or mailbox.name~='mailbox-reward'or mailbox.scene~='train'then return end
+    for slot=1,(catalog.storageCapacities['mailbox-reward']or 20)do
+        if not mailbox.storage[slot]and data.pendingRewards and #data.pendingRewards>0 then
+            Items.write(data,mailbox,{kind='chest',index=slot},table.remove(data.pendingRewards,1));mailbox.mailUnread=true
+        end
+    end
 end
 
 local function scaledWeapon(catalog,location,quality,rng)

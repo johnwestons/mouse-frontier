@@ -15,6 +15,7 @@ local Viewport=require('game.viewport')
 local Fog=require('game.battle_fog')
 local Graphics=require('game.battle_graphics')
 local Presentation=require('game.battle_presentation')
+local Search=require('game.battle_search')
 local Native={}
 local function release(o)if o and o.release then o:release()end end
 local function text(value,x,y,w,h,scale,align)
@@ -155,6 +156,11 @@ local function minimap(ctx,state)
         love.graphics.draw(state.renderer.fogImage,rect.x,rect.y,0,rect.w/ctx.battle.field.columns,rect.h/ctx.battle.field.rows)
     else love.graphics.rectangle('fill',rect.x,rect.y,rect.w,rect.h)end
     local field=ctx.battle.field
+    for _,cache in ipairs(Search.list(ctx.battle))do if Fog.explored(ctx.battle,cache.q,cache.r)then
+        local taken=Search.receipt(ctx.saveData,ctx.battle,cache.id)
+        love.graphics.setColor(taken and .36 or .95,taken and .38 or .77,taken and .36 or .29,1)
+        love.graphics.rectangle('fill',rect.x+(cache.q+.5)/field.columns*rect.w-2,rect.y+(cache.r-.5)/field.rows*rect.h-2,4,4)
+    end end
     love.graphics.setColor(.29,.81,.60,1);love.graphics.rectangle('fill',rect.x+rect.w-5,rect.y,5,rect.h)
     for _,u in ipairs(ctx.battle.units)do if u.hp>0 and Fog.unitVisible(ctx.battle,u)then
         love.graphics.setColor(u.team=='enemy'and .90 or .95,u.team=='enemy'and .29 or .82,u.team=='enemy'and .19 or .38,1)
@@ -193,6 +199,18 @@ function Native.draw(ctx)
         end
     end
     minimap(ctx,state)
+    state.cacheHits={}
+    for _,cache in ipairs(Search.list(b))do if Fog.visible(b,cache.q,cache.r)then
+        local x,y=c:project(cache.q+.5,Field.cellHeight(b.field,cache.q,cache.r)+.65,cache.r-.5)
+        local taken=Search.receipt(ctx.saveData,b,cache.id)
+        local rect={x=x-67,y=y-25,w=134,h=28*l.fontScale}
+        if rect.x>=l.map.x and rect.x+rect.w<=l.map.x+l.map.w and rect.y>l.header+116*l.fontScale and rect.y+rect.h<l.bottom then
+            love.graphics.setColor(.04,.035,.02,.9);love.graphics.rectangle('fill',rect.x,rect.y,rect.w,rect.h,3,3)
+            love.graphics.setColor(taken and {.57,.59,.54,1}or ctx.colors.brass)
+            text(taken and'SEARCHED'or'RUIN CACHE',rect.x+4,rect.y,rect.w-8,rect.h,.64*l.fontScale,'center')
+            state.cacheHits[#state.cacheHits+1]={rect=rect,id=cache.id,taken=taken}
+        end
+    end end
     if ctx.statusText then
         local x,y=l.x+l.w-232,l.header+128
         love.graphics.setColor(0,0,0,.90);love.graphics.rectangle('fill',x,y,220,66*l.fontScale,4,4)
@@ -214,13 +232,19 @@ function Native.draw(ctx)
         ui.battleCameraButtons[#ui.battleCameraButtons+1]={rect=rect,action=item[2]};bx=bx+w+5
     end
     ui.battleWeapons={};ui.battlePotionButtons={};ui.battleOptions={}
-    for _,key in ipairs({'battleHeal','battleGuard','battleAbility','battleEnd','battleRetreat','battleContinue','battleMove','battleInventory','battleLogUp','battleLogDown'})do ui[key]=nil end
+    for _,key in ipairs({'battleHeal','battleGuard','battleSearch','battleAbility','battleEnd','battleRetreat','battleContinue','battleMove','battleInventory','battleLogUp','battleLogDown'})do ui[key]=nil end
     if selected then
         love.graphics.setColor(ctx.colors.brass);text(selected.name..'  HP '..selected.hp..'/'..selected.maxHP,l.x+14,l.bottom+3,230,32,scale)
     end
     love.graphics.setColor(ctx.colors.cream);text(b.message or '',l.x+250,l.bottom+3,l.w-264,32,scale)
     local canAct=active and active.team=='ally'and active.hp>0 and(not ctx.canAct or ctx.canAct(active))
     local enabled=canAct and not Native.busy(b)
+    local cache=canAct and not b.finished and Search.nearby(ctx.saveData,b,active)
+    if cache then
+        local rect=ctx.button(ctx.mobileEnabled and'SEARCH RUIN'or'SEARCH RUIN [F]',l.x+14,l.header+65*l.fontScale,230*l.fontScale,44*l.fontScale,enabled,.78)
+        ui.battleSearch=rect;ui.battleOptions[#ui.battleOptions+1]={rect=rect,action='search',enabled=enabled,cacheId=cache.id}
+        love.graphics.setColor(ctx.colors.cream);text('Uses turn action',rect.x+rect.w+8,rect.y,170*l.fontScale,rect.h,.67*l.fontScale)
+    end
     local buttons={}
     local function add(key,label,action,ok,name)buttons[#buttons+1]={key=key,label=label,action=action,enabled=ok~=false,name=name}end
     if b.finished then
@@ -325,8 +349,17 @@ function Native.handleMouse(ctx,x,y,right)
         elseif action:match('^weapon')then ctx.battleAttack(b.options[tonumber(action:match('%d+'))])
         elseif action=='move'then if ctx.setMoveMode then ctx.setMoveMode()else b.phase='move'end
         elseif action=='heal'then ctx.battleHeal()elseif action=='guard'then ctx.battleGuard()
+        elseif action=='search'then ctx.battleSearch(item.cacheId)
         elseif action=='ability'then ctx.useBattleAbility(Catalog.characterAbility(Rules.activeUnit(b).file).kind)
         elseif action=='end'then ctx.advanceBattleTurn()elseif action=='potion'then ctx.useBattlePotion(item.name)end
+        return'handled'
+    end end
+    for _,hit in ipairs(state.cacheHits or{})do if Util.pointIn(x,y,hit.rect)then
+        local active=Rules.activeUnit(b)
+        if not right and not b.finished and not Native.busy(b)and active and(not ctx.canAct or ctx.canAct(active))then
+            if Search.available(ctx.saveData,b,active,hit.id)then ctx.battleSearch(hit.id)
+            else ctx.setBattlePrompt(hit.taken and'This ruin has already been searched.'or'Move onto or next to this cache, then search. Uses turn action.')end
+        end
         return'handled'
     end end
     local q,r=state.renderer:pick(x,y)

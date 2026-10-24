@@ -98,6 +98,7 @@ function Commands.install(authority,context)
             if not chest or type(chest.storage)~="table" or not access(data,actor,state,chest,record) then return nil,"container_unavailable" end
             if not isContainer(chest,catalog) then return nil,"invalid_container" end
             scopes[#scopes+1]="entity:"..chest.entityId
+            if chest.name=='mailbox-reward'and chest.scene=='train'then scopes[#scopes+1]='world:rewardDelivery'end
         end
         if name~="inventory.swap" and not chest then return nil,"container_required" end
         if not validRef(args.source,actor,chest,catalog) then return nil,"invalid_slot" end
@@ -123,10 +124,12 @@ function Commands.install(authority,context)
                 actor.ammo[item]=(actor.ammo[item] or 0)+amount
                 Inventory.setValue(actor,chest,args.source,nil,catalog.wearableItems)
                 usedContainer(chest)
+                require('game.events').refillMailbox(data,catalog,chest)
                 return {item=item,amount=amount}
             end
             if not moved then return nil,reason or "cannot_transfer" end
             usedContainer(chest)
+            require('game.events').refillMailbox(data,catalog,chest)
             return {moved=true}
         end}
     end

@@ -43,6 +43,20 @@ class GuestBattleTests(unittest.TestCase):
             function boardPoint(q,r)return require('game.battle_native_ui').project(panel:context(),q,r)end
         ''')
 
+    def test_ruin_search_keyboard_and_touch_quote_cache_without_granting_on_replica(self):
+        self.lua.execute('''
+            local Search=require('game.battle_search');local p=Search.list(b)[1];local u=b.units[2]
+            u.q,u.r=p.q,p.r;u.actionTimer=0;u.hitTimer=0;u.moveAnim=nil;b.attackTimer=0;b.enemyDelay=0;b.intro=nil
+            panel:update();local scrap=own.scrap
+            panel:keypressed('f');assert(#requests==1 and requests[1].name=='battle.search'and requests[1].args.cacheId==1)
+            assert(not Search.receipt(own,b,1)and own.scrap==scrap,'guest granted its own reward')
+            panel.pending=nil;requests={}
+            view.ui.battleOptions={{rect={x=14,y=120,w=230,h=44},action='search',enabled=true,cacheId=1}}
+            panel:pointer(30,130,false)
+            assert(#requests==1 and requests[1].name=='battle.search'and requests[1].args.cacheId==1)
+            assert(requests[1].args.unitId==u.id and requests[1].args.turnRevision==copy.tacticalBattle.revision)
+        ''')
+
     def test_weapon_then_target_can_be_clicked_without_a_network_update_between_them(self):
         self.lua.execute('''
             panel:update(); local weapon=own.itemSlots.equipment[2]

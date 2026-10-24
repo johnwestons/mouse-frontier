@@ -158,6 +158,7 @@ function Panel:context()
             if (self.mode or self.runtime.battle.phase)~='target' then self:submit('battle.move',{q=q,r=row}) end
         end,
         battleHeal=function() self:submit('battle.heal') end,battleGuard=function() self:submit('battle.guard') end,
+        battleSearch=function(id)self:submit('battle.search',{cacheId=id})end,
         advanceBattleTurn=function() self:submit('battle.endTurn') end,
         useBattleAbility=function(kind) self:submit('battle.ability',{kind=kind}) end,
         useBattlePotion=function(name) self:submit('battle.item',{name=name}) end}
@@ -184,7 +185,7 @@ function Panel:targets()
         if rect and rect.enabled~=false then targets[#targets+1]={id=id,rect=rect,action=action} end
     end
     for i,rect in ipairs(self.ui.battleWeapons or {}) do add('weapon'..i,rect,function() self:pointer(rect.x+rect.w/2,rect.y+rect.h/2) end) end
-    for _,key in ipairs({'battleMove','battleHeal','battleGuard','battleAbility','battleEnd','battleInventory'}) do
+    for _,key in ipairs({'battleMove','battleHeal','battleGuard','battleSearch','battleAbility','battleEnd','battleInventory'}) do
         local rect=self.ui[key]; add(key,rect,function() self:pointer(rect.x+rect.w/2,rect.y+rect.h/2) end)
     end
     for i,control in ipairs(self.ui.battleCameraButtons or{})do
@@ -226,6 +227,9 @@ function Panel:keypressed(key)
     elseif key=='m' and not b.moveUsed then self.mode='move'; self.weapon=nil; self.notice=nil
     elseif key=='g' then self:submit('battle.guard')
     elseif key=='h' then self:submit('battle.heal')
+    elseif key=='f'then
+        local cache=require('game.battle_search').nearby(self.runtime.saveData,b,Rules.activeUnit(b))
+        if cache then self:submit('battle.search',{cacheId=cache.id})end
     elseif key=='space' then self:submit('battle.endTurn') end
     return true
 end

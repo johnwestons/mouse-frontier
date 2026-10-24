@@ -42,6 +42,10 @@ At most two groups actively pursue at once. Hunters investigate the last reporte
 
 ## Rewards
 
+Each of the twelve ruined houses on a version-3 battlefield contains one searchable cache. Move onto or beside its supply chest, then use SEARCH RUIN or F. Searching consumes the turn action, may follow movement, and makes noise within four spaces. Cache markers obey party fog; explored markers remain on the minimap, and collected caches are marked SEARCHED.
+
+Each six-house set includes food, water, medicine, ammunition, crafting materials and a general loot roll with a 25% weapon chance. Existing stop-based rarity and unlock rules apply. Every search adds 2–4 shared scrap plus one per ten stops (maximum +4). Ammunition favors the searching player's equipped ammunition type and goes into their personal reserve. Other items go into that player's backpack; overflow uses the shared train mailbox. Its saved delivery queue refills newly cleared mailbox slots. Claims persist per crossing, or per expedition area, so retreat, reconnect and reload cannot refill collected caches. Draw distance never changes these rules.
+
 Base coal, scrap, and experience increase with tier. Defeated enemies contribute to ordinary crossing rewards; bypassed surviving enemies do not add a kill bonus. Defense battles retain their extra resource and experience bonus. Boss encounters at stops 15, 35, and 47 feature an alpha enemy with additional health, armor, aim, an explicit objective/music category, and bonus rewards. Expedition rewards retain their per-enemy receipts. Results wait for host dismissal and cannot be paid again by retry or reload.
 
 ## Allies, AI, and statuses

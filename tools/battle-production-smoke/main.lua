@@ -132,12 +132,36 @@ local function run()
     enemy.q=60;b.selected=enemy.id;Native.cameraAction(ui,b,'focus')
     expect(camera.targetX==party.q+.5,'focus revealed a hidden enemy position')
     b.projectile=nil;b.selected=party.id
+    local Search=require('game.battle_search');local cache=Search.list(b)[1]
+    party.q,party.r=cache.q,cache.r;b.active=1;b.phase='action';b.moveUsed=true;b.attackTimer=0;b.enemyDelay=0
+    for index,unit in ipairs(b.units)do
+        unit.moveAnim=nil;unit.actionTimer=0;unit.hitTimer=0
+        if unit.team=='enemy'then unit.q,unit.r=60+index%6,20+math.floor(index/6)end
+    end
+    expect(require('game.tactical_battle_state').pending(data),'search fixture has an invalid battle checkpoint')
+    Fog.update(b);camera:focus(party.q,party.r,Field.cellHeight(b.field,party.q,party.r));camera.yaw=225;camera.tilt=65;camera:setZoom(.85)
+    draw('production-ruin-search')
+    expect(ui.battleSearch and #ui.nativeBattle.cacheHits>0,'search cache or contextual action missing')
+    local searchButton=ui.battleSearch;local scrap=data.scrap;local searchRound=b.round
+    pointer(searchButton.x+searchButton.w/2,searchButton.y+searchButton.h/2,1)
+    expect(Search.receipt(data,b,1)and data.scrap>scrap,'native search button did not grant authoritative loot')
+    expect(b.active~=1 or b.round>searchRound,'search failed to consume the turn action')
+    draw('production-ruin-collected')
+    local before=data.scrap;b.active=1;party.q,party.r=cache.q,cache.r;b.attackTimer=0;b.enemyDelay=0
+    for _,unit in ipairs(b.units)do unit.moveAnim=nil;unit.actionTimer=0;unit.hitTimer=0 end
+    app.keypressed('f');expect(data.scrap==before,'search hotkey duplicated collected loot')
+    local nextCache=Search.list(b)[2];party.q,party.r=nextCache.q,nextCache.r;Fog.update(b)
+    app.keypressed('f');expect(Search.receipt(data,b,2),'search hotkey did not collect an adjacent fresh cache')
+    b.active=1;party.q,party.r=Search.list(b)[3].q,Search.list(b)[3].r
+    for _,unit in ipairs(b.units)do unit.moveAnim=nil;unit.actionTimer=0;unit.hitTimer=0 end
+    b.attackTimer=0;b.enemyDelay=0;Fog.update(b)
     local access=require('game.accessibility').ensure(data);access.textSize=3;access.highContrast=true
     for _,w in ipairs({960,1280,1560})do
         love.window.setMode(w,720,{vsync=0});draw('production-accessible-'..w)
         for _,item in ipairs(ui.battleOptions)do
             expect(item.rect.y+item.rect.h<=720,'large-text action clipped below the screen')
         end
+        expect(ui.battleSearch and ui.battleSearch.y+ui.battleSearch.h<ui.nativeBattle.layout.bottom,'large-text ruin search clipped')
         Native.cameraAction(ui,b,'info');draw('production-accessible-info-'..w);Native.cameraAction(ui,b,'panelClose')
     end
     if os.getenv('MOUSE_FRONTIER_BATTLE_PROFILE')=='1'then require('profile').run({runtime=g,ui=ui,app=app,canvas=canvas,memory=memory})end

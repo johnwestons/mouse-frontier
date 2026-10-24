@@ -1,6 +1,6 @@
 -- Every persistent field needs an explicit wire ownership decision. New save
 -- fields fail projection until classified; migration flags stay host-local.
-local M={VERSION=1,SCHEMA=49}
+local M={VERSION=1,SCHEMA=50}
 M.groups={
     journey={'location','scene','stopped','activeHouseDoor','lastStopDoor','activeExpeditionArea','activeHelpQuestId',
         'visitedStops','arrivalNotice'},
