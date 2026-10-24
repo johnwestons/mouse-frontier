@@ -7,7 +7,7 @@ local ItemInstances = require("game.item_instances")
 local ReplicaOwnership = require("game.replica_ownership")
 
 local SaveSchema = {
-    CURRENT_VERSION = 48,
+    CURRENT_VERSION = 49,
     LEGACY_VERSION = 1,
 }
 

@@ -1,6 +1,7 @@
 -- Reusable textured prop kit and chunk geometry. Returns plain vertex arrays;
 -- the renderer owns GPU lifetime, culling, and per-device decoration density.
 local Field=require('game.battle_field')
+local Sites=require('game.battle_sites')
 local G={CHUNK_SIZE=6}
 local function uv(slot,u,v)return (slot%4+.015625+u*.96875)/4,(math.floor(slot/4)+.015625+v*.96875)/2 end
 local function add(out,p,u,v,n,c)
@@ -90,7 +91,24 @@ local wood={.47,.33,.20};local rust={.59,.37,.24};local steel={.43,.47,.44};loca
 function G.obstacle(out,field,o,rng,rich)
     local x,z=o.q+.5,o.r-.5;local y=Field.cellHeight(field,o.q,o.r);local kind=o.kind
     local colors=palette(field.biome)
-    if kind=='boulders'then
+    if kind=='ruin-wall-x'or kind=='ruin-wall-z'then
+        local yaw=kind=='ruin-wall-z'and math.pi/2 or 0
+        local height=1.55+((o.q*19+o.r*7+field.seed)%5)*.12
+        local tint={.59,.55,.46}
+        G.box(out,x,y+.28,z,1.02,.56,.30,7,tint,yaw)
+        for _,dx in ipairs({-.40,.40})do
+            G.box(out,x+dx*math.cos(yaw),y+.57+(height-.57)/2,z-dx*math.sin(yaw),.22,height-.57,.30,7,tint,yaw)
+        end
+        G.box(out,x,y+height-.12,z,1.02,.24,.30,7,tint,yaw)
+        G.box(out,x,y+.60,z,1.06,.08,.38,2,colors.stone,yaw)
+        if rich then
+            for i=0,3 do
+                local dx=-.38+i*.25
+                G.box(out,x+dx*math.cos(yaw),y+height+.04+(i%2)*.05,z-dx*math.sin(yaw),.21,.12,.28,7,tint,yaw)
+            end
+            G.rock(out,x+.25,y,z+.28,.14,colors.stone,rng)
+        end
+    elseif kind=='boulders'then
         G.boulder(out,x-.12,y,z+.05,.42,1.35,colors.stone,rng);G.boulder(out,x+.29,y,z-.15,.26,.65,colors.stone,rng)
         if rich then G.rock(out,x-.30,y,z+.34,.15,colors.stone,rng)end
     elseif kind=='dead-tree'then
@@ -164,8 +182,35 @@ function G.obstacle(out,field,o,rng,rich)
         end
     end
 end
+function G.ruinCell(chunk,field,site,q,r,rich)
+    local x,z=q+.5,r-.5;local y=Field.cellHeight(field,q,r)
+    local dx,dz=q-site.q,r-site.r
+    local floor=site.style==1 and {.55,.51,.43}or{.48,.47,.42}
+    G.box(chunk.props,x,y+.025,z,1.01,.05,1.01,site.style==2 and 5 or 4,floor)
+    if dx==1 and dz==1 then
+        -- A surviving hearth and chimney give the room a recognisable scale.
+        G.box(chunk.props,x,y+.16,z,.85,.32,.80,7,{.48,.42,.34})
+        G.box(chunk.props,x-.23,y+1.15,z-.2,.35,2.3,.38,7,{.54,.49,.40})
+        G.box(chunk.props,x-.23,y+2.33,z-.2,.48,.12,.50,2,{.40,.40,.35})
+    end
+    if dz==1 and dx>0 and dx<site.w-1 and dx%2==1 then
+        G.box(chunk.props,x,y+1.72,z+1,.12,.12,4.15,5,wood,.045*(site.style-1))
+    end
+    if rich then
+        if dx>0 and dx<site.w-1 and dz>0 and dz<site.d-1 then
+            for i=1,2 do
+                local ox=((q*13+r*3+i*7)%11)/14-.35;local oz=((r*17+q+i*3)%13)/17-.35
+                G.box(chunk.details,x+ox,y+.07,z+oz,.14,.09,.24,7,{.58,.52,.44},(q+r+i)*.71)
+            end
+            if (q+r)%3==0 then G.box(chunk.details,x,y+.10,z,.7,.07,.13,5,wood,.7*(q%4))end
+        end
+        -- Floor seams remain visible without expensive per-cell textures.
+        G.box(chunk.details,x,y+.055,z,.012,.008,.98,2,{.26,.26,.23})
+    end
+end
 function G.build(field,obstacles,quality,onlyQ,onlyR)
     local result={};local colors=palette(field.biome);local rich=quality=='high';local low=quality=='low'
+    local sites=Sites.list(field)
     for q0=0,field.columns-1,G.CHUNK_SIZE do for r0=1,field.rows,G.CHUNK_SIZE do
         if (not onlyQ or onlyQ==q0)and(not onlyR or onlyR==r0)then
         local chunk={q=q0,r=r0,w=math.min(G.CHUNK_SIZE,field.columns-q0),h=math.min(G.CHUNK_SIZE,field.rows-r0+1),ground={},props={},details={},shadows={}}
@@ -174,9 +219,11 @@ function G.build(field,obstacles,quality,onlyQ,onlyR)
             local x,z=q,r-1
             local a={x,Field.vertexHeight(field,x,z),z};local b={x+1,Field.vertexHeight(field,x+1,z),z}
             local c={x,Field.vertexHeight(field,x,z+1),z+1};local d={x+1,Field.vertexHeight(field,x+1,z+1),z+1}
-            local shade=.95+.065*math.sin(x*.17+field.seed%31)*math.sin(z*.19+field.seed%113)
+            local shade=.89+.12*math.sin(x*.17+field.seed%31)*math.sin(z*.19+field.seed%113)
             local ground={colors.earth[1]*shade,colors.earth[2]*shade,colors.earth[3]*shade}
             G.triangle(chunk.ground,a,c,b,0,ground);G.triangle(chunk.ground,b,c,d,0,ground)
+            local site=Sites.at(field,q,r,sites)
+            if site then G.ruinCell(chunk,field,site,q,r,rich)end
             local obstacle=obstacles[q..':'..r];if obstacle then
                 G.obstacle(chunk.props,field,obstacle,rng,rich)
                 G.contactShadow(chunk.shadows,field,x+.60,z+.42,obstacle.kind=='dead-tree'and .60 or .70,.57,.38)
@@ -185,12 +232,12 @@ function G.build(field,obstacles,quality,onlyQ,onlyR)
             for _=1,(low and 1 or rich and 5 or 3)do
                 local px,pz=x+rng(),z+rng();local y=Field.heightAt(field,px,pz)
                 local road=math.abs(pz-Field.route(field,px))<.75
-                if not road and not obstacle then
+                if not road and not obstacle and not site then
                     local h=.09+rng()*.18;local w=.025+rng()*.04
                     G.triangle(chunk.details,{px-w,y,pz},{px+rng()*.05,y+h,pz},{px+w,y,pz},3,colors.grass)
                     G.triangle(chunk.details,{px,y,pz-w},{px,y+h*.8,pz},{px,y,pz+w},3,colors.grass)
                 end
-                if not low and rng()<.35 then
+                if not low and not site and rng()<.35 then
                     local s=.018+rng()*.045;G.rock(chunk.details,px,y,pz,s,colors.stone,rng)
                 end
             end

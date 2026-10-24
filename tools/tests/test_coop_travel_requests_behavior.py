@@ -188,7 +188,7 @@ class TravelAuthorityTests(unittest.TestCase):
         self.lua.execute('''
             local m,req,reply=inspect();local Wire=require('game.net.commands');local P=require('game.net.protocol')
             local message=assert(Wire.outcome(authority.sessionId,req.requestId,reply,'progression.request'))
-            assert(Wire.result(message) and #assert(P.encode(message,P.CONTROL))<=1200 and P.VERSION==32)
+            assert(Wire.result(message) and #assert(P.encode(message,P.CONTROL))<=1200 and P.VERSION==33)
             assert(message.details.available.food==data.resources.food)
             local copy=Results.project(m);copy.futureEvent='spoiler';assert(not Results.valid(copy))
             copy=Results.project(m);copy.to=50;assert(not Results.valid(copy))

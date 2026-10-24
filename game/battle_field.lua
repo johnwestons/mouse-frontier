@@ -1,6 +1,7 @@
 -- Canonical battlefield data. No graphics, device state, or global random calls.
 -- Geometry is retained with the battle; cosmetic meshes are rebuilt locally.
-local Field={VERSION=2,COLUMNS=72,ROWS=40,MIN_PLAYABLE=2400,LEVEL_SCALE=8}
+local Sites=require('game.battle_sites')
+local Field={VERSION=3,COLUMNS=72,ROWS=40,MIN_PLAYABLE=2400,LEVEL_SCALE=8}
 local decoded=setmetatable({},{__mode='k'})
 local kinds={'dead-tree','rusty-car','ruined-shack','boulders','barricade','rail-cart'}
 local function clamp(n,a,b)return math.max(a,math.min(b,n))end
@@ -47,7 +48,7 @@ local function generatedHeight(field,x,z)
     local d=math.min(math.abs(z-Field.route(field,x))/1.65,math.abs(z-3)/1.6,math.abs(z-(h-3))/1.6,crossDistance(field,x)/1.1)
     local edge=math.min(x/2.5,(w-x)/2.5)
     local corridor=smooth(d-.45)*smooth(edge)
-    return .125+shape*corridor
+    return Sites.flatten(field,x,z,.125+shape*corridor)
 end
 local function levels(field)
     local cached=decoded[field]
@@ -106,15 +107,26 @@ function Field.generate(seed,biome,tier)
     field.elevationData=table.concat(encoded)
     local tiles,variants,candidates,obstacles={},{},{},{}
     local rng=Field.random(field.seed+991)
+    local sites=Sites.list(field)
+    for _,site in ipairs(sites)do
+        for x=0,site.w-1 do for z=0,site.d-1 do
+            local q,r=site.q+x,site.r+z
+            local kind=Sites.wall(site,x,z)
+            if kind and not Field.isCorridor(field,q+.5,r-.5)then
+                obstacles[q..':'..r]={q=q,r=r,kind=kind}
+            end
+        end end
+    end
     for q=0,field.columns-1 do
         tiles[q]={};variants[q]={}
         for r=1,field.rows do
             tiles[q][r]=1;variants[q][r]=rng(1,3)
-            if not Field.isCorridor(field,q+.5,r-.5) then candidates[#candidates+1]={q=q,r=r} end
+            if not Field.isCorridor(field,q+.5,r-.5)and not Sites.at(field,q,r,sites)then candidates[#candidates+1]={q=q,r=r} end
         end
     end
     for i=#candidates,2,-1 do local j=rng(1,i);candidates[i],candidates[j]=candidates[j],candidates[i]end
-    local desired=tier=='hard' and 288 or tier=='medium' and 256 or 224
+    local count=0;for _ in pairs(obstacles)do count=count+1 end
+    local desired=(tier=='hard' and 448 or tier=='medium' and 416 or 384)-count
     desired=math.min(desired,field.columns*field.rows-Field.MIN_PLAYABLE,#candidates)
     for i=1,desired do
         local p=candidates[i];local kind=kinds[rng(1,#kinds)]
@@ -133,7 +145,7 @@ function Field.validate(field)
     local allowed={version=true,columns=true,rows=true,seed=true,biome=true,layout=true,exitColumn=true,elevationData=true}
     for key in pairs(field)do if not allowed[key]then return false,'unknown battlefield field' end end
     local geometry=field.version==1 and field.columns==36 and field.rows==20
-        or field.version==Field.VERSION and field.columns==Field.COLUMNS and field.rows==Field.ROWS
+        or (field.version==2 or field.version==Field.VERSION)and field.columns==Field.COLUMNS and field.rows==Field.ROWS
     if not geometry
         or not validInteger(field.seed,1,2147483646) or not validInteger(field.biome,1,4)
         or field.exitColumn~=field.columns-1 or not ({['rail-cutting']=true,['ruined-crossing']=true,['ridge-pass']=true})[field.layout]

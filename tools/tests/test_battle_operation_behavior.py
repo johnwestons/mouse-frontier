@@ -91,7 +91,7 @@ class OperationTests(unittest.TestCase):
                 else for r=7,40 do b.tiles[q][r]=nil;b.tileVariants[q][r]=nil end end
             end
             b.obstacles={};b.units[3].q,b.units[3].r=9,1;data.version=47
-            local loaded=assert(Schema.migrate(data));assert(loaded.version==48)
+            local loaded=assert(Schema.migrate(data));assert(loaded.version==Schema.CURRENT_VERSION)
             local restored=assert(State.restore(loaded,Catalog));assert(not restored.field and restored.tiles[9][6]and not restored.tiles[10])
         ''')
 

@@ -106,7 +106,7 @@ class CombatLatencyTests(unittest.TestCase):
             assert(delayed and not panel.pending and panel.lastOutcome.ok)
             assert(data.tacticalBattle.revision==revision+1 and writes==before+1)
             local b=data.tacticalBattle.battle
-            assert(b.units[b.active].actorId=='host'and not b.units[3].alerted,'dormant enemy delayed the next player')
+            assert(b.units[b.active].actorId=='host','patrol processing delayed or skipped the next player')
         ''')
 
     def test_single_move_press_after_previous_animation_uses_the_original_cell(self):

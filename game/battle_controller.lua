@@ -103,6 +103,7 @@ function Battle.begin(c,encounter)
     encounter.mobFiles=encounter.mobFiles or (encounter.mobFile and {encounter.mobFile} or {})
     local tier=encounter.tier or c.CombatBalance.tierFor(c.saveData.location); encounter.tier=tier
     local profile=c.CombatBalance.enemyProfile(c.saveData.location,tier)
+    require('game.battle_population').prepare(encounter,c.Catalog,function(a,b)return random(c,a,b)end,profile.maxHP)
     local maxHP=encounter.maxHP or profile.maxHP; encounter.maxHP=maxHP
     local d=c.saveData; local C=c.Catalog
     local units={playerUnit(c,'host',1,3)}
@@ -153,7 +154,7 @@ function Battle.begin(c,encounter)
     local biome=((d.location-1)%4)+1
     local seed=random(c,1,2147483646)
     local field,tiles,vars,obstacles=Field.generate(seed,biome,tier)
-    Operation.placeEnemies(field,units,obstacles)
+    Operation.placeEnemies(field,units,obstacles,encounter.population==1)
     for _,unit in ipairs(units) do obstacles[tostring(unit.q)..":"..tostring(unit.r)]=nil end
     local objective=encounter.boss and "Defeat the alpha threat, then reach the eastern exit" or
         (encounter.defenseBattle and "Defeat the attackers, then reach the eastern exit" or "Reach the eastern exit with every surviving player")
@@ -209,7 +210,7 @@ function Battle.advance(c)
     local ended=c.BattleRules.activeUnit(b); c.BattleRules.endTurn(ended); ended.staggeredRounds=math.max(0,(ended.staggeredRounds or 0)-1); ended.extraAttacks=nil; ended.extraMoves=nil; ended.perfectAccuracy=nil
     local start=b.active; repeat
         b.active=b.active%#b.units+1
-        if b.active==1 then b.round=b.round+1 end
+        if b.active==1 then b.round=b.round+1;Operation.patrol(b)end
     until b.units[b.active].hp>0 and Operation.active(b,b.units[b.active])or b.active==start
     local active=b.units[b.active]; active.guarding=false
     if (active.bleedRounds or 0)>0 then
@@ -333,6 +334,7 @@ function Battle.resolve(c,attacker,target,weaponName,itemId)
     if combat.ammo and attacker.team=="ally" then local count=d.ammo[combat.ammo] or 0; if count<=0 then msg(c,attacker.name.." has no "..c.Util.titleFromFile(combat.ammo).." ammunition."); return false end; d.ammo[combat.ammo]=count-1 end
     attacker.action=CharacterAttack.action(weaponName,combat); attacker.actionItem=weaponName; attacker.actionTimer=attacker.team=="enemy" and .68 or .45; c.playSfx(c.weaponSfx(weaponName,combat,attacker)); if combat.kind=="ranged" then b.projectile={fromQ=attacker.q,fromR=attacker.r,toQ=target.q,toR=target.r,ammo=combat.ammo or "rocks",weapon=weaponName,kind=combat.projectile,t=0,duration=attacker.team=="enemy" and .62 or .42} end
     if attacker.team=="ally" and weaponName~="scratch" then WeaponOwnership.wear(d,weaponInfo,1) end
+    if attacker.team=='ally'then Operation.noise(b,attacker,combat.kind=='ranged'and 12 or 4)end
     local prof=0
     if Actors.id(attacker) then local family=C.weaponFamily(weaponName); local uses=(d.weaponProficiency[family] or d.weaponProficiency.melee or 0)+1; d.weaponProficiency[family]=uses; prof=math.min(5,math.floor(uses/10)) end
     local _,cover=c.BattleRules.terrainAt(b,target.q,target.r); local roll=random(c,1,20); local levelAttack=Actors.id(attacker) and c.PlayerProgression.combatBonuses(d.stats.level).attack or 0; local wearableBonuses=Actors.id(attacker) and C.wearableBonuses and C.wearableBonuses(d.wearables) or {}; local wearableAttack=wearableBonuses.attack or 0; local staggerPenalty=(attacker.staggeredRounds or 0)>0 and 2 or 0; local bonus=(attacker.aim or 0)+levelAttack+(combat.accuracy or 0)-staggerPenalty; local effectiveArmor=math.max(0,(target.armor or 0)-(combat.armorPierce or 0)); local defense=8+effectiveArmor+cover+(combat.kind=="ranged" and (lineCover or 0) or 0)+(distance>1 and distance-1 or 0); local name=C.weaponStats[weaponName] and C.weaponStats[weaponName].name or c.Util.titleFromFile(weaponName)
@@ -352,12 +354,14 @@ function Battle.enemyTurn(c)
     local b=c.battle; local enemy=c.BattleRules.activeUnit(b); if not enemy or enemy.team~="enemy" or b.finished then return end
     if not Operation.active(b,enemy)then Battle.advance(c);return end
     if (enemy.sleepRounds or 0)>0 or (enemy.paralyzedRounds or 0)>0 then local status=(enemy.sleepRounds or 0)>0 and "asleep" or "paralyzed"; enemy.sleepRounds=math.max(0,(enemy.sleepRounds or 0)-1); enemy.paralyzedRounds=math.max(0,(enemy.paralyzedRounds or 0)-1); msg(c,enemy.name.." is "..status.." and loses its turn."); Battle.advance(c); return end
-    local target; for _,u in ipairs(b.units) do if u.team=="ally" and u.hp>0 and (not target or c.BattleRules.distance(enemy,u)<c.BattleRules.distance(enemy,target)) then target=u end end
+    local target=Operation.target(b,enemy)
     if not target then Battle.advance(c); return end
+    if target.remembered and c.BattleRules.distance(enemy,target)<=1 then Battle.advance(c);return end
     local weapon=enemy.weapon or (enemy.attackStyle=="ranged" and "mob-spit" or "mob-claw"); local preferred=enemy.attackStyle=="ranged" and c.BattleRules.weaponRange(c.Catalog,weapon) or 1
+    if target.remembered then preferred=0 end
     local inRange=c.BattleRules.distance(enemy,target)<=preferred
     local hasSight=c.BattleRules.lineOfSight(b,enemy,target)
-    if not inRange or (enemy.attackStyle=="ranged" and not hasSight) then
+    if target.remembered or not inRange or (enemy.attackStyle=="ranged" and not hasSight) then
         local step=c.BattleRules.bestAdvance(b,enemy,target,enemy.move,preferred)
         local q,r=step.q,step.r; if q~=enemy.q or r~=enemy.r then
             local path=b.field and c.BattleGrid.path(b,enemy,q,r,enemy.move)or nil

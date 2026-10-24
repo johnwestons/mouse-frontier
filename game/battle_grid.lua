@@ -16,6 +16,8 @@ Grid.obstacleProfiles={
     boulders={sprite=4,blocksMovement=true,blocksSight=true,cover=3},
     barricade={sprite=5,blocksMovement=true,blocksSight=false,cover=3},
     ["rail-cart"]={sprite=6,blocksMovement=true,blocksSight=false,cover=2},
+    ['ruin-wall-x']={sprite=3,blocksMovement=true,blocksSight=true,cover=4},
+    ['ruin-wall-z']={sprite=3,blocksMovement=true,blocksSight=true,cover=4},
 }
 
 local function key(q,r) return tostring(q)..":"..tostring(r) end
@@ -147,7 +149,42 @@ function Grid.lineOfSight(battle,a,b)
     return true,nil,cover
 end
 
+-- Bounded A* for patrol groups: a six-space house must not trap a hunter
+-- against its nearest wall. Only the active enemy plans a route.
+function Grid.pursuitStep(battle,unit,target,maximum,preferred)
+    local occupiedCells={}
+    for _,u in ipairs(battle.units)do if u~=unit and u.hp>0 then occupiedCells[key(u.q,u.r)]=true end end
+    local first={q=unit.q,r=unit.r,cost=0};first.score=math.max(0,Grid.distance(first,target)-preferred)
+    local open={first};local known={[key(first.q,first.r)]=first};local goal=first;local bestDistance=Grid.distance(first,target)
+    for _=1,384 do
+        if #open==0 then break end
+        local index=1
+        for i=2,#open do local a,b=open[i],open[index]
+            if a.score<b.score or a.score==b.score and(a.q<b.q or a.q==b.q and a.r<b.r)then index=i end
+        end
+        local current=table.remove(open,index)
+        if not current.closed then
+            current.closed=true;local d=Grid.distance(current,target)
+            if d<bestDistance then goal,bestDistance=current,d end
+            if d<=preferred and Grid.lineOfSight(battle,current,target)then goal=current;break end
+            for _,v in ipairs(directions)do
+                local q,r=current.q+v[1],current.r+v[2];local k=key(q,r)
+                if Grid.isBoardSpace(battle,q,r)and not occupiedCells[k]and not Grid.blocksMovement(battle,q,r)then
+                    local step=Field.traversalCost(battle.field,current.q,current.r,q,r)
+                    local cost=step and current.cost+step;local prior=known[k]
+                    if cost and(not prior or cost<prior.cost)then
+                        local p={q=q,r=r,cost=cost,parent=current,score=cost+math.max(0,Grid.distance({q=q,r=r},target)-preferred)}
+                        known[k]=p;open[#open+1]=p
+                    end
+                end
+            end
+        end
+    end
+    while goal.parent and goal.cost>maximum do goal=goal.parent end
+    return goal
+end
 function Grid.bestAdvance(battle,unit,target,maximum,preferred)
+    if battle.field and unit.patrolQ then return Grid.pursuitStep(battle,unit,target,maximum,preferred)end
     local reachable=Grid.reachable(battle,unit,maximum); local best={q=unit.q,r=unit.r,cost=0}; local bestScore=math.huge
     for _,node in pairs(reachable) do
         local distance=Grid.distance(node,target); local sight=Grid.lineOfSight(battle,node,target)

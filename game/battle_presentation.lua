@@ -12,6 +12,7 @@ local Presentation={}
 function Presentation.statuses(unit)
     local result={}
     if unit.boss then result[#result+1]='BOSS'end
+    if unit.patrolQ then result[#result+1]=unit.alerted and 'ALERT'or'PATROL'end
     for _,entry in ipairs({{'sleepRounds','SLEEP'},{'paralyzedRounds','PARALYZED'},{'bleedRounds','BLEED'},
         {'staggeredRounds','STAGGERED'},{'regenRounds','REGEN'}})do
         if(unit[entry[1]]or 0)>0 then result[#result+1]=entry[2]..' '..unit[entry[1]]end

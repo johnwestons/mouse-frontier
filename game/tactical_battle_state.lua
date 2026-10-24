@@ -60,7 +60,15 @@ function State.pending(data)
             or not number(u.move,-1e6,1e6) or not number(u.armor,-1e6,1e6) or not number(u.aim,-1e6,1e6) then return nil,'invalid tactical unit' end
         ids[u.id]=true
         if b.field and not nativeMotion(b.field,u)then return nil,'invalid tactical route' end
-        if u.alerted~=nil and type(u.alerted)~='boolean' or u.pocket~=nil and not P.integer(u.pocket,1,3)then return nil,'invalid tactical awareness' end
+        if u.alerted~=nil and type(u.alerted)~='boolean' or u.pocket~=nil and not P.integer(u.pocket,1,6)then return nil,'invalid tactical awareness' end
+        if u.patrolQ~=nil then
+            if not b.field or not P.integer(u.patrolQ,0,columns)or not P.integer(u.patrolR,1,rows)
+                or not P.integer(u.patrolIndex,1,4)or not P.integer(u.pocket,1,6)then return nil,'invalid tactical patrol' end
+        elseif u.patrolR~=nil or u.patrolIndex~=nil then return nil,'invalid tactical patrol' end
+        if u.lastSeenQ~=nil or u.lastSeenR~=nil or u.searchUntil~=nil then
+            if not u.patrolQ or not P.integer(u.lastSeenQ,0,columns)or not P.integer(u.lastSeenR,1,rows)
+                or not P.integer(u.searchUntil,1,2147483647)then return nil,'invalid tactical search' end
+        end
         local owner=Actors.id(u)
         if u.actorId~=nil and not owner then return nil,'invalid tactical owner' end
         if owner then
@@ -83,6 +91,7 @@ function State.pending(data)
         end
         for q in pairs(tiles) do if not P.integer(q,0,columns) then return nil,'invalid tactical board' end end
     end
+    if b.patrolRound~=nil and not P.integer(b.patrolRound,1,b.round)then return nil,'invalid tactical patrol round' end
     if type(b.obstacles)~='table' then return nil,'missing tactical obstacles' end
     for key,o in pairs(b.obstacles) do
         if not P.fields(o,{q=true,r=true,kind=true}) or not P.integer(o.q,0,columns) or not P.integer(o.r,1,rows)

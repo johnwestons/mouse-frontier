@@ -60,6 +60,9 @@ local function run()
     field=copy
     renderer.camera:focus(3,10,Field.cellHeight(field,3,10));renderer.camera:setZoom(1)
     draw('native-entry-detail')
+    renderer.camera:focus(9,9,Field.cellHeight(field,9,9));renderer.camera:setZoom(.65)
+    renderer.camera.yaw=225;renderer.camera.tilt=65
+    draw('native-house-detail')
     for _,yaw in ipairs({0,90,180,270,359})do
         renderer.camera.yaw=yaw;draw('native-angle-'..yaw)
         local q,r=2,10;local sx,sy=renderer.camera:project(q+.5,Field.cellHeight(field,q,r),r-.5)

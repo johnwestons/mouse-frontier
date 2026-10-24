@@ -14,9 +14,9 @@ Shared movement and sight rules live in `game/battle_grid.lua`; canonical proced
 
 ## Obstacles and cover
 
-New fields normally place 224, 256, or 288 deterministic obstacles by difficulty. Reserved routes and a connectivity fallback protect traversal. Saved flat battles retain their five-to-seven-obstacle layouts. The scenery kit contains dead trees, rusty cars, ruins, boulders, barricades, and rail carts.
+New fields normally place 384, 416, or 448 deterministic blocking cells by difficulty, including the walls of twelve ruined houses. House footprints vary from five to seven spaces wide and four to six deep, with level floors, open entrances and broken wall sections. Random props stay outside their interiors. Reserved routes and a connectivity fallback protect at least 2,400 reachable spaces. Saved battles retain their existing geometry and obstacle records.
 
-All six block movement. Trees, cars, shacks, and boulders block ranged line of sight completely. Barricades and rail carts can be fired across, but add cover to the defender. Existing terrain cover still contributes to defense.
+All obstacle types block movement. Trees, cars, shacks, house walls, and boulders block ranged line of sight. Barricades and rail carts can be fired across, but add cover to the defender. Doorways and collapsed wall gaps remain passable. Existing terrain cover still contributes to defense.
 
 ## Journey tiers
 
@@ -30,9 +30,15 @@ The previous ordinary-encounter rules made stop 9 and all 41 later stops hard, w
 
 ## Encounter size
 
-- Easy encounters gradually increase from a 12% to 20% chance of two enemies.
-- Medium encounters increase from a 30% to 50% chance of two enemies.
-- Hard encounters increase from a 50% to 70% group chance. The chance of three enemies rises from 18% to 35%.
+- Ordinary crossings contain 12 easy, 18 medium, or 24 hard enemies, split into six groups along different routes. Per-enemy health, armor, aim and movement retain the existing tier curve.
+- Each crossing reuses at most three animation families to bound mobile texture allocation. A populated encounter keeps its roster when re-entered.
+- Boss, event and expedition battles retain their assigned rosters and rewards. Explicit nonstandard HP encounters retain their configured enemy counts. Historical small-group rolls remain the basis of those encounters.
+
+## Patrol and pursuit
+
+Ordinary groups patrol locally, moving at most two legal spaces in a shared round update. They do not receive individual idle turns. Sight reaches nine spaces with terrain and wall occlusion; nearby movement can be heard within three spaces. Ranged attacks attract nearby groups within twelve spaces, while melee noise reaches four. Information is shared within a group.
+
+At most two groups actively pursue at once. Hunters investigate the last reported position for three rounds and return to patrol when the trail expires. They cannot follow an unseen player's changing position across the map. Active pursuit uses a bounded 384-node route search to navigate around house walls and through doors. Patrol routes, sightings and search expiry are saved and replicated by the host. Visible enemies display PATROL or ALERT labels; fog still hides unseen units.
 
 ## Rewards
 

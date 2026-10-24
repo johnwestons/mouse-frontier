@@ -1,8 +1,23 @@
 # Large tactical battle environment implementation
 
-New encounters are turn based crossings on a 72 by 40 procedural battlefield: 2,880 tactical spaces, four times the reviewed 720-space native preview and 48 times the original 60-space board. Hard maps normally retain 2,592 walkable spaces after 288 solid obstacles. Connectivity checks and a bounded fallback guarantee at least 2,400 reachable spaces.
+New encounters are turn based crossings on a 72 by 40 procedural battlefield: 2,880 tactical spaces, four times the reviewed 720-space native preview and 48 times the original 60-space board. New hard maps normally retain 2,432 walkable spaces after 448 blocking cells. Connectivity checks and a bounded fallback guarantee at least 2,400 reachable spaces.
 
-The latest user refinement adds persistent fog of war and adjustable terrain draw distance, superseding the earlier 36 by 20 target. The [concept study](concepts/battle-environment-study/REPORT.md) remains an art and feasibility reference; its browser mockup is not the game renderer.
+The current refinement adds population, patrols and building compounds to the larger map with persistent fog and adjustable draw distance. The [concept study](concepts/battle-environment-study/REPORT.md) remains an art and feasibility reference; its browser mockup is not the game renderer.
+
+## October 24 population and scenery refinement
+
+- Ordinary crossings have six groups: 12 enemies on easy, 18 on medium, and 24 on hard. The groups are spread across the north, center and south approaches. Enemy statistics are unchanged; avoiding a group remains an option. Boss, event, expedition and nonstandard-HP scripted encounters keep their assigned rosters.
+- Passive patrols move together once per round rather than spending individual idle turns. Sight and near-field hearing trigger group pursuit; shots can attract nearby groups. At most two groups pursue simultaneously. Enemies navigate around walls, search a remembered location for three rounds, then resume patrol. They cannot track a hidden player's current position. The host saves and replicates their patrol and search state.
+- Twelve seed-varied ruined houses have five-to-seven by four-to-six-space footprints, level foundations, working entrances, collapsed sections, window openings, hearths, chimneys, roof beams, weathered floors and rubble. Walls are real shared blockers. Interiors remain clear of randomly placed obstacles. Decoration quality does not alter collision or cover.
+- The ordinary scenery budget is now 384/416/448 blocking cells by tier. The 100-seed hard-map check found no empty fallback maps, while existing reachability tests continue to require all three routes and at least 2,400 reachable cells.
+- Each crossing uses no more than three enemy sprite families, reusing animation atlases across the larger roster. The mobile-asset desktop profile measured about 107.3 MiB of total texture allocation, a 3.36 ms map-generation P95, and 0.63–1.14 ms warm draw CPU-submission P95 across six views. These are desktop measurements with mobile assets, not phone frame pacing. Low-detail cache retention stayed at 28 chunks.
+- Native rendering passed 65 reference checks, 93 production desktop checks and 95 production mobile-layout checks. The reference contained 182,997 high-detail and 63,683 low-detail triangles before fog culling. See `output/battle-terrain/population-final-focused.log`, `population-compat.log`, `population-regression-final.log`, `population-packaged-mobile-profile.log` and `population-native.log` for the current audit results. New behavior tests cover real host pursuit commands, remembered positions, pursuit-group limits, legal patrol routes, doors, foundations, save rejection and compact replication.
+
+The update is configured as Android **0.7.0-mobile.51**, campaign schema **49**, and co-op protocol **33**. New fields use geometry version **3**. Previous 72-by-40 version-2, 36-by-20 version-1, and flat saves retain their pending battles. New scenery and population appear when a new encounter is generated; a resumed fight keeps its layout. Update both Local Play peers together.
+
+![Ruined-house compounds in the actual native renderer; fog disabled for inspection](../output/battle-terrain/native-house-detail.png)
+
+The remaining sections preserve the October 22 implementation and benchmark evidence where explicitly dated; current population and version information is above.
 
 ## Integrated behavior
 
@@ -10,11 +25,11 @@ The latest user refinement adds persistent fog of war and adjustable terrain dra
 | --- | --- |
 | Journey and extraction | Every surviving participating player must reach the eastern exit. Killing ordinary enemies alone does not finish the operation. Boss and defense battles also require their designated threats to be defeated. Fallen players are carried out and revived through the existing result flow. NPC followers cannot block extraction or keep a defeated player party alive. |
 | Routes and elevation | Continuous triangular terrain supports hills, uphill movement costs, terrain sight blocking, a central route, two flanks, and three cross-connections. Movement follows a legal reconstructed route instead of interpolating through cover. |
-| Encounter pacing | Enemies occupy separated pockets. Distant dormant enemies do not consume turns. Clear ground allows longer march moves; nearby threats restore tactical movement budgets. |
+| Encounter pacing | Ordinary enemies occupy six patrolling groups, with at most two groups pursuing at a time. Passive groups advance together once per round. Clear ground allows longer march moves; nearby threats restore tactical movement budgets. |
 | Camera | Device-local 360-degree orbit, 20–85 degree tilt, zoom 0.05–3.5, unconstrained pan, unit focus, full-map framing, and terrain ray picking. Right-drag orbits; middle/Shift-drag pans; the wheel zooms. Q/E orbit, brackets tilt, O frames the map, and Home focuses. Touch supports pinch zoom and camera toolbar controls. |
 | Screen space | The battlefield expands across the actual widescreen viewport. Objective, actions, and toolbar stay fixed during camera movement. Mobile reserves space for its pause control. |
 | Characters | Existing directional critter art is sampled onto camera-facing cutout planes. Facing accounts for camera rotation; gait phase follows traveled world distance. No dialogue or weapon art is generated or rewritten. |
-| Compatibility | Saved flat 60-space battles retain their dimensions and completion rules. Prior 36 by 20 native fields remain supported. New fields use geometry version 2. Campaign schema is 48; co-op protocol is 32. Both devices need the matching build. |
+| Compatibility | Saved flat 60-space battles retain their dimensions and completion rules. Prior 36 by 20 and 72 by 40 native fields remain supported. New fields use geometry version 3. Campaign schema is 49; co-op protocol is 33. Both devices need the matching build. |
 
 ## Fog and options
 
@@ -51,7 +66,7 @@ Measured in the two-player easy-encounter fixture (`output/battle-terrain/packet
 
 Before the static-domain change, the same move update was 191,354 bytes. These are serialized fixture sizes, not physical network latency measurements.
 
-## Verification evidence
+## October 22 verification evidence
 
 - Field tests cover three routes and at least 2,400 reachable spaces across 100 seeds, deterministic generation, malformed geometry, fallback generation, weighted paths, hill occlusion, and picking across camera azimuths, tilts, and zooms.
 - Fog tests cover hidden-target rejection without costs, route exploration, save/reload, shared sight, fallen scouts, ridge occlusion, local preference persistence, cached guest visibility, static-domain omission from moves, reconnect reconstruction, and previous native geometry compatibility.
@@ -67,7 +82,7 @@ Before the static-domain change, the same move update was 191,354 bytes. These a
 
 Outputs and screenshots are in `output/battle-terrain/`. Fixtures use isolated disposable profiles rather than the user’s campaign saves.
 
-## Performance evidence and device acceptance
+## October 22 performance evidence and device acceptance
 
 The production profiler ran the actual battle draw path on an NVIDIA RTX 3050 with OpenGL 3.3. Each case warms the renderer and records 90 draw submissions. These measurements establish desktop costs and relative quality behavior; they do not establish phone FPS.
 
@@ -108,7 +123,7 @@ Implementation acceptance is complete for the enlarged environment, fog and opti
 
 The implementation-stage game archive is `output/mobile/battle-environment/mouse-frontier-0.7.0-mobile.49.love` (349,050,678 bytes). Its SHA-256 is `67992bcb653ddf6f8d5bb4455f77f8d4e005fb68e2a188705ba8689f5b62d246`. This historical verification archive is for the LÖVE runtime, not an installed Android APK.
 
-The Android update is configured as **0.7.0-mobile.50**, with version code **50**, to update previously distributed build 49. Build it from the clean source checkpoint with `BUILD_ANDROID.ps1 -SkipDeviceProbe`; current archive, signing, embedded-source and ABI evidence goes into `output/mobile/build-report.json` and `output/mobile/apk-report.json`. Distribution uses the repository's `v0.7.0-mobile.50` test release. Matching Local Play peers require protocol 32, schema 48, and the same gameplay source fingerprint. Physical-device acceptance remains separate from package verification.
+The October 22 update was distributed as **0.7.0-mobile.50**, with version code **50**, to update build 49. Its historical release is `v0.7.0-mobile.50`, protocol 32/schema 48. The October 24 refinement above supersedes it with build **51**, protocol **33**/schema **49**. Build from clean source with `BUILD_ANDROID.ps1 -SkipDeviceProbe`; archive, signing, embedded-source and ABI evidence goes into `output/mobile/build-report.json` and `output/mobile/apk-report.json`. Physical-device acceptance remains separate from package verification.
 
 ![Native battle screen with party fog](../output/battle-terrain/production-default.png)
 
